@@ -1,0 +1,236 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum SchoolStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  DEACTIVATED
+  EXPIRED
+}
+
+enum LicensePlan {
+  TRIAL
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+}
+
+model Tenant {
+  id                   String        @id @default(uuid())
+  schoolCode           String        @unique
+  name                 String
+  eiinNumber           String?
+  division             String?
+  district             String?
+  upazila              String?
+  address              String?
+  contactPhone         String
+  contactEmail         String?
+  principalName        String?
+  principalPhone       String?
+  authorizedPerson     String?
+  studentCountEstimate Int?
+  teacherCountEstimate Int?
+  logoUrl              String?
+  status               SchoolStatus  @default(PENDING)
+  rejectionReason      String?
+  suspensionReason     String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
+
+  // Relations
+  licenses    SchoolLicense[]
+  devices     SchoolDevice[]
+  users       User[]
+  classes     Class[]
+  subjects    Subject[]
+  auditLogs   CentralAuditLog[]
+  syncRecords CentralSyncRecord[]
+
+  @@index([status])
+  @@index([schoolCode])
+}
+
+model SchoolLicense {
+  id              String      @id @default(uuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  licenseKey      String      @unique
+  planType        LicensePlan @default(STANDARD)
+  maxDevices      Int         @default(2)
+  maxStudents     Int         @default(1500)
+  validFrom       DateTime    @default(now())
+  validUntil      DateTime
+  gracePeriodDays Int         @default(7)
+  lastVerifiedAt  DateTime?
+  signedPayload   String      @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([licenseKey])
+}
+
+model SchoolDevice {
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deviceName      String
+  fingerprintHash String
+  osInfo          String?
+  appVersion      String?
+  isActive        Boolean   @default(true)
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([tenantId, fingerprintHash])
+  @@index([tenantId])
+}
+
+model SoftwareRelease {
+  id                  String   @id @default(uuid())
+  versionNumber       String   @unique
+  releaseChannel      String   @default("STABLE") // STABLE, BETA
+  minSupportedVersion String?
+  downloadUrl         String   @db.Text
+  packageSha256       String
+  signature           String   @db.Text
+  packageSizeBytes    BigInt   @default(0)
+  releaseNotes        String?  @db.Text
+  isCritical          Boolean  @default(false)
+  publishedAt         DateTime @default(now())
+
+  @@index([versionNumber])
+}
+
+model CentralAuditLog {
+  id                String   @id @default(uuid())
+  tenantId          String?
+  tenant            Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  userId            String?
+  userEmail         String?
+  action            String
+  details           Json?
+  ipAddress         String?
+  deviceFingerprint String?
+  createdAt         DateTime @default(now())
+
+  @@index([tenantId, action])
+  @@index([createdAt])
+}
+
+model CentralSyncRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entityType        String
+  entityId          String
+  action            String // CREATE, UPDATE, DELETE
+  payload           Json
+  version           Int      @default(1)
+  idempotencyKey    String   @unique
+  deviceFingerprint String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId, entityType, entityId])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+  HR
+  ACCOUNTANT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+model StudentProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admissionNo String   @unique
+  dateOfBirth DateTime
+  gender      String
+
+  attendances Attendance[]
+}
+
+model TeacherProfile {
+  id            String @id @default(uuid())
+  userId        String @unique
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId    String @unique
+  qualification String
+}
+
+model Class {
+  id       String    @id @default(uuid())
+  tenantId String
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String
+  sections Section[]
+
+  @@index([tenantId])
+}
+
+model Section {
+  id      String @id @default(uuid())
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name    String
+}
+
+model Subject {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String
+  code     String
+
+  @@index([tenantId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+model Attendance {
+  id        String           @id @default(uuid())
+  studentId String
+  student   StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  date      DateTime
+  status    AttendanceStatus
+}

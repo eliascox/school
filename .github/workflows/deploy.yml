@@ -1,0 +1,123 @@
+name: SchoolPro Production CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # 1. Validation & Test Suite
+  # ============================================================================
+  validate-and-test:
+    name: Code Quality & Automated Resilience Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm install
+
+      - name: Build Shared Packages
+        run: |
+          npm run build --workspace=@sms/shared-types
+          npm run build --workspace=@sms/crypto-utils
+
+      - name: Run Cryptography Suite Tests
+        run: npm test --workspace=@sms/crypto-utils
+
+      - name: Validate Central API (NestJS + Prisma Build)
+        run: |
+          cd apps/api
+          npx prisma generate
+          npm run build
+
+      - name: Validate Super Admin Web Console (Typecheck & Static Export)
+        run: |
+          cd apps/web
+          npx tsc --noEmit
+          npm run build
+
+      - name: Run Offline Resilience & Disaster Recovery Test Suite
+        run: |
+          cd apps/desktop
+          node test-resilience-suite.js
+
+  # ============================================================================
+  # 2. Production Docker Container Build
+  # ============================================================================
+  build-docker-images:
+    name: Build Production Docker Images
+    needs: validate-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Central API Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: schoolpro-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Super Admin Web Portal Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: schoolpro-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # 3. Production Deployment (Zero-Downtime Rollout)
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Production VPS
+    needs: build-docker-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Remote Deployment via SSH
+        if: env.SSH_HOST != ''
+        env:
+          SSH_HOST: ${{ secrets.PROD_SERVER_HOST }}
+          SSH_USER: ${{ secrets.PROD_SERVER_USER }}
+          SSH_KEY: ${{ secrets.PROD_SERVER_SSH_KEY }}
+        run: |
+          echo "Connecting to production host and rolling out updates..."
+          # Example automated production rollout hook:
+          # ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'EOF'
+          #   cd /opt/schoolpro
+          #   git pull origin main
+          #   docker compose -f docker-compose.prod.yml up -d --build
+          #   docker compose -f docker-compose.prod.yml exec -T api curl -f http://localhost:3000/api/v1/health
+          # EOF
+          echo "Production deployment steps staged."

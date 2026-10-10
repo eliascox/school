@@ -1,0 +1,16 @@
+﻿<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Serve existing files or directories directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2. Rewrite clean URLs to their .html counterpart
+  RewriteCond %{DOCUMENT_ROOT}/.html -f
+  RewriteRule ^(.*)$ .html [L]
+
+  # 3. Fallback to index.html for client routing
+  RewriteRule ^ index.html [L]
+</IfModule>

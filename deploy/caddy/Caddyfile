@@ -1,0 +1,78 @@
+# ==============================================================================
+# SchoolPro Production Caddyfile - Reverse Proxy & Automated TLS/HTTPS
+# ==============================================================================
+
+{
+    # Global options
+    email {$ACME_EMAIL:admin@example.com}
+    admin off
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
+}
+
+# Production Site Configuration
+{$DOMAIN_NAME:localhost} {
+    # Encoding & Compression
+    encode zstd gzip
+
+    # Enterprise Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # Route 1: Central Cloud API & Sync Engine
+    handle /api/* {
+        reverse_proxy api:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+
+            # WebSocket Support
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+
+            # Timeouts for batch sync payloads
+            transport http {
+                dial_timeout 10s
+                response_header_timeout 60s
+            }
+        }
+    }
+
+    # Route 2: Central Uploads / Software Releases
+    handle /uploads/* {
+        reverse_proxy api:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Route 3: Super Admin Web Console & Dashboard
+    handle {
+        reverse_proxy web:80 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Logging to stdout for Docker log aggregation
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+}

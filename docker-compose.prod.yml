@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # 1. Primary Relational Database (PostgreSQL 16 Alpine)
+  # ==============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: schoolpro-postgres
+    restart: always
+    shm_size: 256MB
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-schoolpro_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMeInProduction_Secret123!}
+      POSTGRES_DB: ${POSTGRES_DB:-schoolpro_production}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-schoolpro_admin} -d ${POSTGRES_DB:-schoolpro_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - schoolpro-backend
+
+  # ==============================================================================
+  # 2. In-Memory Cache & Rate Limiting Store (Redis 7 Alpine)
+  # ==============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: schoolpro-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD:-schoolpro_redis_secret} --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-schoolpro_redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - schoolpro-backend
+
+  # ==============================================================================
+  # 3. Central NestJS Backend & Sync Authority
+  # ==============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: schoolpro-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DATABASE_URL: postgresql://${POSTGRES_USER:-schoolpro_admin}:${POSTGRES_PASSWORD:-ChangeMeInProduction_Secret123!}@postgres:5432/${POSTGRES_DB:-schoolpro_production}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-schoolpro_redis_secret}
+      JWT_SECRET: ${JWT_SECRET:-SUPER_SECRET_PRODUCTION_JWT_KEY_MIN_32_CHARS_LONG}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN_NAME:-localhost}}
+      ED25519_PRIVATE_KEY: ${ED25519_PRIVATE_KEY}
+      ED25519_PUBLIC_KEY: ${ED25519_PUBLIC_KEY}
+      RUN_SEED: ${RUN_SEED:-false}
+    volumes:
+      - uploads_data:/app/apps/api/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - schoolpro-backend
+      - schoolpro-frontend
+
+  # ==============================================================================
+  # 4. Super Admin Web Console & Dashboard (Nginx Alpine)
+  # ==============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: schoolpro-web
+    restart: always
+    networks:
+      - schoolpro-frontend
+
+  # ==============================================================================
+  # 5. Caddy Reverse Proxy & Automatic HTTPS Gateway
+  # ==============================================================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: schoolpro-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC)
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@schoolpro.internal}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    networks:
+      - schoolpro-frontend
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  schoolpro-backend:
+    internal: true
+  schoolpro-frontend:
+    driver: bridge
