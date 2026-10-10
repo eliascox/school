@@ -291,10 +291,10 @@ export default function TeacherManagementPage() {
     }
   };
 
-  const handleAddTeacher = (e: React.FormEvent) => {
+  const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return showAlert('error', 'নাম এবং ফোন নম্বর প্রদান করুন!');
-    const res = teacherRBACService.createTeacher({
+    const res = await teacherRBACService.createTeacher({
       name: name.trim(), phone: phone.trim(), designation, dob,
       photoUrl: photoUrl.trim() || undefined, status: 'active',
       passwordHash: initialPassword.trim() || '123456'
@@ -306,10 +306,10 @@ export default function TeacherManagementPage() {
     } else { showAlert('error', res.message); }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetTeacherId || !newPassword.trim()) return;
-    const res = teacherRBACService.resetPassword(resetTeacherId, newPassword.trim());
+    const res = await teacherRBACService.resetPassword(resetTeacherId, newPassword.trim());
     if (res.success) {
       showAlert('success', res.message);
       setShowResetModal(false); setNewPassword('123456');

@@ -2,6 +2,7 @@
 
 import { smsService } from './smsService';
 import { settingsService } from './settingsService';
+import { hashPassword, verifyPassword } from '@/lib/passwordUtils';
 
 export interface TeacherAccount {
   id: string; // TCH-101
@@ -21,6 +22,9 @@ export interface UserSession {
   role: 'admin' | 'teacher';
   teacherId?: string;
   teacherName?: string;
+  loginAt?: number;
+  lastActiveAt?: number;
+  expiresAt?: number;
 }
 
 // Helper: Normalize phone numbers (convert Bengali digits, remove dashes/spaces/country code)
@@ -38,13 +42,19 @@ export function normalizePhoneNumber(raw?: string): string {
 }
 
 export const teacherAuthService = {
-  // Get Current Active Session
+  // Get Current Active Session (SEC-104: with session timeout validation)
   getSession: (): UserSession | null => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('sms_current_session');
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const session: UserSession = JSON.parse(stored);
+          // Check session expiry (default 24h lifetime)
+          if (session.expiresAt && Date.now() > session.expiresAt) {
+            localStorage.removeItem('sms_current_session');
+            return null;
+          }
+          return session;
         } catch (e) {
           console.error(e);
         }
@@ -53,11 +63,29 @@ export const teacherAuthService = {
     return null;
   },
 
-  // Set Session
+  // Set Session with lifetime metadata
   setSession: (session: UserSession) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sms_current_session', JSON.stringify(session));
+      const now = Date.now();
+      const sessionWithTiming: UserSession = {
+        ...session,
+        loginAt: session.loginAt || now,
+        lastActiveAt: now,
+        expiresAt: session.expiresAt || (now + 24 * 60 * 60 * 1000), // 24 hours
+      };
+      localStorage.setItem('sms_current_session', JSON.stringify(sessionWithTiming));
       window.dispatchEvent(new Event('storage'));
+    }
+  },
+
+  // Refresh active session activity timestamp
+  touchSession: () => {
+    if (typeof window !== 'undefined') {
+      const session = teacherAuthService.getSession();
+      if (session) {
+        session.lastActiveAt = Date.now();
+        localStorage.setItem('sms_current_session', JSON.stringify(session));
+      }
     }
   },
 
@@ -107,7 +135,11 @@ export const teacherAuthService = {
   },
 
   // Unified Login (Teacher User ID is Phone Number, Admin is 'admin' or admin phone)
-  unifiedLogin: (identifier: string, passwordInput: string): { success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount } => {
+  // SEC-102: Uses PBKDF2 WebCrypto verification with transparent legacy migration
+  unifiedLogin: async (
+    identifier: string,
+    passwordInput: string
+  ): Promise<{ success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount }> => {
     if (typeof window === 'undefined') return { success: false, message: 'ক্লিপবোর্ড বা ব্রাউজার অনুপস্থিত' };
 
     const cleanInput = identifier.trim();
@@ -133,10 +165,22 @@ export const teacherAuthService = {
       (inputDigits.length >= 10 && inputDigits === adminDigits) ||
       cleanInput === '01700000000';
     
-    if (isAdminIdentifier && cleanPass === storedAdminPass) {
-      const session: UserSession = { role: 'admin' };
-      teacherAuthService.setSession(session);
-      return { success: true, message: 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!', role: 'admin' };
+    if (isAdminIdentifier) {
+      const verification = await verifyPassword(cleanPass, storedAdminPass);
+      if (verification.valid) {
+        // SEC-102: Transparent Migration from legacy plaintext to PBKDF2 hash
+        if (verification.needsRehash) {
+          try {
+            const secureHash = await hashPassword(cleanPass);
+            localStorage.setItem('sms_admin_password', secureHash);
+          } catch (e) {
+            console.error('Failed to migrate admin password to secure hash', e);
+          }
+        }
+        const session: UserSession = { role: 'admin' };
+        teacherAuthService.setSession(session);
+        return { success: true, message: 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!', role: 'admin' };
+      }
     }
 
     // 2. Check Teacher Accounts (Primary User ID = Teacher Phone Number)
@@ -153,8 +197,31 @@ export const teacherAuthService = {
     });
 
     if (found) {
-      const validPass = found.passwordHash || found.password;
-      if (validPass && cleanPass === validPass) {
+      const storedTeacherPass = found.passwordHash || found.password || '123456';
+      const verification = await verifyPassword(cleanPass, storedTeacherPass);
+      if (verification.valid) {
+        // SEC-102: Transparent Migration from legacy plaintext to PBKDF2 hash
+        if (verification.needsRehash) {
+          try {
+            const secureHash = await hashPassword(cleanPass);
+            // Migrate in sms_rbac_teachers
+            const storedRBAC = localStorage.getItem('sms_rbac_teachers');
+            if (storedRBAC) {
+              const list = JSON.parse(storedRBAC);
+              const next = list.map((t: any) => t.id === found.id ? { ...t, passwordHash: secureHash } : t);
+              localStorage.setItem('sms_rbac_teachers', JSON.stringify(next));
+            }
+            // Migrate in sms_teachers_list
+            const storedTch = localStorage.getItem('sms_teachers_list');
+            if (storedTch) {
+              const list = JSON.parse(storedTch);
+              const next = list.map((t: any) => t.id === found.id ? { ...t, passwordHash: secureHash } : t);
+              localStorage.setItem('sms_teachers_list', JSON.stringify(next));
+            }
+          } catch (e) {
+            console.error('Failed to migrate teacher password to secure hash', e);
+          }
+        }
         const session: UserSession = {
           role: 'teacher',
           teacherId: found.id,
@@ -174,20 +241,22 @@ export const teacherAuthService = {
     return teacherAuthService.unifiedLogin(identifier, passwordInput);
   },
 
-  // Set Admin Password (Admin functionality)
-  setAdminPassword: (newPassword: string, newPhone?: string) => {
+  // Set Admin Password (Admin functionality - SEC-102: hashes before storing)
+  setAdminPassword: async (newPassword: string, newPhone?: string) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sms_admin_password', newPassword);
+      const secureHash = await hashPassword(newPassword);
+      localStorage.setItem('sms_admin_password', secureHash);
       if (newPhone) {
         localStorage.setItem('sms_admin_phone', newPhone);
       }
     }
   },
 
-  // Set/Update Teacher Password (Admin functionality - 'পাসওয়ার্ড এডমিন সেটিংস করে দিবে')
-  setTeacherPassword: (teacherId: string, newPassword: string) => {
+  // Set/Update Teacher Password (Admin functionality - SEC-102: hashes before storing)
+  setTeacherPassword: async (teacherId: string, newPassword: string) => {
     if (typeof window === 'undefined') return { success: false, message: 'ব্রাউজার এনভায়রনমেন্ট পাওয়া যায়নি' };
 
+    const secureHash = await hashPassword(newPassword);
     let updated = false;
     // Update in sms_rbac_teachers
     const storedRBAC = localStorage.getItem('sms_rbac_teachers');
@@ -197,7 +266,7 @@ export const teacherAuthService = {
         const next = list.map((t: any) => {
           if (t.id === teacherId) {
             updated = true;
-            return { ...t, passwordHash: newPassword, password: newPassword, mustChangePassword: false };
+            return { ...t, passwordHash: secureHash, mustChangePassword: false };
           }
           return t;
         });
@@ -213,7 +282,7 @@ export const teacherAuthService = {
         const next = list.map((t: any) => {
           if (t.id === teacherId) {
             updated = true;
-            return { ...t, password: newPassword, passwordHash: newPassword, mustChangePassword: false };
+            return { ...t, passwordHash: secureHash, mustChangePassword: false };
           }
           return t;
         });
@@ -307,8 +376,8 @@ export const teacherAuthService = {
     }
   },
 
-  // Step 3: Complete Password Reset with Verified OTP
-  resetTeacherPasswordWithOTP: (rawPhone: string, otp: string, newPassword: string): { success: boolean; message: string } => {
+  // Step 3: Complete Password Reset with Verified OTP (SEC-102: hashes before storing)
+  resetTeacherPasswordWithOTP: async (rawPhone: string, otp: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     const verifyRes = teacherAuthService.verifyTeacherResetOTP(rawPhone, otp);
     if (!verifyRes.success) {
       return verifyRes;
@@ -328,8 +397,8 @@ export const teacherAuthService = {
     const record = JSON.parse(storedRaw);
     const teacherId = record.teacherId;
 
-    // Update password
-    teacherAuthService.setTeacherPassword(teacherId, cleanPass);
+    // Update password securely
+    await teacherAuthService.setTeacherPassword(teacherId, cleanPass);
 
     // Clear OTP from storage
     localStorage.removeItem(`sms_teacher_otp_${cleanDigits}`);

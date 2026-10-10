@@ -1,6 +1,7 @@
 'use client';
 
 import { auditTrailService } from './auditTrailService';
+import { hashPassword } from '@/lib/passwordUtils';
 
 // ==============================================================================
 // TEACHER MANAGEMENT & ROLE-BASED ACCESS CONTROL (RBAC) SERVICE ENGINE
@@ -87,7 +88,7 @@ class TeacherRBACService {
     return teachers;
   }
 
-  createTeacher(data: Omit<TeacherRecord, 'id' | 'createdAt' | 'mustChangePassword'>): { success: boolean; message: string; teacher?: TeacherRecord } {
+  async createTeacher(data: Omit<TeacherRecord, 'id' | 'createdAt' | 'mustChangePassword'>): Promise<{ success: boolean; message: string; teacher?: TeacherRecord }> {
     if (typeof window === 'undefined') return { success: false, message: 'Browser environment missing' };
     
     const teachers = this.getTeachers();
@@ -98,8 +99,12 @@ class TeacherRBACService {
       return { success: false, message: `ফোন নম্বর/ইউজারনেম '${data.phone}' ইতিমধ্যে রেজিস্টার করা আছে!` };
     }
 
+    const rawPassword = data.passwordHash || '123456';
+    const secureHash = rawPassword.startsWith('pbkdf2:') ? rawPassword : await hashPassword(rawPassword);
+
     const newTeacher: TeacherRecord = {
       ...data,
+      passwordHash: secureHash,
       id: `TCH-${Math.floor(1000 + Math.random() * 9000)}`,
       mustChangePassword: true, // MANDATORY CHANGE ON FIRST LOGIN
       createdAt: new Date().toISOString()
@@ -128,12 +133,13 @@ class TeacherRBACService {
     return { success: true, message: 'শিক্ষক সফলভাবে যুক্ত করা হয়েছে!', teacher: newTeacher };
   }
 
-  resetPassword(teacherId: string, newRawPassword: string): { success: boolean; message: string } {
+  async resetPassword(teacherId: string, newRawPassword: string): Promise<{ success: boolean; message: string }> {
     const teachers = this.getTeachers();
     const idx = teachers.findIndex(t => t.id === teacherId);
     if (idx === -1) return { success: false, message: 'শিক্ষক খুঁজে পাওয়া যায়নি' };
 
-    teachers[idx].passwordHash = newRawPassword; // In backend, hash with bcrypt
+    const secureHash = newRawPassword.startsWith('pbkdf2:') ? newRawPassword : await hashPassword(newRawPassword);
+    teachers[idx].passwordHash = secureHash; // SEC-102: PBKDF2 hash
     teachers[idx].mustChangePassword = true; // Mandatory password change flag reactivated
     localStorage.setItem('sms_rbac_teachers', JSON.stringify(teachers));
 

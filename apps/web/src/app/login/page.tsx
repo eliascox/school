@@ -99,19 +99,24 @@ function LoginForm() {
       localStorage.removeItem('sms_remember_identifier');
     }
 
-    setTimeout(() => {
-      const res = teacherAuthService.unifiedLogin(identifier, password);
-      if (res.success) {
-        setSuccessMessage(res.message);
-        setTimeout(() => {
-          if (res.role === 'teacher') {
-            router.push('/dashboard/teacher-portal');
-          } else {
-            router.push('/dashboard');
-          }
-        }, 600);
-      } else {
-        setErrorMessage(res.message || 'ভুল ইউজারনেম অথবা পাসওয়ার্ড!');
+    setTimeout(async () => {
+      try {
+        const res = await teacherAuthService.unifiedLogin(identifier, password);
+        if (res.success) {
+          setSuccessMessage(res.message);
+          setTimeout(() => {
+            if (res.role === 'teacher') {
+              router.push('/dashboard/teacher-portal');
+            } else {
+              router.push('/dashboard');
+            }
+          }, 600);
+        } else {
+          setErrorMessage(res.message || 'ভুল ইউজারনেম অথবা পাসওয়ার্ড!');
+          setIsLoading(false);
+        }
+      } catch (err: any) {
+        setErrorMessage('লগইন প্রক্রিয়ায় ত্রুটি হয়েছে। পুনরায় চেষ্টা করুন।');
         setIsLoading(false);
       }
     }, 400);

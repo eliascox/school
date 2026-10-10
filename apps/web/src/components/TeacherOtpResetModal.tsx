@@ -184,18 +184,23 @@ export default function TeacherOtpResetModal({
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const res = teacherAuthService.resetTeacherPasswordWithOTP(phone, otp, newPassword);
-      setIsLoading(false);
+    setTimeout(async () => {
+      try {
+        const res = await teacherAuthService.resetTeacherPasswordWithOTP(phone, otp, newPassword);
+        setIsLoading(false);
 
-      if (res.success) {
-        setSuccessMsg(res.message);
-        setTimeout(() => {
-          onSuccess(normalizePhoneNumber(phone), newPassword);
-          onClose();
-        }, 1200);
-      } else {
-        setErrorMsg(res.message);
+        if (res.success) {
+          setSuccessMsg(res.message);
+          setTimeout(() => {
+            onSuccess(normalizePhoneNumber(phone), newPassword);
+            onClose();
+          }, 1200);
+        } else {
+          setErrorMsg(res.message);
+        }
+      } catch (err: any) {
+        setIsLoading(false);
+        setErrorMsg('পাসওয়ার্ড আপডেটে সমস্যা হয়েছে।');
       }
     }, 400);
   };

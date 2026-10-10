@@ -71,7 +71,13 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
 
-  const port = process.env.PORT ?? 3000;
+  // Validate critical security secrets in production
+  if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'super-secret')) {
+    throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable must be set to a secure secret in production.');
+  }
+
+  // Default Central API port is 4000 to prevent collision with web frontend on 3000
+  const port = process.env.PORT ?? 4000;
   await app.listen(port);
   console.log(`[SchoolPro Central API] Running securely on port ${port}`);
 }

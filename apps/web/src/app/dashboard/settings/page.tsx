@@ -263,7 +263,13 @@ export default function SettingsPage() {
       if (storedPhone) setAdminPhoneInput(storedPhone);
 
       const storedPass = localStorage.getItem('sms_admin_password');
-      if (storedPass) setAdminPassInput(storedPass);
+      if (storedPass) {
+        if (storedPass.startsWith('pbkdf2:')) {
+          setAdminPassInput('');
+        } else {
+          setAdminPassInput(storedPass);
+        }
+      }
 
       const stored = localStorage.getItem('sms_uploaded_students');
       if (stored) {
@@ -414,12 +420,14 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     settingsService.updateSettings(formData);
     if (typeof window !== 'undefined') {
       localStorage.setItem('sms_admin_phone', adminPhoneInput.trim());
-      localStorage.setItem('sms_admin_password', adminPassInput.trim());
+      if (adminPassInput.trim() && !adminPassInput.trim().startsWith('pbkdf2:')) {
+        await teacherAuthService.setAdminPassword(adminPassInput.trim(), adminPhoneInput.trim());
+      }
       localStorage.setItem('sms_academic_session', currentSession);
       localStorage.setItem('sms_exam_names', JSON.stringify(examNames));
     }

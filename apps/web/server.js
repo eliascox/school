@@ -24,6 +24,20 @@ const MIME_TYPES = {
 };
 
 function createStaticServer(port) {
+  // BUG-001: Canonical origin redirect. Port 3001 redirects to 3000 to prevent split localStorage databases
+  if (port === 3001) {
+    const server = http.createServer((req, res) => {
+      const host = (req.headers.host || 'localhost:3001').replace(':3001', ':3000');
+      res.writeHead(301, { 'Location': `http://${host}${req.url}` });
+      res.end();
+    });
+    server.on('error', (err) => console.log(`[PORT ${port}] Warning: ${err.message}`));
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`[SMS REDIRECT READY] http://localhost:3001 -> http://localhost:3000 (Single Origin Canonical Guard)`);
+    });
+    return server;
+  }
+
   const server = http.createServer((req, res) => {
     // ─── SMS API GATEWAY PROXY (Prevents Browser CORS Errors) ───
     if (req.url.startsWith('/api/sms-proxy')) {
