@@ -422,6 +422,24 @@ export const studentService = {
     localStorage.setItem('sms_waivers', JSON.stringify([]));
     localStorage.setItem('sms_refunds', JSON.stringify([]));
 
+    // Reset bank balances & chart of accounts balances to 0
+    try {
+      const banks = localStorage.getItem('sms_bank_accounts');
+      if (banks) {
+        const parsedBanks = JSON.parse(banks);
+        if (Array.isArray(parsedBanks)) {
+          localStorage.setItem('sms_bank_accounts', JSON.stringify(parsedBanks.map((b: any) => ({ ...b, balance: 0 }))));
+        }
+      }
+      const coa = localStorage.getItem('sms_chart_of_accounts');
+      if (coa) {
+        const parsedCoa = JSON.parse(coa);
+        if (Array.isArray(parsedCoa)) {
+          localStorage.setItem('sms_chart_of_accounts', JSON.stringify(parsedCoa.map((c: any) => ({ ...c, openingBalance: 0 }))));
+        }
+      }
+    } catch (e) {}
+
     localStorage.setItem('sms_demo_cleared', 'true');
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());

@@ -940,6 +940,76 @@ function FinanceContent() {
     note: 'দৈনিক ফি আদায়ের উদ্বৃত্ত অর্থ ব্যাংকে জমা'
   });
 
+  const [showBankEditModal, setShowBankEditModal] = useState(false);
+  const [editingBank, setEditingBank] = useState<BankAccount | null>(null);
+  const [bankModalForm, setBankModalForm] = useState({
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    branch: '',
+    accountCode: '1020',
+    balance: 0
+  });
+
+  const handleOpenBankModal = (b: BankAccount | null) => {
+    if (b) {
+      setEditingBank(b);
+      setBankModalForm({
+        bankName: b.bankName,
+        accountName: b.accountName,
+        accountNumber: b.accountNumber,
+        branch: b.branch,
+        accountCode: b.accountCode || '1020',
+        balance: b.balance
+      });
+    } else {
+      setEditingBank(null);
+      setBankModalForm({
+        bankName: '',
+        accountName: '',
+        accountNumber: '',
+        branch: '',
+        accountCode: `10${(bankAccounts.length + 2) * 10}`,
+        balance: 0
+      });
+    }
+    setShowBankEditModal(true);
+  };
+
+  const handleSaveBankModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bankModalForm.bankName.trim()) {
+      alert('অনুগ্রহ করে ব্যাংকের নাম প্রদান করুন');
+      return;
+    }
+    financeService.addOrUpdateBankAccount({
+      id: editingBank ? editingBank.id : `bank-${Date.now()}`,
+      bankName: bankModalForm.bankName.trim(),
+      accountName: bankModalForm.accountName.trim() || bankModalForm.bankName.trim(),
+      accountNumber: bankModalForm.accountNumber.trim(),
+      branch: bankModalForm.branch.trim(),
+      accountCode: bankModalForm.accountCode.trim(),
+      balance: Number(bankModalForm.balance) || 0
+    });
+    loadAllData();
+    setShowBankEditModal(false);
+  };
+
+  const handleDeleteBank = (id: string, name: string) => {
+    if (confirm(`আপনি কি নিশ্চিত যে "${name}" ব্যাংক হিসাবটি ডিলিট করতে চান?`)) {
+      financeService.deleteBankAccount(id);
+      loadAllData();
+    }
+  };
+
+  const handleResetAllBankBalances = () => {
+    if (confirm('আপনি কি সকল ব্যাংকের স্থিতি ও ব্যালেন্স ৳০ করতে চান? এতে পূর্বের ডেমো টাকা মুছে যাবে।')) {
+      financeService.resetAllBankBalancesToZero();
+      loadAllData();
+      alert('সকল ব্যাংক হিসাবের ব্যালেন্স সফলভাবে ৳০ করা হয়েছে!');
+    }
+  };
+
   const handleSaveBankTransfer = (e: React.FormEvent) => {
     e.preventDefault();
     financeService.postContraJournal({
@@ -4232,17 +4302,32 @@ function FinanceContent() {
               </div>
             </div>
 
-            <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
+            <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
               <div>
                 <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Landmark className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   ক্যাশ ও ব্যাংক হিসাব ব্যবস্থাপনা (Cash & Bank Management)
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  হাতে নগদ ড্রয়ার, সোনালী, ইসলামী ব্যাংক ও ডাচ্-বাংলা ব্যাংক হিসাব ও কন্ট্রা ট্রান্সফার
+                  হাতে নগদ ড্রয়ার, সোনালী, ইসলামী ব্যাংক ও ডাচ্-বাংলা ব্যাংক হিসাব, ব্যালেন্স এডিট ও ফান্ড ট্রান্সফার
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleResetAllBankBalances}
+                  title="সকল ব্যাংকের ডেমো ব্যালেন্স ০ করতে ক্লিক করুন"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <span>ব্যালেন্স রিসেট (৳০)</span>
+                </button>
+                <button
+                  onClick={() => handleOpenBankModal(null)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Plus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <span>নতুন ব্যাংক হিসাব</span>
+                </button>
                 <button
                   onClick={() => window.print()}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
@@ -4263,22 +4348,52 @@ function FinanceContent() {
             {/* Bank Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {bankAccounts.map((b, idx) => (
-                <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3 print:bg-white print:border-black">
+                <div key={b.id || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3 print:bg-white print:border-black relative group transition-all hover:border-sky-300 dark:hover:border-sky-700">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20 font-bold">
                       <Landmark className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
-                      কোড: {b.accountCode}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
+                        কোড: {b.accountCode}
+                      </span>
+                      <button
+                        onClick={() => handleOpenBankModal(b)}
+                        className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="ব্যাংক হিসাব ও ব্যালেন্স এডিট করুন"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      {bankAccounts.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteBank(b.id, b.bankName)}
+                          className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          title="হিসাব মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-slate-900 dark:text-white print:text-black">{b.bankName}</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{b.accountName}</p>
+                    {b.branch && (
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{b.branch}</p>
+                    )}
                     <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">হিসাব নং: {b.accountNumber}</p>
                   </div>
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">বর্তমান স্থিতি:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">বর্তমান স্থিতি:</span>
+                      <button
+                        onClick={() => handleOpenBankModal(b)}
+                        className="print:hidden text-[11px] text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer"
+                        title="ব্যালেন্স এডিট করতে ক্লিক করুন"
+                      >
+                        (এডিট)
+                      </button>
+                    </div>
                     <span className="text-lg font-black font-mono text-sky-700 dark:text-sky-400 print:text-black">৳ {b.balance.toLocaleString('bn-BD')}</span>
                   </div>
                 </div>
@@ -5473,9 +5588,9 @@ function FinanceContent() {
                   onChange={e => setBankTransferForm({ ...bankTransferForm, to: e.target.value })}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="bank-1">সোনালী ব্যাংক পিএলসি (Sonali Bank)</option>
-                  <option value="bank-2">ইসলামী ব্যাংক বাংলাদেশ (IBBL)</option>
-                  <option value="bank-3">ডাচ-বাংলা ব্যাংক পিএলসি (DBBL)</option>
+                  {bankAccounts.map(b => (
+                    <option key={b.id} value={b.id}>{b.bankName} ({b.accountNumber || b.accountCode})</option>
+                  ))}
                 </select>
               </div>
 
@@ -5514,6 +5629,139 @@ function FinanceContent() {
                   className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold"
                 >
                   ট্রান্সফার সম্পন্ন ও কন্ট্রা এন্ট্রি
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════ */}
+      {/* MODAL 3B: BANK ACCOUNT ADD / EDIT MODAL                     */}
+      {/* ═════════════════════════════════════════════════════════════ */}
+      {showBankEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                {editingBank ? 'ব্যাংক হিসাব এডিট ও ব্যালেন্স পরিবর্তন' : 'নতুন ব্যাংক হিসাব যুক্ত করুন'}
+              </h3>
+              <button
+                onClick={() => setShowBankEditModal(false)}
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBankModal} className="space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  ব্যাংকের নাম <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: সোনালী ব্যাংক পিএলসি"
+                  value={bankModalForm.bankName}
+                  onChange={e => setBankModalForm({ ...bankModalForm, bankName: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  হিসাবের নাম (Account Title)
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয় সাধারণ তহবিল"
+                  value={bankModalForm.accountName}
+                  onChange={e => setBankModalForm({ ...bankModalForm, accountName: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    হিসাব নম্বর (Account Number)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: 1042003819201"
+                    value={bankModalForm.accountNumber}
+                    onChange={e => setBankModalForm({ ...bankModalForm, accountNumber: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    শাখা (Branch)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: চকরিয়া শাখা, কক্সবাজার"
+                    value={bankModalForm.branch}
+                    onChange={e => setBankModalForm({ ...bankModalForm, branch: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    হিসাব কোড (COA Account Code)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: 1020, 1030, 1040"
+                    value={bankModalForm.accountCode}
+                    onChange={e => setBankModalForm({ ...bankModalForm, accountCode: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    বর্তমান স্থিতি / প্রারম্ভিক জের (টাকা)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">৳</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={bankModalForm.balance}
+                      onChange={e => setBankModalForm({ ...bankModalForm, balance: Number(e.target.value) || 0 })}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-900 dark:text-white font-mono font-bold outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <span>
+                  ডেমো ডাটা মুছে ফেলার পর যদি কোনো ডেমো ব্যালেন্স অবশিষ্ট থাকে, তবে এখানে <strong>০ (শূন্য)</strong> লিখে সেভ করুন অথবা উপরের "ব্যালেন্স রিসেট (৳০)" বাটনে ক্লিক করুন।
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowBankEditModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-600/20 cursor-pointer active:scale-95"
+                >
+                  {editingBank ? 'পরিবর্তন সংরক্ষণ করুন' : 'হিসাব সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>

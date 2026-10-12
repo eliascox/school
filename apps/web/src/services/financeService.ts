@@ -289,26 +289,26 @@ export interface FeeCollectionStats {
 // ─── DEFAULT CHART OF ACCOUNTS (STANDARD 5 CATEGORIES) ───────────────
 export const DEFAULT_CHART_OF_ACCOUNTS: AccountHead[] = [
   // 1. Assets (1000 - 1999)
-  { code: '1010', name: 'Cash in Hand', nameBn: 'হাতে নগদ (ক্যাশ ইন হ্যান্ড)', category: 'Asset', subCategory: 'Current Asset', openingBalance: 85400, isSystem: true, description: 'বিদ্যালয় প্রধান হিসাবরক্ষণ ক্যাশ ড্রয়ার' },
-  { code: '1020', name: 'Sonali Bank PLC (A/C 1042)', nameBn: 'সোনালী ব্যাংক পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 580000, isSystem: true, description: 'সাধারণ চলতি হিসাব নং ১০৪২০০৩৮১৯২০১' },
-  { code: '1030', name: 'Islami Bank Bangladesh PLC (A/C 2050)', nameBn: 'ইসলামী ব্যাংক বাংলাদেশ পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 320000, isSystem: true, description: 'উন্নয়ন তহবিল হিসাব নং ২০৫০২১০০৩৪৮৯১' },
-  { code: '1040', name: 'Dutch-Bangla Bank PLC (A/C 1151)', nameBn: 'ডাচ-বাংলা ব্যাংক পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 185000, isSystem: true, description: 'অনলাইন ফি কালেকশন হিসাব নং ১১৫১২০০৪৯২১০০' },
-  { code: '1050', name: 'bKash Merchant Account', nameBn: 'বিকাশ মার্চেন্ট ওয়ালেট', category: 'Asset', subCategory: 'Mobile Banking', openingBalance: 45000, isSystem: true, description: 'ডিজিটাল ফি আদায় গেটওয়ে' },
-  { code: '1060', name: 'Nagad Merchant Account', nameBn: 'নগদ মার্চেন্ট ওয়ালেট', category: 'Asset', subCategory: 'Mobile Banking', openingBalance: 28000, isSystem: true, description: 'ডিজিটাল ফি আদায় গেটওয়ে' },
+  { code: '1010', name: 'Cash in Hand', nameBn: 'হাতে নগদ (ক্যাশ ইন হ্যান্ড)', category: 'Asset', subCategory: 'Current Asset', openingBalance: 0, isSystem: true, description: 'বিদ্যালয় প্রধান হিসাবরক্ষণ ক্যাশ ড্রয়ার' },
+  { code: '1020', name: 'Sonali Bank PLC (A/C 1042)', nameBn: 'সোনালী ব্যাংক পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 0, isSystem: true, description: 'সাধারণ চলতি হিসাব নং ১০৪২০০৩৮১৯২০১' },
+  { code: '1030', name: 'Islami Bank Bangladesh PLC (A/C 2050)', nameBn: 'ইসলামী ব্যাংক বাংলাদেশ পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 0, isSystem: true, description: 'উন্নয়ন তহবিল হিসাব নং ২০৫০২১০০৩৪৮৯১' },
+  { code: '1040', name: 'Dutch-Bangla Bank PLC (A/C 1151)', nameBn: 'ডাচ-বাংলা ব্যাংক পিএলসি', category: 'Asset', subCategory: 'Bank Accounts', openingBalance: 0, isSystem: true, description: 'অনলাইন ফি কালেকশন হিসাব নং ১১৫১২০০৪৯২১০০' },
+  { code: '1050', name: 'bKash Merchant Account', nameBn: 'বিকাশ মার্চেন্ট ওয়ালেট', category: 'Asset', subCategory: 'Mobile Banking', openingBalance: 0, isSystem: true, description: 'ডিজিটাল ফি আদায় গেটওয়ে' },
+  { code: '1060', name: 'Nagad Merchant Account', nameBn: 'নগদ মার্চেন্ট ওয়ালেট', category: 'Asset', subCategory: 'Mobile Banking', openingBalance: 0, isSystem: true, description: 'ডিজিটাল ফি আদায় গেটওয়ে' },
   { code: '1070', name: 'Accounts Receivable (Student Fees Due)', nameBn: 'শিক্ষার্থীদের নিকট বকেয়া ফি', category: 'Asset', subCategory: 'Receivables', openingBalance: 0, isSystem: true, description: 'চলতি শিক্ষাবর্ষের প্রাপ্য বেতন ও বকেয়া' },
-  { code: '1100', name: 'Furniture, Fixture & Smart Boards', nameBn: 'আসবাবপত্র ও ডিজিটাল বোর্ড', category: 'Asset', subCategory: 'Fixed Asset', openingBalance: 1250000, isSystem: false, description: 'শ্রেণিকক্ষের বেঞ্চ, টেবিল, মাল্টিমিডিয়া প্রজেক্টর' },
-  { code: '1110', name: 'School Building & Infrastructure', nameBn: 'বিদ্যালয় ভবন ও স্থায়ী অবকাঠামো', category: 'Asset', subCategory: 'Fixed Asset', openingBalance: 4500000, isSystem: false, description: 'একাডেমিক ও প্রশাসনিক ভবন' },
+  { code: '1100', name: 'Furniture, Fixture & Smart Boards', nameBn: 'আসবাবপত্র ও ডিজিটাল বোর্ড', category: 'Asset', subCategory: 'Fixed Asset', openingBalance: 0, isSystem: false, description: 'শ্রেণিকক্ষের বেঞ্চ, টেবিল, মাল্টিমিডিয়া প্রজেক্টর' },
+  { code: '1110', name: 'School Building & Infrastructure', nameBn: 'বিদ্যালয় ভবন ও স্থায়ী অবকাঠামো', category: 'Asset', subCategory: 'Fixed Asset', openingBalance: 0, isSystem: false, description: 'একাডেমিক ও প্রশাসনিক ভবন' },
 
   // 2. Liabilities (2000 - 2999)
   { code: '2010', name: 'Salary Payable (Teachers & Staff)', nameBn: 'শিক্ষক-কর্মচারী বকেয়া বেতন দায়', category: 'Liability', subCategory: 'Current Liability', openingBalance: 0, isSystem: true, description: 'মাসের শেষে অপরিশোধিত বেতন' },
-  { code: '2020', name: 'Teachers Provident Fund (PF)', nameBn: 'শিক্ষক ভবিষ্যৎ তহবিল (প্রভিডেন্ট ফান্ড)', category: 'Liability', subCategory: 'Long-term Liability', openingBalance: 340000, isSystem: true, description: 'মাসিক বেতন থেকে কর্তনকৃত কল্যাণ তহবিল' },
+  { code: '2020', name: 'Teachers Provident Fund (PF)', nameBn: 'শিক্ষক ভবিষ্যৎ তহবিল (প্রভিডেন্ট ফান্ড)', category: 'Liability', subCategory: 'Long-term Liability', openingBalance: 0, isSystem: true, description: 'মাসিক বেতন থেকে কর্তনকৃত কল্যাণ তহবিল' },
   { code: '2030', name: 'Student Advance Fee Deposits', nameBn: 'শিক্ষার্থীদের অগ্রিম ফি জমা', category: 'Liability', subCategory: 'Current Liability', openingBalance: 0, isSystem: false, description: 'ভবিষ্যত মাসের জন্য অগ্রিম প্রদত্ত বেতন' },
-  { code: '2040', name: 'Security Deposit (Canteen/Vendors)', nameBn: 'ঠিকাদার/ক্যান্টিন জামানত', category: 'Liability', subCategory: 'Current Liability', openingBalance: 50000, isSystem: false, description: 'ক্যান্টিন ও পরিবহন জামানত তহবিল' },
+  { code: '2040', name: 'Security Deposit (Canteen/Vendors)', nameBn: 'ঠিকাদার/ক্যান্টিন জামানত', category: 'Liability', subCategory: 'Current Liability', openingBalance: 0, isSystem: false, description: 'ক্যান্টিন ও পরিবহন জামানত তহবিল' },
 
   // 3. Equity & Reserve Funds (3000 - 3999)
-  { code: '3010', name: 'General Reserve Fund', nameBn: 'সাধারণ সংরক্ষিত তহবিল (মূলধন)', category: 'Equity', subCategory: 'Capital Fund', openingBalance: 5800000, isSystem: true, description: 'বিদ্যালয়ের প্রাথমিক সংরক্ষিত তহবিল' },
-  { code: '3020', name: 'School Infrastructure Development Fund', nameBn: 'বিদ্যালয় উন্নয়ন তহবিল', category: 'Equity', subCategory: 'Restricted Fund', openingBalance: 650000, isSystem: true, description: 'নতুন ভবন ও ল্যাব সম্প্রসারণ তহবিল' },
-  { code: '3030', name: 'Retained Surplus / Deficit', nameBn: 'পুঞ্জীভূত উদ্বৃত্ত / সংরক্ষিত আয়', category: 'Equity', subCategory: 'Retained Earnings', openingBalance: 583400, isSystem: true, description: 'পূর্ববর্তী বছরগুলোর নিট উদ্বৃত্ত তহবিল' },
+  { code: '3010', name: 'General Reserve Fund', nameBn: 'সাধারণ সংরক্ষিত তহবিল (মূলধন)', category: 'Equity', subCategory: 'Capital Fund', openingBalance: 0, isSystem: true, description: 'বিদ্যালয়ের প্রাথমিক সংরক্ষিত তহবিল' },
+  { code: '3020', name: 'School Infrastructure Development Fund', nameBn: 'বিদ্যালয় উন্নয়ন তহবিল', category: 'Equity', subCategory: 'Restricted Fund', openingBalance: 0, isSystem: true, description: 'নতুন ভবন ও ল্যাব সম্প্রসারণ তহবিল' },
+  { code: '3030', name: 'Retained Surplus / Deficit', nameBn: 'পুঞ্জীভূত উদ্বৃত্ত / সংরক্ষিত আয়', category: 'Equity', subCategory: 'Retained Earnings', openingBalance: 0, isSystem: true, description: 'পূর্ববর্তী বছরগুলোর নিট উদ্বৃত্ত তহবিল' },
 
   // 4. Income / Revenue (4000 - 4999)
   { code: '4010', name: 'Monthly Tuition Fee Revenue', nameBn: 'শিক্ষার্থীদের মাসিক বেতন আয়', category: 'Income', subCategory: 'Academic Revenue', openingBalance: 0, isSystem: true, description: '৬ষ্ঠ-১০ম শ্রেণির মাসিক ফি' },
@@ -370,7 +370,7 @@ export const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [
     accountName: 'বরইতলী উচ্চ বিদ্যালয় সাধারণ তহবিল',
     accountNumber: '1042003819201',
     branch: 'চকরিয়া শাখা, কক্সবাজার',
-    balance: 580000
+    balance: 0
   },
   {
     id: 'bank-2',
@@ -379,7 +379,7 @@ export const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [
     accountName: 'বরইতলী উচ্চ বিদ্যালয় উন্নয়ন তহবিল',
     accountNumber: '2050210034891',
     branch: 'চকরিয়া শাখা',
-    balance: 320000
+    balance: 0
   },
   {
     id: 'bank-3',
@@ -388,7 +388,7 @@ export const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [
     accountName: 'বরইতলী উচ্চ বিদ্যালয় অনলাইন ফি কালেকশন',
     accountNumber: '1151200492100',
     branch: 'চকরিয়া শাখা',
-    balance: 185000
+    balance: 0
   }
 ];
 
@@ -1268,11 +1268,23 @@ export const financeService = {
   // ─── 🗂️ CHART OF ACCOUNTS (COA) ────────────────────────────────────
   getChartOfAccounts: (): AccountHead[] => {
     if (typeof window === 'undefined') return DEFAULT_CHART_OF_ACCOUNTS;
+    const isDemoCleared = localStorage.getItem('sms_demo_cleared') === 'true';
     try {
       const stored = localStorage.getItem(COA_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const parsed: AccountHead[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasDemoBalances = parsed.some(a => a.openingBalance === 85400 || a.openingBalance === 580000 || a.openingBalance === 320000 || a.openingBalance === 185000);
+          if (isDemoCleared || hasDemoBalances) {
+            const cleaned = parsed.map(a => ({
+              ...a,
+              openingBalance: (isDemoCleared || hasDemoBalances) ? 0 : a.openingBalance
+            }));
+            localStorage.setItem(COA_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
+          }
+          return parsed;
+        }
       }
     } catch (e) {}
     localStorage.setItem(COA_STORAGE_KEY, JSON.stringify(DEFAULT_CHART_OF_ACCOUNTS));
@@ -1524,10 +1536,19 @@ export const financeService = {
     const sourceCode = isFromCash ? '1010' : '1020';
     const sourceName = isFromCash ? 'Cash in Hand (হাতে নগদ)' : 'Source Bank Account';
 
-    let targetCode = '1020';
-    let targetName = 'Sonali Bank PLC (সোনালী ব্যাংক)';
-    if (transfer.to === 'bank-2') { targetCode = '1030'; targetName = 'Islami Bank Bangladesh PLC (IBBL)'; }
-    else if (transfer.to === 'bank-3') { targetCode = '1040'; targetName = 'Dutch-Bangla Bank PLC (DBBL)'; }
+    const banks = financeService.getBankAccounts();
+    const targetBank = banks.find(b => b.id === transfer.to);
+    let targetCode = targetBank?.accountCode || '1020';
+    let targetName = targetBank?.bankName || 'Sonali Bank PLC (সোনালী ব্যাংক)';
+
+    if (!targetBank) {
+      if (transfer.to === 'bank-2') { targetCode = '1030'; targetName = 'Islami Bank Bangladesh PLC (IBBL)'; }
+      else if (transfer.to === 'bank-3') { targetCode = '1040'; targetName = 'Dutch-Bangla Bank PLC (DBBL)'; }
+    } else {
+      // Update target bank balance
+      targetBank.balance = (Number(targetBank.balance) || 0) + Number(transfer.amount);
+      financeService.saveBankAccounts(banks);
+    }
 
     const now = new Date();
     const vNo = `CV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
@@ -2010,20 +2031,92 @@ export const financeService = {
   // ─── BANK ACCOUNTS CRUD ────────────────────────────────────────────
   getBankAccounts: (): BankAccount[] => {
     if (typeof window === 'undefined') return DEFAULT_BANK_ACCOUNTS;
+    const isDemoCleared = localStorage.getItem('sms_demo_cleared') === 'true';
     try {
       const stored = localStorage.getItem(BANK_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed: BankAccount[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // If demo was cleared OR if the accounts still have hardcoded demo balances (580000, 320000, 185000), reset balances to 0!
+          const hasDemoBalances = parsed.some(b => b.balance === 580000 || b.balance === 320000 || b.balance === 185000);
+          if (isDemoCleared || hasDemoBalances) {
+            const cleaned = parsed.map(b => ({
+              ...b,
+              balance: (b.balance === 580000 || b.balance === 320000 || b.balance === 185000 || isDemoCleared) ? 0 : b.balance
+            }));
+            localStorage.setItem(BANK_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
+          }
+          return parsed;
+        }
+      }
     } catch (e) {}
+    localStorage.setItem(BANK_STORAGE_KEY, JSON.stringify(DEFAULT_BANK_ACCOUNTS));
     return DEFAULT_BANK_ACCOUNTS;
   },
 
-  saveBankAccounts: (accounts: BankAccount[]) => {
+  saveBankAccounts: (accounts: BankAccount[]): BankAccount[] => {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(BANK_STORAGE_KEY, JSON.stringify(accounts));
+        window.dispatchEvent(new Event('storage'));
       } catch (e) {}
     }
     return accounts;
+  },
+
+  addOrUpdateBankAccount: (account: BankAccount): BankAccount[] => {
+    const list = financeService.getBankAccounts();
+    const index = list.findIndex(b => b.id === account.id || (account.accountCode && b.accountCode === account.accountCode));
+    let updated: BankAccount[];
+    if (index > -1) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...account };
+    } else {
+      const newAcc: BankAccount = {
+        ...account,
+        id: account.id || `bank-${Date.now()}`
+      };
+      updated = [...list, newAcc];
+    }
+    financeService.saveBankAccounts(updated);
+
+    // Also sync with Chart of Accounts opening balance
+    try {
+      const coa = financeService.getChartOfAccounts();
+      const coaIdx = coa.findIndex(a => a.code === account.accountCode);
+      if (coaIdx > -1) {
+        coa[coaIdx].openingBalance = account.balance;
+        coa[coaIdx].name = account.bankName;
+        coa[coaIdx].nameBn = account.bankName;
+        financeService.saveChartOfAccounts(coa);
+      }
+    } catch (e) {}
+
+    return updated;
+  },
+
+  deleteBankAccount: (id: string): BankAccount[] => {
+    const list = financeService.getBankAccounts();
+    const updated = list.filter(b => b.id !== id);
+    financeService.saveBankAccounts(updated);
+    return updated;
+  },
+
+  resetAllBankBalancesToZero: (): BankAccount[] => {
+    const list = financeService.getBankAccounts();
+    const zeroed = list.map(b => ({ ...b, balance: 0 }));
+    financeService.saveBankAccounts(zeroed);
+
+    // Also sync Chart of Accounts bank opening balances
+    try {
+      const coa = financeService.getChartOfAccounts();
+      const bankCodes = new Set(list.map(b => b.accountCode));
+      const updatedCoa = coa.map(a => bankCodes.has(a.code) ? { ...a, openingBalance: 0 } : a);
+      financeService.saveChartOfAccounts(updatedCoa);
+    } catch (e) {}
+
+    return zeroed;
   },
 
   // ─── WAIVERS & REFUNDS CRUD ────────────────────────────────────────
@@ -2735,6 +2828,7 @@ export const financeService = {
     localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify([]));
     localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify([]));
     localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify([]));
+    financeService.resetAllBankBalancesToZero();
     window.dispatchEvent(new Event('storage'));
     listeners.forEach(fn => fn(currentConfig));
   },
