@@ -223,7 +223,6 @@ export const studentService = {
     const updated = deduplicateStudentList([newStudent, ...all]);
     if (typeof window !== 'undefined') {
       localStorage.setItem('sms_students', JSON.stringify(updated));
-      localStorage.removeItem('sms_demo_cleared');
       window.dispatchEvent(new Event('storage'));
       syncQueueService.enqueue('student', newStudent.id, 'CREATE', newStudent).catch(() => {});
     }
@@ -385,7 +384,6 @@ export const studentService = {
   // Save Bulk Imported Students
   saveBulkStudents: (importedList: Student[]): void => {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem('sms_demo_cleared');
     localStorage.removeItem('sms_uploaded_students');
 
     const existing = studentService.getAllStudents();
@@ -418,6 +416,7 @@ export const studentService = {
     localStorage.setItem('sms_payment_history', JSON.stringify([]));
     localStorage.setItem('sms_vouchers_ledger', JSON.stringify([]));
     localStorage.setItem('sms_payroll_records', JSON.stringify([]));
+    localStorage.setItem('sms_expenses', JSON.stringify([]));
     localStorage.setItem('sms_expense_records', JSON.stringify([]));
     localStorage.setItem('sms_fee_invoices', JSON.stringify([]));
     localStorage.setItem('sms_waivers', JSON.stringify([]));

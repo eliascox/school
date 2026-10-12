@@ -1320,90 +1320,18 @@ export const financeService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          if (isDemoCleared && parsed.some(v => v.id === 'VOUCH-1001')) {
-            localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify([]));
-            return [];
+          const hasDemo = parsed.some(v => v && v.id && v.id.startsWith('VOUCH-100'));
+          if (isDemoCleared || hasDemo) {
+            const cleaned = isDemoCleared ? [] : parsed.filter(v => !v.id?.startsWith('VOUCH-100'));
+            localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
           }
           return parsed;
         }
       }
     } catch (e) {}
 
-    if (isDemoCleared) {
-      localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify([]));
-      return [];
-    }
-
-    // Default historical baseline vouchers
-    const initialVouchers: VoucherRecord[] = [
-      {
-        id: 'VOUCH-1001',
-        voucherNo: 'RV-2026-08-01',
-        voucherType: 'Receipt',
-        date: '2026-08-01',
-        reference: 'শিক্ষার্থী ফি আদায় (তাহমিদ চৌধুরী - রোল ০১)',
-        narration: '৬ষ্ঠ শ্রেণির জানুয়ারি-মার্চ মাসিক বেতন ও পরীক্ষা ফি আদায়',
-        sourceModule: 'student_fees',
-        totalAmount: 1500,
-        createdBy: 'ক্যাশিয়ার',
-        entries: [
-          { accountCode: '1010', accountName: 'Cash in Hand (হাতে নগদ)', debit: 1500, credit: 0 },
-          { accountCode: '4010', accountName: 'Monthly Tuition Fee Revenue', debit: 0, credit: 1200 },
-          { accountCode: '4020', accountName: 'Examination Fee Revenue', debit: 0, credit: 300 }
-        ]
-      },
-      {
-        id: 'VOUCH-1002',
-        voucherNo: 'PV-2026-08-02',
-        voucherType: 'Payment',
-        date: '2026-08-02',
-        reference: 'পল্লী বিদ্যুৎ বিল - জুলাই ২০২৬',
-        narration: 'বিদ্যালয়ের জুলাই মাসের বিদ্যুৎ বিল পরিশোধ',
-        sourceModule: 'expenses',
-        totalAmount: 8500,
-        createdBy: 'হিসাবরক্ষক',
-        entries: [
-          { accountCode: '5030', accountName: 'Electricity & Utility Bills', debit: 8500, credit: 0 },
-          { accountCode: '1050', accountName: 'bKash Merchant Account (বিকাশ)', debit: 0, credit: 8500 }
-        ]
-      },
-      {
-        id: 'VOUCH-1003',
-        voucherNo: 'PV-2026-08-05',
-        voucherType: 'Payment',
-        date: '2026-08-05',
-        reference: 'শিক্ষক পে-রোল (মোহাম্মদ রফিকুল ইসলাম)',
-        narration: 'প্রধান শিক্ষকের আগস্ট মাসের মূল বেতন ও বাড়িভাড়া ভাতা প্রদান',
-        sourceModule: 'payroll',
-        totalAmount: 53000,
-        createdBy: 'হিসাবরক্ষক',
-        entries: [
-          { accountCode: '5010', accountName: 'Teacher Salary Expense (Payroll)', debit: 53000, credit: 0 },
-          { accountCode: '1020', accountName: 'Sonali Bank PLC (সোনালী ব্যাংক)', debit: 0, credit: 51000 },
-          { accountCode: '2020', accountName: 'Teachers Provident Fund (PF)', debit: 0, credit: 2000 }
-        ]
-      },
-      {
-        id: 'VOUCH-1004',
-        voucherNo: 'CV-2026-08-06',
-        voucherType: 'Contra',
-        date: '2026-08-06',
-        reference: 'ক্যাশ ব্যাংক ডিপোজিট (সোনালী ব্যাংক)',
-        narration: 'ফি আদায়ের উদ্বৃত্ত হাতে নগদ অর্থ সোনালী ব্যাংকে জমা প্রদান',
-        sourceModule: 'cash_bank',
-        totalAmount: 50000,
-        createdBy: 'ক্যাশিয়ার',
-        entries: [
-          { accountCode: '1020', accountName: 'Sonali Bank PLC (সোনালী ব্যাংক)', debit: 50000, credit: 0 },
-          { accountCode: '1010', accountName: 'Cash in Hand (হাতে নগদ)', debit: 0, credit: 50000 }
-        ]
-      }
-    ];
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(initialVouchers));
-    }
-    return initialVouchers;
+    return [];
   },
 
   saveVouchers: (vouchers: VoucherRecord[]) => {
@@ -1984,62 +1912,18 @@ export const financeService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          if (isDemoCleared && parsed.some(p => p.id === 'PAY-101')) {
-            localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify([]));
-            return [];
+          const hasDemo = parsed.some(p => p && p.id && p.id.startsWith('PAY-10'));
+          if (isDemoCleared || hasDemo) {
+            const cleaned = isDemoCleared ? [] : parsed.filter(p => !p.id?.startsWith('PAY-10'));
+            localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
           }
           return parsed;
         }
       }
     } catch (e) {}
 
-    if (isDemoCleared) {
-      localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify([]));
-      return [];
-    }
-
-    return [
-      {
-        id: 'PAY-101',
-        voucherNo: 'PR-2026-08-01',
-        teacherId: 'TCH-101',
-        teacherName: 'মোহাম্মদ রফিকুল ইসলাম',
-        designation: 'প্রধান শিক্ষক',
-        month: 'আগস্ট',
-        year: 2026,
-        baseSalary: 45000,
-        allowances: 8000,
-        bonus: 0,
-        deductions: 2000,
-        netPayable: 51000,
-        paidAmount: 51000,
-        status: 'Paid',
-        paymentDate: '2026-08-05',
-        paymentMethod: 'Bank Transfer',
-        trxId: 'SONALI-FT-99120',
-        note: 'আগস্ট মাসের মূল বেতন ও বাড়িভাড়া ভাতা পরিশোধ'
-      },
-      {
-        id: 'PAY-102',
-        voucherNo: 'PR-2026-08-02',
-        teacherId: 'TCH-102',
-        teacherName: 'নাসরীন জাহান',
-        designation: 'সহকারী প্রধান শিক্ষক',
-        month: 'আগস্ট',
-        year: 2026,
-        baseSalary: 38000,
-        allowances: 6000,
-        bonus: 0,
-        deductions: 1500,
-        netPayable: 42500,
-        paidAmount: 42500,
-        status: 'Paid',
-        paymentDate: '2026-08-05',
-        paymentMethod: 'Bank Transfer',
-        trxId: 'SONALI-FT-99121',
-        note: 'মাসিক বেতন সম্পন্ন'
-      }
-    ];
+    return [];
   },
 
   savePayrollRecord: (record: PayrollRecord) => {
@@ -2081,55 +1965,18 @@ export const financeService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          if (isDemoCleared && parsed.some(e => e.id === 'EXP-101')) {
-            localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify([]));
-            return [];
+          const hasDemo = parsed.some(e => e && e.id && e.id.startsWith('EXP-10'));
+          if (isDemoCleared || hasDemo) {
+            const cleaned = isDemoCleared ? [] : parsed.filter(e => !e.id?.startsWith('EXP-10'));
+            localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
           }
           return parsed;
         }
       }
     } catch (e) {}
 
-    if (isDemoCleared) {
-      localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify([]));
-      return [];
-    }
-
-    return [
-      {
-        id: 'EXP-101',
-        voucherNo: 'VCH-2026-08-01',
-        category: 'বিদ্যুৎ ও ইউটিলিটি বিল',
-        amount: 8500,
-        date: '2026-08-02',
-        paidTo: 'পল্লী বিদ্যুৎ সমিতি, চকোরিয়া',
-        paymentMethod: 'bKash',
-        note: 'জুলাই মাসের বিদ্যালয় বিদ্যুৎ বিল',
-        recordedBy: 'হিসাবরক্ষক'
-      },
-      {
-        id: 'EXP-102',
-        voucherNo: 'VCH-2026-08-02',
-        category: 'ইন্টারনেট ও সফটওয়্যার সেবা',
-        amount: 2500,
-        date: '2026-08-03',
-        paidTo: 'ব্রডব্যান্ড ইন্টারনেট সার্ভিস',
-        paymentMethod: 'Cash',
-        note: 'আগস্ট মাসের ব্রডব্যান্ড বিল',
-        recordedBy: 'হিসাবরক্ষক'
-      },
-      {
-        id: 'EXP-103',
-        voucherNo: 'VCH-2026-08-03',
-        category: 'স্টেশনারি, কাগজ ও প্রিন্টিং',
-        amount: 4200,
-        date: '2026-08-04',
-        paidTo: 'আলমগীর স্টেশনারি ও পেপার হাউস',
-        paymentMethod: 'Cash',
-        note: 'প্রবেশপত্র ও অফিসিয়াল প্যাড প্রিন্ট কাগজ ক্রয়',
-        recordedBy: 'প্রধান শিক্ষক'
-      }
-    ];
+    return [];
   },
 
   saveExpense: (record: ExpenseRecord) => {
@@ -2188,34 +2035,18 @@ export const financeService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          if (isDemoCleared && parsed.some(w => w.id === 'WVR-101')) {
-            localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify([]));
-            return [];
+          const hasDemo = parsed.some(w => w && w.id && w.id.startsWith('WVR-10'));
+          if (isDemoCleared || hasDemo) {
+            const cleaned = isDemoCleared ? [] : parsed.filter(w => !w.id?.startsWith('WVR-10'));
+            localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
           }
           return parsed;
         }
       }
     } catch (e) {}
 
-    if (isDemoCleared) {
-      localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify([]));
-      return [];
-    }
-
-    return [
-      {
-        id: 'WVR-101',
-        studentId: 'STU-601',
-        studentName: 'তানভীর আহমেদ',
-        roll: '০১',
-        grade: '৬ষ্ঠ শ্রেণি',
-        type: 'percent',
-        value: 100,
-        reason: 'বীর মুক্তিযোদ্ধা সন্তান কোটা',
-        approvedBy: 'প্রধান শিক্ষক',
-        date: '2026-01-10'
-      }
-    ];
+    return [];
   },
 
   saveWaiver: (waiver: WaiverRecord) => {
@@ -2249,32 +2080,18 @@ export const financeService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          if (isDemoCleared && parsed.some(r => r.id === 'RFD-101')) {
-            localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify([]));
-            return [];
+          const hasDemo = parsed.some(r => r && r.id && r.id.startsWith('RFD-10'));
+          if (isDemoCleared || hasDemo) {
+            const cleaned = isDemoCleared ? [] : parsed.filter(r => !r.id?.startsWith('RFD-10'));
+            localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(cleaned));
+            return cleaned;
           }
           return parsed;
         }
       }
     } catch (e) {}
 
-    if (isDemoCleared) {
-      localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify([]));
-      return [];
-    }
-
-    return [
-      {
-        id: 'RFD-101',
-        receiptId: 'REC-2026-08-01',
-        studentId: 'STU-602',
-        studentName: 'রাকিবুল হাসান',
-        amount: 300,
-        reason: 'অতিরিক্ত পরীক্ষা ফি সমন্বয় ও ফেরত',
-        date: '2026-08-04',
-        processedBy: 'ক্যাশিয়ার'
-      }
-    ];
+    return [];
   },
 
   saveRefund: (refund: RefundRecord) => {

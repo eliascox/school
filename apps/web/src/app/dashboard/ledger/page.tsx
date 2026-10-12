@@ -203,6 +203,16 @@ export default function LedgerDashboardPage() {
     }
   };
 
+  // Reset & Clear all ledger records
+  const handleResetLedger = () => {
+    if (confirm('আপনি কি নিশ্চিত যে সমস্ত ডেমো ডাটা ও লেনদেনের রেকর্ড মুছে খতিয়ান সম্পূর্ণ ফ্রেশ ও খালি (৳০) করতে চান?')) {
+      ledgerService.clearAllLedgerData();
+      refreshData();
+      setAlertMessage('খতিয়ান সফলভাবে রিসেট করা হয়েছে এবং সকল ডেমো ডাটা স্থায়ীভাবে মুছে ফেলা হয়েছে!');
+      setTimeout(() => setAlertMessage(''), 5000);
+    }
+  };
+
   // Export CSV
   const handleExportCSV = () => {
     ledgerService.exportToCSV(records, `Ledger_Statement_${new Date().toISOString().split('T')[0]}.csv`);
@@ -251,6 +261,14 @@ export default function LedgerDashboardPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleResetLedger}
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 shadow cursor-pointer transition"
+              title="সকল ডেমো ডাটা মুছে লেজার সম্পূর্ণ খালি (৳০) করুন"
+            >
+              <Trash2 size={15} className="text-rose-400" /> ডেমো মুছুন
+            </button>
             <button
               type="button"
               onClick={() => handleOpenAddModal('Income')}
@@ -469,6 +487,16 @@ export default function LedgerDashboardPage() {
           <span>সময়কাল: {filterPeriod === 'today' ? 'আজকের' : filterPeriod === 'weekly' ? 'চলতি সপ্তাহ' : filterPeriod === 'monthly' ? 'চলতি মাস' : 'সকল সময়'}</span>
         </div>
       </div>
+
+      {/* EMPTY / FRESH STATE BANNER */}
+      {records.length === 0 && (
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-xs font-bold rounded-2xl flex items-center justify-between gap-3 shadow-2xs print:hidden animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>বর্তমানে কোনো ডেমো বা বাস্তব লেনদেনের ডাটা নেই (সম্পূর্ণ ফ্রেশ ও খালি খতিয়ান — সর্বমোট আয় ও ব্যয় ৳০)। নতুন আয় বা ব্যয়ের এন্ট্রি দিতে উপরের বাটন ব্যবহার করুন।</span>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════ */}
       {/* VIEW MODE 1: আয় ও ব্যয় পাশাপাশি ল্যান্ডস্কেপ টেবিল (SIDE-BY-SIDE) */}

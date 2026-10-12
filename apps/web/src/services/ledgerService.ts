@@ -157,27 +157,45 @@ const INITIAL_RECORDS: LedgerRecord[] = [
   }
 ];
 
+const DEMO_LEDGER_IDS = new Set([
+  'LEDG-1001', 'LEDG-1002', 'LEDG-1003', 'LEDG-1004', 'LEDG-1005',
+  'LEDG-2001', 'LEDG-2002', 'LEDG-2003', 'LEDG-2004'
+]);
+
+const DEMO_VOUCHER_NOS = new Set([
+  'REC-2026-001', 'REC-2026-002', 'REC-2026-003', 'REC-2026-004', 'REC-2026-005',
+  'EXP-2026-001', 'EXP-2026-002', 'EXP-2026-003', 'EXP-2026-004'
+]);
+
 class LedgerService {
   private getStorageRecords(): LedgerRecord[] {
     if (typeof window === 'undefined') return [];
     const isDemoCleared = localStorage.getItem('sms_demo_cleared') === 'true';
     const raw = localStorage.getItem(STORAGE_KEY);
+    
+    // When no records exist yet: DO NOT seed demo records. System starts clean and empty!
     if (!raw) {
-      if (isDemoCleared) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        return [];
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_RECORDS));
-      return INITIAL_RECORDS;
+      return [];
     }
+
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // If demo was cleared and leftover demo records remain, wipe them!
-        if (isDemoCleared && parsed.length > 0 && parsed.some(r => r.id && r.id.startsWith('LEDG-100'))) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-          return [];
+        // If demo was explicitly cleared OR if the list contains hardcoded demo records, purge them!
+        const hasDemoRecords = parsed.some(r => 
+          (r && r.id && DEMO_LEDGER_IDS.has(r.id)) || 
+          (r && r.voucherNo && DEMO_VOUCHER_NOS.has(r.voucherNo))
+        );
+
+        if (isDemoCleared || hasDemoRecords) {
+          const cleaned = isDemoCleared 
+            ? [] 
+            : parsed.filter(r => !DEMO_LEDGER_IDS.has(r.id) && !DEMO_VOUCHER_NOS.has(r.voucherNo));
+          
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+          return cleaned;
         }
+
         return parsed;
       }
       return [];
