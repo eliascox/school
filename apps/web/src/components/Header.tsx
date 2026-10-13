@@ -30,14 +30,17 @@ import {
   LogOut,
   Cloud,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  Send
 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { settingsService } from '@/services/settingsService';
 import { themeService, AppTheme } from '@/services/themeService';
 import { syncQueueService, SyncStatus } from '@/services/syncQueueService';
+import { leaveService } from '@/services/leaveService';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -213,6 +216,12 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
     };
   }
   if (pathname.includes('/teacher')) {
+    if (currentTab === 'leave_applications') {
+      return {
+        title: lang === 'en' ? 'Teacher Leave Review' : 'ছুটির আবেদনসমূহ (প্রধান শিক্ষক)',
+        icon: <Send className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+      };
+    }
     return {
       title: lang === 'en' ? 'Teacher & Staff Management' : 'শিক্ষক ও স্টাফ ব্যবস্থাপনা',
       icon: <Users className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
@@ -268,6 +277,27 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
     pendingCount: 0,
     isSyncing: false
   });
+  const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
+
+  useEffect(() => {
+    const updateLeaves = () => {
+      try {
+        const leaves = leaveService.getLeaves();
+        setPendingLeavesCount(leaves.filter(l => l.status === 'pending').length);
+      } catch (e) {}
+    };
+    updateLeaves();
+    const unsubLeaves = leaveService.subscribe(updateLeaves);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', updateLeaves);
+    }
+    return () => {
+      unsubLeaves();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', updateLeaves);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setSyncStatus(syncQueueService.getSyncStatus());
@@ -383,6 +413,20 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
             <Printer className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{currentLang === 'en' ? 'Blank Form Print' : 'ব্ল্যাঙ্ক ফরম প্রিন্ট'}</span>
           </button>
+        )}
+
+        {/* ✉️ TEACHER LEAVE APPLICATIONS ALERT BADGE (FOR PRINCIPAL/ADMIN) */}
+        {session.role === 'admin' && pendingLeavesCount > 0 && (
+          <Link
+            href="/dashboard/teacher?tab=leave_applications"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-black transition shadow-xs cursor-pointer active:scale-95 animate-pulse shrink-0"
+            title={currentLang === 'en' ? `${pendingLeavesCount} Pending Leave Applications` : `${pendingLeavesCount}টি ছুটির আবেদন বিবেচনাধীন`}
+          >
+            <Send className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="text-[11px] font-black">
+              {currentLang === 'en' ? `Leaves (${pendingLeavesCount})` : `ছুটি (${pendingLeavesCount})`}
+            </span>
+          </Link>
         )}
 
         {/* 🔄 Two-Way Central Sync Status Badge */}

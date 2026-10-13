@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import {
   Users,
   UserPlus,
@@ -34,10 +34,11 @@ import {
   Clock,
   Check,
   FileText,
-  ShieldAlert
+  ShieldAlert,
+  Printer
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, TeacherRecord, SubjectAssignment, ClassTeacherAssignment } from '@/services/teacherRBACService';
 import { leaveService, LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/leaveService';
@@ -134,8 +135,9 @@ const TAB_CONFIG: { id: TeacherTab; label: string; icon: React.ReactNode }[] = [
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────
-export default function TeacherManagementPage() {
+function TeacherManagementContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState<UserSession | null>(null);
   const [activeTab, setActiveTab] = useState<TeacherTab>('teachers');
@@ -199,6 +201,13 @@ export default function TeacherManagementPage() {
   const [testAttendTeacherId, setTestAttendTeacherId] = useState('');
   const [testAttendClassId, setTestAttendClassId] = useState('8th-A');
 
+  // ─── Leave Application Review & Filter States
+  const [leaveFilter, setLeaveFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [selectedLeaveForReview, setSelectedLeaveForReview] = useState<LeaveApplication | null>(null);
+  const [reviewDecision, setReviewDecision] = useState<'approved' | 'rejected'>('approved');
+  const [reviewRemarks, setReviewRemarks] = useState('ছুটি মঞ্জুর করা হলো।');
+  const [printSlipLeave, setPrintSlipLeave] = useState<LeaveApplication | null>(null);
+
   // ─── DATA REFRESH
   const refreshAllData = useCallback(() => {
     setTeachers(teacherRBACService.getTeachers());
@@ -213,19 +222,58 @@ export default function TeacherManagementPage() {
     }
   }, []);
 
-  const handleReviewLeave = (leaveId: string, status: 'approved' | 'rejected') => {
-    const promptRemarks = status === 'approved' 
-      ? prompt('অনুমোদন সংক্রান্ত কোনো নির্দেশনা বা মন্তব্য থাকলে লিখুন (ঐচ্ছিক):', 'ছুটি মঞ্জুর করা হলো।')
-      : prompt('ছুটি বাতিলের কারণ উল্লেখ করুন:', 'প্রশাসনিক কারণে ছুটি মঞ্জুর করা সম্ভব হলো না।');
-    
-    if (promptRemarks === null) return; // User cancelled prompt
+  // ─── Sync activeTab with URL search param '?tab='
+  useEffect(() => {
+    const tabParam = searchParams?.get('tab') as TeacherTab;
+    if (tabParam && ['teachers', 'assignments', 'class_teachers', 'permission_test', 'leave_applications', 'audit_trail'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
-    const res = leaveService.reviewLeave(leaveId, status, 'প্রধান শিক্ষক', promptRemarks);
+  const pendingLeavesCount = useMemo(() => {
+    return leaveApplications.filter(l => l.status === 'pending').length;
+  }, [leaveApplications]);
+
+  const approvedLeavesCount = useMemo(() => {
+    return leaveApplications.filter(l => l.status === 'approved').length;
+  }, [leaveApplications]);
+
+  const rejectedLeavesCount = useMemo(() => {
+    return leaveApplications.filter(l => l.status === 'rejected').length;
+  }, [leaveApplications]);
+
+  const filteredLeaves = useMemo(() => {
+    if (leaveFilter === 'all') return leaveApplications;
+    return leaveApplications.filter(l => l.status === leaveFilter);
+  }, [leaveApplications, leaveFilter]);
+
+  const handleOpenReviewModal = (leave: LeaveApplication, status: 'approved' | 'rejected') => {
+    setSelectedLeaveForReview(leave);
+    setReviewDecision(status);
+    setReviewRemarks(status === 'approved' ? 'ছুটি মঞ্জুর করা হলো।' : 'প্রশাসনিক কারণে ছুটি মঞ্জুর করা সম্ভব হলো না।');
+  };
+
+  const handleConfirmReview = () => {
+    if (!selectedLeaveForReview) return;
+    const res = leaveService.reviewLeave(
+      selectedLeaveForReview.id, 
+      reviewDecision, 
+      'প্রধান শিক্ষক', 
+      reviewRemarks
+    );
     if (res.success) {
       showAlert('success', res.message);
+      setSelectedLeaveForReview(null);
       refreshAllData();
     } else {
       showAlert('error', res.message);
+    }
+  };
+
+  const handleReviewLeave = (leaveId: string, status: 'approved' | 'rejected') => {
+    const target = leaveApplications.find(l => l.id === leaveId);
+    if (target) {
+      handleOpenReviewModal(target, status);
     }
   };
 
@@ -499,16 +547,36 @@ export default function TeacherManagementPage() {
           </button>
         </div>
 
-        {/* Quick Stats Bar in Clean White Cards */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Quick Stats Bar in Clean Interactive Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'মোট শিক্ষক', value: teachers.length },
-            { label: 'বিষয় বণ্টিত', value: subjectAssignments.length },
-            { label: 'শ্রেণি শিক্ষক', value: classTeachers.length },
+            { label: 'মোট শিক্ষক', value: `${teachers.length} জন`, tab: 'teachers' as TeacherTab, isAlert: false },
+            { label: 'বিষয় বণ্টিত', value: `${subjectAssignments.length}টি`, tab: 'assignments' as TeacherTab, isAlert: false },
+            { label: 'শ্রেণি শিক্ষক', value: `${classTeachers.length} জন`, tab: 'class_teachers' as TeacherTab, isAlert: false },
+            { 
+              label: 'ছুটির আবেদন', 
+              value: pendingLeavesCount > 0 ? `${pendingLeavesCount}টি বিবেচনাধীন` : `${leaveApplications.length}টি মোট`, 
+              tab: 'leave_applications' as TeacherTab, 
+              isAlert: pendingLeavesCount > 0 
+            },
           ].map((stat, i) => (
-            <div key={i} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-center">
-              <span className="text-2xl font-black text-slate-900 leading-none block">{stat.value}</span>
-              <p className="text-[11px] font-bold text-slate-500 mt-1">{stat.label}</p>
+            <div
+              key={i}
+              onClick={() => setActiveTab(stat.tab)}
+              className={`p-3.5 rounded-2xl border shadow-xs text-center cursor-pointer transition hover:scale-[1.02] active:scale-95 ${
+                stat.isAlert
+                  ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 ring-2 ring-amber-400/20'
+                  : activeTab === stat.tab
+                  ? 'bg-slate-50 border-slate-300'
+                  : 'bg-white border-slate-200'
+              }`}
+            >
+              <span className={`text-xl sm:text-2xl font-black leading-none block ${stat.isAlert ? 'text-amber-700 animate-pulse' : 'text-slate-900'}`}>
+                {stat.value}
+              </span>
+              <p className={`text-[11px] font-bold mt-1 ${stat.isAlert ? 'text-amber-800' : 'text-slate-500'}`}>
+                {stat.label}
+              </p>
             </div>
           ))}
         </div>
@@ -557,6 +625,15 @@ export default function TeacherManagementPage() {
                 {tab.id === 'class_teachers' && (
                   <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'}`}>
                     {classTeachers.length}
+                  </span>
+                )}
+                {tab.id === 'leave_applications' && (
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                    pendingLeavesCount > 0 
+                      ? 'bg-amber-500 text-white animate-pulse shadow-xs' 
+                      : isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'
+                  }`}>
+                    {pendingLeavesCount > 0 ? `${pendingLeavesCount}টি বিবেচনাধীন` : `${leaveApplications.length}`}
                   </span>
                 )}
               </button>
@@ -1373,82 +1450,150 @@ export default function TeacherManagementPage() {
       {/* TAB 5: ছুটির আবেদনসমূহ (LEAVE APPLICATIONS REVIEW)       */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'leave_applications' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
                 <Send size={18} className="text-amber-600" />
-                শিক্ষকদের ছুটির আবেদনসমূহ (প্রধান শিক্ষক পর্যালোচনা)
+                শিক্ষকদের ছুটির আবেদনসমূহ (প্রধান শিক্ষক পর্যালোচনা ও অনুমোদন)
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                সহকারী ও শ্রেণি শিক্ষকদের দাখিলকৃত নৈমিত্তিক ও চিকিৎসা ছুটির আবেদন পর্যালোচনা ও অনুমোদন
+                সহকারী ও শ্রেণি শিক্ষকদের দাখিলকৃত নৈমিত্তিক ও চিকিৎসা ছুটির আবেদন পর্যালোচনা, সিদ্ধান্ত ও প্রত্যয়ন
               </p>
             </div>
-            <span className="px-3 py-1 bg-amber-50 text-amber-800 rounded-xl text-xs font-black self-start sm:self-auto">
-              মোট আবেদন: {leaveApplications.length}টি
-            </span>
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 self-start md:self-auto bg-slate-100 p-1 rounded-2xl">
+              {[
+                { id: 'all' as const, label: 'সব আবেদন', count: leaveApplications.length, color: 'text-slate-700' },
+                { id: 'pending' as const, label: 'বিবেচনাধীন', count: pendingLeavesCount, color: 'text-amber-700' },
+                { id: 'approved' as const, label: 'মঞ্জুরকৃত', count: approvedLeavesCount, color: 'text-emerald-700' },
+                { id: 'rejected' as const, label: 'বাতিলকৃত', count: rejectedLeavesCount, color: 'text-rose-700' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setLeaveFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    leaveFilter === f.id
+                      ? 'bg-white text-slate-900 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    f.id === 'pending' && f.count > 0 ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {leaveApplications.length === 0 ? (
-            <div className="text-center py-12 text-xs text-slate-400 font-bold">
-              বর্তমানে কোনো ছুটির আবেদন জমা নেই।
+          {filteredLeaves.length === 0 ? (
+            <div className="text-center py-16 text-xs text-slate-400 font-bold space-y-2">
+              <Send size={32} className="mx-auto text-slate-300 stroke-1" />
+              <p>এই ফিল্টারে বর্তমানে কোনো ছুটির আবেদন নেই।</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {leaveApplications.map(l => (
-                <div key={l.id} className="border border-slate-200 rounded-2xl p-4 space-y-3 hover:border-amber-200 transition">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-900 text-sm">{l.teacherName}</span>
-                        <span className="text-[11px] font-bold text-slate-400">({l.designation})</span>
-                        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{l.teacherId}</span>
+              {filteredLeaves.map(l => (
+                <div key={l.id} className="border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3 hover:border-amber-300 transition shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
+                        {l.teacherName.charAt(0)}
                       </div>
-                      <p className="text-xs font-bold text-amber-800 mt-0.5">{LEAVE_TYPE_LABELS[l.leaveType]}</p>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-black text-slate-900 text-sm">{l.teacherName}</span>
+                          <span className="text-[11px] font-bold text-slate-500">({l.designation})</span>
+                          <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{l.teacherId}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs font-bold text-amber-800">{LEAVE_TYPE_LABELS[l.leaveType] || l.leaveType}</p>
+                          <span className="text-[10px] text-slate-400">• আবেদন: {new Date(l.appliedAt).toLocaleDateString('bn-BD')}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
                       <span className={`text-[11px] font-black px-3 py-1 rounded-full ${
-                        l.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                        l.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                        l.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                        l.status === 'rejected' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 
+                        'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
                       }`}>
                         {l.status === 'approved' ? '✓ মঞ্জুরকৃত' : l.status === 'rejected' ? '✕ বাতিলকৃত' : '⏳ বিবেচনাধীন (Pending)'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-700 font-medium">
-                    <span className="font-bold text-slate-900 block mb-1">ছুটির কারণ:</span>
+                  <div className="bg-slate-50 p-3.5 rounded-xl text-xs text-slate-700 font-medium border border-slate-100">
+                    <span className="font-bold text-slate-900 block mb-1">ছুটির কারণ ও বিবরণ:</span>
                     {l.reason}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 font-bold pt-1 border-t border-slate-50">
-                    <span>তারিখ: <strong>{l.startDate}</strong> হতে <strong>{l.endDate}</strong> ({l.totalDays} দিন)</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 font-bold pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-indigo-600 shrink-0" />
+                      <span>ছুটির মেয়াদ: <strong>{l.startDate}</strong> হতে <strong>{l.endDate}</strong> পর্যন্ত (মোট <strong>{l.totalDays}</strong> দিন)</span>
+                    </div>
 
-                    {l.status === 'pending' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleReviewLeave(l.id, 'rejected')}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-black transition cursor-pointer"
-                        >
-                          ✕ বাতিল করুন
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewLeave(l.id, 'approved')}
-                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1"
-                        >
-                          <Check size={13} />
-                          ✓ মঞ্জুর করুন
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {l.status === 'pending' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReviewModal(l, 'rejected')}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-black transition cursor-pointer active:scale-95"
+                          >
+                            ✕ বিবেচনা বাতিল
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReviewModal(l, 'approved')}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1 active:scale-95"
+                          >
+                            <Check size={13} />
+                            ✓ পর্যালোচনা ও মঞ্জুর
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {l.status === 'approved' && (
+                            <button
+                              type="button"
+                              onClick={() => setPrintSlipLeave(l)}
+                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                            >
+                              <Printer size={13} />
+                              ছুটি মঞ্জুরিপত্র প্রিন্ট
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReviewModal(l, l.status === 'approved' ? 'rejected' : 'approved')}
+                            className="px-2.5 py-1.5 text-slate-400 hover:text-slate-700 text-[11px] font-bold rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                          >
+                            পুনর্বিবেচনা
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {l.remarks && (
-                    <div className="bg-emerald-50/70 p-2.5 rounded-xl text-[11px] font-bold text-emerald-900 border border-emerald-100">
-                      পর্যালোচনা মন্তব্য ({l.reviewedBy}): {l.remarks}
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${
+                      l.status === 'approved' 
+                        ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200' 
+                        : 'bg-rose-50/80 text-rose-950 border-rose-200'
+                    }`}>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-bold mb-0.5">
+                        <CheckCircle2 size={13} className={l.status === 'approved' ? 'text-emerald-600' : 'text-rose-600'} />
+                        <span>সিদ্ধান্ত প্রদানকারী ({l.reviewedBy || 'প্রধান শিক্ষক'}):</span>
+                        {l.reviewedAt && <span>{new Date(l.reviewedAt).toLocaleDateString('bn-BD')}</span>}
+                      </div>
+                      <p className="font-semibold text-slate-800">{l.remarks}</p>
                     </div>
                   )}
                 </div>
@@ -1764,6 +1909,258 @@ export default function TeacherManagementPage() {
         </div>
       )}
 
+      {/* ─── MODAL: LEAVE APPLICATION REVIEW (PRINCIPAL) ────────────────── */}
+      {selectedLeaveForReview && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <Send size={18} className="text-amber-600" />
+                ছুটির আবেদন পর্যালোচনা ও সিদ্ধান্ত
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setSelectedLeaveForReview(null)} 
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Applicant Details */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-black text-slate-900 text-sm">{selectedLeaveForReview.teacherName}</h4>
+                  <p className="text-xs text-slate-500 font-bold">{selectedLeaveForReview.designation} • ID: {selectedLeaveForReview.teacherId}</p>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-black">
+                  {LEAVE_TYPE_LABELS[selectedLeaveForReview.leaveType] || selectedLeaveForReview.leaveType}
+                </span>
+              </div>
+              <div className="text-xs text-slate-600 pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                <span>মেয়াদ: <strong>{selectedLeaveForReview.startDate}</strong> হতে <strong>{selectedLeaveForReview.endDate}</strong></span>
+                <span className="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">মোট {selectedLeaveForReview.totalDays} দিন</span>
+              </div>
+              <div className="text-xs bg-white p-2.5 rounded-xl border border-slate-200 text-slate-700">
+                <strong className="text-slate-900 block mb-0.5">আবেদনের কারণ:</strong>
+                {selectedLeaveForReview.reason}
+              </div>
+            </div>
+
+            {/* Decision Toggle */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-700 block">প্রধান শিক্ষকের সিদ্ধান্ত:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewDecision('approved');
+                    setReviewRemarks('ছুটি মঞ্জুর করা হলো।');
+                  }}
+                  className={`py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    reviewDecision === 'approved'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Check size={14} /> ✓ মঞ্জুর করুন (Approve)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewDecision('rejected');
+                    setReviewRemarks('প্রশাসনিক কারণে ছুটি মঞ্জুর করা সম্ভব হলো না।');
+                  }}
+                  className={`py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    reviewDecision === 'rejected'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                      : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                  }`}
+                >
+                  <X size={14} /> ✕ বাতিল করুন (Reject)
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Remarks Chips */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 block">কুইক মন্তব্য সিলেক্ট করুন:</label>
+              <div className="flex flex-wrap gap-1.5">
+                {(reviewDecision === 'approved' ? [
+                  'ছুটি মঞ্জুর করা হলো।',
+                  'পরীক্ষার পূর্বে ক্লাস সমন্বয় সাপেক্ষে মঞ্জুর।',
+                  'জরুরি পারিবারিক কারণে মঞ্জুর করা হলো।',
+                  'চিকিৎসা সনদের ভিত্তিতে ৩ দিনের বিশ্রাম মঞ্জুর।'
+                ] : [
+                  'প্রশাসনিক কারণে ছুটি মঞ্জুর করা সম্ভব হলো না।',
+                  'একাডেমিক পরীক্ষা চলাকালীন ছুটি গ্রহণযোগ্য নয়।',
+                  'একই দিনে একাধিক শিক্ষকের অনুপস্থিতি থাকায় স্থগিত।'
+                ]).map((remark, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setReviewRemarks(remark)}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                  >
+                    {remark}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Remarks Textarea */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 block">পর্যালোচনা ও নির্দেশনা মন্তব্য:</label>
+              <textarea
+                value={reviewRemarks}
+                onChange={(e) => setReviewRemarks(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                placeholder="কোনো বিশেষ নির্দেশনা থাকলে লিখুন..."
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSelectedLeaveForReview(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReview}
+                className={`px-5 py-2 text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1.5 ${
+                  reviewDecision === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                <Check size={14} />
+                সিদ্ধান্ত সংরক্ষণ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: PRINT OFFICIAL LEAVE SLIP ───────────────────────────── */}
+      {printSlipLeave && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            {/* Dialog Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+              <div className="flex items-center gap-2">
+                <Printer size={18} className="text-indigo-600" />
+                <h3 className="font-extrabold text-slate-900 text-sm">ছুটি মঞ্জুরিপত্র প্রিভিউ ও প্রিন্ট</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrintSlipLeave(null)}
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Printable Letterhead Area */}
+            <div className="border border-slate-200 rounded-2xl p-6 bg-white text-slate-900 space-y-4 font-sans">
+              <div className="text-center border-b-2 border-slate-900 pb-3 space-y-0.5">
+                <h2 className="text-lg font-black text-slate-900">বরইতলী উচ্চ বিদ্যালয়</h2>
+                <p className="text-[11px] font-bold text-slate-600">ডাকঘর: বরইতলী, চকরিয়া, কক্সবাজার • স্থাপিত: ১৯৬৮ ইং</p>
+                <div className="inline-block px-3 py-0.5 mt-1 bg-slate-900 text-white rounded-md text-[11px] font-black uppercase tracking-wider">
+                  শিক্ষক ছুটি মঞ্জুরিপত্র (LEAVE APPROVAL SLIP)
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-600 font-bold">
+                <span>স্মারক নং: SMS/LEV/{printSlipLeave.id}/2026</span>
+                <span>তারিখ: {new Date(printSlipLeave.reviewedAt || printSlipLeave.appliedAt).toLocaleDateString('bn-BD')}</span>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">শিক্ষকের নাম:</span>
+                  <strong className="text-slate-900">{printSlipLeave.teacherName}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">পদবি ও শিক্ষক আইডি:</span>
+                  <span className="text-slate-800 font-bold">{printSlipLeave.designation} ({printSlipLeave.teacherId})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">ছুটির প্রকারভেদ:</span>
+                  <span className="font-extrabold text-indigo-900">{LEAVE_TYPE_LABELS[printSlipLeave.leaveType] || printSlipLeave.leaveType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">মঞ্জুরকৃত ছুটির মেয়াদ:</span>
+                  <span className="font-extrabold text-emerald-800">{printSlipLeave.startDate} হতে {printSlipLeave.endDate} পর্যন্ত (মোট {printSlipLeave.totalDays} দিন)</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-1.5">
+                  <span className="text-slate-500 font-bold">ছুটির কারণ:</span>
+                  <span className="text-slate-800 text-right max-w-xs">{printSlipLeave.reason}</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950">
+                <strong className="block mb-0.5">প্রধান শিক্ষকের অনুমোদন ও নির্দেশনা:</strong>
+                <p className="font-semibold">{printSlipLeave.remarks || 'ছুটি যথাযথ নিয়মে মঞ্জুর করা হলো।'}</p>
+              </div>
+
+              <div className="pt-10 flex justify-between items-end text-xs font-bold text-slate-800">
+                <div className="text-center">
+                  <div className="w-32 border-t border-slate-400 pt-1">শিক্ষকের স্বাক্ষর</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-36 border-t-2 border-slate-900 pt-1 font-black text-slate-900">
+                    প্রধান শিক্ষক
+                    <span className="block text-[10px] text-slate-500 font-normal">বরইতলী উচ্চ বিদ্যালয়</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dialog Footer Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 print:hidden">
+              <button
+                type="button"
+                onClick={() => setPrintSlipLeave(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Printer size={14} />
+                প্রিন্ট করুন (Print Slip)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
+  );
+}
+
+export default function TeacherManagementPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full py-16" suppressHydrationWarning>
+        <div className="animate-pulse space-y-6">
+          <div className="h-28 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded-3xl" />
+          <div className="flex gap-3">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-11 w-40 bg-slate-200 rounded-2xl" />)}
+          </div>
+          <div className="h-96 bg-slate-100 rounded-3xl" />
+        </div>
+      </div>
+    }>
+      <TeacherManagementContent />
+    </Suspense>
   );
 }

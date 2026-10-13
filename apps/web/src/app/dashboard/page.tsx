@@ -25,12 +25,14 @@ import {
   Sparkles,
   PieChart,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
+  Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { studentService, Student } from '@/services/studentService';
 import { settingsService } from '@/services/settingsService';
 import { classSectionService } from '@/services/classSectionService';
+import { leaveService, LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/leaveService';
 import { getStudentReligion } from '@/lib/religionUtils';
 import { localDateKey } from '@/lib/dateUtils';
 import { languageService, AppLanguage } from '@/services/languageService';
@@ -83,6 +85,7 @@ export default function DashboardPage() {
   const [schoolSettings, setSchoolSettings] = useState<any>(null);
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [analyticsView, setAnalyticsView] = useState<'charts' | 'table'>('charts');
+  const [pendingLeaves, setPendingLeaves] = useState<LeaveApplication[]>([]);
   const [attendanceView, setAttendanceView] = useState<'visual' | 'table'>('visual');
 
   useEffect(() => {
@@ -116,11 +119,16 @@ export default function DashboardPage() {
 
     const loadData = () => {
       setStudents(studentService.getAllStudents());
+      try {
+        const all = leaveService.getLeaves();
+        setPendingLeaves(all.filter(l => l.status === 'pending'));
+      } catch (e) {}
     };
 
     loadData();
 
     const unsubscribeStudents = studentService.subscribe(loadData);
+    const unsubscribeLeaves = leaveService.subscribe(loadData);
     const unsubscribeSettings = settingsService.subscribe((s) => setSchoolSettings(s));
     const unsubscribeLang = languageService.subscribe((l) => setCurrentLang(l));
 
@@ -130,6 +138,7 @@ export default function DashboardPage() {
 
     return () => {
       unsubscribeStudents();
+      unsubscribeLeaves();
       unsubscribeSettings();
       unsubscribeLang();
       if (typeof window !== 'undefined') {
@@ -456,6 +465,43 @@ export default function DashboardPage() {
             >
               <FileSpreadsheet size={14} className="text-emerald-500" />
               <span>{currentLang === 'en' ? 'Student List & Import' : 'শিক্ষার্থী তালিকা ও ইম্পোর্ট'}</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* 🔔 0. PENDING TEACHER LEAVE APPLICATIONS ALERT BANNER (PRINCIPAL NOTIFICATION) */}
+      {pendingLeaves.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-amber-50 to-orange-500/10 dark:from-amber-950/40 dark:via-slate-900 dark:to-orange-950/20 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 animate-pulse">
+              <Send className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-black text-[10px] uppercase tracking-wide">
+                  {currentLang === 'en' ? 'Principal Alert' : 'প্রধান শিক্ষক নোটিফিকেশন'}
+                </span>
+                <span className="text-xs font-bold text-amber-800 dark:text-amber-400">
+                  {currentLang === 'en' ? `${pendingLeaves.length} Pending Leave Applications` : `${pendingLeaves.length}টি ছুটির আবেদন বিবেচনাধীন`}
+                </span>
+              </div>
+              <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
+                {currentLang === 'en' ? 'Teacher Leave Review Required' : 'শিক্ষকদের নৈমিত্তিক/চিকিৎসা ছুটির আবেদন পর্যালোচনা প্রয়োজন'}
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                {pendingLeaves.slice(0, 2).map(l => `${l.teacherName} (${l.totalDays} দিন - ${LEAVE_TYPE_LABELS[l.leaveType] || l.leaveType})`).join(', ')}
+                {pendingLeaves.length > 2 ? ` এবং আরও ${pendingLeaves.length - 2} জনের আবেদন জমা রয়েছে` : ' এর আবেদন বিবেচনাধীন রয়েছে'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+            <Link
+              href="/dashboard/teacher?tab=leave_applications"
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-2 transition active:scale-95 cursor-pointer"
+            >
+              <span>{currentLang === 'en' ? 'Review & Approve' : 'আবেদনসমূহ দেখুন ও অনুমোদন করুন'}</span>
+              <ArrowRight size={14} />
             </Link>
           </div>
         </div>

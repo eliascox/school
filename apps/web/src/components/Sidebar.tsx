@@ -44,6 +44,7 @@ import {
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
+import { leaveService } from '@/services/leaveService';
 
 interface NavItem {
   label: string;
@@ -87,6 +88,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Students', labelBn: 'শিক্ষার্থী তালিকা', href: '/dashboard/students', icon: <Users className="w-4 h-4" /> },
       { label: 'Student Print & Reports', labelBn: 'তালিকা প্রিন্ট ও রিপোর্ট', href: '/dashboard/students?view=print', icon: <Printer className="w-4 h-4" /> },
       { label: 'Teachers & Staff', labelBn: 'শিক্ষক ও স্টাফ', href: '/dashboard/teacher', icon: <UserCheck className="w-4 h-4" /> },
+      { label: 'Leave Applications', labelBn: 'ছুটির আবেদনসমূহ', href: '/dashboard/teacher?tab=leave_applications', icon: <Send className="w-4 h-4" /> },
     ],
   },
   {
@@ -198,12 +200,32 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
 
   const isAdmin = session?.role === 'admin';
   const currentTab = searchParams ? searchParams.get('tab') : null;
+  const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
 
   useEffect(() => {
     setCurrentLang(languageService.getLanguage());
     setSchoolSettings(settingsService.getSettings());
     const unsub = languageService.subscribe((lang) => setCurrentLang(lang));
-    return () => unsub();
+
+    const updateLeaves = () => {
+      try {
+        const leaves = leaveService.getLeaves();
+        setPendingLeavesCount(leaves.filter(l => l.status === 'pending').length);
+      } catch (e) {}
+    };
+    updateLeaves();
+    const unsubLeaves = leaveService.subscribe(updateLeaves);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', updateLeaves);
+    }
+
+    return () => {
+      unsub();
+      unsubLeaves();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', updateLeaves);
+      }
+    };
   }, []);
 
   const toggleGroup = (key: string) => {
@@ -227,11 +249,17 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
         if (base === '/dashboard/ssc-transcript') {
           return (currentTab || 'single_generator') === paramTab;
         }
+        if (base === '/dashboard/teacher') {
+          return currentTab === paramTab;
+        }
         return currentTab === paramTab;
       }
       return false;
     }
-    return pathname === href && !searchParams?.get('view');
+    if (href === '/dashboard/teacher') {
+      return pathname === href && (!currentTab || currentTab === 'teachers');
+    }
+    return pathname === href && !searchParams?.get('view') && !searchParams?.get('tab');
   };
 
   const isGroupActive = (group: NavGroup) =>
@@ -490,6 +518,11 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                             {item.icon}
                           </div>
                           <span className="truncate">{currentLang === 'en' ? item.label : item.labelBn}</span>
+                          {item.href.includes('tab=leave_applications') && pendingLeavesCount > 0 && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-pulse shadow-xs">
+                              {pendingLeavesCount}
+                            </span>
+                          )}
                         </Link>
                       ))}
                     </div>

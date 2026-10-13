@@ -10,7 +10,8 @@ import {
   CreditCard, 
   TrendingUp,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Send
 } from 'lucide-react';
 
 interface Props {
@@ -66,6 +67,14 @@ export default function QuickActionHub({ lang = 'bn' }: Props) {
       icon: <CreditCard className="w-5 h-5 text-white" />,
       iconBg: 'bg-gradient-to-tr from-sky-600 to-blue-500 shadow-md shadow-sky-500/25',
       cardBg: 'bg-sky-50/70 hover:bg-sky-50/90 dark:bg-sky-950/40 dark:hover:bg-sky-950/60 border-sky-100 dark:border-sky-900/40'
+    },
+    {
+      label: lang === 'en' ? 'Leave Review' : 'ছুটির আবেদন পর্যালোচনা',
+      subLabel: lang === 'en' ? 'Teacher Applications' : 'শিক্ষকদের ছুটি অনুমোদন',
+      href: '/dashboard/teacher?tab=leave_applications',
+      icon: <Send className="w-5 h-5 text-white" />,
+      iconBg: 'bg-gradient-to-tr from-amber-500 to-rose-500 shadow-md shadow-amber-500/25',
+      cardBg: 'bg-amber-50/70 hover:bg-amber-50/90 dark:bg-amber-950/40 dark:hover:bg-amber-950/60 border-amber-100 dark:border-amber-900/40'
     }
   ];
 
@@ -83,7 +92,7 @@ export default function QuickActionHub({ lang = 'bn' }: Props) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3.5">
         {actions.map((act, i) => (
           <Link
             key={i}
