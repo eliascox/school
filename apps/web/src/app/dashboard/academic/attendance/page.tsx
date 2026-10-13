@@ -26,19 +26,7 @@ import { studentService, Student } from '@/services/studentService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, ClassTeacherAssignment } from '@/services/teacherRBACService';
 import { auditTrailService } from '@/services/auditTrailService';
-
-// ─── TYPES ────────────────────────────────────────────────────────────
-interface StudentAttendanceRecord {
-  id: string;
-  roll: string;
-  name: string;
-  grade: string;
-  branch: string;
-  guardian: string;
-  mobile: string;
-  status: 'Present' | 'Absent' | 'Leave';
-  reason?: string;
-}
+import { attendanceService, StudentAttendanceRecord } from '@/services/attendanceService';
 
 type AttendanceTab = 'register' | 'absentee_panel' | 'reports';
 
@@ -120,42 +108,10 @@ export default function AttendancePage() {
   // ─── DATA LOADING ───────────────────────────────────────────────────
   const loadAttendanceStudents = useCallback(() => {
     if (typeof window === 'undefined') return;
-
-    // Check if there is saved attendance for this class and date
-    const storageKey = `sms_attendance_${selectedDate}_${classKey}`;
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      try {
-        setStudents(JSON.parse(stored));
-        setSaveSuccessMsg(false);
-        return;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    // Default: load class list filtering by group for 9th/10th
-    const targetGroup = isClass9or10
-      ? (selectedBranch === 'Science' || selectedBranch === 'A' ? 'বিজ্ঞান' :
-         selectedBranch === 'Humanities' || selectedBranch === 'B' ? 'মানবিক' :
-         selectedBranch === 'Commerce' || selectedBranch === 'C' ? 'ব্যবসায় শিক্ষা' : selectedBranch)
-      : undefined;
-
-    const rawStudents = studentService.getStudentsByFilter(selectedGrade, selectedBranch, targetGroup);
-    const mapped: StudentAttendanceRecord[] = rawStudents.map((s, idx) => ({
-      id: s.id || `st-${s.roll}`,
-      roll: s.roll || String(idx + 1).padStart(2, '0'),
-      name: s.name,
-      grade: s.grade,
-      branch: selectedBranch,
-      guardian: s.guardian || s.fatherName || 'অভিভাবক',
-      mobile: s.mobile || '01800000000',
-      status: 'Present'
-    }));
-
-    setStudents(mapped);
+    const records = attendanceService.getAttendance(selectedDate, selectedGrade, selectedBranch);
+    setStudents(records);
     setSaveSuccessMsg(false);
-  }, [selectedGrade, selectedBranch, selectedDate, classKey, isClass9or10]);
+  }, [selectedGrade, selectedBranch, selectedDate]);
 
   useEffect(() => {
     setMounted(true);
@@ -165,20 +121,13 @@ export default function AttendancePage() {
   // Save current class attendance
   const saveAttendance = (updatedList: StudentAttendanceRecord[]) => {
     setStudents(updatedList);
-    if (typeof window !== 'undefined') {
-      const storageKey = `sms_attendance_${selectedDate}_${classKey}`;
-      localStorage.setItem(storageKey, JSON.stringify(updatedList));
-
-      const presentCnt = updatedList.filter(s => s.status === 'Present').length;
-      const absentCnt = updatedList.filter(s => s.status === 'Absent').length;
-      auditTrailService.addLog({
-        action: 'MARK_ATTENDANCE',
-        category: 'ATTENDANCE',
-        details: `শ্রেণি ${selectedGrade} (${selectedBranch}) এর তারিখ ${selectedDate} এর উপস্থিতি সেভ করা হয়েছে (উপস্থিত: ${presentCnt}, অনুপস্থিত: ${absentCnt})`,
-        performedBy: session?.teacherName || (session?.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'),
-        status: 'SUCCESS'
-      });
-    }
+    attendanceService.saveAttendance({
+      date: selectedDate,
+      grade: selectedGrade,
+      branch: selectedBranch,
+      records: updatedList,
+      performedBy: session?.teacherName || (session?.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক')
+    });
     setSaveSuccessMsg(true);
     setTimeout(() => setSaveSuccessMsg(false), 3000);
   };
@@ -218,41 +167,8 @@ export default function AttendancePage() {
 
   // ─── CENTRAL ABSENTEE PANEL GATHERING ──────────────────────────────
   const centralAbsenteeList = useMemo(() => {
-    if (typeof window === 'undefined') return [];
-
-    const grades = ['6th', '7th', '8th', '9th', '10th'];
-    const list: StudentAttendanceRecord[] = [];
-
-    grades.forEach(g => {
-      const is9or10 = g === '9th' || g === '10th';
-      const branches = is9or10
-        ? ['Science', 'Humanities', 'Commerce', 'A', 'B', 'C', 'বিজ্ঞান', 'মানবিক', 'ব্যবসায় শিক্ষা']
-        : ['A', 'B', 'C'];
-
-      branches.forEach(b => {
-        const storageKey = `sms_attendance_${selectedDate}_${g}-${b}`;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          try {
-            const records: StudentAttendanceRecord[] = JSON.parse(stored);
-            records.forEach(r => {
-              if (r.status === 'Absent' || r.status === 'Leave') {
-                if (!list.some(item => item.id === r.id && item.grade === g)) {
-                  list.push({
-                    ...r,
-                    grade: g,
-                    branch: b
-                  });
-                }
-              }
-            });
-          } catch (e) {}
-        }
-      });
-    });
-
-    return list;
-  }, [selectedDate]);
+    return attendanceService.getAllAbsenteesForDate(selectedDate);
+  }, [selectedDate, students]);
 
   // Main marked list search filter
   const filteredStudents = useMemo(() => {

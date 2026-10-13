@@ -141,6 +141,25 @@ export interface RefundRecord {
   processedBy: string;
 }
 
+export interface StudentPaymentRecord {
+  receiptId: string;
+  studentId: string;
+  studentName: string;
+  roll: string;
+  grade: string;
+  section: string;
+  mobile?: string;
+  feeItems: Array<{ name: string; amount: number; dueRemaining?: number }>;
+  subtotal: number;
+  discount: number;
+  paidAmount: number;
+  dueRemaining?: number;
+  paymentMethod: string;
+  trxId?: string;
+  date: string;
+  collectedBy: string;
+}
+
 // ─── ⚙️ GO-LIVE SETTINGS & BILLING CYCLE ─────────────────────────────
 export interface FinanceSettings {
   systemStartMonth: string;         // 'জানুয়ারি', 'জুলাই', 'সেপ্টেম্বর', etc.
@@ -1356,6 +1375,14 @@ export const financeService = {
   },
 
   addVoucher: (voucher: VoucherRecord) => {
+    // 🌟 Enforce Double-Entry Accounting Invariant: Total Debit === Total Credit
+    const totalDebit = (voucher.entries || []).reduce((sum, e) => sum + (Number(e.debit) || 0), 0);
+    const totalCredit = (voucher.entries || []).reduce((sum, e) => sum + (Number(e.credit) || 0), 0);
+    const diff = Math.abs(totalDebit - totalCredit);
+    if (diff > 0.01) {
+      throw new Error(`Double-entry invariant violated: Total Debit (৳${totalDebit.toFixed(2)}) must equal Total Credit (৳${totalCredit.toFixed(2)}) for voucher ${voucher.voucherNo}`);
+    }
+
     const list = financeService.getVouchers();
     list.unshift(voucher);
     financeService.saveVouchers(list);
@@ -1580,7 +1607,7 @@ export const financeService = {
     const vouchers = financeService.getVouchers();
     const coa = financeService.getChartOfAccounts();
     const cashAccount = coa.find(a => a.code === '1010');
-    const openingBalance = cashAccount ? cashAccount.openingBalance : 85400;
+    const openingBalance = cashAccount ? (Number(cashAccount.openingBalance) || 0) : 0;
 
     let runningBalance = openingBalance;
     const records: {
@@ -1635,7 +1662,7 @@ export const financeService = {
     const vouchers = financeService.getVouchers();
     const coa = financeService.getChartOfAccounts();
     const bankAccount = coa.find(a => a.code === bankCode);
-    const openingBalance = bankAccount ? bankAccount.openingBalance : 580000;
+    const openingBalance = bankAccount ? (Number(bankAccount.openingBalance) || 0) : 0;
 
     let runningBalance = openingBalance;
     const records: {
@@ -2637,6 +2664,32 @@ export const financeService = {
       updatedLedger: ledger,
       paidFeeItems
     };
+  },
+
+  getPaymentHistory: (): StudentPaymentRecord[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(PAYMENT_HISTORY_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  },
+
+  addPaymentRecord: (record: StudentPaymentRecord): StudentPaymentRecord[] => {
+    const list = financeService.getPaymentHistory();
+    const exists = list.some(p => p.receiptId === record.receiptId);
+    if (!exists) {
+      list.unshift(record);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(PAYMENT_HISTORY_STORAGE_KEY, JSON.stringify(list));
+        } catch (e) {}
+      }
+    }
+    return list;
   },
 
   getFeeCollectionStats: (payments: any[] = []): FeeCollectionStats => {

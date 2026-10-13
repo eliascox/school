@@ -185,6 +185,40 @@ export const studentService = {
     });
   },
 
+  /**
+   * Validates a student record and checks for duplicate roll in the same grade and section.
+   */
+  validateStudent: (student: Partial<Student>, excludeId?: string): { isValid: boolean; error?: string } => {
+    if (!student.name || !student.name.trim()) {
+      return { isValid: false, error: 'শিক্ষার্থীর নাম প্রদান করা আবশ্যক।' };
+    }
+    const roll = (student.roll || '').trim();
+    if (!roll) {
+      return { isValid: false, error: 'রোল নম্বর প্রদান করা আবশ্যক।' };
+    }
+    const grade = (student.grade || student.gradeBn || '6th').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const section = (student.section || student.branch || 'a').toString().toLowerCase().trim();
+
+    const all = studentService.getAllStudents();
+    const duplicate = all.find(s => {
+      if (excludeId && s.id === excludeId) return false;
+      const sGrade = (s.grade || s.gradeBn || '6th').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sSection = (s.section || s.branch || 'a').toString().toLowerCase().trim();
+      const sRoll = (s.roll || '').trim().replace(/^0+/, '');
+      const checkRoll = roll.replace(/^0+/, '');
+      return sGrade === grade && sSection === section && sRoll === checkRoll;
+    });
+
+    if (duplicate) {
+      return {
+        isValid: false,
+        error: `শ্রেণি ${student.grade || '৬ষ্ঠ'}, শাখা ${student.section || 'A'} এ ইতিমধ্যে রোল ${roll} বিশিষ্ট শিক্ষার্থী (${duplicate.name}) বিদ্যমান!`
+      };
+    }
+
+    return { isValid: true };
+  },
+
   // Save/Add single student
   addStudent: (data: Partial<Student>): Student => {
     const all = studentService.getAllStudents();
