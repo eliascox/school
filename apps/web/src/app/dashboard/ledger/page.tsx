@@ -22,6 +22,8 @@ import {
   DollarSign
 } from 'lucide-react';
 import { ledgerService, LedgerRecord, LedgerFilterOptions } from '@/services/ledgerService';
+import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
+import { SystemPurgeReport } from '@/services/systemResetService';
 
 export default function LedgerDashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -44,6 +46,7 @@ export default function LedgerDashboardPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LedgerRecord | null>(null);
+  const [showSecurityDeleteModal, setShowSecurityDeleteModal] = useState(false);
 
   // Form State
   const [formType, setFormType] = useState<'Income' | 'Expense'>('Income');
@@ -203,14 +206,15 @@ export default function LedgerDashboardPage() {
     }
   };
 
-  // Reset & Clear all ledger records
+  // Reset & Clear all ledger records with security comment requirement
   const handleResetLedger = () => {
-    if (confirm('আপনি কি নিশ্চিত যে সমস্ত ডেমো ডাটা ও লেনদেনের রেকর্ড মুছে খতিয়ান সম্পূর্ণ ফ্রেশ ও খালি (৳০) করতে চান?')) {
-      ledgerService.clearAllLedgerData();
-      refreshData();
-      setAlertMessage('খতিয়ান সফলভাবে রিসেট করা হয়েছে এবং সকল ডেমো ডাটা স্থায়ীভাবে মুছে ফেলা হয়েছে!');
-      setTimeout(() => setAlertMessage(''), 5000);
-    }
+    setShowSecurityDeleteModal(true);
+  };
+
+  const handleSecurityPurgeSuccess = (report: SystemPurgeReport) => {
+    refreshData();
+    setAlertMessage(`সকল স্তরের ডেমো ডাটা সফলভাবে মুছে ফেলা হয়েছে! (কমেন্ট: "${report.comment}")`);
+    setTimeout(() => setAlertMessage(''), 6000);
   };
 
   // Export CSV
@@ -938,9 +942,16 @@ export default function LedgerDashboardPage() {
               </div>
             </form>
           </div>
-        </div>
+      </div>
       )}
 
+      {/* Security Delete Modal */}
+      <SecurityDeleteModal
+        isOpen={showSecurityDeleteModal}
+        onClose={() => setShowSecurityDeleteModal(false)}
+        onSuccess={handleSecurityPurgeSuccess}
+        performedBy="প্রধান শিক্ষক / ক্যাশিয়ার"
+      />
     </div>
   );
 }

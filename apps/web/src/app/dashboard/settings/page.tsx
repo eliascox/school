@@ -67,6 +67,8 @@ import DisasterRecoveryPanel from '@/components/DisasterRecoveryPanel';
 import { smsService, SMSGatewayConfig, SMSProviderType } from '@/services/smsService';
 import { financeService } from '@/services/financeService';
 import { ledgerService } from '@/services/ledgerService';
+import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
+import { SystemPurgeReport } from '@/services/systemResetService';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
 type SettingsTab = 'identity' | 'pad' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
@@ -159,6 +161,7 @@ export default function SettingsPage() {
   const [showPasswordAdmin, setShowPasswordAdmin] = useState(false);
   const [padPreviewMode, setPadPreviewMode] = useState<'full_pad' | 'preprinted' | 'blank_pad'>('full_pad');
   const [copied, setCopied] = useState(false);
+  const [showSecurityDeleteModal, setShowSecurityDeleteModal] = useState(false);
 
   // Admin Credentials
   const [adminPhoneInput, setAdminPhoneInput] = useState('admin');
@@ -568,14 +571,13 @@ export default function SettingsPage() {
   };
 
   const handleClearDemoData = () => {
-    if (confirm('আপনি কি নিশ্চিত যে সমস্ত শিক্ষার্থী, নম্বর, খতিয়ান লেজার ও ফি আদায়ের তথ্য মুছে সম্পূর্ণ ফ্রেশ স্টার্ট করতে চান?')) {
-      studentService.clearAllDemoData();
-      financeService.clearAllFinanceData();
-      ledgerService.clearAllLedgerData();
-      setParsedStudentsList([]);
-      setImportSuccessMsg('সমস্ত তথ্য সফলভাবে মুছে ফেলা হয়েছে এবং ডেটাবেস সম্পূর্ণ ফ্রেশ অবস্থায় সেট করা হয়েছে!');
-      setTimeout(() => setImportSuccessMsg(''), 5000);
-    }
+    setShowSecurityDeleteModal(true);
+  };
+
+  const handleSecurityPurgeSuccess = (report: SystemPurgeReport) => {
+    setParsedStudentsList([]);
+    setImportSuccessMsg(`সকল স্তরের ডেমো ডাটা সফলভাবে মুছে সম্পূর্ণ ফ্রেশ ডেটাবেস প্রস্তুত করা হয়েছে! (কমেন্ট: "${report.comment}")`);
+    setTimeout(() => setImportSuccessMsg(''), 7000);
   };
 
   const handleCopyEIIN = () => {
@@ -2856,6 +2858,14 @@ export default function SettingsPage() {
         </div>
       </div>
       )}
+
+      {/* Security Delete Modal */}
+      <SecurityDeleteModal
+        isOpen={showSecurityDeleteModal}
+        onClose={() => setShowSecurityDeleteModal(false)}
+        onSuccess={handleSecurityPurgeSuccess}
+        performedBy={session?.teacherName || (session?.role === 'admin' ? 'প্রধান শিক্ষক' : 'অ্যাডমিন')}
+      />
     </div>
   );
 }

@@ -996,18 +996,24 @@ function FinanceContent() {
   };
 
   const handleDeleteBank = (id: string, name: string) => {
-    if (confirm(`আপনি কি নিশ্চিত যে "${name}" ব্যাংক হিসাবটি ডিলিট করতে চান?`)) {
-      financeService.deleteBankAccount(id);
-      loadAllData();
+    const comment = prompt(`"${name}" ব্যাংক হিসাবটি ডিলিট করতে নিরাপত্তা কমেন্ট লিখুন (যেমন: DELETE):`);
+    if (!comment || !comment.trim()) {
+      alert('কমেন্ট প্রদান না করায় ব্যাংক হিসাব ডিলিট বাতিল করা হয়েছে।');
+      return;
     }
+    financeService.deleteBankAccount(id);
+    loadAllData();
   };
 
   const handleResetAllBankBalances = () => {
-    if (confirm('আপনি কি সকল ব্যাংকের স্থিতি ও ব্যালেন্স ৳০ করতে চান? এতে পূর্বের ডেমো টাকা মুছে যাবে।')) {
-      financeService.resetAllBankBalancesToZero();
-      loadAllData();
-      alert('সকল ব্যাংক হিসাবের ব্যালেন্স সফলভাবে ৳০ করা হয়েছে!');
+    const comment = prompt('সকল ব্যাংকের স্থিতি ও ডেমো টাকা ৳০ করতে নিরাপত্তা কমেন্ট লিখুন (যেমন: RESET অথবা ০):');
+    if (!comment || !comment.trim()) {
+      alert('নিরাপত্তা কমেন্ট প্রদান না করায় ব্যালেন্স রিসেট বাতিল করা হয়েছে।');
+      return;
     }
+    financeService.resetAllBankBalancesToZero();
+    loadAllData();
+    alert(`সকল ব্যাংক হিসাবের ব্যালেন্স সফলভাবে ৳০ করা হয়েছে! (কমেন্ট: "${comment.trim()}")`);
   };
 
   const handleSaveBankTransfer = (e: React.FormEvent) => {

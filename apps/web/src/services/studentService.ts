@@ -1,5 +1,6 @@
 import { auditTrailService } from './auditTrailService';
 import { syncQueueService } from './syncQueueService';
+import { systemResetService, SystemPurgeReport } from './systemResetService';
 
 export interface Student {
   id: string;
@@ -397,52 +398,11 @@ export const studentService = {
     });
   },
 
-  // Clear All Demo/Real Data & Reset DB completely (Students, Marks, Ledger, Student Fees)
-  clearAllDemoData: (): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem('sms_students');
-    localStorage.removeItem('sms_uploaded_students');
-
-    // Remove all sms_marks_ keys
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sms_marks_')) {
-        localStorage.removeItem(key);
-      }
-    });
-
-    // ─── COMPREHENSIVELY WIPE LEDGER & STUDENT FEES DATA ───
-    localStorage.setItem('school_ledger_records', JSON.stringify([]));
-    localStorage.setItem('sms_student_fee_ledgers', JSON.stringify({}));
-    localStorage.setItem('sms_payment_history', JSON.stringify([]));
-    localStorage.setItem('sms_vouchers_ledger', JSON.stringify([]));
-    localStorage.setItem('sms_payroll_records', JSON.stringify([]));
-    localStorage.setItem('sms_expenses', JSON.stringify([]));
-    localStorage.setItem('sms_expense_records', JSON.stringify([]));
-    localStorage.setItem('sms_fee_invoices', JSON.stringify([]));
-    localStorage.setItem('sms_waivers', JSON.stringify([]));
-    localStorage.setItem('sms_refunds', JSON.stringify([]));
-
-    // Reset bank balances & chart of accounts balances to 0
-    try {
-      const banks = localStorage.getItem('sms_bank_accounts');
-      if (banks) {
-        const parsedBanks = JSON.parse(banks);
-        if (Array.isArray(parsedBanks)) {
-          localStorage.setItem('sms_bank_accounts', JSON.stringify(parsedBanks.map((b: any) => ({ ...b, balance: 0 }))));
-        }
-      }
-      const coa = localStorage.getItem('sms_chart_of_accounts');
-      if (coa) {
-        const parsedCoa = JSON.parse(coa);
-        if (Array.isArray(parsedCoa)) {
-          localStorage.setItem('sms_chart_of_accounts', JSON.stringify(parsedCoa.map((c: any) => ({ ...c, openingBalance: 0 }))));
-        }
-      }
-    } catch (e) {}
-
-    localStorage.setItem('sms_demo_cleared', 'true');
-    window.dispatchEvent(new Event('storage'));
+  // Clear All Demo/Real Data & Reset DB completely (Synchronized across all system layers)
+  clearAllDemoData: (comment?: string, performedBy?: string): SystemPurgeReport => {
+    const report = systemResetService.purgeAllSystemData(comment, performedBy);
     listeners.forEach((fn) => fn());
+    return report;
   },
 
   // Restore Default Demo Data (explicit admin action only)
