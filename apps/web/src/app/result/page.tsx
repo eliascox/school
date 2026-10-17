@@ -244,6 +244,16 @@ function ResultSearchContent() {
     setHasSearched(true);
     setIsSearching(true);
 
+    // 0. Strict Publication Gate: Check if exam result is published (ফলাফল পাবলিশ যাচাই)
+    const isExamPublished = examService.isExamResultPublished(selectedExam);
+    if (!isExamPublished) {
+      setFoundStudent(null);
+      setFoundMarksheetData(null);
+      setIsSearching(false);
+      setErrorMsg('উক্ত পরীক্ষার ফলাফল এখনও প্রকাশিত হয়নি। বিদ্যালয় কর্তৃপক্ষ ফলাফল পাবলিশ করার পর শিক্ষার্থীরা অনলাইন থেকে তা দেখতে পাবে।');
+      return;
+    }
+
     const cleanRoll = rollInput.trim();
     if (!cleanRoll) {
       setErrorMsg('Please enter a valid student roll number.');
@@ -368,6 +378,9 @@ function ResultSearchContent() {
     );
   }
 
+  // Check if selected exam is published online
+  const isCurrentExamPublished = examService.isExamResultPublished(selectedExam);
+
   // Calculate statistics for performance summary
   const totalObtainedMarks = foundMarksheetData?.totalObtained ?? 0;
   const totalMaxMarks = foundMarksheetData?.totalFull ?? 0;
@@ -452,6 +465,24 @@ function ResultSearchContent() {
           <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/40 max-w-3xl mx-auto">
             <form onSubmit={handleSearch} className="space-y-6">
               
+              {/* Publication Status Banner */}
+              {!isCurrentExamPublished ? (
+                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/40 text-amber-200 text-xs sm:text-sm flex items-start gap-2.5">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-amber-200">উক্ত পরীক্ষার ফলাফল এখনও প্রকাশিত হয়নি</p>
+                    <p className="text-[11px] text-amber-300/80">
+                      বিদ্যালয় কর্তৃপক্ষ আনুষ্ঠানিকভাবে &ldquo;ফলাফল পাবলিশ&rdquo; করার পর শিক্ষার্থীরা অনলাইন থেকে তা দেখতে পারবে।
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-600/30 text-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>এই পরীক্ষার ফলাফল অনলাইনে প্রকাশিত ও উন্মুক্ত রয়েছে।</span>
+                </div>
+              )}
+
               {/* 2-Column Grid on Desktop, 1-Column on Mobile */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
@@ -470,15 +501,16 @@ function ResultSearchContent() {
                       {activeExams.length > 0 ? (
                         activeExams.map((exam) => {
                           const displayLabel = examService.formatExamNameForDisplay(exam.title);
+                          const isPub = Boolean(exam.isPublished);
                           return (
                             <option key={exam.id} value={exam.title} className="bg-slate-900 text-white">
-                              {displayLabel}
+                              {displayLabel} {isPub ? '✓ (ফলাফল প্রকাশিত)' : '🔒 (ফলাফল অপ্রকাশিত)'}
                             </option>
                           );
                         })
                       ) : (
                         <option value="Annual Examination 2026" className="bg-slate-900 text-white">
-                          Annual Examination 2026
+                          Annual Examination 2026 🔒 (ফলাফল অপ্রকাশিত)
                         </option>
                       )}
                     </select>
@@ -633,7 +665,7 @@ function ResultSearchContent() {
           )}
 
           {/* Success Notification */}
-          {searchSuccess && foundStudent && (
+          {searchSuccess && foundStudent && isCurrentExamPublished && (
             <div className="max-w-3xl mx-auto p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-800/80 text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5 shadow-md">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Result record found successfully for <strong>{foundStudent.name}</strong>.</span>
@@ -643,9 +675,38 @@ function ResultSearchContent() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════════ */}
+        {/* 🔒 UNPUBLISHED EXAM NOTICE (When searched on unpublished exam) */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {hasSearched && !isCurrentExamPublished && (
+          <div className="max-w-3xl mx-auto p-8 rounded-3xl bg-[#111827] border border-amber-500/40 text-center space-y-4 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-white">ফলাফল এখনও প্রকাশিত হয়নি</h3>
+              <p className="text-sm text-slate-300">
+                নির্বাচিত <strong>&ldquo;{selectedExam}&rdquo;</strong>-এর ফলাফল বিদ্যালয় কর্তৃপক্ষ এখনও অনলাইন পোর্টালে প্রকাশ করেনি।
+              </p>
+              <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-amber-200/90 max-w-lg mx-auto">
+                বিদ্যালয় কর্তৃপক্ষ পরীক্ষা ব্যবস্থাপনা থেকে ফলাফল পাবলিশ করার পর শিক্ষার্থীরা তাদের রোল নম্বর দিয়ে সম্পূর্ণ মার্কশীট দেখতে ও ডাউনলোড করতে পারবে।
+              </div>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleResetSearch}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              >
+                অন্য পরীক্ষা নির্বাচন করুন
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
         {/* 📊 STUDENT RESULT DASHBOARD SECTION */}
         {/* ═════════════════════════════════════════════════════════════ */}
-        {foundStudent && foundMarksheetData && (
+        {foundStudent && foundMarksheetData && isCurrentExamPublished && (
           <div id="result-dashboard-section" className="space-y-6 pt-4 print:space-y-0 print:pt-0 print:p-0 print:m-0 print:block print:w-full">
             
             {/* 1. Header Banner & Action Bar (Hidden on Print) */}

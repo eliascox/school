@@ -16,7 +16,10 @@ import {
   Building2,
   Users,
   Pencil,
-  Trash2
+  Trash2,
+  Globe,
+  Lock,
+  Radio
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -35,13 +38,15 @@ export default function ExamPage() {
     title: '',
     date: '',
     status: 'আসন্ন (Upcoming)',
-    isActive: true
+    isActive: true,
+    isPublished: false
   });
 
   // New Exam Form State
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
   const [newExamStudents, setNewExamStudents] = useState<number>(0);
+  const [newExamPublish, setNewExamPublish] = useState(false);
 
   // Load real student count & saved exams from examService
   useEffect(() => {
@@ -76,6 +81,18 @@ export default function ExamPage() {
     showToast(`"${target.title}" পরীক্ষাটি ${nextState ? 'সচল (Active)' : 'বন্ধ (Inactive)'} করা হয়েছে!`);
   };
 
+  // Toggle Result Publication Status (ফলাফল পাবলিশ বাটন)
+  const handleTogglePublish = (id: string) => {
+    const target = exams.find(e => e.id === id);
+    if (!target) return;
+    const nextState = examService.toggleResultPublished(id);
+    showToast(
+      nextState
+        ? `"${target.title}" পরীক্ষার ফলাফল সফলভাবে পাবলিশ করা হয়েছে! শিক্ষার্থীরা এখন অনলাইনে দেখতে পাবে।`
+        : `"${target.title}" পরীক্ষার ফলাফল অপ্রকাশিত করা হয়েছে! শিক্ষার্থীরা এখন আর দেখতে পাবে না।`
+    );
+  };
+
   // Handle Add New Exam Submit
   const handleAddExamSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,13 +103,19 @@ export default function ExamPage() {
       date: newExamDate.trim() || 'তারিখ নির্ধারিত নয়',
       status: 'নতুন (New)',
       totalStudents: Number(newExamStudents),
-      isActive: true
+      isActive: true,
+      isPublished: newExamPublish
     });
 
     setIsAddModalOpen(false);
     setNewExamTitle('');
     setNewExamDate('');
-    showToast('নতুন পরীক্ষা সফলভাবে তৈরি ও সচল করা হয়েছে!');
+    setNewExamPublish(false);
+    showToast(
+      newExamPublish 
+        ? 'নতুন পরীক্ষা তৈরি ও ফলাফল অবিলম্বে পাবলিশ করা হয়েছে!' 
+        : 'নতুন পরীক্ষা সফলভাবে তৈরি করা হয়েছে (ফলাফল ডিফল্টভাবে অপ্রকাশিত)!'
+    );
   };
 
   // Open Edit Exam Modal
@@ -102,7 +125,8 @@ export default function ExamPage() {
       title: ex.title,
       date: ex.date,
       status: ex.status,
-      isActive: ex.isActive
+      isActive: ex.isActive,
+      isPublished: Boolean(ex.isPublished)
     });
   };
 
@@ -115,7 +139,9 @@ export default function ExamPage() {
       title: editExamForm.title.trim(),
       date: editExamForm.date.trim() || 'তারিখ নির্ধারিত নয়',
       status: editExamForm.status,
-      isActive: editExamForm.isActive
+      isActive: editExamForm.isActive,
+      isPublished: editExamForm.isPublished,
+      publishedAt: editExamForm.isPublished ? (editExamModal.publishedAt || new Date().toISOString()) : undefined
     });
 
     setEditExamModal(null);
@@ -137,7 +163,7 @@ export default function ExamPage() {
       <div className="flex items-center justify-between print:hidden">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">পরীক্ষা ব্যবস্থাপনা (Exam Management)</h2>
-          <p className="text-xs text-slate-500 font-medium">পরীক্ষা তালিকা সরাসরি অনলাইন রেজাল্ট পোর্টালের সাথে সিংক হয়</p>
+          <p className="text-xs text-slate-500 font-medium">পরীক্ষা তৈরি, সচল রাখা এবং শিক্ষার্থীদের জন্য অনলাইন ফলাফল পাবলিশ নিয়ন্ত্রণ</p>
         </div>
         <button 
           onClick={() => setIsAddModalOpen(true)}
@@ -156,7 +182,52 @@ export default function ExamPage() {
       )}
 
       {/* ═══════════════════════════════════════════ */}
-      {/* EXAM CARDS GRID WITH EDIT/DELETE & ACTIVE TOGGLE */}
+      {/* 📊 SUMMARY OVERVIEW STATS (Headmaster/Admin View) */}
+      {/* ═══════════════════════════════════════════ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <BookOpen size={18} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">মোট পরীক্ষা</div>
+            <div className="text-lg font-black text-slate-900 dark:text-white">{exams.length} টি</div>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 size={18} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">সচল পরীক্ষা</div>
+            <div className="text-lg font-black text-blue-600 dark:text-blue-400">{exams.filter(e => e.isActive).length} টি</div>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Globe size={18} className="animate-pulse" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ফলাফল প্রকাশিত (Live)</div>
+            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{exams.filter(e => e.isPublished).length} টি</div>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Lock size={18} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ফলাফল অপ্রকাশিত</div>
+            <div className="text-lg font-black text-amber-600 dark:text-amber-400">{exams.filter(e => !e.isPublished).length} টি</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* EXAM CARDS GRID WITH PUBLISH & ACTIVE CONTROLS */}
       {/* ═══════════════════════════════════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {exams.map(ex => (
@@ -164,11 +235,13 @@ export default function ExamPage() {
             key={ex.id} 
             className={`bg-white dark:bg-slate-900 p-5 rounded-3xl border transition-all duration-200 space-y-4 flex flex-col justify-between relative overflow-hidden ${
               ex.isActive 
-                ? 'border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md border-t-4 border-t-emerald-500' 
+                ? (ex.isPublished 
+                    ? 'border-emerald-300 dark:border-emerald-800 shadow-sm hover:shadow-md border-t-4 border-t-emerald-500' 
+                    : 'border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md border-t-4 border-t-indigo-500')
                 : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 border-t-4 border-t-rose-400 opacity-75'
             }`}
           >
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {/* Header Badges: Status & Actions */}
               <div className="flex items-center justify-between">
                 <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] rounded-full border border-slate-200 dark:border-slate-700">
@@ -216,6 +289,61 @@ export default function ExamPage() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium mt-1">
                   <Calendar size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" /> {ex.date}
                 </p>
+              </div>
+
+              {/* 📢 DEDICATED RESULT PUBLICATION CONTROL (ফলাফল পাবলিশ বাটন) */}
+              <div className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                ex.isPublished 
+                  ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' 
+                  : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800'
+              }`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    ex.isPublished 
+                      ? 'bg-emerald-600 text-white shadow-xs' 
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                  }`}>
+                    {ex.isPublished ? <Globe size={16} /> : <Lock size={16} />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">অনলাইন ফলাফল:</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        ex.isPublished
+                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                      }`}>
+                        {ex.isPublished ? '● প্রকাশিত (Live)' : '🔒 অপ্রকাশিত'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                      {ex.isPublished ? 'শিক্ষার্থীরা অনলাইনে ফলাফল দেখতে পাচ্ছে' : 'অনলাইনে ফলাফল দেখা বন্ধ রয়েছে'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTogglePublish(ex.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs active:scale-95 ${
+                    ex.isPublished
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  }`}
+                  title={ex.isPublished ? 'ক্লিক করে ফলাফল অপ্রকাশিত করুন' : 'ক্লিক করে ফলাফল অনলাইনে পাবলিশ করুন'}
+                >
+                  {ex.isPublished ? (
+                    <>
+                      <CheckCircle2 size={13} />
+                      <span>ফলাফল প্রকাশিত</span>
+                    </>
+                  ) : (
+                    <>
+                      <Radio size={13} />
+                      <span>ফলাফল পাবলিশ</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -307,6 +435,20 @@ export default function ExamPage() {
                 />
               </div>
 
+              {/* Publication Option */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  id="newExamPublish"
+                  checked={newExamPublish}
+                  onChange={(e) => setNewExamPublish(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <label htmlFor="newExamPublish" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  📢 ফলাফল সাথে সাথে পাবলিশ করুন (অনলাইনে উন্মুক্ত)
+                </label>
+              </div>
+
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -396,7 +538,25 @@ export default function ExamPage() {
                   className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <label htmlFor="editIsActive" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  পরীক্ষাটি সচল (Active) রাখুন (অনলাইন রেজাল্ট ও মার্ক এন্ট্রিতে দৃশ্যমান)
+                  পরীক্ষাটি সচল (Active) রাখুন (মার্ক এন্ট্রিতে দৃশ্যমান)
+                </label>
+              </div>
+
+              {/* Publication Option */}
+              <div className={`p-3 rounded-xl border flex items-center gap-2.5 transition-all ${
+                editExamForm.isPublished 
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' 
+                  : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+              }`}>
+                <input
+                  type="checkbox"
+                  id="editIsPublished"
+                  checked={editExamForm.isPublished}
+                  onChange={(e) => setEditExamForm({ ...editExamForm, isPublished: e.target.checked })}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <label htmlFor="editIsPublished" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1.5">
+                  <span>📢 ফলাফল পাবলিশ করুন (শিক্ষার্থীরা অনলাইনে রেজাল্ট দেখতে পাবে)</span>
                 </label>
               </div>
 

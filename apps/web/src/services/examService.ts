@@ -1,3 +1,5 @@
+import { auditTrailService } from './auditTrailService';
+
 export interface ExamItem {
   id: string;
   title: string;
@@ -5,6 +7,8 @@ export interface ExamItem {
   status: string;
   totalStudents?: number;
   isActive: boolean;
+  isPublished?: boolean; // Controls whether public online result lookup is enabled
+  publishedAt?: string;
 }
 
 const STORAGE_KEY = 'sms_exam_setup';
@@ -15,21 +19,24 @@ const DEFAULT_EXAMS: ExamItem[] = [
     title: 'Annual Examination 2026',
     date: '15 November 2026 - 05 December 2026',
     status: 'Upcoming',
-    isActive: true
+    isActive: true,
+    isPublished: false
   },
   {
     id: 'ex-half-yearly-2026',
     title: 'Half-Yearly Examination 2026',
     date: '15 May 2026 - 25 May 2026',
     status: 'Completed',
-    isActive: true
+    isActive: true,
+    isPublished: false
   },
   {
     id: 'ex-terminal-1-2026',
     title: '1st Terminal Examination 2026',
     date: '10 March 2026 - 20 March 2026',
     status: 'Completed',
-    isActive: true
+    isActive: true,
+    isPublished: false
   }
 ];
 
@@ -55,7 +62,13 @@ class ExamService {
         return DEFAULT_EXAMS;
       }
       const parsed: ExamItem[] = JSON.parse(data);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_EXAMS;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(ex => ({
+          ...ex,
+          isPublished: Boolean(ex.isPublished)
+        }));
+      }
+      return DEFAULT_EXAMS;
     } catch (err) {
       console.error('Failed to load exams from localStorage', err);
       return DEFAULT_EXAMS;
@@ -76,6 +89,7 @@ class ExamService {
     status?: string;
     totalStudents?: number;
     isActive?: boolean;
+    isPublished?: boolean;
   }): ExamItem {
     const exams = this.getExams();
     const newExam: ExamItem = {
@@ -84,7 +98,8 @@ class ExamService {
       date: examData.date?.trim() || 'Schedule TBD',
       status: examData.status?.trim() || 'Active',
       totalStudents: examData.totalStudents ?? 0,
-      isActive: examData.isActive !== undefined ? examData.isActive : true
+      isActive: examData.isActive !== undefined ? examData.isActive : true,
+      isPublished: Boolean(examData.isPublished)
     };
 
     const updated = [newExam, ...exams];
@@ -122,6 +137,95 @@ class ExamService {
 
     this.saveExams(updated);
     return newState;
+  }
+
+  /**
+   * Check if results for a given exam are published.
+   * Exam can be identified by ID or title (Bengali/English).
+   */
+  public isExamResultPublished(examTitleOrId: string): boolean {
+    if (!examTitleOrId) return false;
+    const clean = examTitleOrId.trim().toLowerCase();
+    const formatted = this.formatExamNameForDisplay(examTitleOrId).trim().toLowerCase();
+    const exams = this.getExams();
+    const target = exams.find(e => 
+      e.id.toLowerCase() === clean ||
+      e.title.toLowerCase() === clean ||
+      this.formatExamNameForDisplay(e.title).toLowerCase() === clean ||
+      this.formatExamNameForDisplay(e.title).toLowerCase() === formatted ||
+      e.title.toLowerCase() === formatted
+    );
+    return Boolean(target?.isPublished);
+  }
+
+  /**
+   * Toggle publication status for an exam
+   */
+  public toggleResultPublished(id: string): boolean {
+    const exams = this.getExams();
+    let newState = false;
+    let targetTitle = '';
+    const updated = exams.map(ex => {
+      if (ex.id === id) {
+        newState = !Boolean(ex.isPublished);
+        targetTitle = ex.title;
+        return { 
+          ...ex, 
+          isPublished: newState,
+          publishedAt: newState ? new Date().toISOString() : undefined
+        };
+      }
+      return ex;
+    });
+
+    this.saveExams(updated);
+
+    try {
+      auditTrailService.addLog({
+        action: newState ? 'EXAM_RESULT_PUBLISHED' : 'EXAM_RESULT_UNPUBLISHED',
+        category: 'EXAMINATION',
+        details: `"${targetTitle}" পরীক্ষার ফলাফল ${newState ? 'অনলাইনে পাবলিশ (উন্মুক্ত)' : 'অপ্রকাশিত (বন্ধ)'} করা হয়েছে।`,
+        performedBy: 'প্রধান শিক্ষক / অ্যাডমিন',
+        status: 'SUCCESS'
+      });
+    } catch (e) {
+      console.warn('Audit log failed', e);
+    }
+
+    return newState;
+  }
+
+  /**
+   * Explicitly set publication status for an exam
+   */
+  public setResultPublished(id: string, isPublished: boolean): void {
+    const exams = this.getExams();
+    let targetTitle = '';
+    const updated = exams.map(ex => {
+      if (ex.id === id) {
+        targetTitle = ex.title;
+        return { 
+          ...ex, 
+          isPublished,
+          publishedAt: isPublished ? (ex.publishedAt || new Date().toISOString()) : undefined
+        };
+      }
+      return ex;
+    });
+
+    this.saveExams(updated);
+
+    try {
+      auditTrailService.addLog({
+        action: isPublished ? 'EXAM_RESULT_PUBLISHED' : 'EXAM_RESULT_UNPUBLISHED',
+        category: 'EXAMINATION',
+        details: `"${targetTitle}" পরীক্ষার ফলাফল ${isPublished ? 'অনলাইনে পাবলিশ' : 'অপ্রকাশিত'} সেট করা হয়েছে।`,
+        performedBy: 'প্রধান শিক্ষক / অ্যাডমিন',
+        status: 'SUCCESS'
+      });
+    } catch (e) {
+      console.warn('Audit log failed', e);
+    }
   }
 
   public deleteExam(id: string): boolean {
