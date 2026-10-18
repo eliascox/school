@@ -86,14 +86,13 @@ function createStaticServer(port) {
     let rawPath = decodeURI(urlParts[0]);
     let queryString = urlParts[1] ? '?' + urlParts[1] : '';
 
-    // 1. Root route redirect to /dashboard/
+    // 1. Root route serves index.html (Public School Website)
+    let filePath;
     if (rawPath === '/' || rawPath === '') {
-      res.writeHead(302, { 'Location': '/dashboard/' + queryString });
-      res.end();
-      return;
+      filePath = path.join(PUBLIC_DIR, 'index.html');
+    } else {
+      filePath = path.join(PUBLIC_DIR, rawPath);
     }
-
-    let filePath = path.join(PUBLIC_DIR, rawPath);
 
     // 2. Trailing slash redirect for directories (Crucial for Next.js trailingSlash: true)
     if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
