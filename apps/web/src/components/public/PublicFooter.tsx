@@ -23,15 +23,25 @@ export default function PublicFooter({ settings }: PublicFooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Col 1: School Identity */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-700 to-slate-900 flex items-center justify-center text-amber-400 border border-indigo-600/50 shadow-md">
+            <Link 
+              href="/"
+              onClick={(e) => {
+                if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="inline-flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group"
+              title="হোমপেজে ফিরে যান"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-700 to-slate-900 flex items-center justify-center text-amber-400 border border-indigo-600/50 shadow-md group-hover:scale-105 transition-transform">
                 <School className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white leading-tight">{schoolName}</h3>
+                <h3 className="text-lg font-bold text-white leading-tight group-hover:text-amber-300 transition-colors">{schoolName}</h3>
                 <span className="text-xs text-slate-400">EIIN: {eiin} • Estd. {estd}</span>
               </div>
-            </div>
+            </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed">
               A premier secondary educational institution in Chakaria, Cox's Bazar. Dedicated to academic excellence, digital literacy, moral ethics, and preparing tomorrow's national leaders.

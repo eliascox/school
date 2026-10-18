@@ -277,19 +277,20 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       {/* Brand */}
       <div className="flex items-center justify-between gap-3 px-4 py-5 border-b border-slate-100 dark:border-slate-800/80">
         <Link 
-          href={!isAdmin ? "/dashboard/teacher-portal?tab=home" : "/dashboard"}
+          href="/"
           onClick={handleLinkClick}
-          className="flex items-center gap-3 hover:opacity-90 transition-opacity min-w-0"
+          className="flex items-center gap-3 hover:opacity-90 transition-opacity min-w-0 group"
+          title="মূল স্কুল ওয়েবসাইট ও হোমপেজে যান"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center font-black text-sm text-white shadow-md shadow-indigo-500/20 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center font-black text-sm text-white shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
             {schoolSettings?.schoolName ? schoolSettings.schoolName.charAt(0) : 'ব'}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-extrabold text-xs sm:text-sm tracking-tight leading-tight text-slate-900 dark:text-white truncate">
+            <h1 className="font-extrabold text-xs sm:text-sm tracking-tight leading-tight text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
               {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
             </h1>
             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block truncate">
-              {!isAdmin ? 'শিক্ষক ম্যানেজমেন্ট পোর্টাল' : (currentLang === 'en' ? 'Digital School SMS' : 'ডিজিটাল ম্যানেজমেন্ট')}
+              {currentLang === 'en' ? 'Public Website ➔' : 'স্কুল ওয়েবসাইট ➔'}
             </span>
           </div>
         </Link>

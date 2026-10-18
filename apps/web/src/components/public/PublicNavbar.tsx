@@ -47,7 +47,13 @@ export default function PublicNavbar({ settings }: PublicNavbarProps) {
           {/* ═════════ 1. PRESTIGIOUS SCHOOL EMBLEM & BRANDING ═════════ */}
           <Link 
             href="/" 
-            className="flex items-center gap-3 group focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded-xl p-1 transition-all shrink-0"
+            onClick={(e) => {
+              if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            className="flex items-center gap-3 group focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded-xl p-1 transition-all shrink-0 cursor-pointer"
+            title="হোমপেজে যান"
           >
             {/* Custom High-Fidelity Academic Vector Crest */}
             <div className="relative w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 flex items-center justify-center text-white shadow-md shadow-indigo-950/20 group-hover:scale-105 transition-all overflow-hidden border-2 border-indigo-700/60 p-1.5 shrink-0">

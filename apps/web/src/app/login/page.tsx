@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   LogIn, 
@@ -140,15 +141,19 @@ function LoginForm() {
       
       {/* Top Bar / Minimal Navigation */}
       <header className="w-full max-w-4xl flex items-center justify-between py-2 sm:py-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+        <Link 
+          href="/" 
+          className="flex items-center gap-2.5 hover:opacity-90 transition-opacity cursor-pointer group"
+          title="মূল হোমপেজে ফিরে যান"
+        >
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
             <School className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-800 leading-tight">{schoolName}</h1>
+            <h1 className="text-sm font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">{schoolName}</h1>
             <span className="text-[11px] text-slate-500 font-medium">স্মার্ট স্কুল পোর্টাল • EIIN: {eiin}</span>
           </div>
-        </div>
+        </Link>
 
         <button
           type="button"

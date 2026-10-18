@@ -403,8 +403,12 @@ function ResultSearchContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           
           {/* Left: School Identity */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+          <Link 
+            href="/" 
+            className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group"
+            title="মূল হোমপেজে ফিরে যান"
+          >
+            <div className="w-10 h-10 rounded-xl bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center overflow-hidden shrink-0 shadow-inner group-hover:scale-105 transition-transform">
               {settings?.schoolLogo ? (
                 <img src={settings.schoolLogo} alt="School Logo" className="w-8 h-8 object-contain" />
               ) : (
@@ -415,14 +419,14 @@ function ResultSearchContent() {
               )}
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
-                Baraitali High School
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight group-hover:text-amber-300 transition-colors">
+                {settings?.schoolName || 'Baraitali High School'}
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-400">
-                Baraitali, Chakaria, Cox's Bazar • EIIN: 106184
+                {settings?.address || "Baraitali, Chakaria, Cox's Bazar"} • EIIN: {settings?.eiin || '106184'}
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Right: Student Login Action */}
           <div className="flex items-center gap-2.5">

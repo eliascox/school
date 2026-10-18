@@ -285,19 +285,23 @@ export default function PublicOnlineAdmissionPage() {
       <div className="min-h-screen bg-slate-100 font-sans pb-16 text-slate-900">
         <header className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-950 text-white shadow-xl sticky top-0 z-40">
           <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <Link 
+              href="/" 
+              className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group"
+              title="মূল হোমপেজে ফিরে যান"
+            >
               {schoolLogo ? (
-                <img src={schoolLogo} alt="School Logo" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1" />
+                <img src={schoolLogo} alt="School Logo" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 group-hover:scale-105 transition-transform" />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shadow">
+                <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shadow group-hover:scale-105 transition-transform">
                   <School size={22} />
                 </div>
               )}
               <div>
-                <h1 className="font-black text-sm sm:text-base tracking-tight leading-tight">{schoolName}</h1>
+                <h1 className="font-black text-sm sm:text-base tracking-tight leading-tight group-hover:text-amber-300 transition-colors">{schoolName}</h1>
                 <p className="text-[10px] text-indigo-200 font-bold">{schoolAddress} | ইআইআইএন: {eiinNumber}</p>
               </div>
-            </div>
+            </Link>
             <Link
               href="/dashboard"
               className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition"
@@ -361,19 +365,23 @@ export default function PublicOnlineAdmissionPage() {
       {/* Top Branding Navigation Bar */}
       <header className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-950 text-white shadow-xl sticky top-0 z-40 print:hidden">
         <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link 
+            href="/" 
+            className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group"
+            title="মূল হোমপেজে ফিরে যান"
+          >
             {schoolLogo ? (
-              <img src={schoolLogo} alt="School Logo" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1" />
+              <img src={schoolLogo} alt="School Logo" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 group-hover:scale-105 transition-transform" />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shadow">
+              <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shadow group-hover:scale-105 transition-transform">
                 <School size={22} />
               </div>
             )}
             <div>
-              <h1 className="font-black text-sm sm:text-base tracking-tight leading-tight">{schoolName}</h1>
+              <h1 className="font-black text-sm sm:text-base tracking-tight leading-tight group-hover:text-amber-300 transition-colors">{schoolName}</h1>
               <p className="text-[10px] text-indigo-200 font-bold">{schoolAddress} | ইআইআইএন: {eiinNumber}</p>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-black uppercase rounded-full items-center gap-1">

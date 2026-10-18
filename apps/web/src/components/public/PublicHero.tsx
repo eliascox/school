@@ -62,15 +62,27 @@ export default function PublicHero({ settings }: PublicHeroProps) {
 
         {/* ═══════════ 2. BOLD & LARGE SCHOOL NAME ═══════════ */}
         <div className="space-y-2">
-          {/* Main Large Bengali Name */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight font-serif drop-shadow-lg">
-            {schoolName}
-          </h1>
+          <Link
+            href="/"
+            onClick={(e) => {
+              if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            className="inline-block group/title cursor-pointer focus:outline-hidden"
+            title="হোমপেজে যান"
+          >
+            {/* Main Large Bengali Name */}
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight font-serif drop-shadow-lg group-hover/title:text-indigo-200 transition-colors">
+              {schoolName}
+            </h1>
 
-          {/* Large English Secondary Name */}
-          <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-amber-400 tracking-[0.25em] uppercase font-sans">
-            BARAITALI HIGH SCHOOL
-          </div>
+            {/* Large English Secondary Name */}
+            <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-amber-400 tracking-[0.25em] uppercase font-sans group-hover/title:text-amber-300 transition-colors mt-2">
+              BARAITALI HIGH SCHOOL
+            </div>
+          </Link>
 
           {/* Subtitle Location & Motto */}
           <p className="text-sm sm:text-base lg:text-lg text-slate-300 max-w-3xl mx-auto font-medium pt-1">
