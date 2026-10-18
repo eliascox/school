@@ -16,6 +16,7 @@ export type PadMargins = {
 export type SchoolSettings = {
   schoolName: string;
   schoolLogo: string;
+  schoolPhoto?: string;
   customBorderPng?: string;
   customBorders?: CustomPngBorder[];
   selectedBorderId?: string;
@@ -66,6 +67,7 @@ export const DEFAULT_PAD_MARGINS: PadMargins = {
 const DEFAULT_SETTINGS: SchoolSettings = {
   schoolName: 'বরইতলী উচ্চ বিদ্যালয়',
   schoolLogo: '/logo.png',
+  schoolPhoto: '/school-campus.jpg',
   customBorderPng: '',
   customBorders: [],
   selectedBorderId: '',
