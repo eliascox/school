@@ -19,6 +19,7 @@ import PublicNoticesSection from '@/components/public/PublicNoticesSection';
 import PublicAcademicSection from '@/components/public/PublicAcademicSection';
 import PublicTeachersSection from '@/components/public/PublicTeachersSection';
 import PublicCommitteeSection from '@/components/public/PublicCommitteeSection';
+import PublicBestStudentsSection from '@/components/public/PublicBestStudentsSection';
 import PublicFacilitiesSection from '@/components/public/PublicFacilitiesSection';
 import PublicGallerySection from '@/components/public/PublicGallerySection';
 import PublicContactSection from '@/components/public/PublicContactSection';
@@ -120,6 +121,9 @@ export default function PublicSchoolHomePage() {
 
         {/* 12. School Managing Committee Members */}
         <PublicCommitteeSection />
+
+        {/* 13. Best Students & Achievers */}
+        <PublicBestStudentsSection />
 
         {/* 12. Campus Facilities (ICT Lab, Science Lab, Library, Playground) */}
         <PublicFacilitiesSection />
