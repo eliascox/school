@@ -18,6 +18,7 @@ import PublicServicesSection from '@/components/public/PublicServicesSection';
 import PublicNoticesSection from '@/components/public/PublicNoticesSection';
 import PublicAcademicSection from '@/components/public/PublicAcademicSection';
 import PublicTeachersSection from '@/components/public/PublicTeachersSection';
+import PublicCommitteeSection from '@/components/public/PublicCommitteeSection';
 import PublicFacilitiesSection from '@/components/public/PublicFacilitiesSection';
 import PublicGallerySection from '@/components/public/PublicGallerySection';
 import PublicContactSection from '@/components/public/PublicContactSection';
@@ -116,6 +117,9 @@ export default function PublicSchoolHomePage() {
 
         {/* 11. Teachers & Staff Directory (Privacy-Safe Public Profile) */}
         <PublicTeachersSection teachers={teachers} />
+
+        {/* 12. School Managing Committee Members */}
+        <PublicCommitteeSection />
 
         {/* 12. Campus Facilities (ICT Lab, Science Lab, Library, Playground) */}
         <PublicFacilitiesSection />
