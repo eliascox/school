@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Target, Compass, Heart, Shield, School, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { School, CheckCircle2, ArrowRight, Award, Calendar, BookOpen } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
 
 interface PublicAboutProps {
@@ -13,91 +14,153 @@ export default function PublicAbout({ settings }: PublicAboutProps) {
   const estd = settings?.estdYear || '1969';
   const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';
   const eiin = settings?.eiin || '106184';
+  const schoolPhoto = settings?.schoolPhoto || '/school-campus.jpg';
 
-  const pillars = [
-    {
-      icon: <Target className="w-6 h-6 text-indigo-500" />,
-      title: 'Our Mission',
-      desc: 'To empower students with modern scientific knowledge, digital competence, and moral principles for an evolving global world.'
-    },
-    {
-      icon: <Compass className="w-6 h-6 text-emerald-500" />,
-      title: 'Our Vision',
-      desc: 'To stand as a premier secondary institution recognized for holistic academic excellence, character building, and exemplary board results.'
-    },
-    {
-      icon: <Heart className="w-6 h-6 text-rose-500" />,
-      title: 'Core Values',
-      desc: 'Fostering integrity, discipline, empathy, mutual respect, and civic consciousness as the foundation of institutional culture.'
-    },
-    {
-      icon: <Shield className="w-6 h-6 text-amber-500" />,
-      title: 'Safe Campus Environment',
-      desc: 'A politics-free, peaceful, and well-secured campus equipped with clean sanitation, library, and active faculty guidance.'
+  const sectionRef = useRef<HTMLElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            imageRef.current?.classList.remove('opacity-0', '-translate-x-12');
+            imageRef.current?.classList.add('opacity-100', 'translate-x-0');
+
+            textRef.current?.classList.remove('opacity-0', 'translate-x-12');
+            textRef.current?.classList.add('opacity-100', 'translate-x-0');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
     }
-  ];
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <section id="about" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <section 
+      id="about" 
+      ref={sectionRef}
+      className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 overflow-hidden"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-          <div className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
-            <School className="w-3.5 h-3.5" />
-            <span>ABOUT OUR INSTITUTION</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
-            A Legacy of Knowledge, Discipline & Excellence
-          </h2>
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
-            Established in {estd}, <strong>{schoolName}</strong> has been illuminating generations of students across Chakaria and Cox's Bazar.
-          </p>
-        </div>
+        
+        {/* Two Column Layout: Mobile (Image on Top, Text Below), Desktop (Side-by-Side) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          
+          {/* ═══════════ LEFT COLUMN: LARGE IMAGE WITH OFFSET COLORED BORDER ═══════════ */}
+          <div 
+            ref={imageRef}
+            className="lg:col-span-6 relative transition-all duration-1000 ease-out opacity-0 -translate-x-12"
+          >
+            <div className="relative mx-auto max-w-lg lg:max-w-none">
+              
+              {/* Offset Decorative Colored Border & Shape (পেছনে সামান্য অফসেট রঙিন বর্ডার) */}
+              <div className="absolute -inset-2 sm:-inset-4 rounded-3xl bg-gradient-to-tr from-[#0B5D3B] to-[#F4B400] opacity-90 -rotate-2 transform transition-transform group-hover:rotate-0"></div>
+              <div className="absolute -inset-1 sm:-inset-2 rounded-3xl bg-[#0B5D3B] opacity-80 rotate-1"></div>
 
-        {/* Story & History Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mb-16">
-          <div className="space-y-4 text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-              Historical Background & Heritage
-            </h3>
-            <p>
-              কক্সবাজার জেলার চকরিয়া উপজেলার বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ১৯৬৯ খ্রিষ্টাব্দে স্থানীয় বিদ্যানুরাগী ব্যক্তিত্বদের ঐকান্তিক প্রচেষ্টায় প্রতিষ্ঠিত হয় <strong>{schoolName}</strong>। প্রত্যন্ত অঞ্চলের শিক্ষার্থীদের মাঝে আধুনিক শিক্ষার আলো ছড়িয়ে দেওয়ার প্রত্যয় নিয়ে এই বিদ্যাপীঠের সূচনা হয়েছিল।
-            </p>
-            <p>
-              For over five decades, the school has nurtured thousands of alumni who now serve in leadership roles nationally and internationally. Approved by the Board of Intermediate and Secondary Education (BISE) Chattogram, we provide specialized education across Science, Humanities, and Business Studies streams for Classes 6 to 10.
-            </p>
-            <ul className="space-y-2.5 pt-2">
-              <li className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200 font-semibold text-xs sm:text-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>EIIN: {eiin} • Board of Intermediate & Secondary Education, Chattogram</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200 font-semibold text-xs sm:text-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Campus Location: {address}</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200 font-semibold text-xs sm:text-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Spacious multi-story academic buildings, secured boundary, and expansive playground</span>
-              </li>
-            </ul>
-          </div>
+              {/* Main Image Container */}
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border-4 border-white dark:border-slate-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={schoolPhoto} 
+                  alt={`${schoolName} ক্যাম্পাস`} 
+                  className="w-full h-[320px] sm:h-[420px] lg:h-[460px] object-cover hover:scale-105 transition-transform duration-700"
+                />
+                
+                {/* Soft Gradient Overlay for Tag Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
 
-          {/* Pillars Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {pillars.map((pillar, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-50 dark:bg-slate-800/60 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 hover:shadow-lg transition-all"
-              >
-                <div className="p-3 w-fit rounded-xl bg-white dark:bg-slate-900 shadow-xs border border-slate-200 dark:border-slate-700 mb-4">
-                  {pillar.icon}
+                {/* Floating Experience Badge */}
+                <div className="absolute bottom-5 left-5 right-5 z-10 flex items-center justify-between gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 sm:p-4 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0B5D3B] text-[#F4B400] flex items-center justify-center font-black shadow-md shrink-0">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">ঐতিহ্যের ৫৫ বছর</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">স্থাপিত: {estd} খ্রিষ্টাব্দ</div>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    EIIN: {eiin}
+                  </span>
                 </div>
-                <h4 className="text-base font-bold text-slate-900 dark:text-white mb-2">{pillar.title}</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{pillar.desc}</p>
               </div>
-            ))}
+
+            </div>
           </div>
+
+          {/* ═══════════ RIGHT COLUMN: HEADING, HISTORY TEXT & BUTTON ═══════════ */}
+          <div 
+            ref={textRef}
+            className="lg:col-span-6 space-y-6 transition-all duration-1000 ease-out opacity-0 translate-x-12"
+          >
+            {/* Top Eyebrow Tag */}
+            <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
+              <School className="w-3.5 h-3.5" />
+              <span>প্রতিষ্ঠান পরিচিতি ও ইতিহাস</span>
+            </div>
+
+            {/* Section Heading with Custom Underline */}
+            <div>
+              <h2 className="text-2xl sm:text-4xl lg:text-4xl font-extrabold text-slate-900 dark:text-white font-serif leading-tight">
+                আমাদের ঐতিহ্য, গৌরব ও পথচলা
+              </h2>
+              {/* Dual-colored Underline */}
+              <div className="flex items-center gap-1.5 mt-3">
+                <span className="w-16 h-1.5 bg-[#0B5D3B] rounded-full"></span>
+                <span className="w-4 h-1.5 bg-[#F4B400] rounded-full"></span>
+              </div>
+            </div>
+
+            {/* ৫-৬ লাইনের সাবলীল ইতিহাস বর্ণনা */}
+            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed text-justify">
+              কক্সবাজার জেলার চকরিয়া উপজেলার অন্তর্গত ঐতিহ্যবাহী বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ১৯৬৯ খ্রিষ্টাব্দে প্রতিষ্ঠিত হয় ‘<strong>{schoolName}</strong>’। তৎকালীন স্থানীয় শিক্ষানুরাগী, সমাজসেবক ও বিদ্যোৎসাহী ব্যক্তিবর্গের ঐকান্তিক প্রচেষ্টা ও ত্যাগের বিনিময়ে এই অঞ্চলে শিক্ষার আলো ছড়িয়ে দিতে বিদ্যালয়টির যাত্রা শুরু হয়েছিল। প্রতিষ্ঠালগ্ন থেকেই অত্র অঞ্চলের শিক্ষার্থীদের মানবিক গুণাবলি, শৃঙ্খলাবোধ এবং আধুনিক জ্ঞান-বিজ্ঞানে সমৃদ্ধ করে গড়ে তোলাই ছিল মূল ব্রত। দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে চট্টগ্রাম শিক্ষাবোর্ডের অধীনে বিদ্যালয়টি শতভাগ মেধা ও কৃতিত্বপূর্ণ ফলাফলের ধারাবাহিকতা অক্ষুণ্ণ রেখেছে। বর্তমান ডিজিটাল যুগে যুগোপযোগী বিজ্ঞান ও কম্পিউটার শিক্ষার সমন্বয়ে বিদ্যালয়টি আগামীর একবিংশ শতাব্দীর যোগ্য নাগরিক তৈরিতে অবিচল ও প্রতিশ্রুতিবদ্ধ।
+            </p>
+
+            {/* Key Features Bullet List */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
+                <span>চট্টগ্রাম শিক্ষাবোর্ড অনুমোদিত</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
+                <span>অভিজ্ঞ ও এমপিওভুক্ত শিক্ষকমণ্ডলী</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
+                <span>আধুনিক বিজ্ঞানাগার ও আইসিটি ল্যাব</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
+                <span>সুশৃঙ্খল ও রাজনীতিমুক্ত ক্যাম্পাস</span>
+              </div>
+            </div>
+
+            {/* Action Button: বিস্তারিত পড়ুন */}
+            <div className="pt-2">
+              <Link
+                href="#school-info"
+                className="inline-flex items-center gap-2 bg-[#0B5D3B] hover:bg-[#073B25] text-white font-bold px-7 py-3.5 rounded-full text-sm sm:text-base transition duration-300 shadow-md shadow-emerald-900/20 transform hover:-translate-y-0.5"
+              >
+                <span>বিস্তারিত পড়ুন</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+          </div>
+
         </div>
+
       </div>
     </section>
   );
