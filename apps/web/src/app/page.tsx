@@ -22,6 +22,7 @@ import PublicCommitteeSection from '@/components/public/PublicCommitteeSection';
 import PublicBestStudentsSection from '@/components/public/PublicBestStudentsSection';
 import PublicFacilitiesSection from '@/components/public/PublicFacilitiesSection';
 import PublicGallerySection from '@/components/public/PublicGallerySection';
+import PublicBlogSection from '@/components/public/PublicBlogSection';
 import PublicContactSection from '@/components/public/PublicContactSection';
 import PublicFooter from '@/components/public/PublicFooter';
 
@@ -130,6 +131,9 @@ export default function PublicSchoolHomePage() {
 
         {/* 13. Photo Gallery */}
         <PublicGallerySection />
+
+        {/* 14. News & Blog Section */}
+        <PublicBlogSection />
 
         {/* 14. Contact Information & Message Form */}
         <PublicContactSection settings={settings} />
