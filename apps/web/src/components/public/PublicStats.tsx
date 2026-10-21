@@ -7,20 +7,17 @@ import {
   Users, 
   Sparkles, 
   Award, 
-  CheckCircle2 
+  CheckCircle2,
+  Landmark,
+  Trophy,
+  BarChart3,
+  Building2,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 import { StatsConfig } from '@/services/landingPageService';
 import { Student } from '@/services/studentService';
-
-interface ClassStat {
-  id: string;
-  name: string;
-  enClass: string;
-  targetCount: number;
-  icon: React.ReactNode;
-  subtitle: string;
-}
 
 interface PublicStatsProps {
   totalStudents?: number;
@@ -28,16 +25,31 @@ interface PublicStatsProps {
   estdYear?: string;
   statsConfig?: StatsConfig | null;
   students?: Student[];
+  schoolName?: string;
 }
 
-export default function PublicStats({ totalStudents, totalTeachers, estdYear, statsConfig, students }: PublicStatsProps = {}) {
+export default function PublicStats({ 
+  totalStudents, 
+  totalTeachers, 
+  estdYear, 
+  statsConfig, 
+  students,
+  schoolName = 'বরইতলী উচ্চ বিদ্যালয়'
+}: PublicStatsProps = {}) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'classes'>('overview');
   const [hasAnimated, setHasAnimated] = useState(false);
+
+  // Animated counters state
   const [counts, setCounts] = useState<{ [key: string]: number }>({
-    'ten': 0,
-    'nine': 0,
-    'eight': 0,
-    'seven': 0,
-    'six': 0
+    estd: 0,
+    teachers: 0,
+    students: 0,
+    passRate: 0,
+    ten: 0,
+    nine: 0,
+    eight: 0,
+    seven: 0,
+    six: 0
   });
 
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -55,12 +67,61 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
   const count7 = realCount7 > 0 ? realCount7 : (statsConfig?.classStats?.find(s => s.id === 'stat-7' || s.className.includes('সেভেন') || s.className.includes('৭'))?.count ?? 160);
   const count6 = realCount6 > 0 ? realCount6 : (statsConfig?.classStats?.find(s => s.id === 'stat-6' || s.className.includes('সিক্স') || s.className.includes('৬'))?.count ?? 110);
 
-  const classData: ClassStat[] = [
+  // Targets
+  const targetEstd = parseInt(estdYear || '1969', 10) || 1969;
+  const targetTeachers = totalTeachers && totalTeachers > 0 ? totalTeachers : (statsConfig?.totalTeachersOverride || 25);
+  const targetStudents = totalStudents && totalStudents > 0 ? totalStudents : (statsConfig?.totalStudentsOverride || (count10 + count9 + count8 + count7 + count6) || 565);
+  const passRateClean = parseInt(statsConfig?.passingRate?.replace(/[^0-9]/g, '') || '100', 10) || 100;
+
+  // Helper to convert number to Bengali digits
+  const toBn = (n: number | string) => {
+    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return n.toString().replace(/\d/g, (d) => bnDigits[parseInt(d, 10)]);
+  };
+
+  // 4 Grand Milestone Cards (Image 2 Layout)
+  const milestoneData = [
+    {
+      id: 'founded',
+      number: toBn(counts.estd || targetEstd),
+      suffix: '',
+      label: 'স্থাপিত (Founded)',
+      subtitle: 'ঐতিহ্যের ৫৫+ বছরের গৌরবময় ইতিহাস',
+      icon: <Landmark className="w-7 h-7 text-[#F4B400]" />
+    },
+    {
+      id: 'teachers',
+      number: toBn(counts.teachers || targetTeachers),
+      suffix: '+',
+      label: 'শিক্ষক ও কর্মচারী',
+      subtitle: 'উচ্চশিক্ষিত ও প্রশিক্ষণপ্রাপ্ত শিক্ষক পরিষদ',
+      icon: <Users className="w-7 h-7 text-[#F4B400]" />
+    },
+    {
+      id: 'students',
+      number: toBn(counts.students || targetStudents),
+      suffix: '+',
+      label: 'নিয়মিত শিক্ষার্থী',
+      subtitle: '৬ষ্ঠ থেকে ১০ম শ্রেণিতে সক্রিয় শিক্ষার্থী',
+      icon: <BookOpen className="w-7 h-7 text-[#F4B400]" />
+    },
+    {
+      id: 'passingRate',
+      number: toBn(counts.passRate || passRateClean),
+      suffix: '%',
+      label: 'এসএসসি পাশের হার',
+      subtitle: 'পাবলিক পরীক্ষায় ধারাবাহিক শতভাগ সাফল্য',
+      icon: <Trophy className="w-7 h-7 text-[#F4B400]" />
+    }
+  ];
+
+  // 5 Class-wise Cards (Image 1 Layout with upgraded modern glassmorphic look)
+  const classData = [
     {
       id: 'ten',
       name: 'দশম শ্রেণি',
       enClass: 'Class 10',
-      targetCount: count10,
+      count: counts.ten || count10,
       icon: <GraduationCap className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'এসএসসি পরীক্ষার্থী ব্যাচ'
     },
@@ -68,7 +129,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
       id: 'nine',
       name: 'নবম শ্রেণি',
       enClass: 'Class 9',
-      targetCount: count9,
+      count: counts.nine || count9,
       icon: <BookOpen className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা'
     },
@@ -76,33 +137,27 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
       id: 'eight',
       name: 'অষ্টম শ্রেণি',
       enClass: 'Class 8',
-      targetCount: count8,
+      count: counts.eight || count8,
       icon: <Award className="w-6 h-6 text-[#F4B400]" />,
-      subtitle: 'জুনিয়র সেকেন্ডারি'
+      subtitle: 'জুনিয়র সেকেন্ডারি স্তর'
     },
     {
       id: 'seven',
       name: 'সপ্তম শ্রেণি',
       enClass: 'Class 7',
-      targetCount: count7,
+      count: counts.seven || count7,
       icon: <Sparkles className="w-6 h-6 text-[#F4B400]" />,
-      subtitle: 'নতুন শিক্ষাক্রম ২০২৩-২৪'
+      subtitle: 'নতুন জাতীয় শিক্ষাক্রম ২০২৩-২৪'
     },
     {
       id: 'six',
       name: 'ষষ্ঠ শ্রেণি',
       enClass: 'Class 6',
-      targetCount: count6,
+      count: counts.six || count6,
       icon: <Users className="w-6 h-6 text-[#F4B400]" />,
-      subtitle: 'প্রবেশ স্তর'
+      subtitle: 'প্রাথমিক উত্তীর্ণ প্রবেশ স্তর'
     }
   ];
-
-  // Helper to convert number to Bengali digits
-  const toBn = (n: number) => {
-    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-    return n.toString().replace(/\d/g, (d) => bnDigits[parseInt(d, 10)]);
-  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -110,8 +165,8 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
         if (entries[0].isIntersecting && !hasAnimated) {
           setHasAnimated(true);
 
-          const duration = 1800; // 1.8 seconds
-          const steps = 40;
+          const duration = 2000; // 2 seconds
+          const steps = 45;
           const stepTime = duration / steps;
           let currentStep = 0;
 
@@ -122,27 +177,35 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
             const ease = 1 - Math.pow(1 - progress, 3);
 
             setCounts({
-              ten: Math.round(120 * ease),
-              nine: Math.round(95 * ease),
-              eight: Math.round(80 * ease),
-              seven: Math.round(160 * ease),
-              six: Math.round(110 * ease),
+              estd: Math.round(targetEstd * ease),
+              teachers: Math.round(targetTeachers * ease),
+              students: Math.round(targetStudents * ease),
+              passRate: Math.round(passRateClean * ease),
+              ten: Math.round(count10 * ease),
+              nine: Math.round(count9 * ease),
+              eight: Math.round(count8 * ease),
+              seven: Math.round(count7 * ease),
+              six: Math.round(count6 * ease),
             });
 
             if (currentStep >= steps) {
               clearInterval(timer);
               setCounts({
-                ten: 120,
-                nine: 95,
-                eight: 80,
-                seven: 160,
-                six: 110
+                estd: targetEstd,
+                teachers: targetTeachers,
+                students: targetStudents,
+                passRate: passRateClean,
+                ten: count10,
+                nine: count9,
+                eight: count8,
+                seven: count7,
+                six: count6
               });
             }
           }, stepTime);
         }
       },
-      { threshold: 0.25 }
+      { threshold: 0.2 }
     );
 
     if (sectionRef.current) {
@@ -150,80 +213,187 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
     }
 
     return () => observer.disconnect();
-  }, [hasAnimated]);
+  }, [hasAnimated, targetEstd, targetTeachers, targetStudents, passRateClean, count10, count9, count8, count7, count6]);
 
   return (
     <section 
       id="student-stats" 
       ref={sectionRef} 
-      className="py-10 sm:py-14 bg-gradient-to-br from-[#0B5D3B] via-[#094d31] to-[#063b25] text-white relative overflow-hidden border-y border-emerald-700/50 shadow-inner"
+      className="py-10 sm:py-14 text-white relative overflow-hidden border-y border-emerald-700/50 shadow-2xl"
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(8, 28, 54, 0.94) 0%, rgba(6, 44, 34, 0.88) 50%, rgba(8, 28, 54, 0.96) 100%), url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center center',
+        backgroundAttachment: 'scroll'
+      }}
     >
       <div id="student-info" className="absolute -top-24 left-0" />
       <div id="stats" className="absolute -top-24 left-0" />
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#F4B400_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
-      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#F4B400]/10 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+      
+      {/* Subtle Background Glow Orbs */}
+      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#F4B400_1px,transparent_1px)] [background-size:28px_28px] pointer-events-none" />
+      <div className="absolute -top-28 -left-28 w-96 h-96 rounded-full bg-[#F4B400]/15 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-28 -right-28 w-96 h-96 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold uppercase tracking-wider text-emerald-200">
-            <Users className="w-3.5 h-3.5 text-[#F4B400]" />
-            <span>শিক্ষার্থী তথ্যচিত্র</span>
+        {/* ==============================================================
+            HEADER COMPONENT (Directly matching Image 2 reference layout)
+            ============================================================== */}
+        <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+          
+          {/* Eyebrow Pill Badge: AT A GLANCE */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#F4B400]/50 bg-white/5 backdrop-blur-md shadow-sm mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F4B400] animate-ping" />
+            <span className="text-xs font-en font-bold uppercase tracking-widest text-[#F4B400]">
+              AT A GLANCE
+            </span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
-            ছাত্র/ছাত্রীদের পরিসংখ্যান
+          {/* Main Headline: School in Numbers */}
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight drop-shadow-md">
+            পরিসংখ্যানে {schoolName}
           </h2>
+          
+          {/* English Sub-title */}
+          <p className="text-xs sm:text-sm font-en font-semibold text-emerald-200/90 tracking-wide mt-1">
+            Baraitali High School in Numbers
+          </p>
 
-          <div className="flex items-center justify-center gap-1.5 pt-1">
-            <span className="w-12 h-1 bg-[#F4B400] rounded-full"></span>
-            <span className="w-3 h-1 bg-white/60 rounded-full"></span>
+          {/* Golden Horizontal Accent Bar (Exact replica of Image 2's gold underline) */}
+          <div className="w-20 sm:w-24 h-1 bg-[#F4B400] mx-auto rounded-full mt-3.5 mb-4 shadow-sm" />
+
+          {/* Subtitle Description */}
+          <p className="text-xs sm:text-sm text-slate-200/90 max-w-xl mx-auto leading-relaxed">
+            {statsConfig?.subtitle || 'ঐতিহ্যবাহী বিদ্যাপীঠের গৌরবময় অগ্রযাত্রা, শ্রেণিকক্ষ ও সামগ্রিক অর্জনের সুবিন্যস্ত খতিয়ান'}
+          </p>
+
+          {/* Dual Experience Interactive View Switcher Tabs */}
+          <div className="mt-6 inline-flex items-center p-1 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${
+                activeTab === 'overview'
+                  ? 'bg-gradient-to-r from-[#F4B400] to-amber-500 text-slate-950 shadow-md scale-102'
+                  : 'text-white hover:text-[#F4B400] hover:bg-white/5'
+              }`}
+            >
+              <Landmark className="w-4 h-4" />
+              <span>এক নজরে মূল অর্জন</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('classes')}
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${
+                activeTab === 'classes'
+                  ? 'bg-gradient-to-r from-[#F4B400] to-amber-500 text-slate-950 shadow-md scale-102'
+                  : 'text-white hover:text-[#F4B400] hover:bg-white/5'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>শ্রেণিভিত্তিক শিক্ষার্থী</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ==============================================================
+            MODE 1: 4 GRAND MILESTONE CARDS (IMAGE 2 EXACT STRUCTURE)
+            ============================================================== */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 animate-fadeIn">
+            {milestoneData.map((item) => (
+              <div
+                key={item.id}
+                className="group relative bg-white/10 hover:bg-white/15 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-white/20 hover:border-[#F4B400]/60 transition-all duration-300 shadow-xl hover:-translate-y-2 flex flex-col items-center text-center overflow-hidden"
+              >
+                {/* Glow Ring Highlight on Hover */}
+                <div className="absolute -top-12 -right-12 w-28 h-28 bg-[#F4B400]/15 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500 pointer-events-none" />
+
+                {/* Circular Icon Badge at top (Image 2 style) */}
+                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-white/10 border border-white/20 flex items-center justify-center mb-5 shadow-inner group-hover:scale-110 group-hover:bg-[#F4B400]/20 group-hover:border-[#F4B400]/40 transition-all duration-300">
+                  {item.icon}
+                </div>
+
+                {/* Counter Number */}
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight flex items-baseline justify-center">
+                  <span>{item.number}</span>
+                  {item.suffix && (
+                    <span className="text-2xl sm:text-3xl font-extrabold text-[#F4B400] ml-1">
+                      {item.suffix}
+                    </span>
+                  )}
+                </div>
+
+                {/* Primary Title Label */}
+                <h3 className="text-base sm:text-lg font-bold text-white mt-3 group-hover:text-[#F4B400] transition-colors">
+                  {item.label}
+                </h3>
+
+                {/* Subtitle / Description */}
+                <p className="text-xs text-slate-300/80 mt-1.5 leading-relaxed font-sans">
+                  {item.subtitle}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ==============================================================
+            MODE 2: 5 CLASS-WISE CARDS (IMAGE 1 DATA IN MODERN GLASS UI)
+            ============================================================== */}
+        {activeTab === 'classes' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5 animate-fadeIn">
+            {classData.map((item) => (
+              <div
+                key={item.id}
+                className="group relative bg-white/10 hover:bg-white/15 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-5 border border-white/20 hover:border-[#F4B400]/60 transition-all duration-300 shadow-lg hover:-translate-y-1.5 flex flex-col items-center text-center"
+              >
+                {/* Top Circular Icon Badge */}
+                <div className="w-13 h-13 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-3 shadow-inner group-hover:scale-110 group-hover:bg-[#F4B400]/20 transition-all duration-300">
+                  {item.icon}
+                </div>
+
+                {/* Counter Number */}
+                <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight flex items-baseline justify-center">
+                  <span>{toBn(item.count)}</span>
+                  <span className="text-lg sm:text-xl font-bold text-[#F4B400] ml-1">+</span>
+                </div>
+
+                {/* Class Name */}
+                <h4 className="text-sm sm:text-base font-bold text-emerald-100 mt-2">
+                  {item.name}
+                </h4>
+
+                {/* English Tag */}
+                <span className="text-[10px] font-en font-semibold text-[#F4B400] tracking-wider uppercase mt-0.5">
+                  {item.enClass}
+                </span>
+
+                {/* Description Subtitle */}
+                <p className="text-[11px] text-slate-300/70 mt-1 line-clamp-1">
+                  {item.subtitle}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ==============================================================
+            BOTTOM AGGREGATION PILL & RECOGNITION BADGE
+            ============================================================== */}
+        <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <div className="inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs sm:text-sm font-semibold text-white shadow-md">
+            <CheckCircle2 className="w-4 h-4 text-[#F4B400]" />
+            <span>মোট শিক্ষার্থী: <strong className="text-[#F4B400] font-bold text-base">{toBn(targetStudents)}</strong> জন (ছাত্র ও ছাত্রী)</span>
           </div>
 
-          <p className="text-emerald-100/90 text-xs sm:text-sm pt-1">
-            ২০২৬ শিক্ষাবর্ষে শ্রেণিকক্ষভিত্তিক মোট শিক্ষার্থীর সুবিন্যস্ত পরিসংখ্যান (সর্বমোট ৫৬৫ জন)
-          </p>
-        </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-md border border-white/15 text-xs text-slate-300">
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>শিক্ষক-শিক্ষার্থী অনুপাত: <strong>১:২৩</strong></span>
+          </div>
 
-        {/* ৫টি কাউন্টারের গ্রিড (Desktop: 5, Tablet: 3, Mobile: 2) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
-          {classData.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-white/20 hover:border-[#F4B400]/60 transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-1.5 flex flex-col items-center text-center group"
-            >
-              {/* Top Icon Badge with Glow */}
-              <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 group-hover:bg-white/25 transition-transform duration-300">
-                {item.icon}
-              </div>
-
-              {/* Counter Number */}
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
-                {toBn(counts[item.id] || 0)}
-                <span className="text-xl sm:text-2xl font-bold text-[#F4B400] ml-1">+</span>
-              </div>
-
-              {/* Class Name */}
-              <h3 className="text-base sm:text-lg font-bold text-emerald-100 mt-2">
-                {item.name}
-              </h3>
-
-              {/* Subtitle / Description */}
-              <p className="text-[11px] text-emerald-200/80 mt-1 line-clamp-1">
-                {item.subtitle}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Aggregation Pill */}
-        <div className="mt-10 flex items-center justify-center">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs sm:text-sm font-semibold text-white shadow-sm">
-            <CheckCircle2 className="w-4 h-4 text-[#F4B400]" />
-            <span>বিদ্যালয়ে মোট শিক্ষার্থী: <strong className="text-[#F4B400] font-bold text-base">৫৬৫</strong> জন (ছাত্র ও ছাত্রী)</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-md border border-white/15 text-xs text-slate-300">
+            <Award className="w-3.5 h-3.5 text-[#F4B400]" />
+            <span>চট্টগ্রাম শিক্ষা বোর্ড কোড: <strong>৪১৫২</strong> | EIIN: <strong>১০৬১৮৪</strong></span>
           </div>
         </div>
 

@@ -1798,7 +1798,7 @@ export default function LandingPageManagementDashboard() {
               </label>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
                   সেকশন শিরোনাম
@@ -1813,37 +1813,44 @@ export default function LandingPageManagementDashboard() {
                     })
                   }
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: পরিসংখ্যানে বরইতলী উচ্চ বিদ্যালয়"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  সেকশন ব্যাকগ্রাউন্ড রং
+                  উপ-শিরোনাম / বিবরণ
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={config.stats.bgColor}
-                    onChange={(e) =>
-                      handleUpdateConfig({
-                        ...config,
-                        stats: { ...config.stats, bgColor: e.target.value },
-                      })
-                    }
-                    className="w-12 h-10 p-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={config.stats.bgColor}
-                    onChange={(e) =>
-                      handleUpdateConfig({
-                        ...config,
-                        stats: { ...config.stats, bgColor: e.target.value },
-                      })
-                    }
-                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-mono outline-none"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={config.stats.subtitle || ''}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      stats: { ...config.stats, subtitle: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium outline-none"
+                  placeholder="ঐতিহ্যবাহী বিদ্যাপীঠের গৌরবময় অগ্রযাত্রার খতিয়ান"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  মোট শিক্ষক ও কর্মচারী সংখ্যা
+                </label>
+                <input
+                  type="number"
+                  value={config.stats.totalTeachersOverride || 25}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      stats: { ...config.stats, totalTeachersOverride: parseInt(e.target.value) || 0 },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: ২৫"
+                />
               </div>
 
               <div>
@@ -1860,7 +1867,7 @@ export default function LandingPageManagementDashboard() {
                     })
                   }
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
-                  placeholder="যেমন: ৯৮.৫%"
+                  placeholder="যেমন: ১০০% বা ৯৮.৫%"
                 />
               </div>
             </div>

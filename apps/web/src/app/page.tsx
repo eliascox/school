@@ -106,6 +106,7 @@ export default function PublicSchoolHomePage() {
             estdYear={settings?.estdYear}
             statsConfig={landingConfig.stats}
             students={students}
+            schoolName={settings?.schoolName || landingConfig.header.schoolName}
           />
         );
       case 'services':
