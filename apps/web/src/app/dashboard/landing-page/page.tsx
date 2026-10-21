@@ -1473,6 +1473,301 @@ export default function LandingPageManagementDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Campus Facilities Management Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold mb-1.5">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ</span>
+                </div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  ক্যাম্পাস সুবিধাসমূহ সেটিংস (Facilities)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  আইসিটি ল্যাব, বিজ্ঞানাগার, লাইব্রেরি, খেলার মাঠ ও স্যানিটেশন সংক্রান্ত তথ্যাদি সম্পাদনা করুন।
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.facilities?.enabled !== false}
+                    onChange={(e) =>
+                      handleUpdateConfig({
+                        ...config,
+                        facilities: {
+                          ...config.facilities,
+                          enabled: e.target.checked,
+                        },
+                      })
+                    }
+                    className="w-4 h-4 text-teal-600 rounded"
+                  />
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">সেকশন চালু রাখুন</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newFacility: FacilityItem = {
+                      id: `fac-${Date.now()}`,
+                      title: 'নতুন ক্যাম্পাস সুবিধা',
+                      titleEn: 'New Campus Facility',
+                      description: 'এই সুবিধার সংক্ষিপ্ত বর্ণনা এখানে লিখুন।',
+                      icon: 'Monitor',
+                      badge: 'নতুন সুবিধা',
+                      color: 'indigo',
+                      visible: true,
+                    };
+                    const currentItems = config.facilities?.items || [];
+                    handleUpdateConfig({
+                      ...config,
+                      facilities: {
+                        ...config.facilities,
+                        items: [...currentItems, newFacility],
+                      },
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>সুবিধা যোগ করুন</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section Header Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  আইব্রো ট্যাগ (Badge)
+                </label>
+                <input
+                  type="text"
+                  value={config.facilities?.eyebrow || ''}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      facilities: {
+                        ...config.facilities,
+                        eyebrow: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="যেমন: ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ"
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  সেকশন শিরোনাম
+                </label>
+                <input
+                  type="text"
+                  value={config.facilities?.title || ''}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      facilities: {
+                        ...config.facilities,
+                        title: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="যেমন: শিক্ষার্থীদের সার্বিক বিকাশে আধুনিক সুযোগ-সুবিধা"
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  উপ-শিরোনাম / বিবরণী
+                </label>
+                <input
+                  type="text"
+                  value={config.facilities?.subtitle || ''}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      facilities: {
+                        ...config.facilities,
+                        subtitle: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="সুপরিকল্পিত ও মনোরম ক্যাম্পাস পরিবেশ..."
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            {/* Facility Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(config.facilities?.items || []).map((fac, fIdx) => (
+                <div
+                  key={fac.id || fIdx}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-6 h-6 rounded-md bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-bold text-xs flex items-center justify-center">
+                      {fIdx + 1}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={fac.visible !== false}
+                          onChange={(e) => {
+                            const updated = [...(config.facilities?.items || [])];
+                            updated[fIdx].visible = e.target.checked;
+                            handleUpdateConfig({
+                              ...config,
+                              facilities: { ...config.facilities, items: updated },
+                            });
+                          }}
+                        />
+                        <span>সক্রিয়</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (config.facilities?.items || []).filter((_, i) => i !== fIdx);
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="text-rose-500 hover:text-rose-700 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-0.5">বাংলা নাম</label>
+                      <input
+                        type="text"
+                        value={fac.title}
+                        onChange={(e) => {
+                          const updated = [...(config.facilities?.items || [])];
+                          updated[fIdx].title = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="w-full px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-0.5">ইংরেজি নাম</label>
+                      <input
+                        type="text"
+                        value={fac.titleEn || ''}
+                        onChange={(e) => {
+                          const updated = [...(config.facilities?.items || [])];
+                          updated[fIdx].titleEn = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="w-full px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium font-en"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-0.5">বিবরণ</label>
+                    <textarea
+                      rows={2}
+                      value={fac.description}
+                      onChange={(e) => {
+                        const updated = [...(config.facilities?.items || [])];
+                        updated[fIdx].description = e.target.value;
+                        handleUpdateConfig({
+                          ...config,
+                          facilities: { ...config.facilities, items: updated },
+                        });
+                      }}
+                      className="w-full px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">আইকন</label>
+                      <select
+                        value={fac.icon || 'Monitor'}
+                        onChange={(e) => {
+                          const updated = [...(config.facilities?.items || [])];
+                          updated[fIdx].icon = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="w-full px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold"
+                      >
+                        <option value="Monitor">Monitor (ল্যাব)</option>
+                        <option value="FlaskConical">Flask (বিজ্ঞানাগার)</option>
+                        <option value="BookOpen">Book (লাইব্রেরি)</option>
+                        <option value="Trophy">Trophy (মাঠ)</option>
+                        <option value="Compass">Compass (স্কাউট)</option>
+                        <option value="Droplet">Droplet (পানি)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">কালার</label>
+                      <select
+                        value={fac.color || 'indigo'}
+                        onChange={(e) => {
+                          const updated = [...(config.facilities?.items || [])];
+                          updated[fIdx].color = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="w-full px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold"
+                      >
+                        <option value="indigo">Indigo</option>
+                        <option value="emerald">Emerald</option>
+                        <option value="amber">Amber</option>
+                        <option value="rose">Rose</option>
+                        <option value="cyan">Cyan</option>
+                        <option value="blue">Blue</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">ব্যাজ</label>
+                      <input
+                        type="text"
+                        value={fac.badge || ''}
+                        onChange={(e) => {
+                          const updated = [...(config.facilities?.items || [])];
+                          updated[fIdx].badge = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            facilities: { ...config.facilities, items: updated },
+                          });
+                        }}
+                        className="w-full px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

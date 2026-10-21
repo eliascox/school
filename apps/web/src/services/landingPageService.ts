@@ -171,8 +171,11 @@ export interface AboutConfig {
 export interface FacilityItem {
   id: string;
   title: string;
+  titleEn?: string;
   description: string;
   icon: string;
+  badge?: string;
+  color?: string;
   photo?: string;
   visible: boolean;
 }
@@ -181,6 +184,7 @@ export interface FacilitiesConfig {
   enabled: boolean;
   title: string;
   subtitle: string;
+  eyebrow?: string;
   items: FacilityItem[];
 }
 
@@ -492,13 +496,70 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
   },
   facilities: {
     enabled: true,
-    title: 'আধুনিক সুযোগ-সুবিধা',
-    subtitle: 'শিক্ষার্থীদের শারীরিক ও মানসিক বিকাশে চমৎকার পরিবেশ',
+    title: 'শিক্ষার্থীদের সার্বিক বিকাশে আধুনিক সুযোগ-সুবিধা',
+    subtitle: 'সুপরিকল্পিত ও মনোরম ক্যাম্পাস পরিবেশ, যা শিক্ষার্থীদের সুস্থ, সৃজনশীল ও বাস্তবমুখী জ্ঞানার্জনে অনুপ্রাণিত করে।',
+    eyebrow: 'ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ',
     items: [
-      { id: 'fac-1', title: 'শেখ রাসেল ডিজিটাল ল্যাব', description: 'উচ্চগতির ইন্টারনেট ও ৩০টি আধুনিক কম্পিউটার সংবলিত সুসজ্জিত ডিজিটাল ল্যাব।', icon: 'Monitor', visible: true },
-      { id: 'fac-2', title: 'সমৃদ্ধ বিজ্ঞানাগার', description: 'পদার্থ, রসায়ন ও জীববিজ্ঞানের সকল প্রয়োজনীয় যন্ত্রপাতি সহ আধুনিক ল্যাবরেটরি।', icon: 'Microscope', visible: true },
-      { id: 'fac-3', title: 'কেন্দ্রীয় লাইব্রেরি', description: '৫,০০০ এর বেশি বই, পত্র-পত্রিকা ও রেফারেন্স সামগ্রী সমৃদ্ধ পাঠাগার।', icon: 'BookOpen', visible: true },
-      { id: 'fac-4', title: 'প্রশস্ত খেলার মাঠ', description: 'ফুটবল, ক্রিকেট ও অ্যাথলেটিক্স অনুশীলনের জন্য মনোরম উন্মুক্ত খেলার মাঠ।', icon: 'Trophy', visible: true },
+      {
+        id: 'fac-1',
+        title: 'শেখ রাসেল ডিজিটাল ল্যাব',
+        titleEn: 'Sheikh Russel Digital Lab',
+        description: 'উচ্চগতির ব্রডব্যান্ড ইন্টারনেট ও আধুনিক কম্পিউটার সমৃদ্ধ ল্যাব, যেখানে শিক্ষার্থীরা আইসিটি, কোডিং ও ডিজিটাল লিটারেসি হাতে-কলমে শেখে।',
+        icon: 'Monitor',
+        badge: 'আইসিটি ও কম্পিউটার',
+        color: 'indigo',
+        visible: true,
+      },
+      {
+        id: 'fac-2',
+        title: 'আধুনিক বিজ্ঞানাগার (ল্যাব)',
+        titleEn: 'Science Laboratories',
+        description: 'পদার্থবিজ্ঞান, রসায়ন ও জীববিজ্ঞানের সকল প্রয়োজনীয় আধুনিক যন্ত্রপাতি ও গবেষণাসামগ্রী সমৃদ্ধ সার্বক্ষণিক ব্যবহারিক ল্যাবরেটরি।',
+        icon: 'FlaskConical',
+        badge: 'ব্যবহারিক বিজ্ঞান',
+        color: 'emerald',
+        visible: true,
+      },
+      {
+        id: 'fac-3',
+        title: 'কেন্দ্রীয় লাইব্রেরি ও পাঠকক্ষ',
+        titleEn: 'Central Library & Reading Room',
+        description: 'পাঠ্যপুস্তক, সৃজনশীল সাহিত্য, দেশি-বিদেশি রেফারেন্স বই, বিজ্ঞান সাময়িকী ও দৈনিক সংবাদপত্রে সমৃদ্ধ একটি শান্ত ও সুশৃঙ্খল পাঠাগার।',
+        icon: 'BookOpen',
+        badge: '৫,০০০+ বই সংগ্রহ',
+        color: 'amber',
+        visible: true,
+      },
+      {
+        id: 'fac-4',
+        title: 'প্রশস্ত খেলার মাঠ ও ক্রীড়া',
+        titleEn: 'Expansive Sports Ground',
+        description: 'ফুটবল, ক্রিকেট, ভলিবল ও বার্ষিক ক্রীড়া প্রতিযোগিতার জন্য উন্মুক্ত ও সবুজ ঘাসে ঘেরা সুবিশাল খেলাধুলার মাঠ।',
+        icon: 'Trophy',
+        badge: 'খেলাধুলা ও শরীরচর্চা',
+        color: 'rose',
+        visible: true,
+      },
+      {
+        id: 'fac-5',
+        title: 'স্কাউটিং ও সহশিক্ষা কার্যক্রম',
+        titleEn: 'Scouting & Co-Curricular',
+        description: 'বাংলাদেশ স্কাউটস ও গার্ল গাইডসের সক্রিয় ইউনিট, বিতর্ক ও বিজ্ঞান ক্লাব যা শিক্ষার্থীদের নেতৃত্বগুণ ও শৃঙ্খলাবোধ গড়ে তোলে।',
+        icon: 'Compass',
+        badge: 'নেতৃত্ব ও শৃঙ্খলা',
+        color: 'cyan',
+        visible: true,
+      },
+      {
+        id: 'fac-6',
+        title: 'বিশুদ্ধ পানি ও আধুনিক স্যানিটেশন',
+        titleEn: 'Purified Water & Hygiene',
+        description: 'আধুনিক ডিপ-ফিল্টারযুক্ত নিরাপদ বিশুদ্ধ খাবার পানির ব্যবস্থা এবং ছাত্র ও ছাত্রীদের জন্য সম্পূর্ণ পৃথক পরিচ্ছন্ন স্যানিটেশন ব্লক।',
+        icon: 'Droplet',
+        badge: 'স্বাস্থ্য ও সুরক্ষা',
+        color: 'blue',
+        visible: true,
+      },
     ],
   },
   blog: {
@@ -768,6 +829,24 @@ class LandingPageService {
       console.error('[LandingPageService] Error reading published:', e);
       return DEFAULT_LANDING_CONFIG;
     }
+  }
+
+  public getFacilitiesConfig(): FacilitiesConfig {
+    const published = this.getPublishedConfig();
+    return published.facilities || DEFAULT_LANDING_CONFIG.facilities;
+  }
+
+  public updateFacilities(facilities: FacilitiesConfig, user: string = 'অ্যাডমিন', autoPublish: boolean = true): boolean {
+    const draft = this.getDraftConfig();
+    const updated: LandingPageConfig = {
+      ...draft,
+      facilities,
+    };
+    this.saveDraftConfig(updated, user);
+    if (autoPublish) {
+      return this.publish(user, 'ক্যাম্পাস সুবিধাসমূহ (Facilities) আপডেট করা হয়েছে');
+    }
+    return true;
   }
 
   public publish(user: string = 'অ্যাডমিন', summary: string = 'নতুন পরিবর্তন লাইভ করা হয়েছে'): boolean {

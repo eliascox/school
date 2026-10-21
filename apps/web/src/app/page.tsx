@@ -132,7 +132,7 @@ export default function PublicSchoolHomePage() {
       case 'achievers':
         return <PublicBestStudentsSection key="achievers" achieversConfig={landingConfig.achievers} students={students} />;
       case 'facilities':
-        return <PublicFacilitiesSection key="facilities" />;
+        return <PublicFacilitiesSection key="facilities" facilitiesConfig={landingConfig.facilities} />;
       case 'gallery':
         return <PublicGallerySection key="gallery" />;
       case 'blog':
