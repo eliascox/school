@@ -9,6 +9,10 @@
   --sidebar-width: 256px;
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
+  --hero-gradient-top: rgba(248, 250, 252, 0.08);
+  --hero-gradient-mid: rgba(248, 250, 252, 0.03);
+  --hero-gradient-lower: rgba(248, 250, 252, 0.2);
+  --hero-gradient-bottom: rgba(248, 250, 252, 0.55);
 }
 
 .dark {
@@ -16,6 +20,10 @@
   --foreground: #f8fafc;
   --card-bg: #0f172a;
   --card-border: #1e293b;
+  --hero-gradient-top: rgba(15, 23, 42, 0.35);
+  --hero-gradient-mid: rgba(15, 23, 42, 0.2);
+  --hero-gradient-lower: rgba(15, 23, 42, 0.6);
+  --hero-gradient-bottom: rgba(15, 23, 42, 0.95);
 }
 
 @theme inline {
@@ -315,34 +323,34 @@ input[type="number"] {
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .dark .glass-nav {
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .glass-dropdown {
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .dark .glass-dropdown {
-  background: rgba(15, 23, 42, 0.98);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -365,12 +373,12 @@ input[type="number"] {
 .hero-bg {
   background-image: 
       linear-gradient(180deg, 
-          rgba(248, 250, 252, 0.05) 0%, 
-          rgba(248, 250, 252, 0.02) 40%, 
-          rgba(248, 250, 252, 0.15) 80%, 
-          rgba(248, 250, 252, 0.5) 100%
+          var(--hero-gradient-top, rgba(248, 250, 252, 0.08)) 0%, 
+          var(--hero-gradient-mid, rgba(248, 250, 252, 0.03)) 40%, 
+          var(--hero-gradient-lower, rgba(248, 250, 252, 0.2)) 80%, 
+          var(--hero-gradient-bottom, rgba(248, 250, 252, 0.55)) 100%
       ),
-      url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85');
+      var(--hero-bg-url, url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85'));
   background-size: cover;
   background-position: center center;
 }
@@ -378,12 +386,12 @@ input[type="number"] {
 .dark .hero-bg {
   background-image: 
       linear-gradient(180deg, 
-          rgba(15, 23, 42, 0.3) 0%, 
-          rgba(15, 23, 42, 0.2) 40%, 
-          rgba(15, 23, 42, 0.6) 80%, 
-          rgba(15, 23, 42, 0.9) 100%
+          var(--hero-gradient-top, rgba(15, 23, 42, 0.35)) 0%, 
+          var(--hero-gradient-mid, rgba(15, 23, 42, 0.2)) 40%, 
+          var(--hero-gradient-lower, rgba(15, 23, 42, 0.6)) 80%, 
+          var(--hero-gradient-bottom, rgba(15, 23, 42, 0.95)) 100%
       ),
-      url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85');
+      var(--hero-bg-url, url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85'));
   background-size: cover;
   background-position: center center;
 }

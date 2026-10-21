@@ -17,7 +17,7 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
   const address = heroConfig?.subtitle || settings?.address || 'চকরিয়া, কক্সবাজার';
   const estd = settings?.estdYear || '1969';
   const eiin = settings?.eiin || '106184';
-  const customBg = heroConfig?.bgImage || settings?.schoolPhoto;
+  const customBg = heroConfig?.bgImage || settings?.schoolPhoto || '/school-campus.jpg';
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,12 +36,12 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
   return (
     <section 
       id="home" 
-      className="hero-bg relative min-h-[85vh] sm:min-h-[90vh] flex flex-col justify-center text-slate-900 dark:text-slate-100 overflow-visible py-20 sm:py-28"
-      style={customBg ? {
-        backgroundImage: `linear-gradient(180deg, rgba(248, 250, 252, 0.1) 0%, rgba(248, 250, 252, 0.05) 40%, rgba(248, 250, 252, 0.2) 80%, rgba(248, 250, 252, 0.5) 100%), url('${customBg}')`,
+      className="hero-bg relative min-h-[90vh] sm:min-h-[96vh] flex flex-col justify-center text-slate-900 dark:text-slate-100 overflow-visible pt-28 sm:pt-36 pb-16 sm:pb-24"
+      style={{
+        backgroundImage: `linear-gradient(180deg, var(--hero-gradient-top, rgba(248, 250, 252, 0.08)) 0%, var(--hero-gradient-mid, rgba(248, 250, 252, 0.03)) 40%, var(--hero-gradient-lower, rgba(248, 250, 252, 0.2)) 80%, var(--hero-gradient-bottom, rgba(248, 250, 252, 0.55)) 100%), url('${customBg}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center center'
-      } : undefined}
+      }}
     >
       {/* Hero Center Content Area */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col items-center justify-center relative z-10 text-center">

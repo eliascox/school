@@ -8,9 +8,10 @@ import { HeaderConfig } from '@/services/landingPageService';
 interface PublicNavbarProps {
   settings?: SchoolSettings | null;
   headerConfig?: HeaderConfig | null;
+  isOverHero?: boolean;
 }
 
-export default function PublicNavbar({ settings, headerConfig }: PublicNavbarProps) {
+export default function PublicNavbar({ settings, headerConfig, isOverHero = true }: PublicNavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [academicsOpen, setAcademicsOpen] = useState(false);
   const [mobileAcademicsOpen, setMobileAcademicsOpen] = useState(false);
@@ -30,8 +31,8 @@ export default function PublicNavbar({ settings, headerConfig }: PublicNavbarPro
   }, []);
 
   return (
-    <div className="sticky top-4 z-50 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-2">
-      <nav className="glass-nav rounded-2xl px-5 py-3 flex items-center justify-between gap-4 transition-all duration-300">
+    <div className={`sticky top-3 sm:top-4 z-50 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none transition-all duration-300 ${isOverHero ? '-mb-20 sm:-mb-24' : 'mb-4'}`}>
+      <nav className="glass-nav rounded-2xl px-4 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-4 transition-all duration-300 pointer-events-auto">
         {/* School Logo & Clean Title */}
         <Link 
           href="#home" 
@@ -238,7 +239,7 @@ export default function PublicNavbar({ settings, headerConfig }: PublicNavbarPro
 
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="xl:hidden glass-dropdown rounded-2xl mt-2 p-4 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 space-y-3">
+        <div className="xl:hidden glass-dropdown rounded-2xl mt-2 p-4 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 space-y-3 pointer-events-auto">
           {/* Action buttons on mobile */}
           <div className="grid grid-cols-2 gap-2 pb-3 border-b border-slate-200 dark:border-slate-700">
             <Link

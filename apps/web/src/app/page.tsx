@@ -150,29 +150,30 @@ export default function PublicSchoolHomePage() {
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* 1. Top Contact & Information Bar */}
-      {landingConfig.header.showTopbar && <PublicTopBar settings={settings} />}
-
-      {/* 2. Main Navigation Bar with Mobile Drawer */}
-      <PublicNavbar settings={settings} headerConfig={landingConfig.header} />
-
-      {/* 3. Live Notice Ticker */}
-      {landingConfig.header.showNoticeTicker && (
-        <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
-      )}
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative">
+      {/* 1. Main Navigation Bar with Glass Effect directly over Hero Image */}
+      <PublicNavbar 
+        settings={settings} 
+        headerConfig={landingConfig.header} 
+        isOverHero={landingConfig.hero.enabled} 
+      />
 
       <main className="flex-1">
-        {/* 4. Hero Section with Call to Actions */}
+        {/* 2. Hero Section with Campus Photo starting at top: 0 behind Floating Navbar */}
         {landingConfig.hero.enabled && (
           <PublicHero settings={settings} heroConfig={landingConfig.hero} />
         )}
 
-        {/* 5. Dynamically Ordered & Enabled Sections */}
+        {/* 3. Live Notice Ticker below Hero Section */}
+        {landingConfig.header.showNoticeTicker && notices.length > 0 && (
+          <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
+        )}
+
+        {/* 4. Dynamically Ordered & Enabled Sections */}
         {activeSections.map((sec) => renderSection(sec.key))}
       </main>
 
-      {/* 15. Institutional Footer */}
+      {/* Institutional Footer */}
       <PublicFooter settings={settings} footerConfig={landingConfig.footer} />
     </div>
   );
