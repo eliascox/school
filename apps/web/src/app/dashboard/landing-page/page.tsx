@@ -55,6 +55,8 @@ import {
   BlogPostItem,
   FAQItem,
   FacilityItem,
+  AcademicConfig,
+  DEFAULT_ACADEMIC_CONFIG,
   FooterColumnLink,
   MediaItem,
   VersionSnapshot,
@@ -71,6 +73,7 @@ type ActiveTab =
   | 'about'
   | 'features'
   | 'stats'
+  | 'academic'
   | 'achievers'
   | 'blog'
   | 'faq'
@@ -375,6 +378,7 @@ export default function LandingPageManagementDashboard() {
               { id: 'about', label: 'পরিচিতি ও বাণী', icon: <School className="w-4 h-4" /> },
               { id: 'features', label: 'ফিচার ও সুবিধাসমূহ', icon: <Building2 className="w-4 h-4" /> },
               { id: 'stats', label: 'পরিসংখ্যান', icon: <Award className="w-4 h-4" /> },
+              { id: 'academic', label: 'একাডেমিক ও শাখা', icon: <BookOpen className="w-4 h-4" /> },
               { id: 'achievers', label: 'সেরা ছাত্র/ছাত্রী', icon: <GraduationCap className="w-4 h-4" /> },
               { id: 'blog', label: 'সংবাদ ও ব্লগ', icon: <FileText className="w-4 h-4" /> },
               { id: 'faq', label: 'প্রশ্নোত্তর (FAQ)', icon: <HelpCircle className="w-4 h-4" /> },
@@ -1908,6 +1912,178 @@ export default function LandingPageManagementDashboard() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────────
+       * TAB: ACADEMIC PROGRAMS & STREAMS (একাডেমিক কার্যক্রম ও শাখা বিভাগ)
+       * ───────────────────────────────────────────────────────────────── */}
+      {activeTab === 'academic' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">একাডেমিক কার্যক্রম ও শাখা বিভাগ সেটিংস</h2>
+                <p className="text-xs text-slate-500">৬ষ্ঠ-১০ম শ্রেণিভিত্তিক শিক্ষা কার্যক্রম এবং বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা শাখার বিবরণ পরিবর্তন করুন।</p>
+              </div>
+            </div>
+
+            {/* General Academic Headers */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  টপ পিল ব্যাজ
+                </label>
+                <input
+                  type="text"
+                  value={config.academic?.eyebrow || DEFAULT_ACADEMIC_CONFIG.eyebrow}
+                  onChange={(e) => {
+                    const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                    handleUpdateConfig({
+                      ...config,
+                      academic: { ...current, eyebrow: e.target.value },
+                    });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="একাডেমিক কার্যক্রম ও পাঠ্যক্রম"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  সেকশন শিরোনাম
+                </label>
+                <input
+                  type="text"
+                  value={config.academic?.title || DEFAULT_ACADEMIC_CONFIG.title}
+                  onChange={(e) => {
+                    const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                    handleUpdateConfig({
+                      ...config,
+                      academic: { ...current, title: e.target.value },
+                    });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="শ্রেণিভিত্তিক শিক্ষা কার্যক্রম ও শাখা বিভাগ"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  উপ-শিরোনাম / বিবরণ
+                </label>
+                <input
+                  type="text"
+                  value={config.academic?.subtitle || DEFAULT_ACADEMIC_CONFIG.subtitle}
+                  onChange={(e) => {
+                    const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                    handleUpdateConfig({
+                      ...config,
+                      academic: { ...current, subtitle: e.target.value },
+                    });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium outline-none"
+                  placeholder="এনসিটিবি ও চট্টগ্রাম শিক্ষা বোর্ড অনুমোদিত..."
+                />
+              </div>
+            </div>
+
+            {/* Academic Programs (3 Levels) */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-3">শ্রেণিভিত্তিক শিক্ষা স্তর (৩টি পর্যায়)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(config.academic?.programs || DEFAULT_ACADEMIC_CONFIG.programs).map((prog, pIdx) => (
+                  <div key={prog.id || pIdx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-1">শ্রেণির স্তর নাম</span>
+                      <input
+                        type="text"
+                        value={prog.grade}
+                        onChange={(e) => {
+                          const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                          const updated = [...current.programs];
+                          updated[pIdx] = { ...updated[pIdx], grade: e.target.value };
+                          handleUpdateConfig({ ...config, academic: { ...current, programs: updated } });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-1">মূল লক্ষ্য / ফোকাস</span>
+                      <textarea
+                        rows={2}
+                        value={prog.focus}
+                        onChange={(e) => {
+                          const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                          const updated = [...current.programs];
+                          updated[pIdx] = { ...updated[pIdx], focus: e.target.value };
+                          handleUpdateConfig({ ...config, academic: { ...current, programs: updated } });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Specialized Streams (Science, Humanities, Business) */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-3">৯ম ও ১০ম শ্রেণির ৩টি শাখা বিভাগ</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(config.academic?.streams || DEFAULT_ACADEMIC_CONFIG.streams).map((stream, sIdx) => (
+                  <div key={stream.id || sIdx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-1">বিভাগের নাম</span>
+                      <input
+                        type="text"
+                        value={stream.name}
+                        onChange={(e) => {
+                          const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                          const updated = [...current.streams];
+                          updated[sIdx] = { ...updated[sIdx], name: e.target.value };
+                          handleUpdateConfig({ ...config, academic: { ...current, streams: updated } });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-1">পাঠ্য বিষয়সমূহ</span>
+                      <input
+                        type="text"
+                        value={stream.subjects}
+                        onChange={(e) => {
+                          const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                          const updated = [...current.streams];
+                          updated[sIdx] = { ...updated[sIdx], subjects: e.target.value };
+                          handleUpdateConfig({ ...config, academic: { ...current, streams: updated } });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-1">বিবরণ</span>
+                      <textarea
+                        rows={3}
+                        value={stream.desc}
+                        onChange={(e) => {
+                          const current = config.academic || DEFAULT_ACADEMIC_CONFIG;
+                          const updated = [...current.streams];
+                          updated[sIdx] = { ...updated[sIdx], desc: e.target.value };
+                          handleUpdateConfig({ ...config, academic: { ...current, streams: updated } });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

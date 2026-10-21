@@ -125,7 +125,7 @@ export default function PublicSchoolHomePage() {
           />
         );
       case 'academic':
-        return <PublicAcademicSection key="academic" />;
+        return <PublicAcademicSection key="academic" academicConfig={landingConfig.academic} />;
       case 'teachers':
         return <PublicTeachersSection key="teachers" teachers={teachers} />;
       case 'committee':

@@ -180,6 +180,39 @@ export interface FacilityItem {
   visible: boolean;
 }
 
+export interface AcademicProgramItem {
+  id: string;
+  grade: string;
+  gradeEn?: string;
+  focus: string;
+  features: string[];
+  icon?: string;
+  color?: string;
+  visible?: boolean;
+}
+
+export interface AcademicStreamItem {
+  id: string;
+  name: string;
+  nameEn?: string;
+  badge?: string;
+  subjects: string;
+  desc: string;
+  icon?: string;
+  color?: string;
+  visible?: boolean;
+}
+
+export interface AcademicConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  departmentsTitle: string;
+  programs: AcademicProgramItem[];
+  streams: AcademicStreamItem[];
+}
+
 export interface FacilitiesConfig {
   enabled: boolean;
   title: string;
@@ -317,6 +350,7 @@ export interface LandingPageConfig {
   about: AboutConfig;
   achievers: AchieversConfig;
   facilities: FacilitiesConfig;
+  academic?: AcademicConfig;
   blog: BlogConfig;
   faq: FAQConfig;
   contact: ContactConfig;
@@ -341,6 +375,93 @@ export interface AuditLogEntry {
   user: string;
   details: string;
 }
+
+export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
+  enabled: true,
+  eyebrow: 'একাডেমিক কার্যক্রম ও পাঠ্যক্রম',
+  title: 'শ্রেণিভিত্তিক শিক্ষা কার্যক্রম ও শাখা বিভাগ',
+  subtitle: 'জাতীয় শিক্ষাক্রম ও পাঠ্যপুস্তক বোর্ড (NCTB) এবং মাধ্যমিক ও উচ্চ মাধ্যমিক শিক্ষা বোর্ড (BISE) চট্টগ্রাম অনুমোদিত শিক্ষাক্রম অনুসরণে পরিচালিত।',
+  departmentsTitle: '৯ম ও ১০ম শ্রেণির বিশেষায়িত বিভাগসমূহ (এসএসসি পর্যায়)',
+  programs: [
+    {
+      id: 'prog-1',
+      grade: '৬ষ্ঠ ও ৭ম শ্রেণি (ভিত্তি স্তর)',
+      gradeEn: 'Class 6 & 7 (Foundation Stage)',
+      focus: 'নতুন জাতীয় শিক্ষাক্রম অনুযায়ী অভিজ্ঞতা ও যোগ্যতাভিত্তিক পাঠদান',
+      features: [
+        'সৃজনশীল মেধা ও মননশীলতার নান্দনিক বিকাশ',
+        'প্রাথমিক আইসিটি ও ব্যবহারিক সাধারণ বিজ্ঞান শিক্ষা',
+        'নৈতিক মূল্যবোধ, জীবনাচার ও শারীরিক সুস্থতা চর্চা'
+      ],
+      icon: 'Sparkles',
+      color: 'emerald',
+      visible: true
+    },
+    {
+      id: 'prog-2',
+      grade: '৮ম শ্রেণি (জুনিয়র সেকেন্ডারি)',
+      gradeEn: 'Class 8 (Junior Secondary)',
+      focus: 'শাখা নির্বাচনের পূর্বপ্রস্তুতি ও বিশ্লেষণধর্মী মৌলিক দক্ষতা অর্জন',
+      features: [
+        'গণিত ও ইংরেজি বিষয়ে বিশেষ নিবিড় তত্ত্বাবধান',
+        'ব্যবহারিক কম্পিউটার সাক্ষরতা ও বাস্তব প্রয়োগ',
+        'ধারাবাহিক শিখনকালীন মূল্যায়ন ও অগ্রগতির ট্র্যাকিং'
+      ],
+      icon: 'BookOpen',
+      color: 'amber',
+      visible: true
+    },
+    {
+      id: 'prog-3',
+      grade: '৯ম ও ১০ম শ্রেণি (এসএসসি পর্যায়)',
+      gradeEn: 'Class 9 & 10 (Secondary SSC Track)',
+      focus: 'বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা শাখায় লক্ষ্যভিত্তিক পাঠদান',
+      features: [
+        'আধুনিক বিজ্ঞানাগারে হাতে-কলমে ল্যাব পরীক্ষণ',
+        'এসএসসি বোর্ড পরীক্ষার চূড়ান্ত প্রস্তুতি ও সাজেশন',
+        'নিয়মিত মডেল টেস্ট ও বিশেষ ফিডব্যাক মূল্যায়ন'
+      ],
+      icon: 'GraduationCap',
+      color: 'indigo',
+      visible: true
+    }
+  ],
+  streams: [
+    {
+      id: 'stream-science',
+      name: 'বিজ্ঞান বিভাগ (Science)',
+      nameEn: 'Science Department',
+      badge: 'গবেষণা ও উদ্ভাবন',
+      subjects: 'পদার্থবিজ্ঞান, রসায়ন, জীববিজ্ঞান, উচ্চতর গণিত ও আইসিটি',
+      desc: 'আধুনিক গবেষণাগারে ব্যবহারিক পরীক্ষণ ও বৈজ্ঞানিক অনুসন্ধিৎসা জাগ্রত করার মাধ্যমে ভবিষ্যতের প্রকৌশলী ও চিকিৎসা বিজ্ঞানী গড়ার ক্ষেত্রে নির্ভরযোগ্য দিকনির্দেশনা।',
+      icon: 'FlaskConical',
+      color: 'emerald',
+      visible: true
+    },
+    {
+      id: 'stream-humanities',
+      name: 'মানবিক বিভাগ (Humanities)',
+      nameEn: 'Humanities Department',
+      badge: 'সমাজ ও সংস্কৃতি',
+      subjects: 'বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা, পৌরনীতি, ভূগোল, অর্থনীতি ও সমাজবিজ্ঞান',
+      desc: 'মানবিক ও সামাজিক মূল্যবোধ, যুক্তিভিত্তিক চিন্তা ও সমাজসচেতনতা বিকাশের মাধ্যমে আদর্শ নাগরিক এবং প্রশাসনিক নেতৃত্ব গঠনের অনন্য ক্ষেত্র।',
+      icon: 'Landmark',
+      color: 'amber',
+      visible: true
+    },
+    {
+      id: 'stream-business',
+      name: 'ব্যবসায় শিক্ষা বিভাগ (Business Studies)',
+      nameEn: 'Business Studies Department',
+      badge: 'বাণিজ্য ও উদ্যোক্তা',
+      subjects: 'হিসাববিজ্ঞান, ফিন্যান্স ও ব্যাংকিং, ব্যবসায় উদ্যোগ ও বিপণন',
+      desc: 'বাণিজ্যিক নেতৃত্ব, আধুনিক হিসাবরক্ষণ এবং অর্থ ব্যবস্থাপনায় দক্ষ জনবল তৈরির লক্ষ্যে বাস্তবমুখী উদ্যোক্তা প্রশিক্ষণ ও কেস-স্টাডি পাঠদান।',
+      icon: 'TrendingUp',
+      color: 'indigo',
+      visible: true
+    }
+  ]
+};
 
 /* =====================================================================
  * DEFAULT CONFIGURATION (Clean, Matching Real Baraitali High School)
@@ -564,6 +685,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
       },
     ],
   },
+  academic: DEFAULT_ACADEMIC_CONFIG,
   blog: {
     enabled: true,
     title: 'সংবাদ ও ব্লগ',
