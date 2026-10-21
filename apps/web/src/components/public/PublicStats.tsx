@@ -10,6 +10,8 @@ import {
   CheckCircle2 
 } from 'lucide-react';
 
+import { StatsConfig } from '@/services/landingPageService';
+
 interface ClassStat {
   id: string;
   name: string;
@@ -23,9 +25,10 @@ interface PublicStatsProps {
   totalStudents?: number;
   totalTeachers?: number;
   estdYear?: string;
+  statsConfig?: StatsConfig | null;
 }
 
-export default function PublicStats({ totalStudents, totalTeachers, estdYear }: PublicStatsProps = {}) {
+export default function PublicStats({ totalStudents, totalTeachers, estdYear, statsConfig }: PublicStatsProps = {}) {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [counts, setCounts] = useState<{ [key: string]: number }>({
     'ten': 0,
@@ -37,12 +40,18 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear }: 
 
   const sectionRef = useRef<HTMLDivElement>(null);
 
+  const count10 = statsConfig?.classStats?.find(s => s.id === 'stat-10' || s.className.includes('টেন') || s.className.includes('১০'))?.count ?? 120;
+  const count9 = statsConfig?.classStats?.find(s => s.id === 'stat-9' || s.className.includes('নাইন') || s.className.includes('৯'))?.count ?? 95;
+  const count8 = statsConfig?.classStats?.find(s => s.id === 'stat-8' || s.className.includes('এইট') || s.className.includes('৮'))?.count ?? 80;
+  const count7 = statsConfig?.classStats?.find(s => s.id === 'stat-7' || s.className.includes('সেভেন') || s.className.includes('৭'))?.count ?? 160;
+  const count6 = statsConfig?.classStats?.find(s => s.id === 'stat-6' || s.className.includes('সিক্স') || s.className.includes('৬'))?.count ?? 110;
+
   const classData: ClassStat[] = [
     {
       id: 'ten',
       name: 'দশম শ্রেণি',
       enClass: 'Class 10',
-      targetCount: 120,
+      targetCount: count10,
       icon: <GraduationCap className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'এসএসসি পরীক্ষার্থী ব্যাচ'
     },
@@ -50,7 +59,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear }: 
       id: 'nine',
       name: 'নবম শ্রেণি',
       enClass: 'Class 9',
-      targetCount: 95,
+      targetCount: count9,
       icon: <BookOpen className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা'
     },
@@ -58,7 +67,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear }: 
       id: 'eight',
       name: 'অষ্টম শ্রেণি',
       enClass: 'Class 8',
-      targetCount: 80,
+      targetCount: count8,
       icon: <Award className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'জুনিয়র সেকেন্ডারি'
     },
@@ -66,7 +75,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear }: 
       id: 'seven',
       name: 'সপ্তম শ্রেণি',
       enClass: 'Class 7',
-      targetCount: 160,
+      targetCount: count7,
       icon: <Sparkles className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'নতুন শিক্ষাক্রম ২০২৩-২৪'
     },
@@ -74,7 +83,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear }: 
       id: 'six',
       name: 'ষষ্ঠ শ্রেণি',
       enClass: 'Class 6',
-      targetCount: 110,
+      targetCount: count6,
       icon: <Users className="w-6 h-6 text-[#F4B400]" />,
       subtitle: 'প্রবেশ স্তর'
     }

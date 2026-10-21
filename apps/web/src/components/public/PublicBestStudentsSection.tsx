@@ -13,6 +13,8 @@ import {
   BookOpen 
 } from 'lucide-react';
 
+import { AchieversConfig } from '@/services/landingPageService';
+
 interface BestStudent {
   id: string;
   name: string;
@@ -26,9 +28,13 @@ interface BestStudent {
   quote: string;
 }
 
-export default function PublicBestStudentsSection() {
+interface PublicBestStudentsSectionProps {
+  achieversConfig?: AchieversConfig | null;
+}
+
+export default function PublicBestStudentsSection({ achieversConfig }: PublicBestStudentsSectionProps = {}) {
   // 4 Best Students matching user requirements
-  const bestStudents: BestStudent[] = [
+  const defaultBestStudents: BestStudent[] = [
     {
       id: 'STD-01',
       name: 'তানজিলা আক্তার',
@@ -79,6 +85,24 @@ export default function PublicBestStudentsSection() {
     }
   ];
 
+  const bestStudents: BestStudent[] = achieversConfig?.students && achieversConfig.students.length > 0
+    ? achieversConfig.students.filter(s => s.visible).map((st, i) => ({
+        id: st.id,
+        name: st.name,
+        class: st.class,
+        roll: st.roll,
+        year: st.year,
+        photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+        badgeType: 'trophy' as const,
+        achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
+        gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
+        quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+      }))
+    : defaultBestStudents;
+
+  const sectionTitle = achieversConfig?.title || 'সেরা ছাত্র/ছাত্রী';
+  const sectionSubtitle = achieversConfig?.subtitle || 'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';
+
   const [selectedStudent, setSelectedStudent] = useState<BestStudent | null>(null);
   const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
@@ -96,7 +120,7 @@ export default function PublicBestStudentsSection() {
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            সেরা ছাত্র/ছাত্রী
+            {sectionTitle}
           </h2>
 
           <div className="flex items-center justify-center gap-1.5 pt-1">
@@ -105,7 +129,7 @@ export default function PublicBestStudentsSection() {
           </div>
 
           <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed pt-2">
-            শ্রেণিকক্ষের মেধা তালিকা, বোর্ড পরীক্ষা এবং সহশিক্ষা কার্যক্রমে অনন্য কৃতিত্ব অর্জনকারী আমাদের গর্বিত শিক্ষার্থীরা।
+            {sectionSubtitle}
           </p>
         </div>
 

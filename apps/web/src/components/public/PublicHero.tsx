@@ -16,19 +16,22 @@ import {
   LogIn
 } from 'lucide-react';
 import { SchoolSettings, settingsService } from '@/services/settingsService';
+import { HeroConfig } from '@/services/landingPageService';
 
 interface PublicHeroProps {
-  settings: SchoolSettings | null;
+  settings?: SchoolSettings | null;
+  heroConfig?: HeroConfig | null;
 }
 
-export default function PublicHero({ settings }: PublicHeroProps) {
+export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';
+  const schoolName = heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+  const address = heroConfig?.subtitle || settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';
   const eiin = settings?.eiin || '106184';
   const estd = settings?.estdYear || '1969';
-  const schoolPhoto = settings?.schoolPhoto || '/school-campus.jpg';
+  const schoolPhoto = heroConfig?.bgImage || settings?.schoolPhoto || '/school-campus.jpg';
+  const badgeText = heroConfig?.badgeText || `ESTD. ${estd} • GOVT. APPROVED SECONDARY SCHOOL • EIIN: ${eiin} • BISE CHATTOGRAM`;
 
   // Handle Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +60,7 @@ export default function PublicHero({ settings }: PublicHeroProps) {
         {/* ═══════════ 1. TOP ACADEMIC EYEBROW BADGE ═══════════ */}
         <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-950/90 to-slate-900/90 border border-indigo-700/60 text-indigo-300 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider backdrop-blur-md shadow-xs uppercase">
           <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-          <span>ESTD. {estd} • GOVT. APPROVED SECONDARY SCHOOL • EIIN: {eiin} • BISE CHATTOGRAM</span>
+          <span>{badgeText}</span>
         </div>
 
         {/* ═══════════ 2. BOLD & LARGE SCHOOL NAME ═══════════ */}

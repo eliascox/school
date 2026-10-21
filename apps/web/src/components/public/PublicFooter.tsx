@@ -16,17 +16,24 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
+import { FooterConfig } from '@/services/landingPageService';
 
 interface PublicFooterProps {
   settings?: SchoolSettings | null;
+  footerConfig?: FooterConfig | null;
 }
 
-export default function PublicFooter({ settings }: PublicFooterProps) {
+export default function PublicFooter({ settings, footerConfig }: PublicFooterProps) {
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const eiin = settings?.eiin || '১০৬১৮৪';
-  const schoolCode = '৩৪১২';
-  const regNo = 'বি-৭৮৯৪ (চট্টগ্রাম বোর্ড)';
-  const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার, বাংলাদেশ।';
+  const eiin = footerConfig?.eiin || settings?.eiin || '১০৬১৮৪';
+  const schoolCode = footerConfig?.schoolCode || '৩৪১২';
+  const regNo = footerConfig?.regNo || 'বি-৭৮৯৪ (চট্টগ্রাম বোর্ড)';
+  const address = footerConfig?.address || settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার, বাংলাদেশ।';
+  const phone1 = footerConfig?.phone1 || '+৮৮০ ১৮১২-৩৪৫৬৭৮ (অফিস)';
+  const phone2 = footerConfig?.phone2 || '+৮৮০ ৩৪১-৬৫৪৩২ (অধ্যক্ষ)';
+  const email1 = footerConfig?.email1 || 'info@baraitolihs.edu.bd';
+  const email2 = footerConfig?.email2 || 'principal@baraitolihs.edu.bd';
+  const copyrightText = footerConfig?.copyrightText || `© ২০২৬ ${schoolName}। সর্বস্বত্ব সংরক্ষিত।`;
   
   const scrollToTop = () => {
     if (typeof window !== 'undefined') {
@@ -272,8 +279,8 @@ export default function PublicFooter({ settings }: PublicFooterProps) {
           
           {/* কপিরাইট নোটিশ */}
           <div className="text-center sm:text-left">
-            <p>
-              কপিরাইট © ২০২৬ <strong className="text-slate-300 font-semibold">{schoolName}</strong>। সর্বস্বত্ব সংরক্ষিত।
+            <p className="text-slate-400">
+              {copyrightText}
             </p>
           </div>
 

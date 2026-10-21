@@ -14,30 +14,34 @@ import {
   BookOpen
 } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
+import { HeaderConfig } from '@/services/landingPageService';
 
 interface PublicNavbarProps {
-  settings: SchoolSettings | null;
+  settings?: SchoolSettings | null;
+  headerConfig?: HeaderConfig | null;
 }
 
-export default function PublicNavbar({ settings }: PublicNavbarProps) {
+export default function PublicNavbar({ settings, headerConfig }: PublicNavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+  const schoolName = headerConfig?.schoolName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
   const eiin = settings?.eiin || '106184';
   const estd = settings?.estdYear || '1969';
 
-  // Professional Navigation structure in English
-  const navLinks = [
-    { label: 'Home', href: '#home' },
-    { label: 'About Us', href: '#about' },
-    { label: 'Principal', href: '#principal' },
-    { label: 'Academics', href: '#academic' },
-    { label: 'Faculty', href: '#teachers' },
-    { label: 'Notices', href: '#notices' },
-    { label: 'Facilities', href: '#facilities' },
-    { label: 'Gallery', href: '#gallery' },
-    { label: 'Contact', href: '#contact' },
-  ];
+  // Navigation structure (Dynamic from HeaderConfig or default fallback)
+  const navLinks = headerConfig?.navLinks && headerConfig.navLinks.length > 0
+    ? headerConfig.navLinks.filter(l => l.visible).map(l => ({ label: l.label, href: l.href }))
+    : [
+        { label: 'Home', href: '#home' },
+        { label: 'About Us', href: '#about' },
+        { label: 'Principal', href: '#principal' },
+        { label: 'Academics', href: '#academic' },
+        { label: 'Faculty', href: '#teachers' },
+        { label: 'Notices', href: '#notices' },
+        { label: 'Facilities', href: '#facilities' },
+        { label: 'Gallery', href: '#gallery' },
+        { label: 'Contact', href: '#contact' },
+      ];
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md shadow-sm border-b border-slate-200/90 dark:border-slate-800/90 transition-all">

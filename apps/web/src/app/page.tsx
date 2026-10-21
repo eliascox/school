@@ -5,6 +5,7 @@ import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { noticeService, Notice } from '@/services/noticeService';
 import { teacherAuthService, TeacherAccount } from '@/services/teacherAuthService';
 import { studentService } from '@/services/studentService';
+import { landingPageService, LandingPageConfig, DEFAULT_LANDING_CONFIG } from '@/services/landingPageService';
 
 // Public Landing Page Components
 import PublicTopBar from '@/components/public/PublicTopBar';
@@ -29,6 +30,7 @@ import PublicFooter from '@/components/public/PublicFooter';
 export default function PublicSchoolHomePage() {
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
+  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(DEFAULT_LANDING_CONFIG);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
@@ -42,15 +44,19 @@ export default function PublicSchoolHomePage() {
       const currentSettings = settingsService.getSettings();
       setSettings(currentSettings);
 
-      // 2. Published Notices
+      // 2. Landing Page Config
+      const currentConfig = landingPageService.getPublishedConfig();
+      setLandingConfig(currentConfig);
+
+      // 3. Published Notices
       const allNotices = noticeService.getNotices();
       setNotices(allNotices);
 
-      // 3. Teachers & Staff (privacy-safe public fields)
+      // 4. Teachers & Staff (privacy-safe public fields)
       const allTeachers = teacherAuthService.getAllTeachers();
       setTeachers(allTeachers);
 
-      // 4. Aggregated Student count
+      // 5. Aggregated Student count
       const allStudents = studentService.getAllStudents();
       setTotalStudents(allStudents.length);
     };
@@ -59,6 +65,7 @@ export default function PublicSchoolHomePage() {
 
     // Re-sync on service updates
     const unsubSettings = settingsService.subscribe((s) => setSettings(s));
+    const unsubLanding = landingPageService.subscribePublished((cfg) => setLandingConfig(cfg));
     const unsubNotices = noticeService.subscribe(() => setNotices(noticeService.getNotices()));
     const unsubStudents = studentService.subscribe(() => setTotalStudents(studentService.getAllStudents().length));
 
@@ -68,6 +75,7 @@ export default function PublicSchoolHomePage() {
 
     return () => {
       unsubSettings();
+      unsubLanding();
       unsubNotices();
       unsubStudents();
       if (typeof window !== 'undefined') {
@@ -76,71 +84,85 @@ export default function PublicSchoolHomePage() {
     };
   }, []);
 
+  // Section Renderer Function mapped by key
+  const renderSection = (secKey: string) => {
+    switch (secKey) {
+      case 'stats':
+        return (
+          <PublicStats
+            key="stats"
+            totalStudents={totalStudents}
+            totalTeachers={teachers.length}
+            estdYear={settings?.estdYear}
+            statsConfig={landingConfig.stats}
+          />
+        );
+      case 'services':
+        return <PublicServicesSection key="services" />;
+      case 'headmaster_message':
+        return <PublicHeadmasterMessage key="headmaster_message" settings={settings} />;
+      case 'about':
+        return <PublicAbout key="about" settings={settings} />;
+      case 'notices':
+        return (
+          <PublicNoticesSection
+            key="notices"
+            notices={notices}
+            selectedNotice={selectedNotice}
+            onSelectNotice={(n) => setSelectedNotice(n)}
+          />
+        );
+      case 'academic':
+        return <PublicAcademicSection key="academic" />;
+      case 'teachers':
+        return <PublicTeachersSection key="teachers" teachers={teachers} />;
+      case 'committee':
+        return <PublicCommitteeSection key="committee" />;
+      case 'achievers':
+        return <PublicBestStudentsSection key="achievers" achieversConfig={landingConfig.achievers} />;
+      case 'facilities':
+        return <PublicFacilitiesSection key="facilities" />;
+      case 'gallery':
+        return <PublicGallerySection key="gallery" />;
+      case 'blog':
+        return <PublicBlogSection key="blog" blogConfig={landingConfig.blog} />;
+      case 'contact':
+        return <PublicContactSection key="contact" settings={settings} />;
+      default:
+        return null;
+    }
+  };
+
+  // Sort sections by order and filter enabled ones
+  const activeSections = [...landingConfig.sections]
+    .filter((s) => s.enabled)
+    .sort((a, b) => a.order - b.order);
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* 1. Top Contact & Information Bar */}
-      <PublicTopBar settings={settings} />
+      {landingConfig.header.showTopbar && <PublicTopBar settings={settings} />}
 
       {/* 2. Main Navigation Bar with Mobile Drawer */}
-      <PublicNavbar settings={settings} />
+      <PublicNavbar settings={settings} headerConfig={landingConfig.header} />
 
       {/* 3. Live Notice Ticker */}
-      <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
+      {landingConfig.header.showNoticeTicker && (
+        <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
+      )}
 
       <main className="flex-1">
         {/* 4. Hero Section with Call to Actions */}
-        <PublicHero settings={settings} />
+        {landingConfig.hero.enabled && (
+          <PublicHero settings={settings} heroConfig={landingConfig.hero} />
+        )}
 
-        {/* 5. Live Verified Statistics Counter */}
-        <PublicStats
-          totalStudents={totalStudents}
-          totalTeachers={teachers.length}
-          estdYear={settings?.estdYear}
-        />
-
-        {/* 6. Quick Online Services Grid (Admission, Result, Certificate, Portals) */}
-        <PublicServicesSection />
-
-        {/* 7. Headmaster's Welcome Message */}
-        <PublicHeadmasterMessage settings={settings} />
-
-        {/* 8. About School: History, Mission, Vision, and Values */}
-        <PublicAbout settings={settings} />
-
-        {/* 9. Dynamic Notice Board with Category Filter */}
-        <PublicNoticesSection
-          notices={notices}
-          selectedNotice={selectedNotice}
-          onSelectNotice={(n) => setSelectedNotice(n)}
-        />
-
-        {/* 10. Academic Curriculum & Streams (Class 6-10, Science, Arts, Commerce) */}
-        <PublicAcademicSection />
-
-        {/* 11. Teachers & Staff Directory (Privacy-Safe Public Profile) */}
-        <PublicTeachersSection teachers={teachers} />
-
-        {/* 12. School Managing Committee Members */}
-        <PublicCommitteeSection />
-
-        {/* 13. Best Students & Achievers */}
-        <PublicBestStudentsSection />
-
-        {/* 12. Campus Facilities (ICT Lab, Science Lab, Library, Playground) */}
-        <PublicFacilitiesSection />
-
-        {/* 13. Photo Gallery */}
-        <PublicGallerySection />
-
-        {/* 14. News & Blog Section */}
-        <PublicBlogSection />
-
-        {/* 14. Contact Information & Message Form */}
-        <PublicContactSection settings={settings} />
+        {/* 5. Dynamically Ordered & Enabled Sections */}
+        {activeSections.map((sec) => renderSection(sec.key))}
       </main>
 
       {/* 15. Institutional Footer */}
-      <PublicFooter settings={settings} />
+      <PublicFooter settings={settings} footerConfig={landingConfig.footer} />
     </div>
   );
 }

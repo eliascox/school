@@ -39,7 +39,10 @@ import {
   FileBarChart,
   FileCheck,
   Send,
-  Search
+  Search,
+  Globe,
+  LayoutTemplate,
+  ExternalLink
 } from 'lucide-react';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
@@ -174,6 +177,15 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Testimonials', labelBn: 'প্রশংসাপত্র', href: '/dashboard/ssc-transcript', icon: <Award className="w-4 h-4" /> },
       { label: 'Certificates & Documents', labelBn: 'সনদ ও ডকুমেন্টস', href: '/dashboard/certificates', icon: <FileCheck className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Landing Page CMS',
+    titleBn: 'ল্যান্ডিং পেইজ',
+    icon: <LayoutTemplate className="w-5 h-5" />,
+    items: [
+      { label: 'Landing Page Manager', labelBn: 'ল্যান্ডিং পেইজ ম্যানেজমেন্ট', href: '/dashboard/landing-page', icon: <LayoutTemplate className="w-4 h-4" /> },
+      { label: 'View Public Site', labelBn: 'পাবলিক ওয়েবসাইট দেখুন', href: '/', icon: <Globe className="w-4 h-4" /> },
     ],
   },
   {

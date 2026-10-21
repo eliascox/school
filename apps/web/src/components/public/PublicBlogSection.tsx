@@ -14,6 +14,8 @@ import {
   Sparkles 
 } from 'lucide-react';
 
+import { BlogConfig } from '@/services/landingPageService';
+
 interface BlogPost {
   id: string;
   title: string;
@@ -25,9 +27,13 @@ interface BlogPost {
   content: string[];
 }
 
-export default function PublicBlogSection() {
-  // 3 Blog Cards matching user requirements
-  const blogPosts: BlogPost[] = [
+interface PublicBlogSectionProps {
+  blogConfig?: BlogConfig | null;
+}
+
+export default function PublicBlogSection({ blogConfig }: PublicBlogSectionProps = {}) {
+  // Default Blog Cards
+  const defaultBlogPosts: BlogPost[] = [
     {
       id: 'post-1',
       title: 'জাতীয় শিক্ষা সপ্তাহ ও বিতর্ক প্রতিযোগিতায় আমাদের বিদ্যালয়ের অনন্য গৌরব',
@@ -69,6 +75,22 @@ export default function PublicBlogSection() {
     }
   ];
 
+  const blogPosts: BlogPost[] = blogConfig?.posts && blogConfig.posts.length > 0
+    ? blogConfig.posts.filter(p => p.visible).map(p => ({
+        id: p.id,
+        title: p.title,
+        author: p.author || 'Admin',
+        date: p.date,
+        category: 'সংবাদ ও অর্জন',
+        image: p.imageUrl || '/school-campus.jpg',
+        excerpt: p.summary,
+        content: [p.summary]
+      }))
+    : defaultBlogPosts;
+
+  const sectionTitle = blogConfig?.title || 'সংবাদ ও ব্লগ';
+  const sectionSubtitle = blogConfig?.subtitle || 'বিদ্যালয়ের শিক্ষা কার্যক্রম, জাতীয় দিবস উদযাপন, ক্রীড়া প্রতিযোগিতা এবং শিক্ষার্থীদের সাফল্যের হালনাগাদ তথ্যাবলী।';
+
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
@@ -86,7 +108,7 @@ export default function PublicBlogSection() {
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            সংবাদ ও ব্লগ
+            {sectionTitle}
           </h2>
 
           <div className="flex items-center justify-center gap-1.5 pt-1">
@@ -95,7 +117,7 @@ export default function PublicBlogSection() {
           </div>
 
           <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed pt-2">
-            বিদ্যালয়ের শিক্ষা কার্যক্রম, জাতীয় দিবস উদযাপন, ক্রীড়া প্রতিযোগিতা এবং শিক্ষার্থীদের সাফল্যের হালনাগাদ তথ্যাবলী।
+            {sectionSubtitle}
           </p>
         </div>
 
