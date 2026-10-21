@@ -116,7 +116,8 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
   const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
-    <section id="teachers" className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <section id="teachers" className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors relative">
+      <div id="faculty" className="absolute -top-24 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ===================================================================

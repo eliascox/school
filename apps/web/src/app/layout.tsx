@@ -33,6 +33,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="SchoolPro" />
         <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

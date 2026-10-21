@@ -45,7 +45,8 @@ export default function PublicCommitteeSection({ committeeMembers: propMembers }
   const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
-    <section id="committee" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <section id="committee" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors relative">
+      <div id="smc" className="absolute -top-24 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ===================================================================

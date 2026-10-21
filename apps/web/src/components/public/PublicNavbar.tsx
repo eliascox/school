@@ -1,18 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { 
-  Menu, 
-  X, 
-  LogIn, 
-  UserPlus, 
-  Search, 
-  ChevronRight,
-  Shield,
-  Sparkles,
-  BookOpen
-} from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
 import { HeaderConfig } from '@/services/landingPageService';
 
@@ -23,193 +12,361 @@ interface PublicNavbarProps {
 
 export default function PublicNavbar({ settings, headerConfig }: PublicNavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [academicsOpen, setAcademicsOpen] = useState(false);
+  const [mobileAcademicsOpen, setMobileAcademicsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const schoolName = headerConfig?.schoolName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const eiin = settings?.eiin || '106184';
-  const estd = settings?.estdYear || '1969';
+  const schoolName = headerConfig?.schoolName || settings?.schoolName || 'Baraitali High School';
 
-  // Navigation structure (Dynamic from HeaderConfig or default fallback)
-  const navLinks = headerConfig?.navLinks && headerConfig.navLinks.length > 0
-    ? headerConfig.navLinks.filter(l => l.visible).map(l => ({ label: l.label, href: l.href }))
-    : [
-        { label: 'Home', href: '#home' },
-        { label: 'About Us', href: '#about' },
-        { label: 'Principal', href: '#principal' },
-        { label: 'Academics', href: '#academic' },
-        { label: 'Faculty', href: '#teachers' },
-        { label: 'Notices', href: '#notices' },
-        { label: 'Facilities', href: '#facilities' },
-        { label: 'Gallery', href: '#gallery' },
-        { label: 'Contact', href: '#contact' },
-      ];
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setAcademicsOpen(false);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md shadow-sm border-b border-slate-200/90 dark:border-slate-800/90 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-2 lg:gap-4">
-          
-          {/* ═════════ 1. PRESTIGIOUS SCHOOL EMBLEM & BRANDING ═════════ */}
-          <Link 
-            href="/" 
-            onClick={(e) => {
-              if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }}
-            className="flex items-center gap-3 group focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded-xl p-1 transition-all shrink-0 cursor-pointer"
-            title="হোমপেজে যান"
-          >
-            {/* Custom High-Fidelity Academic Vector Crest */}
-            <div className="relative w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 flex items-center justify-center text-white shadow-md shadow-indigo-950/20 group-hover:scale-105 transition-all overflow-hidden border-2 border-indigo-700/60 p-1.5 shrink-0">
-              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Outer Golden Laurel Ring */}
-                <circle cx="50" cy="50" r="46" stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="4 2" />
-                <path d="M50 10 L82 24 L82 58 C82 76 50 90 50 90 C50 90 18 76 18 58 L18 24 Z" fill="url(#shieldGrad)" stroke="#e0e7ff" strokeWidth="2" />
-                {/* Knowledge Torch & Open Book Motif */}
-                <path d="M50 32 L50 62" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" />
-                <path d="M42 42 Q50 34 58 42" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M34 54 C42 50 48 56 50 62 C52 56 58 50 66 54" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" fill="none" />
-                <circle cx="50" cy="28" r="4" fill="#f59e0b" />
-                {/* Year 1969 Banner */}
-                <rect x="28" y="70" width="44" height="12" rx="3" fill="#1e1b4b" stroke="#fbbf24" strokeWidth="1" />
-                <text x="50" y="79" fill="#fbbf24" fontSize="8" fontWeight="bold" textAnchor="middle" letterSpacing="0.5">1969</text>
-                <defs>
-                  <linearGradient id="shieldGrad" x1="18" y1="24" x2="82" y2="90" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#1e1b4b" />
-                    <stop offset="1" stopColor="#0f172a" />
-                  </linearGradient>
-                </defs>
-              </svg>
+    <div className="sticky top-4 z-50 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+      <nav className="glass-nav rounded-2xl px-5 py-3 flex items-center justify-between gap-4 transition-all duration-300">
+        {/* School Logo & Clean Title */}
+        <Link 
+          href="#home" 
+          onClick={(e) => {
+            if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          className="flex items-center gap-3 group shrink-0"
+        >
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition">
+            <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden">
+              {settings?.schoolLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={settings.schoolLogo} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <i className="fa-solid fa-graduation-cap text-emerald-400 text-lg"></i>
+              )}
             </div>
-
-            {/* School Name */}
-            <div className="flex flex-col min-w-0">
-              <span className="text-lg sm:text-xl xl:text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-tight font-serif whitespace-nowrap">
-                {schoolName}
-              </span>
-            </div>
-          </Link>
-
-          {/* ═════════ 2. DESKTOP NAVIGATION LINKS (ENGLISH, SINGLE-LINE) ═════════ */}
-          <nav className="hidden xl:flex items-center space-x-0.5 2xl:space-x-1" aria-label="Main Navigation">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="px-2.5 2xl:px-3 py-1.5 text-[13px] 2xl:text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-lg transition-all whitespace-nowrap"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-
-          {/* ═════════ 3. MODERN ACTION BUTTON CLUSTER (NO SQUISHING) ═════════ */}
-          <div className="hidden lg:flex items-center gap-2 2xl:gap-2.5 shrink-0">
-            {/* Results Button */}
-            <Link
-              href="/result"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300/80 dark:border-slate-700 rounded-lg transition-all shadow-xs whitespace-nowrap"
-              title="পরীক্ষার ফলাফল অনুসন্ধান করুন"
-            >
-              <Search className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Results</span>
-            </Link>
-
-            {/* Admission Button with Emerald Gradient */}
-            <Link
-              href="/admission"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 active:to-teal-700 rounded-lg shadow-sm shadow-emerald-600/30 transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
-              title="নতুন শিক্ষাবর্ষে অনলাইনে ভর্তি আবেদন করুন"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Online Admission</span>
-            </Link>
-
-            {/* Portal Login Button */}
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-indigo-950 dark:bg-indigo-950 dark:hover:bg-indigo-900 active:bg-slate-950 rounded-lg shadow-sm shadow-slate-950/20 transition-all border border-indigo-700/60 whitespace-nowrap transform hover:-translate-y-0.5"
-              title="অ্যাডমিন ও শিক্ষক ম্যানেজমেন্ট লগইন"
-            >
-              <LogIn className="w-3.5 h-3.5 text-amber-400" />
-              <span>Portal Login</span>
-            </Link>
           </div>
+          <span className="font-en font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+            {schoolName}
+          </span>
+        </Link>
 
-          {/* ═════════ 4. MOBILE MENU BUTTON & QUICK LOGIN ═════════ */}
-          <div className="flex xl:hidden items-center gap-1.5">
-            <Link
-              href="/login"
-              className="px-2.5 py-1.5 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-950 rounded-lg flex items-center gap-1 border border-indigo-800 whitespace-nowrap"
-            >
-              <LogIn className="w-3 h-3 text-amber-400" />
-              <span>Login</span>
-            </Link>
+        {/* Desktop Menu Links (Cleaned: Principal, Faculty, Facilities inside Academics dropdown) */}
+        <div className="hidden xl:flex items-center gap-1.5 text-sm font-en font-medium text-slate-700 dark:text-slate-200">
+          <a
+            href="#home"
+            className="px-3 py-2 rounded-xl bg-emerald-600/10 border border-emerald-600/30 text-emerald-700 dark:text-emerald-400 font-semibold transition hover:bg-emerald-600/20"
+          >
+            Home
+          </a>
+          <a
+            href="#about"
+            className="px-3 py-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          >
+            About Us
+          </a>
 
+          {/* Academics Dropdown Menu containing Recognition, SMC, Head Master, Student Information, Faculty, Facilities */}
+          <div className="relative group" ref={dropdownRef}>
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-colors"
-              aria-label="Toggle navigation menu"
-              aria-expanded={mobileMenuOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                setAcademicsOpen(!academicsOpen);
+              }}
+              className="px-3 py-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition inline-flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6 text-red-500" /> : <Menu className="w-6 h-6" />}
+              <span>Academics</span>
+              <i
+                className={`fa-solid fa-chevron-down text-[11px] transition-transform duration-300 ${
+                  academicsOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                }`}
+              ></i>
             </button>
-          </div>
-        </div>
-      </div>
 
-      {/* ═════════ 5. RESPONSIVE MOBILE DRAWER ═════════ */}
+            {/* Glassy Dropdown Panel */}
+            <div
+              className={`glass-dropdown absolute left-0 mt-3 w-64 rounded-2xl p-2 z-50 transition-all duration-300 ${
+                academicsOpen
+                  ? 'visible opacity-100 translate-y-0'
+                  : 'invisible opacity-0 translate-y-2 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0'
+              }`}
+            >
+              <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border-b border-slate-200 dark:border-slate-700 mb-1 flex items-center justify-between">
+                <span>Academic Wing</span>
+                <i className="fa-solid fa-layer-group text-xs"></i>
+              </div>
+              <a
+                href="#recognition"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-certificate text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">Recognition</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">বোর্ড স্বীকৃতি ও অনুমোদন</span>
+                </div>
+              </a>
+              <a
+                href="#smc"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-users-gear text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">SMC</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">বিদ্যালয় পরিচালনা পর্ষদ</span>
+                </div>
+              </a>
+              <a
+                href="#headmaster"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-user-tie text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">Head Master</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">প্রধান শিক্ষকের বাণী</span>
+                </div>
+              </a>
+              <a
+                href="#student-info"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-chart-pie text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">Student Information</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">শিক্ষার্থীদের পরিসংখ্যান</span>
+                </div>
+              </a>
+              <a
+                href="#faculty"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-chalkboard-user text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">Faculty</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">শ্রদ্ধেয় শিক্ষকমণ্ডলী</span>
+                </div>
+              </a>
+              <a
+                href="#facilities"
+                onClick={() => setAcademicsOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-600/10 hover:text-emerald-900 dark:hover:text-emerald-300 transition group/item"
+              >
+                <span className="w-7 h-7 rounded-lg bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-400 flex items-center justify-center group-hover/item:scale-110 transition">
+                  <i className="fa-solid fa-laptop-code text-xs"></i>
+                </span>
+                <div>
+                  <div className="font-semibold leading-none">Facilities</div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">আধুনিক সুযোগ-সুবিধা</span>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <a
+            href="#notices"
+            className="px-3 py-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          >
+            Notices
+          </a>
+          <a
+            href="#gallery"
+            className="px-3 py-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          >
+            Gallery
+          </a>
+          <a
+            href="#contact"
+            className="px-3 py-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          >
+            Contact
+          </a>
+        </div>
+
+        {/* Right Action Buttons */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          <Link
+            href="/result"
+            className="px-3.5 py-2 rounded-xl bg-slate-200/70 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-en font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 transition"
+          >
+            <i className="fa-solid fa-magnifying-glass text-emerald-600"></i> Results
+          </Link>
+          <Link
+            href="/admission"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-en font-bold text-white shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 transition"
+          >
+            <i className="fa-solid fa-user-plus"></i> Online Admission
+          </Link>
+          <Link
+            href="/login"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900 border border-slate-800 text-xs font-en font-semibold text-amber-400 flex items-center gap-1.5 transition"
+          >
+            <i className="fa-solid fa-right-to-bracket text-amber-400"></i> Portal
+          </Link>
+        </div>
+
+        {/* Mobile Hamburger */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="xl:hidden p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700"
+          aria-label="Toggle Navigation Menu"
+        >
+          <i className={`fa-solid ${mobileMenuOpen ? 'fa-xmark' : 'fa-bars'} text-lg`}></i>
+        </button>
+      </nav>
+
+      {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="xl:hidden bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 pt-3 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-4 duration-200">
-          {/* Quick Dual Action Badges */}
-          <div className="grid grid-cols-2 gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="xl:hidden glass-dropdown rounded-2xl mt-2 p-4 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 space-y-3">
+          {/* Action buttons on mobile */}
+          <div className="grid grid-cols-2 gap-2 pb-3 border-b border-slate-200 dark:border-slate-700">
             <Link
               href="/admission"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg shadow-sm text-center"
+              className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-xs font-bold text-white text-center flex items-center justify-center gap-1.5"
             >
-              <UserPlus className="w-4 h-4" />
-              <span>Online Admission</span>
+              <i className="fa-solid fa-user-plus"></i> Admission
             </Link>
             <Link
               href="/result"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm text-center"
+              className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700"
             >
-              <Search className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Results Portal</span>
+              <i className="fa-solid fa-magnifying-glass text-emerald-600"></i> Results
             </Link>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="flex flex-col space-y-0.5">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-lg transition-colors"
-              >
-                <span>{link.label}</span>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </a>
-            ))}
-          </nav>
+          {/* Links */}
+          <div className="space-y-1 font-en text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <a
+              href="#home"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Home
+            </a>
+            <a
+              href="#about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              About Us
+            </a>
 
-          {/* Full-width Portal Login */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+            {/* Mobile Academics Dropdown */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMobileAcademicsOpen(!mobileAcademicsOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-left font-semibold"
+              >
+                <span>Academics</span>
+                <i className={`fa-solid fa-chevron-down text-xs transition-transform ${mobileAcademicsOpen ? 'rotate-180' : ''}`}></i>
+              </button>
+              {mobileAcademicsOpen && (
+                <div className="pl-4 pr-2 py-1 space-y-1 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl my-1 border border-slate-200/60 dark:border-slate-700/60">
+                  <a
+                    href="#recognition"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-emerald-600"
+                  >
+                    <i className="fa-solid fa-certificate text-emerald-600 w-4"></i> Recognition
+                  </a>
+                  <a
+                    href="#smc"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-amber-600"
+                  >
+                    <i className="fa-solid fa-users-gear text-amber-600 w-4"></i> SMC (পরিচালনা পর্ষদ)
+                  </a>
+                  <a
+                    href="#headmaster"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-600"
+                  >
+                    <i className="fa-solid fa-user-tie text-indigo-600 w-4"></i> Head Master
+                  </a>
+                  <a
+                    href="#student-info"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-sky-600"
+                  >
+                    <i className="fa-solid fa-chart-pie text-sky-600 w-4"></i> Student Information
+                  </a>
+                  <a
+                    href="#faculty"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-purple-600"
+                  >
+                    <i className="fa-solid fa-chalkboard-user text-purple-600 w-4"></i> Faculty
+                  </a>
+                  <a
+                    href="#facilities"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-teal-600"
+                  >
+                    <i className="fa-solid fa-laptop-code text-teal-600 w-4"></i> Facilities
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <a
+              href="#notices"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Notices
+            </a>
+            <a
+              href="#gallery"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Gallery
+            </a>
+            <a
+              href="#contact"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Contact
+            </a>
+          </div>
+
+          {/* Portal Button */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
             <Link
               href="/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-slate-900 hover:bg-indigo-950 rounded-lg shadow-md border border-indigo-800 transition-colors"
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-amber-400 font-bold text-xs flex items-center justify-center gap-2"
             >
-              <LogIn className="w-4 h-4 text-amber-400" />
-              <span>Portal Login (Admin & Teachers)</span>
+              <i className="fa-solid fa-right-to-bracket text-amber-400"></i> Portal Login
             </Link>
           </div>
         </div>
       )}
-    </header>
+    </div>
   );
 }

@@ -48,8 +48,9 @@ export default function PublicAbout({ settings }: PublicAboutProps) {
     <section 
       id="about" 
       ref={sectionRef}
-      className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 overflow-hidden"
+      className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 overflow-hidden relative"
     >
+      <div id="recognition" className="absolute -top-24 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Two Column Layout: Mobile (Image on Top, Text Below), Desktop (Side-by-Side) */}

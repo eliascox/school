@@ -49,7 +49,8 @@ export default function PublicHeadmasterMessage({ settings }: PublicHeadmasterMe
   ];
 
   return (
-    <section id="principal" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <section id="principal" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 relative">
+      <div id="headmaster" className="absolute -top-24 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header with Dual-colored Underline */}

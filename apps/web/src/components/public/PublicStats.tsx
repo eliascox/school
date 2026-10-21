@@ -158,6 +158,8 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
       ref={sectionRef} 
       className="py-16 sm:py-20 bg-gradient-to-br from-[#0B5D3B] via-[#094d31] to-[#063b25] text-white relative overflow-hidden border-y border-emerald-700/50 shadow-inner"
     >
+      <div id="student-info" className="absolute -top-24 left-0" />
+      <div id="stats" className="absolute -top-24 left-0" />
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#F4B400_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#F4B400]/10 blur-3xl pointer-events-none" />
