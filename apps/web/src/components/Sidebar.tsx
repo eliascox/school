@@ -194,6 +194,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: <Settings className="w-5 h-5" />,
     items: [
       { label: 'School Settings', labelBn: 'স্কুল সেটিংস', href: '/dashboard/settings', icon: <Settings className="w-4 h-4" /> },
+      { label: 'Managing Committee', labelBn: 'ম্যানেজিং কমিটি', href: '/dashboard/settings?tab=committee', icon: <Users className="w-4 h-4" /> },
     ],
   },
 ];

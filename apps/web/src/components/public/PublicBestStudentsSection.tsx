@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { AchieversConfig } from '@/services/landingPageService';
+import { Student } from '@/services/studentService';
 
 interface BestStudent {
   id: string;
@@ -30,9 +31,10 @@ interface BestStudent {
 
 interface PublicBestStudentsSectionProps {
   achieversConfig?: AchieversConfig | null;
+  students?: Student[];
 }
 
-export default function PublicBestStudentsSection({ achieversConfig }: PublicBestStudentsSectionProps = {}) {
+export default function PublicBestStudentsSection({ achieversConfig, students }: PublicBestStudentsSectionProps = {}) {
   // 4 Best Students matching user requirements
   const defaultBestStudents: BestStudent[] = [
     {
@@ -85,20 +87,41 @@ export default function PublicBestStudentsSection({ achieversConfig }: PublicBes
     }
   ];
 
-  const bestStudents: BestStudent[] = achieversConfig?.students && achieversConfig.students.length > 0
-    ? achieversConfig.students.filter(s => s.visible).map((st, i) => ({
-        id: st.id,
-        name: st.name,
-        class: st.class,
-        roll: st.roll,
-        year: st.year,
-        photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
-        badgeType: 'trophy' as const,
-        achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
-        gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
-        quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
-      }))
-    : defaultBestStudents;
+  // Auto-sync best students from live student database if available
+  const autoSyncedStudents: BestStudent[] = (students && students.length > 0)
+    ? [...students]
+        .filter(s => parseFloat(s.gpa || '0') >= 4.5 || s.roll === '1' || s.roll === '01')
+        .slice(0, 4)
+        .map((st, i) => ({
+          id: st.id,
+          name: st.name,
+          class: st.gradeBn || `${st.grade} শ্রেণি`,
+          roll: st.roll,
+          year: st.session || '২০২৬',
+          photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+          badgeType: (i === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
+          achievement: st.gpa === '5.00' ? '🏆 গোল্ডেন জিপিএ ৫.০০' : `মেধাবী স্থান #${st.roll}`,
+          gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
+          quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+        }))
+    : [];
+
+  const bestStudents: BestStudent[] = autoSyncedStudents.length > 0
+    ? autoSyncedStudents
+    : (achieversConfig?.students && achieversConfig.students.length > 0
+        ? achieversConfig.students.filter(s => s.visible).map((st, i) => ({
+            id: st.id,
+            name: st.name,
+            class: st.class,
+            roll: st.roll,
+            year: st.year,
+            photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+            badgeType: 'trophy' as const,
+            achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
+            gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
+            quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+          }))
+        : defaultBestStudents);
 
   const sectionTitle = achieversConfig?.title || 'সেরা ছাত্র/ছাত্রী';
   const sectionSubtitle = achieversConfig?.subtitle || 'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';

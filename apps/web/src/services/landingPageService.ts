@@ -654,6 +654,68 @@ class LandingPageService {
     }
   }
 
+  // --- AUTO SYNC WITH SCHOOL SETTINGS ---
+  public syncWithSchoolSettings(settings: any, autoPublish: boolean = false): void {
+    if (!settings || typeof window === 'undefined') return;
+    try {
+      const draft = this.getDraftConfig();
+      let changed = false;
+
+      if (settings.schoolName && draft.header.schoolName !== settings.schoolName) {
+        draft.header.schoolName = settings.schoolName;
+        draft.hero.title = settings.schoolName;
+        changed = true;
+      }
+      if (settings.schoolLogo && draft.header.logoUrl !== settings.schoolLogo) {
+        draft.header.logoUrl = settings.schoolLogo;
+        changed = true;
+      }
+      if (settings.schoolPhoto && draft.hero.bgImage !== settings.schoolPhoto) {
+        draft.hero.bgImage = settings.schoolPhoto;
+        changed = true;
+      }
+      if (settings.address && draft.header.topbarAddress !== settings.address) {
+        draft.header.topbarAddress = settings.address;
+        draft.hero.subtitle = `📍 ${settings.address}`;
+        draft.footer.address = settings.address;
+        changed = true;
+      }
+      if (settings.phone && draft.header.topbarPhone !== settings.phone) {
+        draft.header.topbarPhone = settings.phone;
+        draft.footer.phone1 = settings.phone;
+        changed = true;
+      }
+      if (settings.email && draft.header.topbarEmail !== settings.email) {
+        draft.header.topbarEmail = settings.email;
+        draft.footer.email1 = settings.email;
+        changed = true;
+      }
+      if (settings.eiin && draft.footer.eiin !== settings.eiin) {
+        draft.footer.eiin = settings.eiin;
+        draft.about.eiin = settings.eiin;
+        changed = true;
+      }
+      if (settings.estdYear && draft.about.foundingYear !== settings.estdYear) {
+        draft.about.foundingYear = settings.estdYear;
+        draft.hero.badgeText = `🏛️ ঐতিহ্যের ৫৫ বছর | স্থাপিত ${settings.estdYear}`;
+        changed = true;
+      }
+      if (settings.principalName && draft.about.headmaster.name !== settings.principalName) {
+        draft.about.headmaster.name = settings.principalName;
+        changed = true;
+      }
+
+      if (changed) {
+        this.saveDraftConfig(draft, 'সিস্টেম অটো-সিংক');
+        if (autoPublish) {
+          this.publish('সিস্টেম অটো-সিংক', 'স্কুল সেটিংস থেকে তথ্য স্বয়ংক্রিয় সিংক');
+        }
+      }
+    } catch (e) {
+      console.error('[LandingPageService] Error syncing with settings:', e);
+    }
+  }
+
   // --- DRAFT CONFIG ---
   public getDraftConfig(): LandingPageConfig {
     if (typeof window === 'undefined') return DEFAULT_LANDING_CONFIG;

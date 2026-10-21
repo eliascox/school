@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Calendar, 
@@ -12,82 +12,33 @@ import {
   ShieldCheck, 
   CheckCircle2 
 } from 'lucide-react';
+import { settingsService, CommitteeMember, DEFAULT_COMMITTEE_MEMBERS } from '@/services/settingsService';
 
-interface CommitteeMember {
-  id: string;
-  name: string;
-  role: string;
-  joiningDate: string;
-  tenure: string;
-  phone: string;
-  email: string;
-  photo: string;
-  badgeColor: string;
-  facebook?: string;
-  linkedin?: string;
-  bio: string;
+interface PublicCommitteeSectionProps {
+  committeeMembers?: CommitteeMember[];
 }
 
-export default function PublicCommitteeSection() {
-  // 4 Managing Committee Members matching requirements
-  const committeeMembers: CommitteeMember[] = [
-    {
-      id: 'CM-1',
-      name: 'আলহাজ্ব মোস্তফা কামাল',
-      role: 'সভাপতি',
-      joiningDate: '০১ জানুয়ারি ২০২৪',
-      tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
-      phone: '+880 1712-345678',
-      email: 'president@school.edu.bd',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=500&auto=format&fit=crop',
-      badgeColor: 'bg-emerald-100 text-[#0B5D3B] border-emerald-300',
-      facebook: '#',
-      linkedin: '#',
-      bio: 'বিদ্যালয়ের অবকাঠামোগত উন্নয়ন ও মানসম্মত শিক্ষা নিশ্চিত করতে পরিচালনা পর্ষদ অভিভাবক ও শিক্ষকদের সাথে নিরলসভাবে কাজ করে যাচ্ছে।'
-    },
-    {
-      id: 'CM-2',
-      name: 'বেগম রোকসানা চৌধুরী',
-      role: 'সহ-সভাপতি',
-      joiningDate: '১৫ জানুয়ারি ২০২৪',
-      tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
-      phone: '+880 1813-456789',
-      email: 'vicepresident@school.edu.bd',
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=500&auto=format&fit=crop',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
-      facebook: '#',
-      linkedin: '#',
-      bio: 'নারী শিক্ষার প্রসার, সহশিক্ষা কার্যক্রমের ব্যাপ্তি এবং শিক্ষার্থীদের সুনাগরিক হিসেবে গড়ে তুলতে আমরা সবসময় সচেষ্ট।'
-    },
-    {
-      id: 'CM-3',
-      name: 'জনাব মোখলেসুর রহমান ভূঁইয়া',
-      role: 'ক্যাশিয়ার (অর্থ সম্পাদক)',
-      joiningDate: '২০ জানুয়ারি ২০২৪',
-      tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
-      phone: '+880 1914-567890',
-      email: 'cashier@school.edu.bd',
-      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=500&auto=format&fit=crop',
-      badgeColor: 'bg-sky-100 text-sky-800 border-sky-300',
-      facebook: '#',
-      linkedin: '#',
-      bio: 'বিদ্যালয়ের যাবতীয় আর্থিক ব্যবস্থাপনা, উন্নয়ন তহবিল এবং বাজেট ব্যবহারে স্বচ্ছতা ও জবাবদিহিতা নিশ্চিত করাই আমাদের অঙ্গীকার।'
-    },
-    {
-      id: 'CM-4',
-      name: 'মোহাম্মদ রফিকুল ইসলাম',
-      role: 'সেক্রেটারী (সদস্য সচিব)',
-      joiningDate: '০১ জানুয়ারি ২০২৪',
-      tenure: 'পদাধিকারবলে অব্যাহত (প্রধান শিক্ষক)',
-      phone: '+880 1615-678901',
-      email: 'headmaster@school.edu.bd',
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=500&auto=format&fit=crop',
-      badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
-      facebook: '#',
-      linkedin: '#',
-      bio: 'কমিটির বিজ্ঞ দিকনির্দেশনা ও সার্বিক সমন্বয়ে বিদ্যালয়ের একাডেমিক ও প্রশাসনিক কার্যক্রম সর্বোচ্চ শৃঙ্খলার সাথে বাস্তবায়িত হচ্ছে।'
+export default function PublicCommitteeSection({ committeeMembers: propMembers }: PublicCommitteeSectionProps = {}) {
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>(() => {
+    if (propMembers && propMembers.length > 0) return propMembers;
+    const settings = settingsService.getSettings();
+    return (settings.committeeMembers && settings.committeeMembers.length > 0)
+      ? settings.committeeMembers
+      : DEFAULT_COMMITTEE_MEMBERS;
+  });
+
+  useEffect(() => {
+    if (propMembers !== undefined) {
+      setCommitteeMembers(propMembers.length > 0 ? propMembers : DEFAULT_COMMITTEE_MEMBERS);
+      return;
     }
-  ];
+    const unsub = settingsService.subscribe((s) => {
+      if (s.committeeMembers) {
+        setCommitteeMembers(s.committeeMembers.length > 0 ? s.committeeMembers : DEFAULT_COMMITTEE_MEMBERS);
+      }
+    });
+    return () => unsub();
+  }, [propMembers]);
 
   // Selected Member for Profile Modal
   const [selectedMember, setSelectedMember] = useState<CommitteeMember | null>(null);
@@ -133,13 +84,22 @@ export default function PublicCommitteeSection() {
                 {/* প্রোফাইল ছবি */}
                 <div className="flex justify-center mb-5">
                   <div className="relative">
-                    <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-[#0B5D3B] shadow-md group-hover:scale-105 transition-transform duration-300">
-                      <img
-                        src={member.photo}
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                    <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-[#0B5D3B] shadow-md group-hover:scale-105 transition-transform duration-300 bg-emerald-50 dark:bg-slate-700 flex items-center justify-center">
+                      {member.photo ? (
+                        <img
+                          src={member.photo}
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=500&auto=format&fit=crop';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-100 dark:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-300 font-black text-2xl">
+                          {member.name ? member.name.charAt(0) : 'ক'}
+                        </div>
+                      )}
                     </div>
                     {/* পদবি আইকন ব্যাজ */}
                     <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#0B5D3B] text-white flex items-center justify-center shadow-md border-2 border-white dark:border-slate-800">
@@ -352,38 +312,26 @@ export default function PublicCommitteeSection() {
             </div>
 
             <div className="overflow-y-auto py-4 space-y-3 flex-1">
-              {committeeMembers.concat([
-                {
-                  id: 'CM-5',
-                  name: 'জনাব মোহাম্মদ হোসেন',
-                  role: 'অভিভাবক প্রতিনিধি',
-                  joiningDate: '০১ জানুয়ারি ২০২৪',
-                  tenure: '২০২৪ – ২০২৬ খ্রিঃ',
-                  phone: '+880 1711-000001',
-                  email: 'parent1@school.edu.bd',
-                  photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop',
-                  badgeColor: 'bg-slate-100 text-slate-800 border-slate-300',
-                  bio: 'অভিভাবক ও বিদ্যালয়ের মেলবন্ধন রক্ষায় অঙ্গীকারবদ্ধ।'
-                },
-                {
-                  id: 'CM-6',
-                  name: 'জনাব মোঃ নূরুল ইসলাম',
-                  role: 'শিক্ষক প্রতিনিধি',
-                  joiningDate: '০১ জানুয়ারি ২০২৪',
-                  tenure: '২০২৪ – ২০২৬ খ্রিঃ',
-                  phone: '+880 1711-000002',
-                  email: 'teacher.rep@school.edu.bd',
-                  photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&auto=format&fit=crop',
-                  badgeColor: 'bg-emerald-100 text-[#0B5D3B] border-emerald-300',
-                  bio: 'শিক্ষকবৃন্দের স্বার্থ ও একাডেমিক উন্নয়ন পরিচালনায় সমন্বয়কারী।'
-                }
-              ]).map((m) => (
+              {committeeMembers.map((m) => (
                 <div
                   key={m.id}
                   className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={m.photo} alt={m.name} className="w-11 h-11 rounded-xl object-cover border border-slate-200 dark:border-slate-700" />
+                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center">
+                      {m.photo ? (
+                        <img
+                          src={m.photo}
+                          alt={m.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=500&auto=format&fit=crop';
+                          }}
+                        />
+                      ) : (
+                        <span className="font-bold text-[#0B5D3B] text-sm">{m.name ? m.name.charAt(0) : 'ক'}</span>
+                      )}
+                    </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white">{m.name}</h4>
                       <p className="text-xs font-semibold text-[#0B5D3B] dark:text-emerald-400">{m.role}</p>

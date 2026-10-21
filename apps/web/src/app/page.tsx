@@ -33,6 +33,7 @@ export default function PublicSchoolHomePage() {
   const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(DEFAULT_LANDING_CONFIG);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
@@ -44,7 +45,8 @@ export default function PublicSchoolHomePage() {
       const currentSettings = settingsService.getSettings();
       setSettings(currentSettings);
 
-      // 2. Landing Page Config
+      // 2. Auto-sync Landing Page Config with School Settings
+      landingPageService.syncWithSchoolSettings(currentSettings);
       const currentConfig = landingPageService.getPublishedConfig();
       setLandingConfig(currentConfig);
 
@@ -56,18 +58,26 @@ export default function PublicSchoolHomePage() {
       const allTeachers = teacherAuthService.getAllTeachers();
       setTeachers(allTeachers);
 
-      // 5. Aggregated Student count
+      // 5. Aggregated Student count & List
       const allStudents = studentService.getAllStudents();
+      setStudents(allStudents);
       setTotalStudents(allStudents.length);
     };
 
     loadData();
 
     // Re-sync on service updates
-    const unsubSettings = settingsService.subscribe((s) => setSettings(s));
+    const unsubSettings = settingsService.subscribe((s) => {
+      setSettings(s);
+      landingPageService.syncWithSchoolSettings(s);
+    });
     const unsubLanding = landingPageService.subscribePublished((cfg) => setLandingConfig(cfg));
     const unsubNotices = noticeService.subscribe(() => setNotices(noticeService.getNotices()));
-    const unsubStudents = studentService.subscribe(() => setTotalStudents(studentService.getAllStudents().length));
+    const unsubStudents = studentService.subscribe(() => {
+      const allStudents = studentService.getAllStudents();
+      setStudents(allStudents);
+      setTotalStudents(allStudents.length);
+    });
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', loadData);
@@ -95,6 +105,7 @@ export default function PublicSchoolHomePage() {
             totalTeachers={teachers.length}
             estdYear={settings?.estdYear}
             statsConfig={landingConfig.stats}
+            students={students}
           />
         );
       case 'services':
@@ -117,9 +128,9 @@ export default function PublicSchoolHomePage() {
       case 'teachers':
         return <PublicTeachersSection key="teachers" teachers={teachers} />;
       case 'committee':
-        return <PublicCommitteeSection key="committee" />;
+        return <PublicCommitteeSection key="committee" committeeMembers={settings?.committeeMembers} />;
       case 'achievers':
-        return <PublicBestStudentsSection key="achievers" achieversConfig={landingConfig.achievers} />;
+        return <PublicBestStudentsSection key="achievers" achieversConfig={landingConfig.achievers} students={students} />;
       case 'facilities':
         return <PublicFacilitiesSection key="facilities" />;
       case 'gallery':

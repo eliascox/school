@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { StatsConfig } from '@/services/landingPageService';
+import { Student } from '@/services/studentService';
 
 interface ClassStat {
   id: string;
@@ -26,9 +27,10 @@ interface PublicStatsProps {
   totalTeachers?: number;
   estdYear?: string;
   statsConfig?: StatsConfig | null;
+  students?: Student[];
 }
 
-export default function PublicStats({ totalStudents, totalTeachers, estdYear, statsConfig }: PublicStatsProps = {}) {
+export default function PublicStats({ totalStudents, totalTeachers, estdYear, statsConfig, students }: PublicStatsProps = {}) {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [counts, setCounts] = useState<{ [key: string]: number }>({
     'ten': 0,
@@ -40,11 +42,18 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
 
   const sectionRef = useRef<HTMLDivElement>(null);
 
-  const count10 = statsConfig?.classStats?.find(s => s.id === 'stat-10' || s.className.includes('টেন') || s.className.includes('১০'))?.count ?? 120;
-  const count9 = statsConfig?.classStats?.find(s => s.id === 'stat-9' || s.className.includes('নাইন') || s.className.includes('৯'))?.count ?? 95;
-  const count8 = statsConfig?.classStats?.find(s => s.id === 'stat-8' || s.className.includes('এইট') || s.className.includes('৮'))?.count ?? 80;
-  const count7 = statsConfig?.classStats?.find(s => s.id === 'stat-7' || s.className.includes('সেভেন') || s.className.includes('৭'))?.count ?? 160;
-  const count6 = statsConfig?.classStats?.find(s => s.id === 'stat-6' || s.className.includes('সিক্স') || s.className.includes('৬'))?.count ?? 110;
+  // Auto-sync real student counts if available in the database
+  const realCount10 = students ? students.filter(s => (s.grade && s.grade.includes('10')) || (s.gradeBn && s.gradeBn.includes('১০')) || (s.grade && s.grade.toLowerCase().includes('ten'))).length : 0;
+  const realCount9 = students ? students.filter(s => (s.grade && s.grade.includes('9')) || (s.gradeBn && s.gradeBn.includes('৯')) || (s.grade && s.grade.toLowerCase().includes('nine'))).length : 0;
+  const realCount8 = students ? students.filter(s => (s.grade && s.grade.includes('8')) || (s.gradeBn && s.gradeBn.includes('৮')) || (s.grade && s.grade.toLowerCase().includes('eight'))).length : 0;
+  const realCount7 = students ? students.filter(s => (s.grade && s.grade.includes('7')) || (s.gradeBn && s.gradeBn.includes('৭')) || (s.grade && s.grade.toLowerCase().includes('seven'))).length : 0;
+  const realCount6 = students ? students.filter(s => (s.grade && s.grade.includes('6')) || (s.gradeBn && s.gradeBn.includes('৬')) || (s.grade && s.grade.toLowerCase().includes('six'))).length : 0;
+
+  const count10 = realCount10 > 0 ? realCount10 : (statsConfig?.classStats?.find(s => s.id === 'stat-10' || s.className.includes('টেন') || s.className.includes('১০'))?.count ?? 120);
+  const count9 = realCount9 > 0 ? realCount9 : (statsConfig?.classStats?.find(s => s.id === 'stat-9' || s.className.includes('নাইন') || s.className.includes('৯'))?.count ?? 95);
+  const count8 = realCount8 > 0 ? realCount8 : (statsConfig?.classStats?.find(s => s.id === 'stat-8' || s.className.includes('এইট') || s.className.includes('৮'))?.count ?? 80);
+  const count7 = realCount7 > 0 ? realCount7 : (statsConfig?.classStats?.find(s => s.id === 'stat-7' || s.className.includes('সেভেন') || s.className.includes('৭'))?.count ?? 160);
+  const count6 = realCount6 > 0 ? realCount6 : (statsConfig?.classStats?.find(s => s.id === 'stat-6' || s.className.includes('সিক্স') || s.className.includes('৬'))?.count ?? 110);
 
   const classData: ClassStat[] = [
     {

@@ -6,6 +6,81 @@ export type CustomPngBorder = {
 
 export type PadHeaderStyle = 'classic' | 'modern' | 'minimal' | 'dual_logo' | 'simple_clean';
 
+export interface CommitteeMember {
+  id: string;
+  name: string;
+  role: string;
+  joiningDate?: string;
+  tenure?: string;
+  phone?: string;
+  email?: string;
+  photo?: string;
+  badgeColor?: string;
+  facebook?: string;
+  linkedin?: string;
+  bio?: string;
+  order?: number;
+}
+
+export const DEFAULT_COMMITTEE_MEMBERS: CommitteeMember[] = [
+  {
+    id: 'CM-1',
+    name: 'আলহাজ্ব মোস্তফা কামাল',
+    role: 'সভাপতি',
+    joiningDate: '০১ জানুয়ারি ২০২৪',
+    tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
+    phone: '+880 1712-345678',
+    email: 'president@school.edu.bd',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=500&auto=format&fit=crop',
+    badgeColor: 'bg-emerald-100 text-[#0B5D3B] border-emerald-300',
+    facebook: '#',
+    linkedin: '#',
+    bio: 'বিদ্যালয়ের অবকাঠামোগত উন্নয়ন ও মানসম্মত শিক্ষা নিশ্চিত করতে পরিচালনা পর্ষদ অভিভাবক ও শিক্ষকদের সাথে নিরলসভাবে কাজ করে যাচ্ছে।'
+  },
+  {
+    id: 'CM-2',
+    name: 'বেগম রোকসানা চৌধুরী',
+    role: 'সহ-সভাপতি',
+    joiningDate: '১৫ জানুয়ারি ২০২৪',
+    tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
+    phone: '+880 1813-456789',
+    email: 'vicepresident@school.edu.bd',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=500&auto=format&fit=crop',
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
+    facebook: '#',
+    linkedin: '#',
+    bio: 'নারী শিক্ষার প্রসার, সহশিক্ষা কার্যক্রমের ব্যাপ্তি এবং শিক্ষার্থীদের সুনাগরিক হিসেবে গড়ে তুলতে আমরা সবসময় সচেষ্ট।'
+  },
+  {
+    id: 'CM-3',
+    name: 'জনাব মোখলেসুর রহমান ভূঁইয়া',
+    role: 'ক্যাশিয়ার (অর্থ সম্পাদক)',
+    joiningDate: '২০ জানুয়ারি ২০২৪',
+    tenure: '২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)',
+    phone: '+880 1914-567890',
+    email: 'cashier@school.edu.bd',
+    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=500&auto=format&fit=crop',
+    badgeColor: 'bg-sky-100 text-sky-800 border-sky-300',
+    facebook: '#',
+    linkedin: '#',
+    bio: 'বিদ্যালয়ের যাবতীয় আর্থিক ব্যবস্থাপনা, উন্নয়ন তহবিল এবং বাজেট ব্যবহারে স্বচ্ছতা ও জবাবদিহিতা নিশ্চিত করাই আমাদের অঙ্গীকার।'
+  },
+  {
+    id: 'CM-4',
+    name: 'মোহাম্মদ রফিকুল ইসলাম',
+    role: 'সেক্রেটারী (সদস্য সচিব)',
+    joiningDate: '০১ জানুয়ারি ২০২৪',
+    tenure: 'পদাধিকারবলে অব্যাহত (প্রধান শিক্ষক)',
+    phone: '+880 1615-678901',
+    email: 'headmaster@school.edu.bd',
+    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=500&auto=format&fit=crop',
+    badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
+    facebook: '#',
+    linkedin: '#',
+    bio: 'কমিটির বিজ্ঞ দিকনির্দেশনা ও সার্বিক সমন্বয়ে বিদ্যালয়ের একাডেমিক ও প্রশাসনিক কার্যক্রম সর্বোচ্চ শৃঙ্খলার সাথে বাস্তবায়িত হচ্ছে।'
+  }
+];
+
 export type PadMargins = {
   top: number;    // inches, e.g. 1.2
   left: number;   // inches, default 1.4
@@ -55,6 +130,9 @@ export type SchoolSettings = {
   showPadFooter?: boolean;
   showPadDateRef?: boolean;
   padSlogan?: string;
+
+  // 👥 Managing Committee Members
+  committeeMembers?: CommitteeMember[];
 };
 
 export const DEFAULT_PAD_MARGINS: PadMargins = {
@@ -105,6 +183,7 @@ const DEFAULT_SETTINGS: SchoolSettings = {
   showPadFooter: true,
   showPadDateRef: true,
   padSlogan: 'শিক্ষাই জাতির মেরুদণ্ড — জ্ঞানই আলো, শিক্ষাই শক্তি',
+  committeeMembers: DEFAULT_COMMITTEE_MEMBERS,
 };
 
 const STORAGE_KEY = 'sms_school_settings';
@@ -120,6 +199,9 @@ const getInitialSettings = (): SchoolSettings => {
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        committeeMembers: parsed.committeeMembers && parsed.committeeMembers.length > 0
+          ? parsed.committeeMembers
+          : DEFAULT_COMMITTEE_MEMBERS,
         padMargins: isLegacy
           ? { ...DEFAULT_PAD_MARGINS }
           : {
