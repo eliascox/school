@@ -42,6 +42,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -61,6 +62,9 @@
       }
     }
   </script>
+
+  <!-- ক্যানভাস কনফেটি লাইব্রেরি (Canvas Confetti for Fun Celebrations) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
   <style>
     /* বেসিক স্টাইলিং ও স্ক্রলবার কাস্টমাইজেশন */
@@ -144,6 +148,58 @@
     .group:hover .gallery-img-zoom {
       transform: scale(1.08);
     }
+
+    /* ফান রিঅ্যাকশন অ্যানিমেশন (Floating Reactions) */
+    @keyframes floatUpFade {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(0.9); }
+      50% { transform: translate(-50%, -20px) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -40px) scale(1.3); }
+    }
+    .float-reaction {
+      position: absolute;
+      pointer-events: none;
+      animation: floatUpFade 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      font-weight: 800;
+      color: #F4B400;
+      z-index: 50;
+    }
+
+    /* ডার্ক মোড স্মার্ট ক্লাস স্টাইলিং */
+    html.dark body {
+      background-color: #0B1120 !important;
+      color: #E2E8F0 !important;
+    }
+    html.dark .bg-white {
+      background-color: #131E32 !important;
+      color: #F1F5F9;
+    }
+    html.dark .bg-slate-50 {
+      background-color: #0B1120 !important;
+    }
+    html.dark .text-slate-900, html.dark .text-slate-800 {
+      color: #F8FAFC !important;
+    }
+    html.dark .text-slate-600, html.dark .text-slate-700 {
+      color: #CBD5E1 !important;
+    }
+    html.dark .border-slate-200, html.dark .border-slate-200\/80, html.dark .border-slate-100 {
+      border-color: #1E293B !important;
+    }
+    html.dark nav {
+      background-color: rgba(19, 30, 50, 0.95) !important;
+      border-color: #1E293B !important;
+    }
+    html.dark #mobileMenu {
+      background-color: #131E32 !important;
+      border-color: #1E293B !important;
+    }
+    html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #1E293B !important;
+    }
+    html.dark .bg-brand-subtle {
+      background-color: rgba(11, 93, 59, 0.25) !important;
+      color: #34D399 !important;
+    }
   </style>
 </head>
 <body class="bg-white text-slate-800 flex flex-col min-h-screen selection:bg-brand selection:text-white">
@@ -187,11 +243,11 @@
   <nav class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 transition-all">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-20">
-        <!-- লোগো এবং ব্র্যান্ড টেক্সট -->
-        <a href="#" class="flex items-center gap-3 group">
-          <div class="w-12 h-12 rounded-full bg-brand/10 border-2 border-brand flex items-center justify-center text-brand font-bold text-xl overflow-hidden shadow-inner group-hover:scale-105 transition-transform">
-            <!-- স্কুল লোগো (প্রয়োজনে public/logo.png দিয়ে প্রতিস্থাপন করুন) -->
-            <img src="/logo.png" alt="বরইতলী উচ্চ বিদ্যালয় লোগো" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/0B5D3B/ffffff?text=BHS'">
+        <!-- লোগো এবং ব্র্যান্ড টেক্সট (৩ বার দ্রুত ক্লিকে সিক্রেট সেলিব্রেশন মোড) -->
+        <a href="#" onclick="handleLogoClick(event)" class="flex items-center gap-3 group select-none cursor-pointer" title="লোগোতে ৩ বার ক্লিক করে সিক্রেট মোড আনলক করুন!">
+          <div id="schoolLogoWrapper" class="w-12 h-12 rounded-full bg-brand/10 border-2 border-brand flex items-center justify-center text-brand font-bold text-xl overflow-hidden shadow-inner group-hover:scale-105 transition-transform">
+            <!-- স্কুল লোগো -->
+            <img id="schoolLogoImg" src="/logo.png" alt="বরইতলী উচ্চ বিদ্যালয় লোগো" class="w-full h-full object-cover transition-transform" onerror="this.src='https://placehold.co/100x100/0B5D3B/ffffff?text=BHS'">
           </div>
           <div>
             <span class="text-xl sm:text-2xl font-bold text-brand tracking-tight block">বরইতলী উচ্চ বিদ্যালয়</span>
@@ -200,24 +256,41 @@
         </a>
 
         <!-- ডেস্কটপ মেনু লিঙ্কসমূহ -->
-        <div class="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-700">
+        <div class="hidden lg:flex items-center gap-5 text-sm font-semibold text-slate-700">
           <a href="#" class="text-brand hover:text-brand-dark transition-colors">মূল পাতা</a>
-          <a href="#about" class="hover:text-brand transition-colors">প্রতিষ্ঠান পরিচিতি</a>
+          <a href="#about" class="hover:text-brand transition-colors">প্রতিষ্ঠান</a>
           <a href="#leadership" class="hover:text-brand transition-colors">বাণী</a>
           <a href="#teachers" class="hover:text-brand transition-colors">শিক্ষকবৃন্দ</a>
-          <a href="#notices" class="hover:text-brand transition-colors">নোটিশ ও লিঙ্ক</a>
+          <a href="#notices" class="hover:text-brand transition-colors">নোটিশ</a>
           <a href="#stats" class="hover:text-brand transition-colors">পরিসংখ্যান</a>
           <a href="#achievers" class="hover:text-brand transition-colors">কৃতি শিক্ষার্থী</a>
           <a href="#gallery" class="hover:text-brand transition-colors">গ্যালারী</a>
-          <a href="#blog" class="hover:text-brand transition-colors">সংবাদ ও ব্লগ</a>
+          <a href="#blog" class="hover:text-brand transition-colors">ব্লগ</a>
           <a href="#contact" class="hover:text-brand transition-colors">যোগাযোগ</a>
         </div>
 
-        <!-- মোবাইল মেনু টগল বাটন -->
-        <div class="lg:hidden flex items-center">
-          <button id="mobileMenuBtn" aria-label="মেনু খুলুন বা বন্ধ করুন" class="p-2 rounded-lg text-slate-600 hover:text-brand hover:bg-slate-100 transition-colors">
-            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+        <!-- অ্যাকশন বাটনসমূহ (ডার্ক মোড টগল ও ফান সেলিব্রেশন) -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- ফান উদযাপন বাটন -->
+          <button onclick="triggerSchoolCelebration()" title="ক্যাম্পাসে আনন্দ উদযাপন করুন!" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-bold text-xs shadow-md hover:scale-105 active:scale-95 transition-all">
+            <span class="animate-bounce">🎉</span>
+            <span class="hidden md:inline">উদযাপন</span>
           </button>
+
+          <!-- ডার্ক মোড / লাইট মোড টগল -->
+          <button onclick="toggleDarkMode()" aria-label="ডার্ক ও লাইট মোড টগল" title="থিম পরিবর্তন করুন" class="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 dark:text-amber-400 transition-all border border-slate-200">
+            <!-- Sun Icon (for dark mode) -->
+            <svg class="theme-sun-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            <!-- Moon Icon (for light mode) -->
+            <svg class="theme-moon-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          </button>
+
+          <!-- মোবাইল মেনু টগল বাটন -->
+          <div class="lg:hidden flex items-center">
+            <button id="mobileMenuBtn" aria-label="মেনু খুলুন বা বন্ধ করুন" class="p-2 rounded-lg text-slate-600 hover:text-brand hover:bg-slate-100 transition-colors">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1124,18 +1197,18 @@
           <div class="w-20 h-1 bg-brand-gold mx-auto mt-3 rounded-full"></div>
         </div>
 
-        <!-- ৪টি কৃতি শিক্ষার্থী কার্ড -->
+        <!-- ৪টি কৃতি শিক্ষার্থী কার্ড (ক্লিক করলে সেলিব্রেশন ও বাহবা রিঅ্যাকশন) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           
           <!-- কৃতি শিক্ষার্থী ১ -->
-          <div class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+          <div onclick="celebrateStudent(event, 0)" class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all group cursor-pointer relative overflow-hidden">
             <div class="relative w-28 h-28 mx-auto mb-4">
               <!-- গোল ছবি -->
-              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md">
+              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md group-hover:scale-105 transition-transform duration-300">
                 <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" alt="কৃতি শিক্ষার্থী তাসনিম জাহান রিয়া" loading="lazy" class="w-full h-full object-cover">
               </div>
               <!-- ট্রফি/স্টার ব্যাজ -->
-              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white">
+              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white group-hover:rotate-12 transition-transform">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
               </div>
             </div>
@@ -1148,15 +1221,22 @@
               <div>শ্রেণি: <strong>দশম (বিজ্ঞান)</strong></div>
               <div>রোল নং: <strong>০১</strong> | সাল: <strong>২০২৬</strong></div>
             </div>
+
+            <!-- ইন্টারেক্টিভ বাহবা বাটন -->
+            <button onclick="celebrateStudent(event, 0)" class="mt-4 w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 group/cheer relative">
+              <span class="group-hover/cheer:scale-125 transition-transform">👏</span>
+              <span>বাহবা দিন</span>
+              <span id="cheer-count-0" class="ml-1 bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full text-[11px] font-extrabold">১২৮</span>
+            </button>
           </div>
 
           <!-- কৃতি শিক্ষার্থী ২ -->
-          <div class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+          <div onclick="celebrateStudent(event, 1)" class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all group cursor-pointer relative overflow-hidden">
             <div class="relative w-28 h-28 mx-auto mb-4">
-              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md">
+              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md group-hover:scale-105 transition-transform duration-300">
                 <img src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80" alt="কৃতি শিক্ষার্থী ফারহান সাদিক" loading="lazy" class="w-full h-full object-cover">
               </div>
-              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white">
+              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white group-hover:rotate-12 transition-transform">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
               </div>
             </div>
@@ -1169,15 +1249,22 @@
               <div>শ্রেণি: <strong>দশম (বিজ্ঞান)</strong></div>
               <div>রোল নং: <strong>০২</strong> | সাল: <strong>২০২৬</strong></div>
             </div>
+
+            <!-- ইন্টারেক্টিভ বাহবা বাটন -->
+            <button onclick="celebrateStudent(event, 1)" class="mt-4 w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 group/cheer relative">
+              <span class="group-hover/cheer:scale-125 transition-transform">👏</span>
+              <span>বাহবা দিন</span>
+              <span id="cheer-count-1" class="ml-1 bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full text-[11px] font-extrabold">১৪২</span>
+            </button>
           </div>
 
           <!-- কৃতি শিক্ষার্থী ৩ -->
-          <div class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+          <div onclick="celebrateStudent(event, 2)" class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all group cursor-pointer relative overflow-hidden">
             <div class="relative w-28 h-28 mx-auto mb-4">
-              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md">
+              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md group-hover:scale-105 transition-transform duration-300">
                 <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80" alt="কৃতি শিক্ষার্থী সানজিদা রহমান মেধা" loading="lazy" class="w-full h-full object-cover">
               </div>
-              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white">
+              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white group-hover:rotate-12 transition-transform">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
               </div>
             </div>
@@ -1190,15 +1277,22 @@
               <div>শ্রেণি: <strong>নবম (বিজ্ঞান)</strong></div>
               <div>রোল নং: <strong>০১</strong> | সাল: <strong>২০২৫</strong></div>
             </div>
+
+            <!-- ইন্টারেক্টিভ বাহবা বাটন -->
+            <button onclick="celebrateStudent(event, 2)" class="mt-4 w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 group/cheer relative">
+              <span class="group-hover/cheer:scale-125 transition-transform">👏</span>
+              <span>বাহবা দিন</span>
+              <span id="cheer-count-2" class="ml-1 bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full text-[11px] font-extrabold">১১৫</span>
+            </button>
           </div>
 
           <!-- কৃতি শিক্ষার্থী ৪ -->
-          <div class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+          <div onclick="celebrateStudent(event, 3)" class="reveal-on-scroll bg-slate-50 rounded-2xl p-6 text-center border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all group cursor-pointer relative overflow-hidden">
             <div class="relative w-28 h-28 mx-auto mb-4">
-              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md">
+              <div class="w-full h-full rounded-full overflow-hidden border-4 border-amber-400 shadow-md group-hover:scale-105 transition-transform duration-300">
                 <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80" alt="কৃতি শিক্ষার্থী মাহমুদুল হাসান তামিম" loading="lazy" class="w-full h-full object-cover">
               </div>
-              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white">
+              <div class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-gold text-slate-900 flex items-center justify-center shadow-lg border-2 border-white group-hover:rotate-12 transition-transform">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
               </div>
             </div>
@@ -1211,6 +1305,13 @@
               <div>শ্রেণি: <strong>অষ্টম</strong></div>
               <div>রোল নং: <strong>০১</strong> | সাল: <strong>২০২৫</strong></div>
             </div>
+
+            <!-- ইন্টারেক্টিভ বাহবা বাটন -->
+            <button onclick="celebrateStudent(event, 3)" class="mt-4 w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 group/cheer relative">
+              <span class="group-hover/cheer:scale-125 transition-transform">👏</span>
+              <span>বাহবা দিন</span>
+              <span id="cheer-count-3" class="ml-1 bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full text-[11px] font-extrabold">৯৮</span>
+            </button>
           </div>
 
         </div>
@@ -1880,12 +1981,29 @@
   </footer>
 
   <!-- ==========================================================================
-       ১৫. ব্যাক টু টপ ফ্লোটিং বাটন (Back to Top Floating Button)
-       স্ক্রল ৩০০px অতিক্রম করলে প্রদর্শিত হবে, মসৃণভাবে উপরে স্ক্রল করবে
+       ১৫. ব্যাক টু টপ ও ফান ফ্লোটিং বাটন (Back to Top & Party Floating Buttons)
        ========================================================================== -->
+  <!-- ব্যাক টু টপ বাটন -->
   <button id="backToTopBtn" aria-label="উপরে যান" class="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-brand text-white flex items-center justify-center shadow-xl border-2 border-brand-gold hover:bg-brand-light hover:scale-110 active:scale-95 transition-all opacity-0 translate-y-8 pointer-events-none duration-300">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
   </button>
+
+  <!-- ফ্লোটিং ফান সেলিব্রেশন বাটন (Floating Party Celebrate Button) -->
+  <button id="floatingPartyBtn" onclick="triggerSchoolCelebration()" aria-label="স্কুল ক্যাম্পাসে আনন্দ উদযাপন" title="ক্যাম্পাসের গৌরব ও সাফল্য উদযাপন করুন!" class="fixed bottom-6 left-6 z-40 px-4 py-3 rounded-full bg-gradient-to-r from-brand via-emerald-700 to-teal-800 text-white flex items-center gap-2 shadow-2xl border-2 border-brand-gold hover:scale-105 active:scale-95 transition-all group">
+    <span class="text-xl group-hover:rotate-12 transition-transform animate-bounce">🎉</span>
+    <span class="text-xs sm:text-sm font-bold text-brand-gold hidden sm:inline">আনন্দ উদযাপন</span>
+  </button>
+
+  <!-- ফান সেলিব্রেশন টোস্ট (Celebration Toast Notification) -->
+  <div id="funToast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-500 opacity-0 -translate-y-12">
+    <div class="bg-gradient-to-r from-emerald-950 via-brand to-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border-2 border-brand-gold flex items-center gap-4 max-w-md backdrop-blur-md">
+      <div class="text-3xl animate-bounce">🎊</div>
+      <div>
+        <h4 id="funToastTitle" class="font-bold text-brand-gold text-base">অভিনন্দন!</h4>
+        <p id="funToastDesc" class="text-xs sm:text-sm text-slate-200 mt-0.5">বরইতলী উচ্চ বিদ্যালয় ডিজিটাল ক্যাম্পাসে আপনাকে স্বাগতম!</p>
+      </div>
+    </div>
+  </div>
 
   <!-- ==========================================================================
        ১৬. সার্বজনীন লাইটবক্স ও মডাল সিস্টেম (Universal Interactive Modal)
@@ -2321,8 +2439,16 @@
       openModal('বিদ্যালয়ের সম্মানিত শিক্ষক পরিষদ', list);
     }
 
-    // ভর্তি তথ্য মডাল
+    // ভর্তি তথ্য মডাল (কনফেটি সেলিব্রেশন সহ)
     function openAdmissionModal() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#0B5D3B', '#F4B400', '#10B981']
+        });
+      }
       openModal('২০২৬ শিক্ষাবর্ষে ভর্তি তথ্য ও নীতিমালা', `
         <div class="space-y-4">
           <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-brand">
@@ -2347,8 +2473,16 @@
       `);
     }
 
-    // কৃতি শিক্ষার্থী মডাল
+    // কৃতি শিক্ষার্থী মডাল (গোল্ডেন কনফেটি সেলিব্রেশন)
     function openAchieversModal() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 80,
+          spread: 80,
+          origin: { y: 0.55 },
+          colors: ['#F4B400', '#D97706', '#10B981', '#0B5D3B']
+        });
+      }
       openModal('বিগত ৫ বছরের কৃতি শিক্ষার্থীদের মেধা তালিকা', `
         <div class="space-y-3">
           <p class="text-xs text-slate-500">এসএসসি পরীক্ষায় আমাদের বিদ্যালয়ের ধারাবাহিক শতভাগ পাশের গৌরব ও সেরা ফলাফল অর্জনকারীদের তালিকা:</p>
@@ -2486,6 +2620,178 @@
       if (e.key === 'Escape') {
         closeModal();
         closeLightbox();
+      }
+    });
+
+    // ==========================================================================
+    // ৯. ফান ও সেলিব্রেশন ফিচারস (Fun & Interactive Celebrations)
+    // ==========================================
+
+    // স্কুল থিম কনফেটি ব্লাস্ট (School Pride Confetti Celebration)
+    function triggerSchoolCelebration() {
+      if (typeof confetti === 'function') {
+        const colors = ['#0B5D3B', '#F4B400', '#10B981', '#F59E0B', '#3B82F6', '#EC4899'];
+        
+        // বাম দিক থেকে ক্যানন
+        confetti({
+          particleCount: 60,
+          angle: 60,
+          spread: 70,
+          origin: { x: 0, y: 0.7 },
+          colors: colors
+        });
+        
+        // ডান দিক থেকে ক্যানন
+        confetti({
+          particleCount: 60,
+          angle: 120,
+          spread: 70,
+          origin: { x: 1, y: 0.7 },
+          colors: colors
+        });
+
+        // মাঝখান থেকে স্পার্কল
+        setTimeout(() => {
+          confetti({
+            particleCount: 90,
+            spread: 100,
+            origin: { x: 0.5, y: 0.55 },
+            colors: colors
+          });
+        }, 220);
+      }
+      showFunToast("🎉 স্কুল ক্যাম্পাসে আনন্দ উদযাপন!", "বরইতলী উচ্চ বিদ্যালয়ের গৌরবময় ঐতিহ্য ও সাফল্য!");
+    }
+
+    // কৃতি শিক্ষার্থীদের জন্য ইন্টারেক্টিভ বাহবা রিঅ্যাকশন (Student Cheer Reaction)
+    const cheerCounts = [128, 142, 115, 98];
+    function celebrateStudent(event, index) {
+      event.stopPropagation();
+      cheerCounts[index] = (cheerCounts[index] || 100) + 1;
+      const countEl = document.getElementById(`cheer-count-${index}`);
+      if (countEl) countEl.innerText = toBengaliNum(cheerCounts[index]);
+
+      // বাটন থেকে স্টার/হার্ট কনফেটি বিস্ফোরণ
+      if (typeof confetti === 'function') {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = (rect.left + rect.width / 2) / window.innerWidth;
+        const y = (rect.top + rect.height / 2) / window.innerHeight;
+        
+        confetti({
+          particleCount: 30,
+          spread: 50,
+          origin: { x, y },
+          colors: ['#F4B400', '#D97706', '#10B981', '#EF4444'],
+          shapes: ['circle', 'star']
+        });
+      }
+
+      // ফ্লোটিং রিঅ্যাকশন টেক্সট (+১ 🌟)
+      const btn = event.currentTarget;
+      const floatEl = document.createElement('span');
+      floatEl.className = 'float-reaction';
+      floatEl.innerText = '+১ 🌟';
+      floatEl.style.left = '50%';
+      floatEl.style.top = '-8px';
+      btn.appendChild(floatEl);
+      setTimeout(() => floatEl.remove(), 950);
+    }
+
+    // ফান টোস্ট নোটিফিকেশন প্রদর্শন
+    let toastTimeout = null;
+    function showFunToast(title, desc) {
+      const toast = document.getElementById('funToast');
+      const titleEl = document.getElementById('funToastTitle');
+      const descEl = document.getElementById('funToastDesc');
+      if (!toast) return;
+
+      if (titleEl) titleEl.innerText = title;
+      if (descEl) descEl.innerText = desc;
+
+      toast.classList.remove('opacity-0', '-translate-y-12');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-12');
+      }, 3500);
+    }
+
+    // ==========================================
+    // ১০. ডার্ক মোড / লাইট মোড টগল লজিক (Dark Mode Toggle)
+    // ==========================================
+    function initTheme() {
+      const savedTheme = localStorage.getItem('sms_theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+        updateThemeIcons(true);
+      } else {
+        document.documentElement.classList.remove('dark');
+        updateThemeIcons(false);
+      }
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('sms_theme', isDark ? 'dark' : 'light');
+      updateThemeIcons(isDark);
+      showFunToast(isDark ? "🌙 নাইট মোড সক্রিয়" : "☀️ ডে মোড সক্রিয়", "চোখের সুরক্ষার জন্য থিম সমন্বয় করা হয়েছে।");
+    }
+
+    function updateThemeIcons(isDark) {
+      const sunIcons = document.querySelectorAll('.theme-sun-icon');
+      const moonIcons = document.querySelectorAll('.theme-moon-icon');
+      sunIcons.forEach(icon => icon.classList.toggle('hidden', !isDark));
+      moonIcons.forEach(icon => icon.classList.toggle('hidden', isDark));
+    }
+    initTheme();
+
+    // ==========================================
+    // ১১. ইস্টার এগ লজিক (Easter Eggs)
+    // ==========================================
+    // ক) লোগোতে ৩ বার দ্রুত ক্লিক
+    let logoClicks = 0;
+    let logoClickTimer = null;
+    function handleLogoClick(e) {
+      logoClicks++;
+      clearTimeout(logoClickTimer);
+      const logoImg = document.getElementById('schoolLogoImg');
+      if (logoImg) {
+        logoImg.style.transform = `scale(1.2) rotate(${logoClicks * 25}deg)`;
+      }
+
+      if (logoClicks >= 3) {
+        e.preventDefault();
+        logoClicks = 0;
+        if (logoImg) {
+          logoImg.style.transition = 'transform 1s cubic-bezier(0.16, 1, 0.3, 1)';
+          logoImg.style.transform = 'scale(1) rotate(360deg)';
+          setTimeout(() => { logoImg.style.transform = 'none'; }, 1000);
+        }
+        triggerSchoolCelebration();
+        showFunToast("🌟 সিক্রেট মোড আনলক!", "আপনি বরইতলী উচ্চ বিদ্যালয়ের প্রাইড মোড আনলক করেছেন!");
+      } else {
+        logoClickTimer = setTimeout(() => {
+          logoClicks = 0;
+          if (logoImg) logoImg.style.transform = 'none';
+        }, 1200);
+      }
+    }
+
+    // খ) কী-বোর্ড ইস্টার এগ: "fun" অথবা "school" টাইপ করলে কনফেটি রেইন
+    let keyBuffer = '';
+    document.addEventListener('keydown', (e) => {
+      // যদি ইউজার ইনপুট বক্সে না থাকে
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      keyBuffer += e.key.toLowerCase();
+      if (keyBuffer.length > 10) keyBuffer = keyBuffer.slice(-10);
+      if (keyBuffer.endsWith('fun') || keyBuffer.endsWith('school')) {
+        keyBuffer = '';
+        triggerSchoolCelebration();
+        showFunToast("🎮 সিক্রেট কোড অ্যাক্টিভেটেড!", "কীবোর্ড শর্টকাট দিয়ে আনন্দ উদযাপন শুরু হয়েছে!");
       }
     });
   </script>
