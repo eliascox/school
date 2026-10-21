@@ -78,20 +78,11 @@ export default function PublicNavbar({ settings }: PublicNavbarProps) {
               </svg>
             </div>
 
-            {/* School Name & Official Academic Badges */}
+            {/* School Name */}
             <div className="flex flex-col min-w-0">
               <span className="text-lg sm:text-xl xl:text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-tight font-serif whitespace-nowrap">
                 {schoolName}
               </span>
-              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">
-                <span className="font-bold text-indigo-700 dark:text-indigo-400">EIIN: {eiin}</span>
-                <span className="text-slate-300 dark:text-slate-700">•</span>
-                <span className="text-slate-700 dark:text-slate-300">Estd. {estd}</span>
-                <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
-                <span className="hidden sm:inline font-semibold text-emerald-700 dark:text-emerald-400">
-                  BISE Chattogram
-                </span>
-              </div>
             </div>
           </Link>
 

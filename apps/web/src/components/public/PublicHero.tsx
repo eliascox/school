@@ -73,26 +73,17 @@ export default function PublicHero({ settings }: PublicHeroProps) {
             className="inline-block group/title cursor-pointer focus:outline-hidden"
             title="হোমপেজে যান"
           >
-            {/* Main Large Bengali Name */}
+            {/* Main Large School Name */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight font-serif drop-shadow-lg group-hover/title:text-indigo-200 transition-colors">
               {schoolName}
             </h1>
-
-            {/* Large English Secondary Name */}
-            <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-amber-400 tracking-[0.25em] uppercase font-sans group-hover/title:text-amber-300 transition-colors mt-2">
-              BARAITALI HIGH SCHOOL
-            </div>
           </Link>
 
-          {/* Subtitle Location & Motto */}
+          {/* Subtitle Location */}
           <p className="text-sm sm:text-base lg:text-lg text-slate-300 max-w-3xl mx-auto font-medium pt-1">
             <span className="inline-flex items-center gap-1.5 text-slate-300">
               <MapPin className="w-4 h-4 text-rose-400" />
               <span>{address}</span>
-            </span>
-            <span className="mx-2 text-slate-500">•</span>
-            <span className="text-emerald-300 font-semibold">
-              মানসম্মত শিক্ষা ও আধুনিক মূল্যবোধে আলোকিত ভবিষ্যৎ গড়ার প্রত্যয়
             </span>
           </p>
         </div>
