@@ -61,7 +61,7 @@ export default function PublicHeadmasterMessage({ settings }: PublicHeadmasterMe
           </div>
           
           <div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white font-serif leading-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
               স্কুল পরিচালকদের বাণী
             </h2>
             <div className="flex items-center justify-center gap-1.5 mt-2.5">
@@ -108,7 +108,7 @@ export default function PublicHeadmasterMessage({ settings }: PublicHeadmasterMe
                     <span className="inline-block text-[11px] sm:text-xs font-bold text-[#0B5D3B] dark:text-emerald-400 uppercase tracking-wider bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 shadow-2xs mb-1">
                       {leader.role}
                     </span>
-                    <h3 className="text-lg sm:text-xl font-bold font-serif text-slate-900 dark:text-white leading-snug">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug">
                       {leader.name}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -169,7 +169,7 @@ export default function PublicHeadmasterMessage({ settings }: PublicHeadmasterMe
                 <span className="text-xs font-bold text-[#0B5D3B] dark:text-emerald-400 uppercase tracking-wide">
                   {activeLeaderModal.role}
                 </span>
-                <h3 className="text-xl font-bold font-serif text-slate-900 dark:text-white">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                   {activeLeaderModal.name}
                 </h3>
                 <p className="text-xs text-slate-500">{schoolName}</p>

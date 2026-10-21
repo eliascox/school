@@ -135,7 +135,7 @@ export default function SchoolPadWrapper({
           minHeight: '297mm',
           height: '297mm',
           boxSizing: 'border-box',
-          fontFamily: "'Kalpurush', 'SutonnyMJ', 'Nikosh', 'SolaimanLipi', sans-serif"
+          fontFamily: "'Hind Siliguri', 'Kalpurush', 'SolaimanLipi', 'Nikosh', sans-serif"
         }}
       >
         {/* ─── 1. UPLOADED PDF / IMAGE PAD TEMPLATE BACKGROUND ─────────── */}
@@ -174,7 +174,7 @@ export default function SchoolPadWrapper({
                 )}
               </div>
               <div className="text-center flex-1 pr-16">
-                <h1 className="text-2xl font-black text-slate-950 font-serif">
+                <h1 className="text-2xl font-black text-slate-950 tracking-tight">
                   {institutionName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                 </h1>
                 <p className="text-xs font-bold text-slate-800">

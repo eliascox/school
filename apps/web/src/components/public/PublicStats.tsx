@@ -201,7 +201,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
               </div>
 
               {/* Counter Number */}
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight font-serif">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
                 {toBn(counts[item.id] || 0)}
                 <span className="text-xl sm:text-2xl font-bold text-[#F4B400] ml-1">+</span>
               </div>
@@ -223,7 +223,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
         <div className="mt-10 flex items-center justify-center">
           <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs sm:text-sm font-semibold text-white shadow-sm">
             <CheckCircle2 className="w-4 h-4 text-[#F4B400]" />
-            <span>বিদ্যালয়ে মোট শিক্ষার্থী: <strong className="text-[#F4B400] font-bold text-base font-serif">৫৬৫</strong> জন (ছাত্র ও ছাত্রী)</span>
+            <span>বিদ্যালয়ে মোট শিক্ষার্থী: <strong className="text-[#F4B400] font-bold text-base">৫৬৫</strong> জন (ছাত্র ও ছাত্রী)</span>
           </div>
         </div>
 

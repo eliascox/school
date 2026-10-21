@@ -179,7 +179,7 @@ export default function OfficialAdmissionForm({
 
             {/* Center School Identity */}
             <div className="text-center flex-1">
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight font-serif">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight">
                 {schoolName}
               </h1>
               <h2 className="text-xs sm:text-sm font-extrabold text-indigo-900 uppercase tracking-widest mt-0.5">

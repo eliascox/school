@@ -112,7 +112,7 @@ export default function PublicAbout({ settings }: PublicAboutProps) {
 
             {/* Section Heading with Custom Underline */}
             <div>
-              <h2 className="text-2xl sm:text-4xl lg:text-4xl font-extrabold text-slate-900 dark:text-white font-serif leading-tight">
+              <h2 className="text-2xl sm:text-4xl lg:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
                 আমাদের ঐতিহ্য, গৌরব ও পথচলা
               </h2>
               {/* Dual-colored Underline */}

@@ -95,7 +95,7 @@ export default function OfficialCertificateDoc({
   // ═══════════════════════════════════════════════════════════════════════════
   if (layoutStyle === 'royal_border') {
     return (
-      <div className="w-[210mm] min-h-[297mm] p-6 bg-white text-slate-900 font-serif relative overflow-hidden mx-auto shadow-2xl print:shadow-none print:m-0 print:w-full print:min-h-0 print:p-4">
+      <div className="w-[210mm] min-h-[297mm] p-6 bg-white text-slate-900 font-sans relative overflow-hidden mx-auto shadow-2xl print:shadow-none print:m-0 print:w-full print:min-h-0 print:p-4">
         
         {/* Outer Ornate Border */}
         <div className="border-[6px] border-double border-amber-600/80 p-3 h-full rounded-2xl relative flex flex-col justify-between">
@@ -128,7 +128,7 @@ export default function OfficialCertificateDoc({
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 font-serif uppercase">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
                     {settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                   </h1>
                   <p className="text-xs text-slate-600 font-sans font-medium">
@@ -140,7 +140,7 @@ export default function OfficialCertificateDoc({
               {/* Certificate Title Badge */}
               <div className="pt-3">
                 <div className="inline-block relative">
-                  <div className="px-8 py-1.5 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-700 text-amber-50 font-serif font-black text-lg uppercase tracking-widest rounded-md shadow-md border border-amber-900">
+                  <div className="px-8 py-1.5 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-700 text-amber-50 font-black text-lg uppercase tracking-widest rounded-md shadow-md border border-amber-900">
                     {title}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-1 font-semibold">
@@ -155,7 +155,7 @@ export default function OfficialCertificateDoc({
               {cert.customBody ? (
                 formatParagraphs(cert.customBody)
               ) : cert.type === 'ssc_testimonial' ? (
-                <div className="space-y-4 text-justify font-serif">
+                <div className="space-y-4 text-justify font-sans">
                   <p className="leading-relaxed">
                     This is to certify that <strong className="font-black text-slate-950 uppercase border-b border-slate-900">{cert.studentName}</strong>
                     {cert.studentNameEn && <span> ({cert.studentNameEn})</span>}, son/daughter of Mr. <strong className="font-bold">{cert.fatherName}</strong> and Mrs. <strong className="font-bold">{cert.motherName}</strong>, Village: <strong className="font-bold">{cert.village || 'Boraitoli'}</strong>, Post Office: <strong className="font-bold">{cert.postOffice || 'Boraitoli'}</strong>, Upazilla: <strong className="font-bold">{cert.upazila || 'Chakaria'}</strong>, District: <strong className="font-bold">{cert.district || "Cox's Bazar"}</strong>, was a bona fide student of this institution.
@@ -171,7 +171,7 @@ export default function OfficialCertificateDoc({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4 text-justify font-serif">
+                <div className="space-y-4 text-justify font-sans">
                   <p className="leading-loose">
                     এই মর্মে প্রত্যয়ন করা যাইতেছে যে, শিক্ষার্থী <strong className="text-base font-sans font-black underline">{cert.studentName}</strong>, পিতা: <strong className="font-bold">{cert.fatherName}</strong>, মাতা: <strong className="font-bold">{cert.motherName}</strong>, 
                     গ্রাম: {cert.village || 'বরইতলী'}, ডাকঘর: {cert.postOffice || 'বরইতলী'}, উপজেলা: {cert.upazila || 'চকরিয়া'}, জেলা: {cert.district || 'কক্সবাজার'}।
@@ -229,7 +229,7 @@ export default function OfficialCertificateDoc({
                 {/* Right: Principal Signature */}
                 <div className="text-right space-y-1">
                   <div className="h-12 flex items-end justify-end">
-                    <div className="font-serif italic font-bold text-slate-600 text-sm border-b border-slate-900 pb-1 w-44 text-center">
+                    <div className="font-sans italic font-bold text-slate-600 text-sm border-b border-slate-900 pb-1 w-44 text-center">
                       {settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export default function OfficialCertificateDoc({
         }
       ]}
     >
-      <div className="text-xs sm:text-sm font-serif leading-relaxed text-slate-950 px-2 pt-2 pb-4 space-y-4">
+      <div className="text-xs sm:text-sm font-sans leading-relaxed text-slate-950 px-2 pt-2 pb-4 space-y-4">
         
         {/* Dynamic / Custom Body */}
         {cert.customBody ? (
