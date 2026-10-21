@@ -130,28 +130,28 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
   const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
-    <section id="best-students" className="py-16 sm:py-24 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <section id="best-students" className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ===================================================================
             সেকশন হেডার
             =================================================================== */}
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
+        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
             <Trophy className="w-3.5 h-3.5 text-[#F4B400]" />
             <span>মেধা ও গৌরব</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {sectionTitle}
           </h2>
 
-          <div className="flex items-center justify-center gap-1.5 pt-1">
+          <div className="flex items-center justify-center gap-1.5 pt-0.5">
             <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full"></span>
             <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full"></span>
           </div>
 
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed pt-2">
+          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed pt-1">
             {sectionSubtitle}
           </p>
         </div>

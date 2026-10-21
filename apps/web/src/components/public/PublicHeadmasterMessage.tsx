@@ -49,34 +49,34 @@ export default function PublicHeadmasterMessage({ settings }: PublicHeadmasterMe
   ];
 
   return (
-    <section id="principal" className="py-16 sm:py-24 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 relative">
+    <section id="principal" className="py-10 sm:py-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 relative">
       <div id="headmaster" className="absolute -top-24 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header with Dual-colored Underline */}
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
+        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
             <Quote className="w-3.5 h-3.5 text-[#F4B400]" />
             <span>দিকনির্দেশনা ও অনুপ্রেরণা</span>
           </div>
           
           <div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white font-serif leading-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white font-serif leading-tight">
               স্কুল পরিচালকদের বাণী
             </h2>
-            <div className="flex items-center justify-center gap-1.5 mt-3">
+            <div className="flex items-center justify-center gap-1.5 mt-2.5">
               <span className="w-16 h-1.5 bg-[#0B5D3B] rounded-full"></span>
               <span className="w-4 h-1.5 bg-[#F4B400] rounded-full"></span>
             </div>
           </div>
 
-          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto">
             {schoolName}-এর সার্বিক উন্নয়ন, শিক্ষার মানোন্নয়ন ও ভবিষ্যৎ পরিকল্পনা নিয়ে আমাদের সম্মানিত শিক্ষানেতৃবৃন্দের বক্তব্য।
           </p>
         </div>
 
         {/* ── দুটি কার্ড পাশাপাশি (মোবাইলে উপর-নিচে): অধ্যক্ষ ও উপাধ্যক্ষ ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {leaders.map((leader, index) => (
             <div
               key={index}

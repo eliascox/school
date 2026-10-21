@@ -156,7 +156,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
     <section 
       id="student-stats" 
       ref={sectionRef} 
-      className="py-16 sm:py-20 bg-gradient-to-br from-[#0B5D3B] via-[#094d31] to-[#063b25] text-white relative overflow-hidden border-y border-emerald-700/50 shadow-inner"
+      className="py-10 sm:py-14 bg-gradient-to-br from-[#0B5D3B] via-[#094d31] to-[#063b25] text-white relative overflow-hidden border-y border-emerald-700/50 shadow-inner"
     >
       <div id="student-info" className="absolute -top-24 left-0" />
       <div id="stats" className="absolute -top-24 left-0" />
@@ -168,7 +168,7 @@ export default function PublicStats({ totalStudents, totalTeachers, estdYear, st
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2 mb-12">
+        <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold uppercase tracking-wider text-emerald-200">
             <Users className="w-3.5 h-3.5 text-[#F4B400]" />
             <span>শিক্ষার্থী তথ্যচিত্র</span>

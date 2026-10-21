@@ -137,7 +137,7 @@ export default function PublicServicesSection() {
   ];
 
   return (
-    <section className="relative py-20 sm:py-28 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <section className="relative py-10 sm:py-14 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Decorative ambient background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-400/10 dark:bg-emerald-600/5 blur-3xl" />
@@ -148,18 +148,18 @@ export default function PublicServicesSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* ── Section Header ── */}
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest mb-5 shadow-xs">
+        <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest mb-3 shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>Digital E-Services &amp; Portals</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
             সব স্কুল সেবা এখন{' '}
             <span className="relative inline-block">
               <span className="vibrant-gradient-text">আপনার হাতের মুঠোয়</span>
             </span>
           </h2>
-          <p className="mt-4 text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl mx-auto">
+          <p className="mt-2.5 text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed max-w-xl mx-auto">
             শিক্ষার্থী, অভিভাবক এবং শিক্ষকদের জন্য দ্রুত, নিরাপদ ও পেপারলেস স্মার্ট স্কুল ম্যানেজমেন্ট সেবা।
           </p>
         </div>
@@ -239,8 +239,8 @@ export default function PublicServicesSection() {
         </div>
 
         {/* ── Bottom Trust Bar ── */}
-        <div className="mt-16 sm:mt-20 border-t border-slate-200 dark:border-slate-800 pt-10">
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+        <div className="mt-8 sm:mt-10 border-t border-slate-200/80 dark:border-slate-800 pt-5 sm:pt-6">
+          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs font-semibold uppercase tracking-wider">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               SSL Secured

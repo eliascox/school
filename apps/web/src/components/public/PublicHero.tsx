@@ -36,7 +36,7 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
   return (
     <section 
       id="home" 
-      className="hero-bg relative min-h-[90vh] sm:min-h-[96vh] flex flex-col justify-center text-slate-900 dark:text-slate-100 overflow-visible pt-28 sm:pt-36 pb-16 sm:pb-24"
+      className="hero-bg relative min-h-[88vh] sm:min-h-[92vh] flex flex-col justify-center text-slate-900 dark:text-slate-100 overflow-visible pt-28 sm:pt-36 pb-10 sm:pb-14"
       style={{
         backgroundImage: `linear-gradient(180deg, var(--hero-gradient-top, rgba(248, 250, 252, 0.08)) 0%, var(--hero-gradient-mid, rgba(248, 250, 252, 0.03)) 40%, var(--hero-gradient-lower, rgba(248, 250, 252, 0.2)) 80%, var(--hero-gradient-bottom, rgba(248, 250, 252, 0.55)) 100%), url('${customBg}')`,
         backgroundSize: 'cover',

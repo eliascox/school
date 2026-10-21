@@ -38,24 +38,24 @@ export default function PublicAcademicSection() {
   ];
 
   return (
-    <section id="academic" className="py-16 sm:py-24 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800">
+    <section id="academic" className="py-10 sm:py-14 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
             <BookOpen className="w-3.5 h-3.5" />
             <span>ACADEMIC EXCELLENCE & CURRICULUM</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white">
             Academic Programs & Stream Divisions
           </h2>
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed">
             Curriculum authorized by the National Curriculum and Textbook Board (NCTB) and Board of Intermediate and Secondary Education (BISE) Chattogram.
           </p>
         </div>
 
         {/* Classes Level Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 sm:mb-10">
           {academicPrograms.map((prog, idx) => (
             <div
               key={idx}

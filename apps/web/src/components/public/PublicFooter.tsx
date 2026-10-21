@@ -46,7 +46,7 @@ export default function PublicFooter({ settings, footerConfig }: PublicFooterPro
       {/* Decorative Top Accent Border */}
       <div className="h-1.5 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         
         {/* ৪ কলামের মূল ফুটার গ্রিড */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
