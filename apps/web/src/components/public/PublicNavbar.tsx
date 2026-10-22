@@ -45,9 +45,9 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
         >
           <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition">
             <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden">
-              {settings?.schoolLogo ? (
+              {headerConfig?.logoUrl || settings?.schoolLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={settings.schoolLogo} alt="Logo" className="w-full h-full object-cover" />
+                <img src={headerConfig?.logoUrl || settings?.schoolLogo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <i className="fa-solid fa-graduation-cap text-emerald-400 text-lg"></i>
               )}

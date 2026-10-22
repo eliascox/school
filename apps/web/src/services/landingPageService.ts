@@ -1075,6 +1075,27 @@ class LandingPageService {
     return true;
   }
 
+  public updateLogo(logoUrl: string, user: string = 'অ্যাডমিন', autoPublish: boolean = false): boolean {
+    const draft = this.getDraftConfig();
+    const updated: LandingPageConfig = {
+      ...draft,
+      header: {
+        ...draft.header,
+        logoUrl,
+        showLogo: true,
+      },
+      seo: {
+        ...draft.seo,
+        favicon: draft.seo?.favicon || logoUrl,
+      },
+    };
+    this.saveDraftConfig(updated, user);
+    if (autoPublish) {
+      return this.publish(user, 'বিদ্যালয়ের লোগো পরিবর্তন ও লাইভ প্রকাশ');
+    }
+    return true;
+  }
+
   public publish(user: string = 'অ্যাডমিন', summary: string = 'নতুন পরিবর্তন লাইভ করা হয়েছে'): boolean {
     if (typeof window === 'undefined') return false;
     try {

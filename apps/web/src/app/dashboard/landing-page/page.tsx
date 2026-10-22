@@ -77,6 +77,7 @@ import {
 } from '@/services/landingPageService';
 import { teacherAuthService } from '@/services/teacherAuthService';
 import { studentService, Student } from '@/services/studentService';
+import { settingsService } from '@/services/settingsService';
 
 type ActiveTab =
   | 'overview'
@@ -113,6 +114,7 @@ export default function LandingPageManagementDashboard() {
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [mediaCategoryFilter, setMediaCategoryFilter] = useState<string>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   // Versions state
   const [versions, setVersions] = useState<VersionSnapshot[]>([]);
@@ -288,19 +290,116 @@ export default function LandingPageManagementDashboard() {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
+      const targetCat = (mediaCategoryFilter === 'all' ? (activeTab === 'header' ? 'logo' : 'banner') : mediaCategoryFilter) as any;
       const newItem = landingPageService.addMediaItem({
         name: file.name,
         url: result,
         size: file.size,
         type: file.type,
         altText: file.name.replace(/\.[^/.]+$/, ''),
-        category: 'banner',
+        category: targetCat,
       });
       setMediaList(landingPageService.getMediaList());
-      showToast(`"${file.name}" সফলভাবে মিডিয়া লাইব্রেরিতে যুক্ত হয়েছে`, 'success');
+
+      if (targetCat === 'logo') {
+        const updatedCfg = {
+          ...config,
+          header: { ...config.header, logoUrl: result, showLogo: true },
+          seo: { ...config.seo, favicon: result },
+        };
+        handleUpdateConfig(updatedCfg);
+        try {
+          settingsService.updateSettings({ schoolLogo: result });
+        } catch (err) {
+          console.error('Failed to sync schoolLogo in settingsService:', err);
+        }
+        showToast(`🎉 "${file.name}" সফলভাবে বিদ্যালয়ের লোগো হিসেবে আপলোড ও সক্রিয় করা হয়েছে!`, 'success');
+      } else {
+        showToast(`"${file.name}" সফলভাবে মিডিয়া লাইব্রেরিতে (${targetCat}) যুক্ত হয়েছে`, 'success');
+      }
     };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Dedicated Logo Upload handler
+  const handleDirectLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.size > 2 * 1024 * 1024) {
+      alert('লোগোর ছবির আকার সর্বোচ্চ ২ মেগাবাইট (2MB) হতে পারে। অনুগ্রহ করে ২ মেগাবাইটের কম সাইজের ছবি নির্বাচন করুন।');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      landingPageService.addMediaItem({
+        name: file.name,
+        url: result,
+        size: file.size,
+        type: file.type,
+        altText: file.name.replace(/\.[^/.]+$/, ''),
+        category: 'logo',
+      });
+      setMediaList(landingPageService.getMediaList());
+
+      const updatedCfg: LandingPageConfig = {
+        ...config,
+        header: {
+          ...config.header,
+          logoUrl: result,
+          showLogo: true,
+        },
+        seo: {
+          ...config.seo,
+          favicon: result,
+        },
+      };
+      handleUpdateConfig(updatedCfg);
+
+      try {
+        settingsService.updateSettings({ schoolLogo: result });
+      } catch (err) {
+        console.error('Failed to update school settings logo:', err);
+      }
+
+      showToast('🎉 বিদ্যালয়ের লোগো সফলভাবে আপলোড ও আপডেট করা হয়েছে!', 'success');
+    };
+    reader.readAsDataURL(file);
+    if (logoFileInputRef.current) logoFileInputRef.current.value = '';
+  };
+
+  // Set an existing MediaItem as School Logo
+  const handleSetAsSchoolLogo = (item: MediaItem) => {
+    const updatedCfg: LandingPageConfig = {
+      ...config,
+      header: {
+        ...config.header,
+        logoUrl: item.url,
+        showLogo: true,
+      },
+      seo: {
+        ...config.seo,
+        favicon: item.url,
+      },
+    };
+    handleUpdateConfig(updatedCfg);
+
+    if (item.category !== 'logo') {
+      landingPageService.updateMediaItem(item.id, { category: 'logo' });
+      setMediaList(landingPageService.getMediaList());
+    }
+
+    try {
+      settingsService.updateSettings({ schoolLogo: item.url });
+    } catch (err) {
+      console.error('Failed to update school settings logo:', err);
+    }
+
+    showToast(`"${item.name}" সফলভাবে প্রধান স্কুল লোগো হিসেবে সেট করা হয়েছে!`, 'success');
   };
 
   return (
@@ -320,6 +419,22 @@ export default function LandingPageManagementDashboard() {
           <span>{toastMessage.text}</span>
         </div>
       )}
+
+      {/* Hidden File Inputs for Global Access */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={logoFileInputRef}
+        onChange={handleDirectLogoUpload}
+        accept="image/*"
+        className="hidden"
+      />
 
       {/* ─── TOP ACTION & HEADER BAR ─── */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm">
@@ -913,31 +1028,93 @@ export default function LandingPageManagementDashboard() {
                 />
               </div>
 
-              {/* Logo URL */}
-              <div>
-                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  বিদ্যালয়ের লোগো URL বা মিডিয়া লিংক
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={config.header.logoUrl}
-                    onChange={(e) =>
-                      handleUpdateConfig({
-                        ...config,
-                        header: { ...config.header, logoUrl: e.target.value },
-                      })
-                    }
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="/logo.png বা ডাটা URL"
-                  />
-                  <button
-                    onClick={() => setActiveTab('media')}
-                    className="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold transition flex items-center gap-1 shrink-0"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    <span>লাইব্রেরি</span>
-                  </button>
+              {/* School Logo Section with Live Preview & Direct Upload */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    বিদ্যালয়ের অফিসিয়াল লোগো (School Official Logo)
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={config.header.showLogo}
+                      onChange={(e) =>
+                        handleUpdateConfig({
+                          ...config,
+                          header: { ...config.header, showLogo: e.target.checked },
+                        })
+                      }
+                      className="w-3.5 h-3.5 text-indigo-600 rounded"
+                    />
+                    <span>হেডারে লোগো দেখান</span>
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {/* Logo Preview Box */}
+                  <div className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-1.5 shadow-sm flex items-center justify-center shrink-0 group">
+                    {config.header.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={config.header.logoUrl}
+                        alt="School Logo"
+                        className="w-full h-full object-contain rounded-xl"
+                      />
+                    ) : (
+                      <School className="w-8 h-8 text-slate-400" />
+                    )}
+                  </div>
+
+                  {/* Actions & URL Input */}
+                  <div className="flex-1 w-full space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>ডিভাইস থেকে লোগো আপলোড করুন</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaCategoryFilter('logo');
+                          setActiveTab('media');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>মিডিয়া লাইব্রেরি থেকে বাছুন</span>
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={config.header.logoUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleUpdateConfig({
+                            ...config,
+                            header: { ...config.header, logoUrl: val },
+                            seo: { ...config.seo, favicon: val || config.seo?.favicon },
+                          });
+                          try {
+                            settingsService.updateSettings({ schoolLogo: val });
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="অথবা লোগোর সরাসরি URL পেস্ট করুন (/logo.png বা ডাটা URL)"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      * এই লোগোটি স্বয়ংক্রিয়ভাবে ওয়েবসাইটের হেডার, ব্রাউজার ফেভিকন এবং সকল রিপোর্ট ও প্রত্যয়নপত্রে ব্যবহৃত হবে।
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -3348,17 +3525,19 @@ export default function LandingPageManagementDashboard() {
                 <h2 className="text-lg font-black text-slate-900 dark:text-white">ছবি ও মিডিয়া লাইব্রেরি</h2>
                 <p className="text-xs text-slate-500">ওয়েবসাইটের লোগো, ব্যানার ও বিভিন্ন সেকশনের ছবি আপলোড ও পরিচালনা করুন।</p>
               </div>
-              <div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
+              <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>লোগো আপলোড করুন</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
                   <span>নতুন ছবি আপলোড করুন</span>
@@ -3366,71 +3545,170 @@ export default function LandingPageManagementDashboard() {
               </div>
             </div>
 
-            {/* Filter by category */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {['all', 'logo', 'banner', 'student', 'gallery', 'other'].map((cat) => (
+            {/* Dedicated Official Logo Banner */}
+            <div className="bg-gradient-to-r from-indigo-50 via-sky-50 to-emerald-50 dark:from-slate-850 dark:via-indigo-950/40 dark:to-slate-850 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 border-2 border-indigo-200 dark:border-indigo-700 p-1 shadow-md flex items-center justify-center shrink-0">
+                  {config.header.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={config.header.logoUrl}
+                      alt="Current Logo"
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                  ) : (
+                    <School className="w-7 h-7 text-indigo-500" />
+                  )}
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] shadow" title="সক্রিয় লোগো">
+                    ✓
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                      বিদ্যালয়ের সক্রিয় লোগো (Active School Logo)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                      লাইভ সংযুক্ত
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    এই লোগোটি পাবলিক ওয়েবসাইটের হেডার, ব্রাউজার ফেভিকন এবং সকল একাডেমিক নথিতে প্রদর্শিত হয়।
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
-                  key={cat}
-                  onClick={() => setMediaCategoryFilter(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition capitalize ${
-                    mediaCategoryFilter === cat
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}
+                  type="button"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition cursor-pointer"
                 >
-                  {cat === 'all' ? 'সকল ছবি' : cat}
+                  <Upload className="w-4 h-4" />
+                  <span>ডিভাইস থেকে নতুন লোগো দিন</span>
                 </button>
-              ))}
+              </div>
+            </div>
+
+            {/* Filter by category with counts */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {[
+                { key: 'all', label: 'সকল ছবি', icon: Layers },
+                { key: 'logo', label: 'লোগো (Logo)', icon: Award },
+                { key: 'banner', label: 'ব্যানার (Banner)', icon: LayoutTemplate },
+                { key: 'student', label: 'শিক্ষার্থী (Student)', icon: GraduationCap },
+                { key: 'gallery', label: 'গ্যালারি (Gallery)', icon: Camera },
+                { key: 'other', label: 'অন্যান্য (Other)', icon: ImageIcon },
+              ].map((c) => {
+                const count = c.key === 'all' ? mediaList.length : mediaList.filter(m => m.category === c.key).length;
+                const IconComponent = c.icon;
+                const isActive = mediaCategoryFilter === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setMediaCategoryFilter(c.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    <span>{c.label}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isActive ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Media Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {mediaList
                 .filter(m => mediaCategoryFilter === 'all' || m.category === mediaCategoryFilter)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="group relative rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-slate-800 p-2 space-y-2"
-                  >
-                    <div className="w-full aspect-square rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.url}
-                        alt={item.altText}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</p>
-                      <span className="text-[10px] text-slate-400 block">{(item.size / 1024).toFixed(0)} KB</span>
-                    </div>
+                .map((item) => {
+                  const isCurrentLogo = item.url === config.header.logoUrl;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`group relative rounded-2xl border transition overflow-hidden bg-slate-50 dark:bg-slate-800 p-2 space-y-2 ${
+                        isCurrentLogo
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="w-full aspect-square rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.url}
+                          alt={item.altText}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {isCurrentLogo && (
+                          <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5" />
+                            <span>প্রধান লোগো</span>
+                          </div>
+                        )}
+                        <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.5 rounded capitalize">
+                          {item.category}
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</p>
+                        <span className="text-[10px] text-slate-400 block">{(item.size / 1024).toFixed(0)} KB</span>
+                      </div>
 
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(item.url);
-                          showToast('ছবির লিংক কপি করা হয়েছে', 'info');
-                        }}
-                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                      >
-                        URL কপি
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`আপনি কি "${item.name}" মুছে ফেলতে চান?`)) {
-                            landingPageService.deleteMediaItem(item.id);
-                            setMediaList(landingPageService.getMediaList());
-                            showToast('ছবি মুছে ফেলা হয়েছে', 'info');
-                          }
-                        }}
-                        className="text-rose-500 hover:text-rose-700 p-1"
-                        title="মুছুন"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Action buttons */}
+                      <div className="space-y-1.5 pt-1 border-t border-slate-200 dark:border-slate-700">
+                        {isCurrentLogo ? (
+                          <div className="w-full py-1 text-center rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center justify-center gap-1">
+                            <Check className="w-3 h-3" />
+                            <span>সক্রিয় লোগো</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetAsSchoolLogo(item)}
+                            className="w-full py-1 text-center rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                          >
+                            <Award className="w-3 h-3" />
+                            <span>লোগো হিসেবে সেট করুন</span>
+                          </button>
+                        )}
+
+                        <div className="flex items-center justify-between text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.url);
+                              showToast('ছবির লিংক কপি করা হয়েছে', 'info');
+                            }}
+                            className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            URL কপি
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`আপনি কি "${item.name}" মুছে ফেলতে চান?`)) {
+                                landingPageService.deleteMediaItem(item.id);
+                                setMediaList(landingPageService.getMediaList());
+                                showToast('ছবি মুছে ফেলা হয়েছে', 'info');
+                              }
+                            }}
+                            className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                            title="মুছুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           </div>
         </div>
