@@ -1170,8 +1170,7 @@ export default function SettingsPage() {
               }`}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.labelBn}</span>
-              <span className="text-[9px] font-mono opacity-60 hidden lg:inline">({tab.label})</span>
+              <span>{tab.labelBn}</span>
             </button>
           ))}
         </div>
@@ -1185,7 +1184,7 @@ export default function SettingsPage() {
               <div className="space-y-1">
                 <h3 className="text-base font-black flex items-center gap-2">
                   <FileText className="w-5 h-5 text-sky-400" />
-                  অফিশিয়াল স্কুল প্যাড (Letterhead) ম্যানেজমেন্ট
+                  অফিশিয়াল স্কুল প্যাড ম্যানেজমেন্ট
                 </h3>
                 <p className="text-xs text-indigo-200 max-w-2xl leading-relaxed">
                   আপনার প্রতিষ্ঠানের প্রেস-প্রিন্টেড বা ডিজিটাল প্যাড (PDF / ইমেজ) এখানে আপলোড করুন। নোটিশ, ছাড়পত্র (TC), প্রশংসাপত্র, প্রত্যয়ন ও ফলাফল বিবরণী স্বয়ংক্রিয়ভাবে এই প্যাডের ভেতর নির্ধারিত মার্জিনে প্রিন্ট হবে।
@@ -1561,12 +1560,12 @@ export default function SettingsPage() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <FormInput label="প্রতিষ্ঠানের নাম (School Name)" value={formData.schoolName} onChange={(v) => handleChange('schoolName', v)} placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয়" required />
+                    <FormInput label="প্রতিষ্ঠানের নাম" value={formData.schoolName} onChange={(v) => handleChange('schoolName', v)} placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয়" required />
                   </div>
-                  <FormInput label="ইআইআইএন (EIIN Number)" value={formData.eiin} onChange={(v) => handleChange('eiin', v)} placeholder="যেমন: 106184" required mono />
-                  <FormInput label="স্থাপিত সাল (Established Year)" value={formData.estdYear} onChange={(v) => handleChange('estdYear', v)} placeholder="যেমন: 1969" required mono />
+                  <FormInput label="ইআইআইএন" value={formData.eiin} onChange={(v) => handleChange('eiin', v)} placeholder="যেমন: 106184" required mono />
+                  <FormInput label="স্থাপিত সাল" value={formData.estdYear} onChange={(v) => handleChange('estdYear', v)} placeholder="যেমন: 1969" required mono />
                   <div className="sm:col-span-2">
-                    <FormInput label="প্রতিষ্ঠানের ঠিকানা (Address)" value={formData.address} onChange={(v) => handleChange('address', v)} placeholder="যেমন: চকরিয়া, কক্সবাজার" required />
+                    <FormInput label="প্রতিষ্ঠানের ঠিকানা" value={formData.address} onChange={(v) => handleChange('address', v)} placeholder="যেমন: চকরিয়া, কক্সবাজার" required />
                   </div>
                 </div>
               </SettingsCard>
@@ -1579,8 +1578,8 @@ export default function SettingsPage() {
                 iconBg="bg-purple-50" iconColor="text-purple-600"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormInput label="প্রধান শিক্ষকের নাম (Principal Name)" value={formData.principalName} onChange={(v) => handleChange('principalName', v)} placeholder="যেমন: মোহাম্মদ রফিকুল ইসলাম" />
-                  <FormInput label="প্রধান শিক্ষকের পদবী (Title)" value={formData.principalTitle} onChange={(v) => handleChange('principalTitle', v)} placeholder="যেমন: প্রধান শিক্ষক" required />
+                  <FormInput label="প্রধান শিক্ষকের নাম" value={formData.principalName} onChange={(v) => handleChange('principalName', v)} placeholder="যেমন: মোহাম্মদ রফিকুল ইসলাম" />
+                  <FormInput label="প্রধান শিক্ষকের পদবী" value={formData.principalTitle} onChange={(v) => handleChange('principalTitle', v)} placeholder="যেমন: প্রধান শিক্ষক" required />
                   <FormInput label="শ্রেণি শিক্ষক লেবেল" value={formData.classTeacherTitle} onChange={(v) => handleChange('classTeacherTitle', v)} placeholder="যেমন: শ্রেণি শিক্ষকের স্বাক্ষর" />
                   <FormInput label="অভিভাবক লেবেল" value={formData.guardianTitle} onChange={(v) => handleChange('guardianTitle', v)} placeholder="যেমন: অভিভাবকের স্বাক্ষর" />
                 </div>
@@ -1898,10 +1897,10 @@ export default function SettingsPage() {
                       <span>ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                      ক্যাম্পাস সুযোগ-সুবিধা ব্যবস্থাপনা (Campus Facilities)
+                      ক্যাম্পাস সুযোগ-সুবিধা ব্যবস্থাপনা
                     </h2>
                     <p className="text-xs sm:text-sm text-teal-100/80 leading-relaxed">
-                      আইসিটি ডিজিটাল ল্যাব, বিজ্ঞানাগার, লাইব্রেরি, খেলার মাঠ, স্কাউটিং ও স্যানিটেশনের মতো সুবিধাসমূহ নিয়ন্ত্রণ করুন। এখানে সংরক্ষিত তথ্য মূল ওয়েবসাইটের <strong>&quot;Campus Facilities&quot;</strong> সেকশনে তাৎক্ষণিক প্রদর্শিত হবে।
+                      আইসিটি ডিজিটাল ল্যাব, বিজ্ঞানাগার, লাইব্রেরি, খেলার মাঠ, স্কাউটিং ও স্যানিটেশনের মতো সুবিধাসমূহ নিয়ন্ত্রণ করুন। এখানে সংরক্ষিত তথ্য মূল ওয়েবসাইটের <strong>&quot;ক্যাম্পাস সুবিধাসমূহ&quot;</strong> সেকশনে তাৎক্ষণিক প্রদর্শিত হবে।
                     </p>
                   </div>
 
@@ -3911,7 +3910,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    সদস্যের নাম (Full Name) <span className="text-rose-500">*</span>
+                    সদস্যের নাম <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -3925,7 +3924,7 @@ export default function SettingsPage() {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                    <span>পদবি / দায়িত্ব (Designation / Role) <span className="text-rose-500">*</span></span>
+                    <span>পদবি / দায়িত্ব <span className="text-rose-500">*</span></span>
                     <span className="text-[10px] text-emerald-600 font-normal">নিচের তালিকা থেকে নির্বাচন করুন বা টাইপ করুন</span>
                   </label>
                   
@@ -3981,7 +3980,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">মেয়াদকাল (Tenure)</label>
+                  <label className="text-xs font-bold text-slate-700">মেয়াদকাল</label>
                   <input
                     type="text"
                     value={committeeForm.tenure || ''}
@@ -3992,7 +3991,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">যোগদানের তারিখ (Joining Date)</label>
+                  <label className="text-xs font-bold text-slate-700">যোগদানের তারিখ</label>
                   <input
                     type="text"
                     value={committeeForm.joiningDate || ''}
@@ -4003,7 +4002,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">মোবাইল নম্বর (Phone)</label>
+                  <label className="text-xs font-bold text-slate-700">মোবাইল নম্বর</label>
                   <input
                     type="text"
                     value={committeeForm.phone || ''}
@@ -4014,7 +4013,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">ইমেইল এড্রেস (Email)</label>
+                  <label className="text-xs font-bold text-slate-700">ইমেইল এড্রেস</label>
                   <input
                     type="email"
                     value={committeeForm.email || ''}
@@ -4028,7 +4027,7 @@ export default function SettingsPage() {
               {/* Photo Upload & URL */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                  <span>সদস্যের ছবি (Photo)</span>
+                  <span>সদস্যের ছবি</span>
                   <span className="text-[10px] text-slate-500">কম্পিউটার/মোবাইল থেকে আপলোড করুন বা লিংক দিন</span>
                 </label>
                 
@@ -4157,7 +4156,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    সুবিধার বাংলা শিরোনাম (Title in Bengali) <span className="text-rose-500">*</span>
+                    সুবিধার বাংলা শিরোনাম <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -4171,7 +4170,7 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    ইংরেজি নাম (English Title)
+                    ইংরেজি নাম
                   </label>
                   <input
                     type="text"
@@ -4184,7 +4183,7 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    হাইলাইট ব্যাজ / ট্যাগ (Micro Badge)
+                    হাইলাইট ব্যাজ / ট্যাগ
                   </label>
                   <input
                     type="text"
@@ -4197,49 +4196,49 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    আইকন প্রতীক (Icon)
+                    আইকন প্রতীক
                   </label>
                   <select
                     value={facilityForm.icon || 'Monitor'}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, icon: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition cursor-pointer"
                   >
-                    <option value="Monitor">🖥️ কম্পিউটার / ডিজিটাল ল্যাব (Monitor)</option>
-                    <option value="FlaskConical">🧪 বিজ্ঞানাগার / ল্যাবরেটরি (FlaskConical)</option>
-                    <option value="BookOpen">📖 লাইব্রেরি / পাঠাগার (BookOpen)</option>
-                    <option value="Trophy">🏆 খেলার মাঠ / ক্রীড়া ট্রফি (Trophy)</option>
-                    <option value="Compass">🧭 স্কাউটিং / সহশিক্ষা (Compass)</option>
-                    <option value="Droplet">💧 বিশুদ্ধ পানি ও স্যানিটেশন (Droplet)</option>
-                    <option value="Microscope">🔬 মাইক্রোস্কোপ / জীববিজ্ঞান (Microscope)</option>
-                    <option value="Laptop">💻 ল্যাপটপ ও আইসিটি (Laptop)</option>
-                    <option value="Users">👥 ক্লাব ও সংগঠন (Users)</option>
-                    <option value="Award">🏅 পুরস্কার ও মেধা অন্বেষণ (Award)</option>
-                    <option value="ShieldCheck">🛡️ নিরাপত্তা ও সুরক্ষা (ShieldCheck)</option>
-                    <option value="Building2">🏫 ক্যাম্পাস ভবন ও অবকাঠামো (Building2)</option>
+                    <option value="Monitor">🖥️ কম্পিউটার / ডিজিটাল ল্যাব</option>
+                    <option value="FlaskConical">🧪 বিজ্ঞানাগার / ল্যাবরেটরি</option>
+                    <option value="BookOpen">📖 লাইব্রেরি / পাঠাগার</option>
+                    <option value="Trophy">🏆 খেলার মাঠ / ক্রীড়া ট্রফি</option>
+                    <option value="Compass">🧭 স্কাউটিং / সহশিক্ষা</option>
+                    <option value="Droplet">💧 বিশুদ্ধ পানি ও স্যানিটেশন</option>
+                    <option value="Microscope">🔬 মাইক্রোস্কোপ / জীববিজ্ঞান</option>
+                    <option value="Laptop">💻 ল্যাপটপ ও আইসিটি</option>
+                    <option value="Users">👥 ক্লাব ও সংগঠন</option>
+                    <option value="Award">🏅 পুরস্কার ও মেধা অন্বেষণ</option>
+                    <option value="ShieldCheck">🛡️ নিরাপত্তা ও সুরক্ষা</option>
+                    <option value="Building2">🏫 ক্যাম্পাস ভবন ও অবকাঠামো</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    কালার থিম (Accent Color)
+                    কালার থিম
                   </label>
                   <select
                     value={facilityForm.color || 'indigo'}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, color: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition cursor-pointer"
                   >
-                    <option value="indigo">ইন্ডিগো ব্লু (Indigo)</option>
-                    <option value="emerald">পান্না সবুজ (Emerald)</option>
-                    <option value="amber">সোনালি হলুদ (Amber)</option>
-                    <option value="rose">গোলাপি লাল (Rose)</option>
-                    <option value="cyan">সায়ান নীল (Cyan)</option>
-                    <option value="blue">গাঢ় নীল (Blue)</option>
+                    <option value="indigo">ইন্ডিগো ব্লু</option>
+                    <option value="emerald">পান্না সবুজ</option>
+                    <option value="amber">সোনালি হলুদ</option>
+                    <option value="rose">গোলাপি লাল</option>
+                    <option value="cyan">সায়ান নীল</option>
+                    <option value="blue">গাঢ় নীল</option>
                   </select>
                 </div>
 
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    বিস্তারিত বিবরণী (Description) <span className="text-rose-500">*</span>
+                    বিস্তারিত বিবরণী <span className="text-rose-500">*</span>
                   </label>
                   <textarea
                     rows={3}

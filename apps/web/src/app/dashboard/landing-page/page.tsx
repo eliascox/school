@@ -1207,7 +1207,7 @@ export default function LandingPageManagementDashboard() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                     <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    বিদ্যালয়ের অফিসিয়াল লোগো (School Official Logo)
+                    বিদ্যালয়ের অফিসিয়াল লোগো
                   </label>
                   <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-300">
                     <input
@@ -3748,7 +3748,7 @@ export default function LandingPageManagementDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                        বিদ্যালয়ের সক্রিয় লোগো (Active School Logo)
+                        বিদ্যালয়ের সক্রিয় লোগো
                       </h3>
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
                         লাইভ সংযুক্ত
@@ -3793,7 +3793,7 @@ export default function LandingPageManagementDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                        🖼️ হোমপেজ ব্যানার ও স্লাইডার ছবি (Banners)
+                        🖼️ হোমপেজ ব্যানার ও স্লাইডার ছবি
                       </h3>
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                         {config.hero.slides?.length || 0} টি স্লাইড সক্রিয়
@@ -3827,7 +3827,7 @@ export default function LandingPageManagementDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                        📸 ক্যাম্পাস ফটো গ্যালারি (Gallery Photos)
+                        📸 ক্যাম্পাস ফটো গ্যালারি
                       </h3>
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
                         {config.gallery?.items?.length || 0} টি ছবি ওয়েবসাইটে লাইভ
@@ -3861,7 +3861,7 @@ export default function LandingPageManagementDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                        🎓 শিক্ষার্থী ও কৃতি ছাত্র/ছাত্রীদের ছবি (Student Photos)
+                        🎓 শিক্ষার্থী ও কৃতি ছাত্র/ছাত্রীদের ছবি
                       </h3>
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
                         {config.achievers?.students?.length || 0} জন সেরা শিক্ষার্থী
@@ -3890,11 +3890,11 @@ export default function LandingPageManagementDashboard() {
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
               {[
                 { key: 'all', label: 'সকল ছবি', icon: Layers },
-                { key: 'logo', label: 'লোগো (Logo)', icon: Award },
-                { key: 'banner', label: 'ব্যানার (Banner)', icon: LayoutTemplate },
-                { key: 'student', label: 'শিক্ষার্থী (Student)', icon: GraduationCap },
-                { key: 'gallery', label: 'গ্যালারি (Gallery)', icon: Camera },
-                { key: 'other', label: 'অন্যান্য (Other)', icon: ImageIcon },
+                { key: 'logo', label: 'লোগো', icon: Award },
+                { key: 'banner', label: 'ব্যানার', icon: LayoutTemplate },
+                { key: 'student', label: 'শিক্ষার্থী', icon: GraduationCap },
+                { key: 'gallery', label: 'গ্যালারি', icon: Camera },
+                { key: 'other', label: 'অন্যান্য', icon: ImageIcon },
               ].map((c) => {
                 const count = c.key === 'all' ? mediaList.length : mediaList.filter(m => m.category === c.key).length;
                 const IconComponent = c.icon;
@@ -3970,7 +3970,7 @@ export default function LandingPageManagementDashboard() {
                       className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer pointer-events-none"
                     >
                       <Upload className="w-4 h-4" />
-                      <span>ছবি নির্বাচন করুন (Browse Images)</span>
+                      <span>ছবি নির্বাচন করুন</span>
                     </button>
                   </div>
                 );
