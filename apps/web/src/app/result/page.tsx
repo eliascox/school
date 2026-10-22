@@ -6,8 +6,6 @@ import {
   Search, 
   Printer, 
   Download, 
-  School, 
-  Building2, 
   RotateCcw, 
   CheckCircle2, 
   AlertCircle, 
@@ -23,16 +21,13 @@ import {
   FileText, 
   Lock, 
   ChevronDown, 
-  Layers, 
   Sparkles, 
-  Percent,
   Home
 } from 'lucide-react';
 import Link from 'next/link';
 import { settingsService } from '@/services/settingsService';
 import { studentService } from '@/services/studentService';
 import { examService, ExamItem } from '@/services/examService';
-import { classSectionService, SectionBranch } from '@/services/classSectionService';
 import {
   MarksheetSheetCard,
   generateStudentMarksheetData,
@@ -40,21 +35,21 @@ import {
   StudentProfile
 } from '@/components/OfficialMarksheetSheet';
 
-// ── Class Options (Bilingual) ──
+// ── Class Options (English Only) ──
 const CLASS_OPTIONS = [
-  { value: '6th', label: 'ষষ্ঠ শ্রেণি (Class 6)' },
-  { value: '7th', label: 'সপ্তম শ্রেণি (Class 7)' },
-  { value: '8th', label: 'অষ্টম শ্রেণি (Class 8)' },
-  { value: '9th', label: 'নবম শ্রেণি (Class 9)' },
-  { value: '10th', label: 'দশম শ্রেণি (Class 10)' },
+  { value: '6th', label: 'Class 6' },
+  { value: '7th', label: 'Class 7' },
+  { value: '8th', label: 'Class 8' },
+  { value: '9th', label: 'Class 9' },
+  { value: '10th', label: 'Class 10' },
 ];
 
-// ── Group Options (Bilingual) ──
+// ── Group Options (English Only) ──
 const GROUP_OPTIONS = [
-  { value: 'Science', label: 'বিজ্ঞান বিভাগ (Science)' },
-  { value: 'Humanities', label: 'মানবিক বিভাগ (Humanities)' },
-  { value: 'Business Studies', label: 'ব্যবসায় শিক্ষা (Business Studies)' },
-  { value: 'General', label: 'সাধারণ (General)' },
+  { value: 'Science', label: 'Science' },
+  { value: 'Humanities', label: 'Humanities' },
+  { value: 'Business Studies', label: 'Business Studies' },
+  { value: 'General', label: 'General' },
 ];
 
 // Helper to format class name
@@ -70,7 +65,7 @@ const formatClassName = (grade: string | undefined): string => {
   return grade;
 };
 
-// Helper to format group
+// Helper to format group name
 const formatGroupName = (group: string | undefined): string => {
   if (!group) return 'General';
   const g = group.trim();
@@ -81,25 +76,51 @@ const formatGroupName = (group: string | undefined): string => {
   return g;
 };
 
+// Helper for English School Name
+const getEnglishSchoolName = (name: string | undefined): string => {
+  if (!name) return 'Baraitali High School';
+  if (/[\u0980-\u09FF]/.test(name)) {
+    if (name.includes('বরইতলী') || name.includes('বড়াইতলী')) {
+      return 'Baraitali High School';
+    }
+    return name
+      .replace(/উচ্চ\s*বিদ্যালয়|উচ্চ\s*বিদ্যালয়/g, 'High School')
+      .replace(/মাধ্যমিক\s*বিদ্যালয়|মাধ্যমিক\s*বিদ্যালয়/g, 'Secondary School')
+      .replace(/মডেল\s*স্কুল/g, 'Model School')
+      .replace(/কলেজ/g, 'College')
+      .replace(/মাদ্রাসা|মাদরাসা/g, 'Madrasah')
+      .replace(/সরকারি/g, 'Govt.')
+      .trim();
+  }
+  return name;
+};
+
+// Helper for English School Address
+const getEnglishAddress = (addr: string | undefined): string => {
+  if (!addr) return "Baraitoli, Chakaria, Cox's Bazar";
+  if (/[\u0980-\u09FF]/.test(addr)) {
+    if (addr.includes('বরইতলী') || addr.includes('চকরিয়া') || addr.includes('কক্সবাজার')) {
+      return "Baraitoli, Chakaria, Cox's Bazar";
+    }
+  }
+  return addr;
+};
+
 function ResultSearchContent() {
   const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState(settingsService.getSettings());
 
-  // Dynamic Examination and Section states
+  // Dynamic Examination state
   const [activeExams, setActiveExams] = useState<ExamItem[]>([]);
-  const [availableSections, setAvailableSections] = useState<SectionBranch[]>([]);
 
-  // Form States (Initialized with specified placeholders/values)
+  // Form States
   const [selectedExam, setSelectedExam] = useState<string>(
     searchParams.get('exam') || 'Annual Examination 2026'
   );
   const [selectedGrade, setSelectedGrade] = useState<string>(
     searchParams.get('grade') || '6th'
-  );
-  const [selectedBranch, setSelectedBranch] = useState<string>(
-    searchParams.get('section') || 'A'
   );
   const [selectedGroup, setSelectedGroup] = useState<string>(
     searchParams.get('group') || 'Science'
@@ -149,25 +170,7 @@ function ResultSearchContent() {
     };
   }, []);
 
-  // 2. Dynamic Section Synchronization from Class & Section Management
-  useEffect(() => {
-    const loadSections = () => {
-      const secs = classSectionService.getSectionsForGrade(selectedGrade);
-      setAvailableSections(secs);
-    };
-
-    loadSections();
-    const unsubSecs = classSectionService.subscribe(loadSections);
-    const handleStorage = () => loadSections();
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      unsubSecs();
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, [selectedGrade]);
-
-  // 3. School Settings & Border Synchronization
+  // 2. School Settings & Border Synchronization
   useEffect(() => {
     setMounted(true);
     const loadSettings = () => {
@@ -201,15 +204,7 @@ function ResultSearchContent() {
     return () => unsub();
   }, []);
 
-  // Dynamically resolve section options
-  const dynamicSectionOptions = availableSections.length > 0
-    ? availableSections.map((s) => ({ value: s.name, label: `শাখা ${s.name} (Section ${s.name})` }))
-    : [
-        { value: 'A', label: 'শাখা A (Section A)' },
-        { value: 'B', label: 'শাখা B (Section B)' },
-        { value: 'C', label: 'শাখা C (Section C)' },
-      ];
-
+  // Logic: Only Class 9 and 10 have group selection; Class 6-8 have neither group nor section
   const isClass9or10 = selectedGrade === '9th' || selectedGrade === '10th';
 
   const handleSearch = (e?: React.FormEvent) => {
@@ -219,30 +214,30 @@ function ResultSearchContent() {
     setHasSearched(true);
     setIsSearching(true);
 
-    // 0. Strict Publication Gate: Check if exam result is published (ফলাফল পাবলিশ যাচাই)
+    const cleanRoll = rollInput.trim();
+    if (!cleanRoll) {
+      setErrorMsg('Please enter a valid student roll number.');
+      setFoundStudent(null);
+      setFoundMarksheetData(null);
+      setIsSearching(false);
+      return;
+    }
+
+    // 0. Strict Publication Gate: Check if exam result is published
     const isExamPublished = examService.isExamResultPublished(selectedExam);
     if (!isExamPublished) {
       setFoundStudent(null);
       setFoundMarksheetData(null);
       setIsSearching(false);
-      setErrorMsg('উক্ত পরীক্ষার ফলাফল এখনও প্রকাশিত হয়নি। বিদ্যালয় কর্তৃপক্ষ ফলাফল পাবলিশ করার পর শিক্ষার্থীরা অনলাইন থেকে তা দেখতে পাবে।');
+      setErrorMsg('The results for this examination have not been published yet. Please check back later or contact school authorities.');
       return;
     }
 
-    const cleanRoll = rollInput.trim();
-    if (!cleanRoll) {
-      setErrorMsg('অনুগ্রহ করে শিক্ষার্থীর সঠিক রোল নম্বর প্রদান করুন। (Please enter a valid student roll number)');
-      setFoundStudent(null);
-      setFoundMarksheetData(null);
-      setIsSearching(false);
-      return;
-    }
-
-    // 1. Load students for current selection
+    // 1. Load students for current selection (section 'all' so search works without section dropdown)
     const classStudents = getStudentsForClassSectionGroup(
       selectedGrade,
-      selectedBranch,
-      isClass9or10 ? selectedGroup : 'Science'
+      'all',
+      isClass9or10 ? selectedGroup : 'General'
     );
 
     const targetRollNum = parseInt(cleanRoll.replace(/\D/g, ''), 10);
@@ -253,7 +248,7 @@ function ResultSearchContent() {
       return sRollNum === targetRollNum || s.roll.trim() === cleanRoll;
     });
 
-    // 3. Fallback: Search across all stored students if section was 'all' or loose match
+    // 3. Fallback: Search across all stored students
     if (!matched) {
       const all = studentService.getAllStudents();
       const globalMatch = all.find((s) => {
@@ -268,7 +263,17 @@ function ResultSearchContent() {
           (selectedGrade === '9th' && (sGrade.includes('9') || sGrade.includes('Nine') || sGrade.includes('৯'))) ||
           (selectedGrade === '10th' && (sGrade.includes('10') || sGrade.includes('Ten') || sGrade.includes('১০')));
 
-        return isGradeMatch && sRollNum === targetRollNum;
+        let isGroupMatch = true;
+        if (isClass9or10) {
+          const g = (s.group || '').toLowerCase();
+          const selG = selectedGroup.toLowerCase();
+          isGroupMatch = g === selG || g.includes(selG) ||
+            (selG.includes('science') && (g.includes('science') || g.includes('বিজ্ঞান'))) ||
+            (selG.includes('humanities') && (g.includes('humanities') || g.includes('মানবিক') || g.includes('arts'))) ||
+            (selG.includes('business') && (g.includes('business') || g.includes('commerce') || g.includes('ব্যবসায়')));
+        }
+
+        return isGradeMatch && isGroupMatch && sRollNum === targetRollNum;
       });
 
       if (globalMatch) {
@@ -278,7 +283,7 @@ function ResultSearchContent() {
           name: globalMatch.name,
           grade: selectedGrade,
           gradeBn: `Class ${selectedGrade.replace(/\D/g, '')}`,
-          section: globalMatch.section || globalMatch.branch || (selectedBranch === 'all' ? 'A' : selectedBranch),
+          section: globalMatch.section || globalMatch.branch || 'A',
           group: isClass9or10 ? globalMatch.group || selectedGroup : 'General',
           fatherName: globalMatch.fatherName || (globalMatch as any).guardian || '',
           motherName: globalMatch.motherName || '',
@@ -295,7 +300,7 @@ function ResultSearchContent() {
     if (!matched) {
       setFoundStudent(null);
       setFoundMarksheetData(null);
-      setErrorMsg('প্রদত্ত রোল ও শ্রেণি অনুযায়ী কোনো শিক্ষার্থীর তথ্য পাওয়া যায়নি। অনুগ্রহ করে শ্রেণি, শাখা ও রোল নম্বর পুনরায় যাচাই করুন।');
+      setErrorMsg('No student record found for the selected examination, class, and roll number. Please verify your details.');
       setIsSearching(false);
       return;
     }
@@ -304,7 +309,7 @@ function ResultSearchContent() {
     const marksData = generateStudentMarksheetData(matched, {
       selectedExam,
       selectedGrade,
-      selectedBranch: matched.section || (selectedBranch === 'all' ? 'A' : selectedBranch),
+      selectedBranch: matched.section || 'A',
     });
 
     setFoundStudent(matched);
@@ -346,7 +351,7 @@ function ResultSearchContent() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-800">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium text-sm">রেজাল্ট পোর্টাল লোড হচ্ছে...</p>
+          <p className="text-slate-500 font-medium text-sm">Loading Result Portal...</p>
         </div>
       </div>
     );
@@ -365,7 +370,7 @@ function ResultSearchContent() {
     ? '0.00' 
     : (foundMarksheetData?.finalGPA !== undefined ? foundMarksheetData.finalGPA.toFixed(2) : '0.00');
   const isPassed = !foundMarksheetData?.hasFailed;
-  const resultStatus = isPassed ? 'PASSED (উত্তীর্ণ)' : 'FAILED (অনুত্তীর্ণ)';
+  const resultStatus = isPassed ? 'PASSED' : 'FAILED';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/70 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-emerald-500 selection:text-white print:bg-white print:text-black print:min-h-0 print:h-auto print:block print:p-0 print:m-0">
@@ -377,7 +382,7 @@ function ResultSearchContent() {
       <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🏛️ OFFICIAL INSTITUTION HEADER: Glassmorphic Nav */}
+      {/* 🏛️ OFFICIAL INSTITUTION HEADER: Glassmorphic Nav (English) */}
       {/* ═════════════════════════════════════════════════════════════ */}
       <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-40 shadow-xs print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
@@ -386,7 +391,7 @@ function ResultSearchContent() {
           <Link 
             href="/" 
             className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group shrink-0"
-            title="মূল হোমপেজে ফিরে যান"
+            title="Back to Home"
           >
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform shrink-0">
               <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden">
@@ -400,10 +405,10 @@ function ResultSearchContent() {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-tight group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                {getEnglishSchoolName(settings?.schoolName)}
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার'} • EIIN: {settings?.eiin || '106184'}
+                {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '106184'}
               </p>
             </div>
           </Link>
@@ -415,23 +420,23 @@ function ResultSearchContent() {
               className="text-xs font-bold px-3.5 py-2 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 shadow-2xs"
             >
               <Home className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">হোমপেজ</span>
+              <span className="hidden sm:inline">Home</span>
             </Link>
 
             <Link
               href="/login"
               className="text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 active:scale-95"
-              title="শিক্ষার্থী ও শিক্ষক লগইন"
+              title="Student and Teacher Login"
             >
               <User className="w-3.5 h-3.5" />
-              <span>লগইন (Login)</span>
+              <span>Login</span>
             </Link>
           </div>
         </div>
       </header>
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🔍 HERO & SEARCH SECTION: Pure White Glassmorphism */}
+      {/* 🔍 HERO & SEARCH SECTION: Pure White Glassmorphism (English) */}
       {/* ═════════════════════════════════════════════════════════════ */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 relative z-10 print:p-0 print:m-0 print:py-0 print:my-0 print:space-y-0 print:max-w-none print:w-full print:block">
         
@@ -441,62 +446,62 @@ function ResultSearchContent() {
           <div className="text-center max-w-3xl mx-auto space-y-2.5">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-emerald-800 dark:text-emerald-300 border border-emerald-200/90 dark:border-emerald-800 shadow-2xs">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>OFFICIAL RESULT PORTAL • অফিসিয়াল রেজাল্ট পোর্টাল</span>
+              <span>OFFICIAL RESULT PORTAL</span>
             </div>
             
             <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-              অনলাইন পরীক্ষার ফলাফল ও <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 dark:from-emerald-400 dark:via-teal-300 dark:to-indigo-400 bg-clip-text text-transparent">মার্কশীট অনুসন্ধান</span>
+              Online Examination Results & <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 dark:from-emerald-400 dark:via-teal-300 dark:to-indigo-400 bg-clip-text text-transparent">Marksheet</span>
             </h2>
             
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl mx-auto">
-              শ্রেণি, রোল ও পরীক্ষার নাম নির্বাচন করে দ্রুত ও নিরাপদে অফিশিয়াল ফলাফল এবং পূর্ণাঙ্গ ডিজিটাল নম্বরপত্র দেখুন।
+              Select examination, class, and enter student roll number to search and view official marksheet and grade report.
             </p>
           </div>
 
-          {/* ─── THE WHITE FROSTED GLASS SEARCH CARD ("সাদার মধ্যে গ্লাস ইফেক্ট") ─── */}
-          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/90 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl shadow-slate-200/60 dark:shadow-black/50 max-w-3xl mx-auto relative overflow-hidden ring-1 ring-slate-900/5">
+          {/* ─── THE WHITE FROSTED GLASS SEARCH CARD ("এক লাইনে সকল কিছু") ─── */}
+          <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-slate-200/60 dark:shadow-black/50 max-w-5xl mx-auto relative overflow-hidden ring-1 ring-slate-900/5">
             
             {/* Top Accent Gradient Bar */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600" />
 
-            <form onSubmit={handleSearch} className="space-y-6">
+            <form onSubmit={handleSearch} className="space-y-5">
               
               {/* Publication Status Banner (Glassy Box) */}
               {!isCurrentExamPublished ? (
-                <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3 shadow-xs">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+                <div className="p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3 shadow-xs">
+                  <div className="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                     <Lock className="w-4 h-4" />
                   </div>
                   <div className="space-y-0.5">
-                    <p className="font-bold text-amber-900 dark:text-amber-200">উক্ত পরীক্ষার ফলাফল এখনও প্রকাশিত হয়নি</p>
+                    <p className="font-bold text-amber-900 dark:text-amber-200">Results Not Published Yet</p>
                     <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-                      বিদ্যালয় কর্তৃপক্ষ আনুষ্ঠানিকভাবে &ldquo;ফলাফল পাবলিশ&rdquo; করার পর শিক্ষার্থীরা অনলাইন থেকে তা দেখতে ও ডাউনলোড করতে পারবে।
+                      Official results for this examination have not been published by the institution yet. Once published, students will be able to search and view their marksheets online.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/90 dark:border-emerald-700/60 text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-3 shadow-xs">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4" />
+                <div className="p-3 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/90 dark:border-emerald-700/60 text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5 shadow-xs">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                   </div>
-                  <span>এই পরীক্ষার ফলাফল অনলাইনে প্রকাশিত ও উন্মুক্ত রয়েছে। রোল দিয়ে আপনার রেজাল্ট দেখুন।</span>
+                  <span>Examination results are published and available online. Enter your roll number to view the result.</span>
                 </div>
               )}
 
-              {/* 2-Column Grid of Filter Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* ── SINGLE ROW / ONE LINE SEARCH TOOLBAR ("এক লাইনে থাকবে সকল কিছু") ── */}
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-end gap-3.5 w-full">
                 
                 {/* 1. Examination */}
-                <div className="space-y-1.5">
+                <div className="flex-1 min-w-[200px] space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>পরীক্ষা নির্বাচন (Examination)</span>
+                    <span>Examination</span>
                   </label>
                   <div className="relative">
                     <select
                       value={selectedExam}
                       onChange={(e) => setSelectedExam(e.target.value)}
-                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer transition shadow-2xs outline-none"
+                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-9 cursor-pointer transition shadow-2xs outline-none"
                     >
                       {activeExams.length > 0 ? (
                         activeExams.map((exam) => {
@@ -504,31 +509,31 @@ function ResultSearchContent() {
                           const isPub = Boolean(exam.isPublished);
                           return (
                             <option key={exam.id} value={exam.title} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                              {displayLabel} {isPub ? '✓ (ফলাফল প্রকাশিত)' : '🔒 (ফলাফল অপ্রকাশিত)'}
+                              {displayLabel} {isPub ? '✓ (Published)' : '🔒 (Unpublished)'}
                             </option>
                           );
                         })
                       ) : (
                         <option value="Annual Examination 2026" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                          Annual Examination 2026 🔒 (ফলাফল অপ্রকাশিত)
+                          Annual Examination 2026 🔒 (Unpublished)
                         </option>
                       )}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
                 {/* 2. Class */}
-                <div className="space-y-1.5">
+                <div className="w-full lg:w-36 shrink-0 space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>শ্রেণি (Class)</span>
+                    <span>Class</span>
                   </label>
                   <div className="relative">
                     <select
                       value={selectedGrade}
                       onChange={(e) => setSelectedGrade(e.target.value)}
-                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer transition shadow-2xs outline-none"
+                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-9 cursor-pointer transition shadow-2xs outline-none"
                     >
                       {CLASS_OPTIONS.map((cls) => (
                         <option key={cls.value} value={cls.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
@@ -536,129 +541,112 @@ function ResultSearchContent() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
-                {/* 3. Section */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>শাখা / সেকশন (Section)</span>
+                {/* 3. Group (Conditional: ONLY for Class 9 and 10; NOT shown for Class 6-8) */}
+                {isClass9or10 && (
+                  <div className="w-full lg:w-44 shrink-0 space-y-1.5 animate-fade-in">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Group</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedGroup}
+                        onChange={(e) => setSelectedGroup(e.target.value)}
+                        className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-9 cursor-pointer transition shadow-2xs outline-none"
+                      >
+                        {GROUP_OPTIONS.map((grp) => (
+                          <option key={grp.value} value={grp.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            {grp.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Student Roll Number */}
+                <div className="w-full lg:w-36 shrink-0 space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Hash className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Roll Number</span>
+                    </span>
                   </label>
                   <div className="relative">
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer transition shadow-2xs outline-none"
-                    >
-                      {dynamicSectionOptions.map((sec) => (
-                        <option key={sec.value} value={sec.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                          {sec.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={rollInput}
+                      onChange={(e) => setRollInput(e.target.value)}
+                      placeholder="Roll (e.g. 01)"
+                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder-slate-400 font-mono tracking-wide focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs outline-none"
+                    />
+                    {rollInput && (
+                      <button
+                        type="button"
+                        onClick={() => setRollInput('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 rounded-md"
+                        title="Clear"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* 4. Group */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>বিভাগ / শাখা (Group)</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedGroup}
-                      onChange={(e) => setSelectedGroup(e.target.value)}
-                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer transition shadow-2xs outline-none"
-                    >
-                      {GROUP_OPTIONS.map((grp) => (
-                        <option key={grp.value} value={grp.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                          {grp.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
-                  </div>
+                {/* 5. Search Action Button */}
+                <div className="shrink-0">
+                  <button
+                    type="submit"
+                    disabled={isSearching}
+                    className="w-full lg:w-auto h-[46px] px-6 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm shadow-md shadow-emerald-600/25 transition-all transform hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {isSearching ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        <span>Search Result</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-              </div>
-
-              {/* 5. Student Roll Number (Full Width) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Hash className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>শিক্ষার্থীর রোল নম্বর (Student Roll Number)</span>
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-normal">যেমন: 01, 05, 12</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    value={rollInput}
-                    onChange={(e) => setRollInput(e.target.value)}
-                    placeholder="রোল নম্বর লিখুন (যেমন: 01)"
-                    className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3.5 text-base font-bold text-slate-900 dark:text-white placeholder-slate-400 font-mono tracking-wider focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs outline-none"
-                  />
-                  {rollInput && (
+                {/* 6. Reset / New Search Button */}
+                {hasSearched && (
+                  <div className="shrink-0">
                     <button
                       type="button"
-                      onClick={() => setRollInput('')}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm p-1 rounded-md"
-                      title="ক্লিয়ার করুন"
+                      onClick={handleResetSearch}
+                      className="w-full lg:w-auto h-[46px] px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm border border-slate-200 dark:border-slate-700 transition flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer whitespace-nowrap"
+                      title="Reset search"
                     >
-                      ✕
+                      <RotateCcw className="w-4 h-4 text-slate-500" />
+                      <span>Reset</span>
                     </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Buttons: Primary & Secondary */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={isSearching}
-                  className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-600/25 transition-all transform hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-                >
-                  {isSearching ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>ফলাফল অনুসন্ধান হচ্ছে...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4" />
-                      <span>ফলাফল অনুসন্ধান করুন (View Result)</span>
-                    </>
-                  )}
-                </button>
-
-                {hasSearched && (
-                  <button
-                    type="button"
-                    onClick={handleResetSearch}
-                    className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm border border-slate-200 dark:border-slate-700 transition flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4 text-slate-500" />
-                    <span>নতুন অনুসন্ধান</span>
-                  </button>
+                  </div>
                 )}
+
               </div>
             </form>
           </div>
 
           {/* Validation & Error Messages */}
           {errorMsg && (
-            <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-sm flex items-start gap-3 shadow-md animate-fade-in">
+            <div className="max-w-5xl mx-auto p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-sm flex items-start gap-3 shadow-md animate-fade-in">
               <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-bold text-rose-900 dark:text-rose-200">{errorMsg}</p>
                 <p className="text-xs text-rose-700/80 dark:text-rose-300/80">
-                  অনুগ্রহ করে পরীক্ষা, শ্রেণি, শাখা ও রোল নম্বর পুনরায় যাচাই করুন।
+                  Please verify examination, class, and roll number.
                 </p>
               </div>
             </div>
@@ -666,9 +654,9 @@ function ResultSearchContent() {
 
           {/* Success Notification */}
           {searchSuccess && foundStudent && isCurrentExamPublished && (
-            <div className="max-w-3xl mx-auto p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5 shadow-md">
+            <div className="max-w-5xl mx-auto p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5 shadow-md">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span><strong>{foundStudent.name}</strong>-এর ফলাফল সফলভাবে পাওয়া গেছে। নিচে বিস্তারিত মার্কশীট দেখুন।</span>
+              <span>Result found successfully for <strong>{foundStudent.name}</strong>. See detailed marksheet below.</span>
             </div>
           )}
 
@@ -683,12 +671,12 @@ function ResultSearchContent() {
               <Lock className="w-8 h-8" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">ফলাফল এখনও প্রকাশিত হয়নি</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Results Not Published Yet</h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                নির্বাচিত <strong>&ldquo;{selectedExam}&rdquo;</strong>-এর ফলাফল বিদ্যালয় কর্তৃপক্ষ এখনও অনলাইন পোর্টালে প্রকাশ করেনি।
+                Official results for <strong>&ldquo;{selectedExam}&rdquo;</strong> have not been released online by the school authority yet.
               </p>
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-amber-800 dark:text-amber-200/90 max-w-lg mx-auto">
-                বিদ্যালয় কর্তৃপক্ষ পরীক্ষা ব্যবস্থাপনা থেকে ফলাফল পাবলিশ করার পর শিক্ষার্থীরা তাদের রোল নম্বর দিয়ে সম্পূর্ণ মার্কশীট দেখতে ও ডাউনলোড করতে পারবে।
+                Once the administration publishes the examination results, students can search and download their complete marksheet using their roll number.
               </div>
             </div>
             <div className="pt-2">
@@ -697,7 +685,7 @@ function ResultSearchContent() {
                 onClick={handleResetSearch}
                 className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold border border-slate-300 dark:border-slate-700 transition cursor-pointer"
               >
-                অন্য পরীক্ষা নির্বাচন করুন
+                Select Another Exam
               </button>
             </div>
           </div>
@@ -719,7 +707,7 @@ function ResultSearchContent() {
                   {selectedExam}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Official published marksheet record for <strong>{foundStudent.name}</strong>
+                  Official marksheet record for <strong>{foundStudent.name}</strong>
                 </p>
               </div>
 
@@ -732,7 +720,7 @@ function ResultSearchContent() {
                   className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>প্রিন্ট করুন (Print)</span>
+                  <span>Print</span>
                 </button>
 
                 {/* Download Report Card */}
@@ -742,7 +730,7 @@ function ResultSearchContent() {
                   className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>রিপোর্ট কার্ড ডাউনলোড</span>
+                  <span>Download Marksheet</span>
                 </button>
 
                 {/* Back to Search */}
@@ -755,7 +743,7 @@ function ResultSearchContent() {
                   title="Scroll to search section"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>অনুসন্ধানে ফিরুন</span>
+                  <span>Back to Search</span>
                 </button>
               </div>
             </div>
@@ -765,7 +753,7 @@ function ResultSearchContent() {
               <div className="max-w-5xl mx-auto p-3.5 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-500/40 rounded-xl text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2.5 animate-fade-in print:hidden">
                 <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
-                  টিপস: প্রিন্ট ডায়ালগে Destination হিসেবে <strong>"Save as PDF"</strong> নির্বাচন করুন এবং সহজে রিপোর্ট কার্ডটি PDF হিসেবে সেভ করুন।
+                  Tip: In the print dialog, select <strong>&quot;Save as PDF&quot;</strong> as the destination to download your marksheet.
                 </span>
               </div>
             )}
@@ -775,7 +763,7 @@ function ResultSearchContent() {
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>শিক্ষার্থীর তথ্য (Student Information)</span>
+                  <span>Student Information</span>
                 </h4>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-bold">
                   ✓ Verified Record
@@ -785,19 +773,19 @@ function ResultSearchContent() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
                 {/* Student Name */}
                 <div className="col-span-2 sm:col-span-1 lg:col-span-2">
-                  <span className="text-slate-400 block text-[11px]">শিক্ষার্থীর নাম</span>
+                  <span className="text-slate-400 block text-[11px]">Student Name</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm block mt-0.5">{foundStudent.name}</span>
                 </div>
 
                 {/* Roll Number */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">রোল নম্বর</span>
+                  <span className="text-slate-400 block text-[11px]">Roll Number</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white text-sm block mt-0.5">{foundStudent.roll}</span>
                 </div>
 
                 {/* Class */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">শ্রেণি</span>
+                  <span className="text-slate-400 block text-[11px]">Class</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm block mt-0.5">
                     {formatClassName(foundStudent.grade)}
                   </span>
@@ -805,7 +793,7 @@ function ResultSearchContent() {
 
                 {/* Section */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">শাখা</span>
+                  <span className="text-slate-400 block text-[11px]">Section</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm block mt-0.5">
                     Section {foundStudent.section || 'A'}
                   </span>
@@ -813,7 +801,7 @@ function ResultSearchContent() {
 
                 {/* Group */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">গ্রুপ / বিভাগ</span>
+                  <span className="text-slate-400 block text-[11px]">Group</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm block mt-0.5">
                     {formatGroupName(foundStudent.group)}
                   </span>
@@ -821,7 +809,7 @@ function ResultSearchContent() {
 
                 {/* Academic Year */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">শিক্ষাবর্ষ</span>
+                  <span className="text-slate-400 block text-[11px]">Academic Year</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white text-sm block mt-0.5">2026</span>
                 </div>
               </div>
@@ -833,43 +821,43 @@ function ResultSearchContent() {
               {/* Statistic 1: Total Marks */}
               <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold mb-2">
-                  <span>মোট প্রাপ্ত নম্বর</span>
+                  <span>Total Marks</span>
                   <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {totalObtainedMarks} <span className="text-sm font-normal text-slate-400">/ {totalMaxMarks}</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">সর্বমোট অর্জিত নম্বর</p>
+                <p className="text-[11px] text-slate-400 mt-1">Total marks achieved</p>
               </div>
 
               {/* Statistic 2: Average */}
               <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold mb-2">
-                  <span>গড় শতকরা (Average)</span>
+                  <span>Average Score</span>
                   <TrendingUp className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {averagePercentage}%
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">সামগ্রিক অর্জিত শতকরা</p>
+                <p className="text-[11px] text-slate-400 mt-1">Overall percentage</p>
               </div>
 
               {/* Statistic 3: GPA */}
               <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold mb-2">
-                  <span>জিপিএ (GPA)</span>
+                  <span>GPA (Grade Point)</span>
                   <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                   {gpaScore} <span className="text-sm font-normal text-slate-400">/ 5.00</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">গ্রেড পয়েন্ট এভারেজ</p>
+                <p className="text-[11px] text-slate-400 mt-1">Grade Point Average</p>
               </div>
 
               {/* Statistic 4: Result Status */}
               <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-bold mb-2">
-                  <span>ফলাফল স্ট্যাটাস</span>
+                  <span>Result Status</span>
                   {isPassed ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   ) : (
@@ -886,7 +874,7 @@ function ResultSearchContent() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1.5">
-                  সার্বিক লেটার গ্রেড: <strong className="text-slate-900 dark:text-white font-black">{foundMarksheetData?.overallGrade || 'N/A'}</strong>
+                  Letter Grade: <strong className="text-slate-900 dark:text-white font-black">{foundMarksheetData?.overallGrade || 'N/A'}</strong>
                 </p>
               </div>
 
@@ -927,15 +915,15 @@ function ResultSearchContent() {
       </main>
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🏛️ OFFICIAL INSTITUTION FOOTER (Hidden on Print) */}
+      {/* 🏛️ OFFICIAL INSTITUTION FOOTER (English) */}
       {/* ═════════════════════════════════════════════════════════════ */}
       <footer className="border-t border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md py-8 mt-12 text-center text-xs text-slate-500 print:hidden">
         <div className="max-w-7xl mx-auto px-4 space-y-1.5">
           <p className="font-bold text-slate-700 dark:text-slate-300">
-            © 2026 {settings?.schoolName || 'Baraitali High School'}. All Rights Reserved.
+            © 2026 {getEnglishSchoolName(settings?.schoolName)}. All Rights Reserved.
           </p>
           <p className="text-[11px] text-slate-400">
-            Official Academic Result Portal • {settings?.address || "Baraitali, Chakaria, Cox's Bazar"} • EIIN: {settings?.eiin || '106184'}
+            Official Academic Result Portal • {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '106184'}
           </p>
         </div>
       </footer>
@@ -951,7 +939,7 @@ export default function ResultPublicPage() {
         <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-800">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-500 font-medium text-sm">রেজাল্ট পোর্টাল লোড হচ্ছে...</p>
+            <p className="text-slate-500 font-medium text-sm">Loading Result Portal...</p>
           </div>
         </div>
       }
