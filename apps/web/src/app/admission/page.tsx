@@ -7,23 +7,22 @@ import {
   CheckCircle2, 
   RefreshCw, 
   User, 
-  Users,
-  MapPin,
-  BookOpen,
-  Printer,
-  School,
-  FileText,
-  Phone,
-  Award,
-  Info,
-  X,
-  ArrowRight,
-  ArrowLeft,
-  Globe,
-  Send,
-  Droplet,
-  Camera,
-  AlertCircle
+  Users, 
+  MapPin, 
+  BookOpen, 
+  Printer, 
+  School, 
+  Phone, 
+  Award, 
+  X, 
+  Send, 
+  Droplet, 
+  Camera, 
+  AlertCircle,
+  FileCheck2,
+  Calendar,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import Link from 'next/link';
@@ -36,7 +35,6 @@ import { compressImage } from '@/lib/imageUtils';
 
 export default function PublicOnlineAdmissionPage() {
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
-  const [currentStep, setCurrentStep] = useState<number>(1);
 
   useEffect(() => {
     setSchoolSettings(settingsService.getSettings());
@@ -140,67 +138,57 @@ export default function PublicOnlineAdmissionPage() {
     }
   };
 
-  const validateCurrentStep = (step: number): boolean => {
+  // ── Unified Single-Page Form Validation ──
+  const validateForm = (): boolean => {
     setErrorNotice('');
-    if (step === 1) {
-      if (!selectedClass) {
-        setErrorNotice('অনুগ্রহ করে ভর্তির শ্রেণি নির্বাচন করুন।');
-        return false;
-      }
-    } else if (step === 2) {
-      if (!fullName.trim()) {
-        setErrorNotice('শিক্ষার্থীর পূর্ণ নাম (বাংলায়) লিখুন।');
-        return false;
-      }
-      const cleanPhone = mobile.replace(/\D/g, '');
-      if (!cleanPhone || cleanPhone.length < 11) {
-        setErrorNotice('অভিভাবকের সঠিক ১১ ডিজিটের সচল মোবাইল নম্বর লিখুন (যেমন: 018XXXXXXXX)। এই নম্বরে নিশ্চিতকরণ SMS যাবে।');
-        return false;
-      }
-      const cleanBreg = birthRegNo.replace(/\D/g, '');
-      if (!cleanBreg || cleanBreg.length < 17) {
-        setErrorNotice('১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর প্রদান করুন।');
-        return false;
-      }
-      if (!dob) {
-        setErrorNotice('শিক্ষার্থীর জন্ম তারিখ নির্বাচন করুন।');
-        return false;
-      }
-    } else if (step === 3) {
-      if (!fatherName.trim() && !motherName.trim()) {
-        setErrorNotice('পিতা অথবা মাতার নাম অবশ্যই পূরণ করুন।');
-        return false;
-      }
-    } else if (step === 4) {
-      if (!currentAddress.trim()) {
-        setErrorNotice('বর্তমান ঠিকানা প্রদান করুন।');
-        return false;
-      }
-      if (!declaredCorrect) {
-        setErrorNotice('তথ্য সঠিক হওয়ার ঘোষণা বক্সে টিক চিহ্ন দিন।');
-        return false;
-      }
+    if (!selectedClass) {
+      setErrorNotice('অনুগ্রহ করে ভর্তির শ্রেণি নির্বাচন করুন।');
+      window.scrollTo({ top: 120, behavior: 'smooth' });
+      return false;
+    }
+    if (!fullName.trim()) {
+      setErrorNotice('শিক্ষার্থীর পূর্ণ নাম (বাংলায়) লিখুন।');
+      window.scrollTo({ top: 280, behavior: 'smooth' });
+      return false;
+    }
+    const cleanPhone = mobile.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 11) {
+      setErrorNotice('অভিভাবকের সঠিক ১১ ডিজিটের সচল মোবাইল নম্বর লিখুন (যেমন: 018XXXXXXXX)। এই নম্বরে নিশ্চিতকরণ SMS যাবে।');
+      window.scrollTo({ top: 340, behavior: 'smooth' });
+      return false;
+    }
+    const cleanBreg = birthRegNo.replace(/\D/g, '');
+    if (!cleanBreg || cleanBreg.length < 17) {
+      setErrorNotice('১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর সঠিকভাবে প্রদান করুন।');
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+      return false;
+    }
+    if (!dob) {
+      setErrorNotice('শিক্ষার্থীর জন্ম তারিখ নির্বাচন করুন।');
+      window.scrollTo({ top: 440, behavior: 'smooth' });
+      return false;
+    }
+    if (!fatherName.trim() && !motherName.trim()) {
+      setErrorNotice('পিতা অথবা মাতার নাম অবশ্যই পূরণ করুন।');
+      window.scrollTo({ top: 620, behavior: 'smooth' });
+      return false;
+    }
+    if (!currentAddress.trim()) {
+      setErrorNotice('বর্তমান ঠিকানা প্রদান করুন।');
+      window.scrollTo({ top: 820, behavior: 'smooth' });
+      return false;
+    }
+    if (!declaredCorrect) {
+      setErrorNotice('তথ্য সঠিক হওয়ার ঘোষণা বক্সে টিক চিহ্ন দিন।');
+      return false;
     }
     return true;
-  };
-
-  const handleNextStep = () => {
-    if (validateCurrentStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(4, prev + 1));
-      window.scrollTo({ top: 120, behavior: 'smooth' });
-    }
-  };
-
-  const handlePrevStep = () => {
-    setErrorNotice('');
-    setCurrentStep((prev) => Math.max(1, prev - 1));
-    window.scrollTo({ top: 120, behavior: 'smooth' });
   };
 
   // ── FINAL APPLICATION SUBMISSION & AUTOMATED SMS DISPATCH ──
   const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateCurrentStep(4)) return;
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     const autoAppId = `APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -278,10 +266,10 @@ export default function PublicOnlineAdmissionPage() {
     } catch (smsErr) {
       console.error('Failed to trigger confirmation SMS:', smsErr);
       setSmsDeliveryStatus({
-        sent: true,
+        sent: false,
         recipientMobile: studentData.mobile,
-        messageText: `অভিনন্দন! বরইতলী উচ্চ বিদ্যালয়ে ${studentData.name}-এর ভর্তি আবেদন গৃহীত হয়েছে। আইডি: ${autoAppId}।`,
-        timestamp: new Date().toLocaleTimeString('bn-BD'),
+        messageText: 'এসএমএস গেটওয়ে সাময়িক অফলাইনে থাকায় বার্তা পাঠানো সম্ভব হয়নি।',
+        timestamp: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true }),
       });
     }
 
@@ -295,20 +283,27 @@ export default function PublicOnlineAdmissionPage() {
     if (smsDeliveryStatus) {
       setSmsDeliveryStatus({ ...smsDeliveryStatus, isResending: true });
     }
-    const currentSchoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-    await smsService.sendAdmissionConfirmationSMS({
-      name: applicationRecord.name,
-      appId: applicationRecord.appId,
-      grade: applicationRecord.grade,
-      mobile: applicationRecord.mobile,
-      schoolName: currentSchoolName,
-    });
-    setSmsDeliveryStatus((prev) => prev ? {
-      ...prev,
-      sent: true,
-      timestamp: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true }),
-      isResending: false
-    } : null);
+
+    try {
+      const currentSchoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+      const res = await smsService.sendAdmissionConfirmationSMS({
+        name: applicationRecord.name,
+        appId: applicationRecord.appId,
+        grade: applicationRecord.grade,
+        mobile: applicationRecord.mobile,
+        schoolName: currentSchoolName,
+      });
+
+      setSmsDeliveryStatus({
+        sent: res.success,
+        recipientMobile: applicationRecord.mobile,
+        messageText: res.message,
+        timestamp: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        isResending: false,
+      });
+    } catch (err) {
+      setSmsDeliveryStatus((prev) => prev ? { ...prev, isResending: false } : null);
+    }
   };
 
   const handleResetForm = () => {
@@ -317,17 +312,9 @@ export default function PublicOnlineAdmissionPage() {
     setSelectedClass('6th');
     setSection('A');
     setGroup('সাধারণ');
-    setOptionalSubject('কৃষি শিক্ষা');
     setMobile('');
     setDob('');
-    setGender('পুরুষ');
-    setReligion('ইসলাম');
-    setBloodGroup('A+');
     setBirthRegNo('');
-    setPhoto('');
-    setIsStipend(false);
-    setPrevSchoolName('');
-    setPrevGpa('');
     setFatherName('');
     setFatherNid('');
     setFatherOcc('');
@@ -337,9 +324,12 @@ export default function PublicOnlineAdmissionPage() {
     setCurrentAddress('');
     setPermanentAddress('');
     setIsSameAddress(false);
+    setPhoto('');
+    setPrevSchoolName('');
+    setPrevGpa('');
+    setIsStipend(false);
     setIsSubmitted(false);
     setApplicationRecord(null);
-    setCurrentStep(1);
     setErrorNotice('');
     setSmsDeliveryStatus(null);
   };
@@ -404,7 +394,7 @@ export default function PublicOnlineAdmissionPage() {
     );
   }
 
-  // ── Modern Field Classes ──
+  // ── Modern Sleek Field Classes ──
   const modernInputClass =
     'w-full px-4 py-2.5 sm:py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 shadow-2xs';
   const modernSelectClass =
@@ -413,7 +403,7 @@ export default function PublicOnlineAdmissionPage() {
     'block text-[12px] sm:text-[12.5px] font-bold text-slate-700 mb-1.5 flex items-center gap-1.5';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100/80 via-indigo-50/20 to-slate-100 font-sans pb-20 text-slate-900 print:bg-white print:p-0">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100/90 via-indigo-50/25 to-slate-100 font-sans pb-20 text-slate-900 print:bg-white print:p-0">
       
       {/* ── Top Bar ── */}
       <header className="bg-slate-900 text-white shadow-md sticky top-0 z-40 print:hidden border-b border-slate-800">
@@ -448,10 +438,10 @@ export default function PublicOnlineAdmissionPage() {
         </div>
       </header>
 
-      {/* ── Main Container ── */}
+      {/* ── Main Single-Page Container ── */}
       <main className="max-w-4xl mx-auto px-4 pt-6 sm:pt-8 space-y-6">
 
-        {/* ── HEADER CARD ── */}
+        {/* ── HEADER INTRO CARD ── */}
         <div className="bg-white/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
@@ -467,7 +457,7 @@ export default function PublicOnlineAdmissionPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-bold mt-0.5">
-                {schoolName} • ৬ষ্ঠ থেকে ১০ম শ্রেণিতে ভর্তির আবেদন
+                {schoolName} • ৬ষ্ঠ থেকে ১০ম শ্রেণিতে অনলাইন ভর্তি কার্যক্রম চলমান
               </p>
             </div>
           </div>
@@ -475,7 +465,7 @@ export default function PublicOnlineAdmissionPage() {
           <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              ভর্তি কার্যক্রম চলমান
+              ভর্তি আবেদন উন্মুক্ত
             </span>
           </div>
         </div>
@@ -582,684 +572,645 @@ export default function PublicOnlineAdmissionPage() {
           </div>
         ) : (
           /* ═══════════════════════════════════════════════════════ */
-          /* SIMPLE ADMISSION FORM WITH MODERN BACKGROUND & FIELDS    */
+          /* MODERN PROFESSIONAL SINGLE-PAGE ADMISSION FORM           */
           /* ═══════════════════════════════════════════════════════ */
-          <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-[0_12px_40px_-15px_rgba(0,0,0,0.08)] overflow-hidden print:hidden transition-all">
+          <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-[0_12px_45px_-15px_rgba(0,0,0,0.08)] overflow-hidden print:hidden transition-all">
             
-            {/* ── Step Progress Navigation Tabs ── */}
-            <div className="bg-slate-900 text-white p-3 sm:p-4 border-b border-slate-800">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className={`py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
-                    currentStep === 1
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <BookOpen size={15} />
-                  <span>১. শ্রেণি ও শাখা</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => validateCurrentStep(1) && setCurrentStep(2)}
-                  className={`py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
-                    currentStep === 2
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <User size={15} />
-                  <span>২. ব্যক্তিগত তথ্য</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => validateCurrentStep(2) && setCurrentStep(3)}
-                  className={`py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
-                    currentStep === 3
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Users size={15} />
-                  <span>৩. পিতা-মাতার তথ্য</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => validateCurrentStep(3) && setCurrentStep(4)}
-                  className={`py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
-                    currentStep === 4
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/80 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <MapPin size={15} />
-                  <span>৪. ঠিকানা ও স্কুল</span>
-                </button>
+            {/* Top Alert / Guidance */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow">
+                  <FileCheck2 size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-white">
+                    এক নজরে সম্পূর্ণ ভর্তি আবেদন ফরম
+                  </h3>
+                  <p className="text-[11px] text-slate-300">
+                    নিচের সকল তথ্য সতর্কতার সাথে পূরণ করুন। লাল তারকা (<span className="text-rose-400 font-black">*</span>) চিহ্নিত ঘর আবশ্যক।
+                  </p>
+                </div>
               </div>
+
+              <span className="text-[11px] font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 px-3 py-1 rounded-full self-start sm:self-center">
+                স্বয়ংক্রিয় এসএমএস নিশ্চিতকরণ যুক্ত
+              </span>
             </div>
 
             {/* Error Notice */}
             {errorNotice && (
-              <div className="m-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                <AlertCircle size={16} className="text-rose-600 shrink-0" />
+              <div className="mx-6 sm:mx-8 mt-6 p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+                <AlertCircle size={18} className="text-rose-600 shrink-0" />
                 <span>{errorNotice}</span>
               </div>
             )}
 
-            {/* ── FORM BODY ── */}
-            <form onSubmit={handleSubmitApplication} className="p-6 sm:p-8 space-y-6">
+            {/* ── SINGLE-PAGE FORM BODY ── */}
+            <form onSubmit={handleSubmitApplication} className="p-6 sm:p-8 md:p-10 space-y-9">
               
               {/* ═════════════════════════════════════════════ */}
-              {/* STEP 1: ACADEMIC INFO                        */}
+              {/* SECTION 1: ACADEMIC INFO                    */}
               {/* ═════════════════════════════════════════════ */}
-              {currentStep === 1 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  <div className="border-b border-slate-200/90 pb-3 flex items-center justify-between">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                      ১
+                    </span>
                     <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <BookOpen className="text-indigo-600" size={18} />
-                      ১. একাডেমিক তথ্য
+                      <BookOpen className="text-indigo-600" size={17} />
+                      ভর্তির শ্রেণি ও শাখা সংক্রান্ত তথ্য
                     </h3>
-                    <span className="text-xs text-slate-500 font-bold">* চিহ্নিত ঘর আবশ্যক</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">* আবশ্যক তথ্য</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Class Selector */}
+                  <div>
+                    <label className={modernLabelClass}>
+                      ভর্তির শ্রেণি <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={selectedClass} 
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className={modernSelectClass}
+                    >
+                      <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
+                      <option value="7th">৭ম শ্রেণি (Class 7)</option>
+                      <option value="8th">৮ম শ্রেণি (Class 8)</option>
+                      <option value="9th">৯ম শ্রেণি (Class 9)</option>
+                      <option value="10th">১০ম শ্রেণি (Class 10)</option>
+                    </select>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                    {/* Class Selector */}
-                    <div>
-                      <label className={modernLabelClass}>
-                        ভর্তির শ্রেণি *
+                  {/* Section Selector */}
+                  <div>
+                    <label className={modernLabelClass}>
+                      পছন্দসই শাখা <span className="text-rose-500">*</span>
+                    </label>
+                    <select 
+                      value={section} 
+                      onChange={(e) => setSection(e.target.value)}
+                      className={modernSelectClass}
+                    >
+                      <option value="A">শাখা ক (Section A)</option>
+                      <option value="B">শাখা খ (Section B)</option>
+                      <option value="C">শাখা গ (Section C)</option>
+                    </select>
+                  </div>
+
+                  {/* Group Selector */}
+                  <div>
+                    <label className={modernLabelClass}>
+                      বিভাগ / গ্রুপ (৯ম-১০ম শ্রেণি)
+                    </label>
+                    <select 
+                      value={group} 
+                      onChange={(e) => setGroup(e.target.value as any)}
+                      disabled={isGroupDisabled}
+                      className={isGroupDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
+                    >
+                      <option value="সাধারণ">সাধারণ</option>
+                      <option value="বিজ্ঞান">বিজ্ঞান (Science)</option>
+                      <option value="মানবিক">মানবিক (Humanities)</option>
+                      <option value="ব্যবসায় শিক্ষা">ব্যবসায় শিক্ষা (Business)</option>
+                    </select>
+                  </div>
+
+                  {/* Optional Subject */}
+                  <div>
+                    <label className={modernLabelClass}>
+                      ৪র্থ বিষয় / অতিরিক্ত বিষয়
+                    </label>
+                    <select 
+                      value={optionalSubject} 
+                      onChange={(e) => setOptionalSubject(e.target.value)}
+                      disabled={isOptionalDisabled}
+                      className={isOptionalDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
+                    >
+                      {optionalSubjectOptions.map((opt) => (
+                        <option key={opt.code || opt.name} value={opt.name}>
+                          {opt.name} {opt.category && opt.name !== 'কোনটিই নয়' ? `(${opt.category})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Stipend Card */}
+                  <div className="sm:col-span-2 lg:col-span-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="admissionIsStipend"
+                        checked={isStipend}
+                        onChange={(e) => setIsStipend(e.target.checked)}
+                        className="w-4 h-4 accent-amber-500 rounded cursor-pointer shrink-0"
+                      />
+                      <label htmlFor="admissionIsStipend" className="text-xs font-black text-amber-950 cursor-pointer flex items-center gap-1.5">
+                        <Award size={16} className="text-amber-600 shrink-0" />
+                        <span>শিক্ষার্থী উপবৃত্তি প্রাপ্ত</span>
                       </label>
-                      <select 
-                        value={selectedClass} 
-                        onChange={(e) => setSelectedClass(e.target.value)}
-                        className={modernSelectClass}
-                      >
-                        <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
-                        <option value="7th">৭ম শ্রেণি (Class 7)</option>
-                        <option value="8th">৮ম শ্রেণি (Class 8)</option>
-                        <option value="9th">৯ম শ্রেণি (Class 9)</option>
-                        <option value="10th">১০ম শ্রেণি (Class 10)</option>
-                      </select>
                     </div>
 
-                    {/* Section Selector */}
-                    <div>
+                    {isStipend && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <label className="text-[10.5px] font-black text-amber-900">ক্যাটাগরি:</label>
+                        <select
+                          value={stipendCategory}
+                          onChange={(e) => setStipendCategory(e.target.value)}
+                          className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl font-bold text-xs text-amber-900 outline-none shadow-2xs"
+                        >
+                          <option value="সাধারণ উপবৃত্তি">সাধারণ উপবৃত্তি</option>
+                          <option value="মেধাভিত্তিক উপবৃত্তি">মেধাভিত্তিক উপবৃত্তি</option>
+                          <option value="বিশেষ সহায়তা">বিশেষ সহায়তা</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* ═════════════════════════════════════════════ */}
+              {/* SECTION 2: PERSONAL DETAILS & PHOTO           */}
+              {/* ═════════════════════════════════════════════ */}
+              <section className="space-y-4 pt-2">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                      ২
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                      <User className="text-indigo-600" size={17} />
+                      শিক্ষার্থীর ব্যক্তিগত তথ্যাবলী
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">সঠিক তথ্য লিখুন</span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                  
+                  {/* Left Form Grid */}
+                  <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* Name in Bangla */}
+                    <div className="sm:col-span-2">
                       <label className={modernLabelClass}>
-                        পছন্দসই শাখা *
+                        শিক্ষার্থীর পূর্ণ নাম (বাংলায়) <span className="text-rose-500">*</span>
                       </label>
-                      <select 
-                        value={section} 
-                        onChange={(e) => setSection(e.target.value)}
-                        className={modernSelectClass}
-                      >
-                        <option value="A">শাখা ক (Section A)</option>
-                        <option value="B">শাখা খ (Section B)</option>
-                        <option value="C">শাখা গ (Section C)</option>
-                      </select>
+                      <input 
+                        type="text" 
+                        required 
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="যেমন: মোঃ আরমান হোসেন"
+                        className={modernInputClass}
+                      />
                     </div>
 
-                    {/* Group Selector */}
-                    <div>
+                    {/* Name in English */}
+                    <div className="sm:col-span-2">
                       <label className={modernLabelClass}>
-                        বিভাগ / গ্রুপ (৯ম-১০ম শ্রেণি)
+                        নাম (ইংরেজিতে ক্যাপিটাল অক্ষরে)
                       </label>
-                      <select 
-                        value={group} 
-                        onChange={(e) => setGroup(e.target.value as any)}
-                        disabled={isGroupDisabled}
-                        className={isGroupDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
-                      >
-                        <option value="সাধারণ">সাধারণ</option>
-                        <option value="বিজ্ঞান">বিজ্ঞান (Science)</option>
-                        <option value="মানবিক">মানবিক (Humanities)</option>
-                        <option value="ব্যবসায় শিক্ষা">ব্যবসায় শিক্ষা (Business)</option>
-                      </select>
-                      {isGroupDisabled && (
-                        <span className="text-[10.5px] text-slate-500 font-medium block mt-1">
-                          * ৬ষ্ঠ-৮ম শ্রেণির জন্য গ্রুপ প্রযোজ্য নয়।
+                      <input 
+                        type="text" 
+                        value={fullNameEn}
+                        onChange={(e) => setFullNameEn(e.target.value.toUpperCase())}
+                        placeholder="MD. ARMAN HOSSAIN"
+                        className={modernInputClass}
+                      />
+                    </div>
+
+                    {/* Mobile Number with Automated SMS Badge */}
+                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 shadow-2xs">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                          <Phone size={14} className="text-indigo-600" />
+                          <span>অভিভাবকের সচল মোবাইল নম্বর <span className="text-rose-500">*</span></span>
+                        </label>
+                        <span className="text-[10px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1">
+                          <Send size={10} />
+                          <span>এই নম্বরে SMS যাবে</span>
                         </span>
-                      )}
+                      </div>
+                      <input 
+                        type="tel" 
+                        required 
+                        value={mobile}
+                        onChange={(e) => setMobile(e.target.value)}
+                        placeholder="01812345678"
+                        className={modernInputClass}
+                      />
                     </div>
 
-                    {/* Optional Subject */}
+                    {/* Birth Registration No */}
+                    <div className="sm:col-span-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className={modernLabelClass}>
+                          ১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর <span className="text-rose-500">*</span>
+                        </label>
+                        <span className="text-[10px] font-mono text-slate-500 font-bold">
+                          {birthRegNo.replace(/\D/g, '').length}/১৭
+                        </span>
+                      </div>
+                      <input 
+                        type="text" 
+                        required 
+                        value={birthRegNo}
+                        onChange={(e) => setBirthRegNo(e.target.value)}
+                        placeholder="যেমন: ২০১০১৫১২৩৪৫৬৭৮৯০১"
+                        className={modernInputClass}
+                      />
+                    </div>
+
+                    {/* Date of Birth */}
                     <div>
                       <label className={modernLabelClass}>
-                        ৪র্থ বিষয় / অতিরিক্ত বিষয় *
+                        জন্ম তারিখ <span className="text-rose-500">*</span>
                       </label>
-                      <select 
-                        value={optionalSubject} 
-                        onChange={(e) => setOptionalSubject(e.target.value)}
-                        disabled={isOptionalDisabled}
-                        className={isOptionalDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
+                      <input 
+                        type="date" 
+                        required 
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className={modernInputClass}
+                      />
+                    </div>
+
+                    {/* Gender */}
+                    <div>
+                      <label className={modernLabelClass}>
+                        লিঙ্গ <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value as any)}
+                        className={modernSelectClass}
                       >
-                        {optionalSubjectOptions.map((opt) => (
-                          <option key={opt.code || opt.name} value={opt.name}>
-                            {opt.name} {opt.category && opt.name !== 'কোনটিই নয়' ? `(${opt.category})` : ''}
-                          </option>
-                        ))}
+                        <option value="পুরুষ">পুরুষ</option>
+                        <option value="নারী">নারী</option>
+                        <option value="অন্যান্য">অন্যান্য</option>
                       </select>
-                      <span className="text-[10px] text-slate-500 font-medium block mt-1">
-                        শ্রেণি ও বিভাগ অনুযায়ী অনুমোদিত কারিকুলাম তালিকা থেকে অতিরিক্ত বিষয় নির্বাচিত হবে।
-                      </span>
                     </div>
 
-                    {/* Stipend Card */}
-                    <div className="sm:col-span-2 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id="admissionIsStipend"
-                          checked={isStipend}
-                          onChange={(e) => setIsStipend(e.target.checked)}
-                          className="w-4 h-4 accent-amber-500 rounded cursor-pointer shrink-0"
-                        />
-                        <label htmlFor="admissionIsStipend" className="text-xs font-black text-amber-950 cursor-pointer flex items-center gap-1.5">
-                          <Award size={16} className="text-amber-600 shrink-0" />
-                          <span>শিক্ষার্থী উপবৃত্তি প্রাপ্ত</span>
-                        </label>
-                      </div>
-
-                      {isStipend && (
-                        <div className="flex items-center gap-2 shrink-0">
-                          <label className="text-[10.5px] font-black text-amber-900">ক্যাটাগরি:</label>
-                          <select
-                            value={stipendCategory}
-                            onChange={(e) => setStipendCategory(e.target.value)}
-                            className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl font-bold text-xs text-amber-900 outline-none shadow-2xs"
-                          >
-                            <option value="সাধারণ উপবৃত্তি">সাধারণ উপবৃত্তি</option>
-                            <option value="মেধাভিত্তিক উপবৃত্তি">মেধাভিত্তিক উপবৃত্তি</option>
-                            <option value="বিশেষ সহায়তা">বিশেষ সহায়তা</option>
-                          </select>
-                        </div>
-                      )}
+                    {/* Religion */}
+                    <div>
+                      <label className={modernLabelClass}>
+                        ধর্ম <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={religion}
+                        onChange={(e) => setReligion(e.target.value as any)}
+                        className={modernSelectClass}
+                      >
+                        <option value="ইসলাম">ইসলাম</option>
+                        <option value="হিন্দু">হিন্দু</option>
+                        <option value="খ্রিস্টান">খ্রিস্টান</option>
+                        <option value="বৌদ্ধ">বৌদ্ধ</option>
+                        <option value="অন্যান্য">অন্যান্য</option>
+                      </select>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* ═════════════════════════════════════════════ */}
-              {/* STEP 2: PERSONAL DETAILS                     */}
-              {/* ═════════════════════════════════════════════ */}
-              {currentStep === 2 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  <div className="border-b border-slate-200/90 pb-3 flex items-center justify-between">
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <User className="text-indigo-600" size={18} />
-                      ২. শিক্ষার্থীর ব্যক্তিগত বিবরণী
-                    </h3>
-                    <span className="text-xs text-slate-500 font-bold">* চিহ্নিত ঘর আবশ্যক</span>
+                    {/* Blood Group */}
+                    <div>
+                      <label className={modernLabelClass}>
+                        <Droplet size={13} className="text-rose-500" />
+                        <span>রক্তের গ্রুপ</span>
+                      </label>
+                      <select
+                        value={bloodGroup}
+                        onChange={(e) => setBloodGroup(e.target.value)}
+                        className={modernSelectClass}
+                      >
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    
-                    {/* Left Form Grid */}
-                    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      
-                      {/* Name in Bangla */}
-                      <div className="sm:col-span-2">
-                        <label className={modernLabelClass}>
-                          শিক্ষার্থীর পূর্ণ নাম (বাংলায়) *
-                        </label>
-                        <input 
-                          type="text" 
-                          required 
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="যেমন: মোঃ আরমান হোসেন"
-                          className={modernInputClass}
-                        />
-                      </div>
+                  {/* Right Photo Upload Box */}
+                  <div className="flex flex-col items-center p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3 shadow-2xs">
+                    <span className="text-xs font-black text-slate-800">
+                      পাসপোর্ট সাইজ ছবি
+                    </span>
 
-                      {/* Name in English */}
-                      <div className="sm:col-span-2">
-                        <label className={modernLabelClass}>
-                          নাম (ইংরেজিতে)
-                        </label>
-                        <input 
-                          type="text" 
-                          value={fullNameEn}
-                          onChange={(e) => setFullNameEn(e.target.value.toUpperCase())}
-                          placeholder="MD. ARMAN HOSSAIN"
-                          className={modernInputClass}
-                        />
-                      </div>
-
-                      {/* Mobile Number */}
-                      <div className="sm:col-span-2 p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-200/80 shadow-2xs">
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                            <Phone size={14} className="text-indigo-600" />
-                            <span>অভিভাবকের সচল মোবাইল নম্বর *</span>
-                          </label>
-                          <span className="text-[10px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-200">
-                            এই নম্বরে SMS যাবে
-                          </span>
-                        </div>
-                        <input 
-                          type="tel" 
-                          required 
-                          value={mobile}
-                          onChange={(e) => setMobile(e.target.value)}
-                          placeholder="01812345678"
-                          className={modernInputClass}
-                        />
-                      </div>
-
-                      {/* Birth Registration No */}
-                      <div className="sm:col-span-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <label className={modernLabelClass}>
-                            ১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর *
-                          </label>
-                          <span className="text-[10px] font-mono text-slate-500 font-bold">
-                            {birthRegNo.replace(/\D/g, '').length}/১৭
-                          </span>
-                        </div>
-                        <input 
-                          type="text" 
-                          required 
-                          value={birthRegNo}
-                          onChange={(e) => setBirthRegNo(e.target.value)}
-                          placeholder="যেমন: ২০১০১৫১২৩৪৫৬৭৮৯০১"
-                          className={modernInputClass}
-                        />
-                      </div>
-
-                      {/* Date of Birth */}
-                      <div>
-                        <label className={modernLabelClass}>
-                          জন্ম তারিখ *
-                        </label>
-                        <input 
-                          type="date" 
-                          required 
-                          value={dob}
-                          onChange={(e) => setDob(e.target.value)}
-                          className={modernInputClass}
-                        />
-                      </div>
-
-                      {/* Gender */}
-                      <div>
-                        <label className={modernLabelClass}>
-                          লিঙ্গ *
-                        </label>
-                        <select
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value as any)}
-                          className={modernSelectClass}
-                        >
-                          <option value="পুরুষ">পুরুষ</option>
-                          <option value="নারী">নারী</option>
-                          <option value="অন্যান্য">অন্যান্য</option>
-                        </select>
-                      </div>
-
-                      {/* Religion */}
-                      <div>
-                        <label className={modernLabelClass}>
-                          ধর্ম *
-                        </label>
-                        <select
-                          value={religion}
-                          onChange={(e) => setReligion(e.target.value as any)}
-                          className={modernSelectClass}
-                        >
-                          <option value="ইসলাম">ইসলাম</option>
-                          <option value="হিন্দু">হিন্দু</option>
-                          <option value="খ্রিস্টান">খ্রিস্টান</option>
-                          <option value="বৌদ্ধ">বৌদ্ধ</option>
-                          <option value="অন্যান্য">অন্যান্য</option>
-                        </select>
-                      </div>
-
-                      {/* Blood Group */}
-                      <div>
-                        <label className={modernLabelClass}>
-                          <Droplet size={13} className="text-rose-500" />
-                          <span>রক্তের গ্রুপ</span>
-                        </label>
-                        <select
-                          value={bloodGroup}
-                          onChange={(e) => setBloodGroup(e.target.value)}
-                          className={modernSelectClass}
-                        >
-                          <option value="A+">A+</option>
-                          <option value="A-">A-</option>
-                          <option value="B+">B+</option>
-                          <option value="B-">B-</option>
-                          <option value="O+">O+</option>
-                          <option value="O-">O-</option>
-                          <option value="AB+">AB+</option>
-                          <option value="AB-">AB-</option>
-                        </select>
-                      </div>
-
-                    </div>
-
-                    {/* Right Photo Upload Box */}
-                    <div className="flex flex-col items-center p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3 shadow-2xs">
-                      <span className="text-xs font-black text-slate-800">
-                        পাসপোর্ট সাইজ ছবি
-                      </span>
-
-                      <div className="relative w-36 h-44 rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white flex flex-col items-center justify-center overflow-hidden shadow-inner group transition">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handlePhotoChange} 
-                          className="absolute inset-0 opacity-0 cursor-pointer z-20" 
-                        />
-                        {photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={photo} alt="Student" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="text-center p-3 text-slate-400 group-hover:text-indigo-600 transition">
-                            <Camera size={32} className="mx-auto mb-1 text-indigo-400 group-hover:scale-110 transition" />
-                            <span className="text-xs font-black block text-indigo-700">ছবি আপলোড</span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">সর্বোচ্চ ২MB</span>
-                          </div>
-                        )}
-                      </div>
-
+                    <div className="relative w-36 h-44 rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white flex flex-col items-center justify-center overflow-hidden shadow-inner group transition">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handlePhotoChange} 
+                        className="absolute inset-0 opacity-0 cursor-pointer z-20" 
+                      />
                       {photo ? (
-                        <button
-                          type="button"
-                          onClick={() => setPhoto('')}
-                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition"
-                        >
-                          <X size={13} />
-                          <span>ছবিটি মুছুন</span>
-                        </button>
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photo} alt="Student" className="w-full h-full object-cover" />
                       ) : (
-                        <p className="text-[10px] text-center text-slate-500">
-                          * সদ্য তোলা স্পষ্ট রঙিন ছবি আপলোড করুন।
-                        </p>
+                        <div className="text-center p-3 text-slate-400 group-hover:text-indigo-600 transition">
+                          <Camera size={32} className="mx-auto mb-1 text-indigo-400 group-hover:scale-110 transition" />
+                          <span className="text-xs font-black block text-indigo-700">ছবি আপলোড</span>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">সর্বোচ্চ ২MB</span>
+                        </div>
                       )}
                     </div>
 
+                    {photo ? (
+                      <button
+                        type="button"
+                        onClick={() => setPhoto('')}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition"
+                      >
+                        <X size={13} />
+                        <span>ছবিটি মুছুন</span>
+                      </button>
+                    ) : (
+                      <p className="text-[10px] text-center text-slate-500">
+                        * সদ্য তোলা স্পষ্ট রঙিন ছবি আপলোড করুন।
+                      </p>
+                    )}
                   </div>
+
                 </div>
-              )}
+              </section>
 
               {/* ═════════════════════════════════════════════ */}
-              {/* STEP 3: PARENTS DETAILS                      */}
+              {/* SECTION 3: PARENTS DETAILS                   */}
               {/* ═════════════════════════════════════════════ */}
-              {currentStep === 3 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  <div className="border-b border-slate-200/90 pb-3 flex items-center justify-between">
+              <section className="space-y-4 pt-2">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                      ৩
+                    </span>
                     <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <Users className="text-indigo-600" size={18} />
-                      ৩. পিতা ও মাতার বিবরণী
+                      <Users className="text-indigo-600" size={17} />
+                      পিতা ও মাতার বিবরণী
                     </h3>
-                    <span className="text-xs text-slate-500 font-bold">* পিতা বা মাতার নাম আবশ্যক</span>
                   </div>
+                  <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">* পিতা অথবা মাতার নাম আবশ্যক</span>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    
-                    {/* Father Details */}
-                    <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
-                      <span className="font-black text-indigo-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                        <User size={15} className="text-indigo-600" /> পিতার তথ্য
-                      </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  
+                  {/* Father Details */}
+                  <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
+                    <span className="font-black text-indigo-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
+                      <User size={15} className="text-indigo-600" /> পিতার তথ্য
+                    </span>
 
-                      <div className="space-y-3">
-                        <div>
-                          <label className={modernLabelClass}>
-                            পিতার নাম *
-                          </label>
-                          <input 
-                            type="text" 
-                            required 
-                            value={fatherName}
-                            onChange={(e) => setFatherName(e.target.value)}
-                            placeholder="পিতার পূর্ণ নাম লিখুন"
-                            className={modernInputClass}
-                          />
-                        </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className={modernLabelClass}>
+                          পিতার নাম <span className="text-rose-500">*</span>
+                        </label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={fatherName}
+                          onChange={(e) => setFatherName(e.target.value)}
+                          placeholder="পিতার পূর্ণ নাম লিখুন"
+                          className={modernInputClass}
+                        />
+                      </div>
 
-                        <div>
-                          <label className={modernLabelClass}>
-                            পিতার এনআইডি নম্বর
-                          </label>
-                          <input 
-                            type="text" 
-                            value={fatherNid}
-                            onChange={(e) => setFatherNid(e.target.value)}
-                            placeholder="জাতীয় পরিচয়পত্র নম্বর"
-                            className={modernInputClass}
-                          />
-                        </div>
+                      <div>
+                        <label className={modernLabelClass}>
+                          পিতার এনআইডি নম্বর
+                        </label>
+                        <input 
+                          type="text" 
+                          value={fatherNid}
+                          onChange={(e) => setFatherNid(e.target.value)}
+                          placeholder="জাতীয় পরিচয়পত্র নম্বর"
+                          className={modernInputClass}
+                        />
+                      </div>
 
-                        <div>
-                          <label className={modernLabelClass}>
-                            পিতার পেশা
-                          </label>
-                          <input 
-                            type="text" 
-                            value={fatherOcc}
-                            onChange={(e) => setFatherOcc(e.target.value)}
-                            placeholder="যেমন: শিক্ষক / ব্যবসায়ী / চাকুরীজীবী"
-                            className={modernInputClass}
-                          />
-                        </div>
+                      <div>
+                        <label className={modernLabelClass}>
+                          পিতার পেশা
+                        </label>
+                        <input 
+                          type="text" 
+                          value={fatherOcc}
+                          onChange={(e) => setFatherOcc(e.target.value)}
+                          placeholder="যেমন: শিক্ষক / ব্যবসায়ী / চাকুরীজীবী"
+                          className={modernInputClass}
+                        />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Mother Details */}
-                    <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
-                      <span className="font-black text-purple-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                        <User size={15} className="text-purple-600" /> মাতার তথ্য
-                      </span>
+                  {/* Mother Details */}
+                  <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
+                    <span className="font-black text-purple-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
+                      <User size={15} className="text-purple-600" /> মাতার তথ্য
+                    </span>
 
-                      <div className="space-y-3">
-                        <div>
-                          <label className={modernLabelClass}>
-                            মাতার নাম *
-                          </label>
-                          <input 
-                            type="text" 
-                            required 
-                            value={motherName}
-                            onChange={(e) => setMotherName(e.target.value)}
-                            placeholder="মাতার পূর্ণ নাম লিখুন"
-                            className={modernInputClass}
-                          />
-                        </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className={modernLabelClass}>
+                          মাতার নাম <span className="text-rose-500">*</span>
+                        </label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={motherName}
+                          onChange={(e) => setMotherName(e.target.value)}
+                          placeholder="মাতার পূর্ণ নাম লিখুন"
+                          className={modernInputClass}
+                        />
+                      </div>
 
-                        <div>
-                          <label className={modernLabelClass}>
-                            মাতার এনআইডি নম্বর
-                          </label>
-                          <input 
-                            type="text" 
-                            value={motherNid}
-                            onChange={(e) => setMotherNid(e.target.value)}
-                            placeholder="জাতীয় পরিচয়পত্র নম্বর"
-                            className={modernInputClass}
-                          />
-                        </div>
+                      <div>
+                        <label className={modernLabelClass}>
+                          মাতার এনআইডি নম্বর
+                        </label>
+                        <input 
+                          type="text" 
+                          value={motherNid}
+                          onChange={(e) => setMotherNid(e.target.value)}
+                          placeholder="জাতীয় পরিচয়পত্র নম্বর"
+                          className={modernInputClass}
+                        />
+                      </div>
 
-                        <div>
-                          <label className={modernLabelClass}>
-                            মাতার পেশা
-                          </label>
-                          <input 
-                            type="text" 
-                            value={motherOcc}
-                            onChange={(e) => setMotherOcc(e.target.value)}
-                            placeholder="যেমন: গৃহিণী / শিক্ষিকা / চাকুরীজীবী"
-                            className={modernInputClass}
-                          />
-                        </div>
+                      <div>
+                        <label className={modernLabelClass}>
+                          মাতার পেশা
+                        </label>
+                        <input 
+                          type="text" 
+                          value={motherOcc}
+                          onChange={(e) => setMotherOcc(e.target.value)}
+                          placeholder="যেমন: গৃহিণী / শিক্ষিকা / চাকুরীজীবী"
+                          className={modernInputClass}
+                        />
                       </div>
                     </div>
+                  </div>
 
+                </div>
+              </section>
+
+              {/* ═════════════════════════════════════════════ */}
+              {/* SECTION 4: PREVIOUS SCHOOL & ADDRESS         */}
+              {/* ═════════════════════════════════════════════ */}
+              <section className="space-y-4 pt-2">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                      ৪
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                      <MapPin className="text-indigo-600" size={17} />
+                      পূর্ববর্তী স্কুল ও ঠিকানা বিবরণী
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">* বর্তমান ঠিকানা আবশ্যক</span>
+                </div>
+
+                {/* Previous School */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={modernLabelClass}>
+                      পূর্বে অধ্যয়নকৃত বিদ্যালয়ের নাম
+                    </label>
+                    <input 
+                      type="text" 
+                      value={prevSchoolName}
+                      onChange={(e) => setPrevSchoolName(e.target.value)}
+                      placeholder="পূর্বে অধ্যয়নকৃত বিদ্যালয়"
+                      className={modernInputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={modernLabelClass}>
+                      সর্বশেষ উত্তীর্ণ শ্রেণির ফলাফল
+                    </label>
+                    <input 
+                      type="text" 
+                      value={prevGpa}
+                      onChange={(e) => setPrevGpa(e.target.value)}
+                      placeholder="যেমন: GPA 5.00 বা ১ম স্থান"
+                      className={modernInputClass}
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* ═════════════════════════════════════════════ */}
-              {/* STEP 4: PREVIOUS SCHOOL & ADDRESS            */}
-              {/* ═════════════════════════════════════════════ */}
-              {currentStep === 4 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  <div className="border-b border-slate-200/90 pb-3 flex items-center justify-between">
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <MapPin className="text-indigo-600" size={18} />
-                      ৪. পূর্ববর্তী স্কুল ও ঠিকানা বিবরণী
-                    </h3>
-                    <span className="text-xs text-slate-500 font-bold">* বর্তমান ঠিকানা আবশ্যক</span>
+                {/* Address */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-slate-800 text-xs">ঠিকানা বিস্তারিত:</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={isSameAddress}
+                        onChange={(e) => setIsSameAddress(e.target.checked)}
+                        className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
+                      />
+                      <span>বর্তমান ও স্থায়ী ঠিকানা একই</span>
+                    </label>
                   </div>
 
-                  {/* Previous School */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={modernLabelClass}>
-                        পূর্বে অধ্যয়নকৃত বিদ্যালয়ের নাম
+                        বর্তমান ঠিকানা (গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা) <span className="text-rose-500">*</span>
                       </label>
-                      <input 
-                        type="text" 
-                        value={prevSchoolName}
-                        onChange={(e) => setPrevSchoolName(e.target.value)}
-                        placeholder="পূর্বে অধ্যয়নকৃত বিদ্যালয়"
+                      <textarea 
+                        rows={2} 
+                        required 
+                        value={currentAddress}
+                        onChange={(e) => setCurrentAddress(e.target.value)}
+                        placeholder="গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা"
                         className={modernInputClass}
                       />
                     </div>
 
                     <div>
                       <label className={modernLabelClass}>
-                        সর্বশেষ উত্তীর্ণ শ্রেণির ফলাফল
+                        স্থায়ী ঠিকানা <span className="text-rose-500">*</span>
                       </label>
-                      <input 
-                        type="text" 
-                        value={prevGpa}
-                        onChange={(e) => setPrevGpa(e.target.value)}
-                        placeholder="যেমন: GPA 5.00 বা ১ম স্থান"
-                        className={modernInputClass}
+                      <textarea 
+                        rows={2} 
+                        required={!isSameAddress}
+                        disabled={isSameAddress}
+                        value={permanentAddress}
+                        onChange={(e) => setPermanentAddress(e.target.value)}
+                        placeholder={isSameAddress ? 'বর্তমান ঠিকানার অনুরূপ' : 'গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা'}
+                        className={isSameAddress ? `${modernInputClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernInputClass}
                       />
                     </div>
-                  </div>
-
-                  {/* Address */}
-                  <div className="space-y-3 pt-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-slate-800 text-xs">ঠিকানা বিস্তারিত:</span>
-                      <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={isSameAddress}
-                          onChange={(e) => setIsSameAddress(e.target.checked)}
-                          className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
-                        />
-                        <span>বর্তমান ও স্থায়ী ঠিকানা একই</span>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={modernLabelClass}>
-                          বর্তমান ঠিকানা (গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা) *
-                        </label>
-                        <textarea 
-                          rows={2} 
-                          required 
-                          value={currentAddress}
-                          onChange={(e) => setCurrentAddress(e.target.value)}
-                          placeholder="গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা"
-                          className={modernInputClass}
-                        />
-                      </div>
-
-                      <div>
-                        <label className={modernLabelClass}>
-                          স্থায়ী ঠিকানা *
-                        </label>
-                        <textarea 
-                          rows={2} 
-                          required={!isSameAddress}
-                          disabled={isSameAddress}
-                          value={permanentAddress}
-                          onChange={(e) => setPermanentAddress(e.target.value)}
-                          placeholder={isSameAddress ? 'বর্তমান ঠিকানার অনুরূপ' : 'গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা'}
-                          className={isSameAddress ? `${modernInputClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernInputClass}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SMS Alert & Declaration Notice */}
-                  <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
-                      <Send size={15} className="text-indigo-600 shrink-0" />
-                      <span>
-                        <strong>স্বয়ংক্রিয় এসএমএস:</strong> আবেদন সফলভাবে জমা হওয়ার সাথে সাথে আপনার দেওয়া মোবাইল নম্বরে ({mobile || '০১৮...'}) নিশ্চিতকরণ এসএমএস চলে যাবে।
-                      </span>
-                    </div>
-
-                    <label className="flex items-start gap-2.5 cursor-pointer pt-1">
-                      <input 
-                        type="checkbox"
-                        checked={declaredCorrect}
-                        onChange={(e) => setDeclaredCorrect(e.target.checked)}
-                        className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 cursor-pointer mt-0.5 shrink-0"
-                      />
-                      <span className="text-xs text-slate-700 font-bold select-none">
-                        আমি নিশ্চয়তা দিচ্ছি যে উপরে প্রদত্ত সকল তথ্য সম্পূর্ণ সত্য ও সঠিক।
-                      </span>
-                    </label>
                   </div>
                 </div>
-              )}
+              </section>
 
-              {/* ── STEP NAVIGATION BUTTONS ── */}
-              <div className="pt-4 border-t border-slate-200/90 flex items-center justify-between gap-3">
-                {currentStep > 1 ? (
+              {/* ═════════════════════════════════════════════ */}
+              {/* SECTION 5: DECLARATION, SMS & SUBMIT BUTTON  */}
+              {/* ═════════════════════════════════════════════ */}
+              <div className="pt-2 space-y-4">
+                
+                {/* SMS Alert & Declaration Box */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
+                    <Send size={15} className="text-indigo-600 shrink-0" />
+                    <span>
+                      <strong>স্বয়ংক্রিয় এসএমএস:</strong> আবেদন চূড়ান্ত জমা হওয়ার সাথে সাথে অভিভাবকের মোবাইল নম্বরে ({mobile || '০১৮...'}) নিশ্চিতকরণ এসএমএস চলে যাবে।
+                    </span>
+                  </div>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                    <input 
+                      type="checkbox" 
+                      checked={declaredCorrect}
+                      onChange={(e) => setDeclaredCorrect(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 cursor-pointer mt-0.5 shrink-0"
+                    />
+                    <span className="text-xs text-slate-700 font-bold select-none">
+                      আমি নিশ্চয়তা দিচ্ছি যে উপরে প্রদত্ত সকল তথ্য সম্পূর্ণ সত্য ও সঠিক।
+                    </span>
+                  </label>
+                </div>
+
+                {/* Submit Action Area */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <button
                     type="button"
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                    onClick={handleResetForm}
+                    className="w-full sm:w-auto px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer order-2 sm:order-1"
                   >
-                    <ArrowLeft size={14} />
-                    <span>পূর্ববর্তী ধাপ</span>
+                    <RotateCcw size={15} />
+                    <span>ফর্ম রিসেট করুন</span>
                   </button>
-                ) : (
-                  <div />
-                )}
 
-                {currentStep < 4 ? (
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                  >
-                    <span>পরবর্তী ধাপ</span>
-                    <ArrowRight size={14} />
-                  </button>
-                ) : (
                   <button
                     type="submit"
                     disabled={isSubmitting || !declaredCorrect}
-                    className="px-7 py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg flex items-center gap-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
+                    className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 hover:from-emerald-500 hover:to-teal-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg hover:shadow-xl transition-all transform active:scale-98 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 order-1 sm:order-2"
                   >
                     {isSubmitting ? (
                       <>
-                        <RefreshCw size={15} className="animate-spin" />
-                        <span>আবেদন জমা ও এসএমএস পাঠানো হচ্ছে...</span>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>আবেদন প্রক্রিয়া সম্পন্ন ও এসএমএস পাঠানো হচ্ছে...</span>
                       </>
                     ) : (
                       <>
-                        <Save size={15} />
-                        <span>অনলাইন আবেদন চূড়ান্ত জমা দিন</span>
+                        <Save size={16} />
+                        <span>অনলাইন আবেদন চূড়ান্ত জমা দিন ও এসএমএস গ্রহণ করুন</span>
                       </>
                     )}
                   </button>
-                )}
+                </div>
+
               </div>
 
             </form>
