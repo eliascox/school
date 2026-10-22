@@ -576,7 +576,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
     bgImage: '/school-campus.jpg',
     bgGradientFrom: '#0f172a',
     bgGradientTo: '#1e1b4b',
-    bgOverlayOpacity: 70,
+    bgOverlayOpacity: 25,
     primaryCta: {
       text: 'ভর্তি আবেদন করুন',
       href: '/admission',
@@ -595,9 +595,41 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
       {
         id: 'slide-1',
         title: 'বরইতলী উচ্চ বিদ্যালয়',
-        subtitle: 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
+        subtitle: 'ঐতিহ্যের ৫৫ বছর | জ্ঞান, প্রজ্ঞা ও মূল্যবোধের অনন্য বিদ্যাপীঠ',
         imageUrl: '/school-campus.jpg',
-        ctaText: 'ভর্তি আবেদন',
+        ctaText: 'ভর্তি আবেদন করুন',
+        ctaLink: '/admission',
+      },
+      {
+        id: 'slide-2',
+        title: 'নান্দনিক ক্যাম্পাস ও সুপরিকল্পিত অবকাঠামো',
+        subtitle: 'মনোরম প্রাকৃতিক ও কোলাহলমুক্ত পরিবেশে শিক্ষার্থীদের সৃষ্টিশীল মেধা বিকাশ',
+        imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=85',
+        ctaText: 'ক্যাম্পাস পরিচিতি',
+        ctaLink: '#about',
+      },
+      {
+        id: 'slide-3',
+        title: 'শেখ রাসেল ডিজিটাল ল্যাব ও আধুনিক বিজ্ঞানাগার',
+        subtitle: 'হাতে-কলমে আধুনিক বিজ্ঞান শিক্ষা ও ডিজিটাল তথ্যপ্রযুক্তির সমন্বিত প্রশিক্ষণ',
+        imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=2000&q=85',
+        ctaText: 'সুবিধাসমূহ দেখুন',
+        ctaLink: '#facilities',
+      },
+      {
+        id: 'slide-4',
+        title: 'ক্রীড়া, বিতর্ক ও সুস্থ সাংস্কৃতিক চর্চা',
+        subtitle: 'পড়াশোনার পাশাপাশি শারীরিক ও মানসিক উৎকর্ষ সাধনে সক্রিয় সহশিক্ষা কার্যক্রম',
+        imageUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85',
+        ctaText: 'ফলাফল অনুসন্ধান',
+        ctaLink: '/result',
+      },
+      {
+        id: 'slide-5',
+        title: 'সমৃদ্ধ লাইব্রেরি ও নিরবচ্ছিন্ন পাঠচর্চা',
+        subtitle: '৫০০০+ মূল্যবান বই, গবেষণা সাময়িকী ও নিয়মিত জাতীয় দৈনিক পত্রিকা সমৃদ্ধ পাঠাগার',
+        imageUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=2000&q=85',
+        ctaText: 'অনলাইন ভর্তি',
         ctaLink: '/admission',
       },
     ],
@@ -977,6 +1009,29 @@ class LandingPageService {
     }
   }
 
+  private normalizeLoadedConfig(parsed: any): LandingPageConfig {
+    if (!parsed) return DEFAULT_LANDING_CONFIG;
+    if (!parsed.gallery) {
+      parsed.gallery = DEFAULT_GALLERY_CONFIG;
+    }
+    // Upgrade legacy single-slide configs to the curated academic multi-slide set
+    if (
+      !parsed.hero?.slides ||
+      parsed.hero.slides.length === 0 ||
+      (parsed.hero.slides.length === 1 && parsed.hero.slides[0].imageUrl === '/school-campus.jpg')
+    ) {
+      if (!parsed.hero) parsed.hero = { ...DEFAULT_LANDING_CONFIG.hero };
+      parsed.hero.slides = DEFAULT_LANDING_CONFIG.hero.slides;
+    }
+    // Normalize opacity: replace old heavy dark washes (70% or 45%) with soft, vibrant 25%
+    if (parsed.hero) {
+      if (parsed.hero.bgOverlayOpacity === 70 || parsed.hero.bgOverlayOpacity === 45 || typeof parsed.hero.bgOverlayOpacity !== 'number') {
+        parsed.hero.bgOverlayOpacity = 25;
+      }
+    }
+    return parsed;
+  }
+
   // --- DRAFT CONFIG ---
   public getDraftConfig(): LandingPageConfig {
     if (typeof window === 'undefined') return DEFAULT_LANDING_CONFIG;
@@ -984,10 +1039,7 @@ class LandingPageService {
       const data = localStorage.getItem(STORAGE_KEYS.DRAFT);
       if (data) {
         const parsed = JSON.parse(data);
-        if (!parsed.gallery) {
-          parsed.gallery = DEFAULT_GALLERY_CONFIG;
-        }
-        return parsed;
+        return this.normalizeLoadedConfig(parsed);
       }
       // If no draft exists, initialize with published or default
       const published = this.getPublishedConfig();
@@ -1025,10 +1077,7 @@ class LandingPageService {
       const data = localStorage.getItem(STORAGE_KEYS.PUBLISHED);
       if (data) {
         const parsed = JSON.parse(data);
-        if (!parsed.gallery) {
-          parsed.gallery = DEFAULT_GALLERY_CONFIG;
-        }
-        return parsed;
+        return this.normalizeLoadedConfig(parsed);
       }
       // First run: seed with DEFAULT_LANDING_CONFIG
       localStorage.setItem(STORAGE_KEYS.PUBLISHED, JSON.stringify(DEFAULT_LANDING_CONFIG));
