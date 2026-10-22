@@ -32,6 +32,7 @@ import { auditTrailService } from '@/services/auditTrailService';
 import { settingsService } from '@/services/settingsService';
 import { curriculumService } from '@/services/curriculumService';
 import { languageService, AppLanguage } from '@/services/languageService';
+import { smsService } from '@/services/smsService';
 import { useRouter } from 'next/navigation';
 import { teacherAuthService } from '@/services/teacherAuthService';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
@@ -331,6 +332,17 @@ export default function AdmissionPage() {
       performedBy: 'Admin',
       status: 'success'
     });
+
+    // 📱 Automated Admission Confirmation SMS
+    if (studentData.mobile) {
+      smsService.sendAdmissionConfirmationSMS({
+        name: studentData.name,
+        appId: admitted.id,
+        grade: studentData.grade,
+        mobile: studentData.mobile,
+        schoolName: schoolSettings?.schoolName,
+      }).catch(console.error);
+    }
 
     setIsSuccess(true);
   };

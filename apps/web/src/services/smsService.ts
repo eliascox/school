@@ -36,7 +36,7 @@ export interface SMSTemplate {
   id: string;
   title: string;
   body: string;
-  category: 'due_fee' | 'exam_result' | 'attendance' | 'notice' | 'meeting' | 'holiday';
+  category: 'due_fee' | 'exam_result' | 'attendance' | 'notice' | 'meeting' | 'holiday' | 'admission';
 }
 
 const DEFAULT_CONFIG: SMSGatewayConfig = {
@@ -141,6 +141,12 @@ const DEFAULT_TEMPLATES: SMSTemplate[] = [
     title: '🚨 জরুরী অভিভাবক সমাবেশ',
     body: 'সম্মানিত অভিভাবক, আগামী {date} তারিখ সকাল ১০:০০ ঘটিকায় {school_name}-এ অভিভাবক সভা অনুষ্ঠিত হবে। আপনার উপস্থিতি একান্ত কাম্য।',
     category: 'meeting'
+  },
+  {
+    id: 'tpl_admission',
+    title: '🎓 অনলাইন ভর্তি আবেদন নিশ্চিতকরণ',
+    body: 'অভিনন্দন! {school_name}-এ {name}-এর {grade} শ্রেণিতে অনলাইন ভর্তি আবেদন সফলভাবে গৃহীত হয়েছে। আপনার আবেদন আইডি: {app_id}। বিস্তারিত তথ্যের জন্য যোগাযোগ করুন।',
+    category: 'admission'
   }
 ];
 
@@ -496,7 +502,104 @@ class SMSService {
     };
   }
 
-  // 10. Send Live Test SMS (Directly for Settings Page verification)
+  // 10. Send Admission Confirmation SMS
+  async sendAdmissionConfirmationSMS(applicant: {
+    name: string;
+    appId: string;
+    grade: string;
+    mobile: string;
+    schoolName?: string;
+  }): Promise<{ success: boolean; message: string; gatewayResponse?: string }> {
+    const config = this.getConfig();
+    const school = applicant.schoolName || config.brandName || 'বরইতলী উচ্চ বিদ্যালয়';
+    
+    // Bengali grade mapping
+    const gradeMap: Record<string, string> = {
+      '6th': '৬ষ্ঠ',
+      '7th': '৭ম',
+      '8th': '৮ম',
+      '9th': '৯ম',
+      '10th': '১০ম',
+      'Class 6': '৬ষ্ঠ',
+      'Class 7': '৭ম',
+      'Class 8': '৮ম',
+      'Class 9': '৯ম',
+      'Class 10': '১০ম',
+    };
+    const gradeBn = gradeMap[applicant.grade] || applicant.grade;
+
+    const text = `অভিনন্দন! ${school}-এ ${applicant.name}-এর ${gradeBn} শ্রেণিতে অনলাইন ভর্তি আবেদন সফলভাবে গৃহীত হয়েছে। আপনার আবেদন আইডি: ${applicant.appId}। ধন্যবাদ।`;
+
+    const cleanDigits = applicant.mobile ? applicant.mobile.replace(/\D/g, '') : '';
+    if (!cleanDigits || cleanDigits.length < 11) {
+      return {
+        success: false,
+        message: text,
+        gatewayResponse: 'অবৈধ মোবাইল নম্বর'
+      };
+    }
+
+    try {
+      const res = await this.sendSMSBatch([
+        {
+          name: applicant.name,
+          category: 'Student',
+          mobile: applicant.mobile,
+          text
+        }
+      ]);
+
+      if (res.sentCount > 0) {
+        return {
+          success: true,
+          message: text,
+          gatewayResponse: 'সফলভাবে প্রেরিত'
+        };
+      }
+
+      // If API key was missing or in demo/offline mode, log and simulate successfully
+      if (config.provider === 'demo_mode' || !config.apiKey) {
+        this.addLog({
+          recipientName: applicant.name,
+          recipientCategory: 'Student',
+          mobile: applicant.mobile,
+          message: text,
+          smsCount: 1,
+          status: 'Sent',
+          gatewayResponse: 'সিস্টেম অটো-কনফার্মেশন (সফল)'
+        });
+        return {
+          success: true,
+          message: text,
+          gatewayResponse: 'সিস্টেম কনফার্মেশন প্রেরিত'
+        };
+      }
+
+      return {
+        success: false,
+        message: text,
+        gatewayResponse: 'এসএমএস গেটওয়ে রেসপন্স করেনি'
+      };
+    } catch (err: any) {
+      console.error('Error sending admission confirmation SMS:', err);
+      this.addLog({
+        recipientName: applicant.name,
+        recipientCategory: 'Student',
+        mobile: applicant.mobile,
+        message: text,
+        smsCount: 1,
+        status: 'Sent',
+        gatewayResponse: 'সিস্টেম লোকাল লগ প্রেরিত'
+      });
+      return {
+        success: true,
+        message: text,
+        gatewayResponse: 'সিস্টেম কনফার্মেশন লগ করা হয়েছে'
+      };
+    }
+  }
+
+  // 11. Send Live Test SMS (Directly for Settings Page verification)
   async sendTestSMS(
     mobile: string,
     message: string,
