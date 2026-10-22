@@ -135,7 +135,7 @@ export default function PublicSchoolHomePage() {
       case 'facilities':
         return <PublicFacilitiesSection key="facilities" facilitiesConfig={landingConfig.facilities} />;
       case 'gallery':
-        return <PublicGallerySection key="gallery" />;
+        return <PublicGallerySection key="gallery" galleryConfig={landingConfig.gallery} />;
       case 'blog':
         return <PublicBlogSection key="blog" blogConfig={landingConfig.blog} />;
       case 'contact':

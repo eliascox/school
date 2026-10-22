@@ -228,6 +228,26 @@ export interface FacilitiesConfig {
   items: FacilityItem[];
 }
 
+export interface GalleryMediaItem {
+  id: string;
+  type: 'image' | 'video';
+  title: string;
+  category: string;
+  thumbnail: string;
+  date: string;
+  videoUrl?: string;
+  caption: string;
+  visible?: boolean;
+}
+
+export interface GalleryConfig {
+  enabled: boolean;
+  eyebrow?: string;
+  title: string;
+  subtitle: string;
+  items: GalleryMediaItem[];
+}
+
 export interface BlogPostItem {
   id: string;
   title: string;
@@ -357,6 +377,7 @@ export interface LandingPageConfig {
   about: AboutConfig;
   achievers: AchieversConfig;
   facilities: FacilitiesConfig;
+  gallery?: GalleryConfig;
   academic?: AcademicConfig;
   blog: BlogConfig;
   faq: FAQConfig;
@@ -465,6 +486,46 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
       desc: 'বাণিজ্যিক নেতৃত্ব, আধুনিক হিসাবরক্ষণ এবং অর্থ ব্যবস্থাপনায় দক্ষ জনবল তৈরির লক্ষ্যে বাস্তবমুখী উদ্যোক্তা প্রশিক্ষণ ও কেস-স্টাডি পাঠদান।',
       icon: 'TrendingUp',
       color: 'indigo',
+      visible: true
+    }
+  ]
+};
+
+export const DEFAULT_GALLERY_CONFIG: GalleryConfig = {
+  enabled: true,
+  eyebrow: 'ক্যাম্পাস লাইফ ও স্মৃতি',
+  title: 'ছবি এবং ভিডিও গ্যালারী',
+  subtitle: 'বিদ্যালয়ের প্রাণবন্ত পাঠদান, ক্রীড়া ও সাংস্কৃতিক উৎসব এবং বিজ্ঞান প্রদর্শনীর স্মরণীয় মুহূর্তসমূহ।',
+  items: [
+    {
+      id: 'gal-1',
+      type: 'image',
+      title: 'স্মার্ট মাল্টিমিডিয়া ক্লাসরুমে আনন্দময় পাঠদান',
+      category: 'অ্যাকাডেমিক',
+      thumbnail: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=800&auto=format&fit=crop',
+      date: '১২ অক্টোবর ২০২৬',
+      caption: 'শিক্ষার্থীদের ডিজিটাল কনটেন্ট ও ইন্টারেক্টিভ স্মার্টবোর্ডের মাধ্যমে পাঠদান কার্যক্রম।',
+      visible: true
+    },
+    {
+      id: 'gal-2',
+      type: 'video',
+      title: 'বার্ষিক ক্রীড়া ও সাংস্কৃতিক প্রতিযোগিতা ২০২৬',
+      category: 'ভিডিও হাইলাইটস',
+      thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=800&auto=format&fit=crop',
+      date: '০৫ অক্টোবর ২০২৬',
+      videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      caption: 'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা ও মনোজ্ঞ সাংস্কৃতিক অনুষ্ঠানের সেরা মুহূর্তসমূহ।',
+      visible: true
+    },
+    {
+      id: 'gal-3',
+      type: 'image',
+      title: 'বিজ্ঞান মেলা ও শিক্ষার্থীদের রোবটিক্স প্রজেক্ট প্রদর্শনী',
+      category: 'বিজ্ঞান ও প্রযুক্তি',
+      thumbnail: 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=800&auto=format&fit=crop',
+      date: '২৮ সেপ্টেম্বর ২০২৬',
+      caption: 'শেখ রাসেল ডিজিটাল ল্যাবে খুদে বিজ্ঞানীদের উদ্ভাবনী রোবটিক্স এবং বিজ্ঞান প্রজেক্ট প্রদর্শনী।',
       visible: true
     }
   ]
@@ -700,6 +761,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
     ],
   },
   academic: DEFAULT_ACADEMIC_CONFIG,
+  gallery: DEFAULT_GALLERY_CONFIG,
   blog: {
     enabled: true,
     title: 'সংবাদ ও ব্লগ',
@@ -921,7 +983,11 @@ class LandingPageService {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.DRAFT);
       if (data) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (!parsed.gallery) {
+          parsed.gallery = DEFAULT_GALLERY_CONFIG;
+        }
+        return parsed;
       }
       // If no draft exists, initialize with published or default
       const published = this.getPublishedConfig();
@@ -958,7 +1024,11 @@ class LandingPageService {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PUBLISHED);
       if (data) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (!parsed.gallery) {
+          parsed.gallery = DEFAULT_GALLERY_CONFIG;
+        }
+        return parsed;
       }
       // First run: seed with DEFAULT_LANDING_CONFIG
       localStorage.setItem(STORAGE_KEYS.PUBLISHED, JSON.stringify(DEFAULT_LANDING_CONFIG));
@@ -967,6 +1037,24 @@ class LandingPageService {
       console.error('[LandingPageService] Error reading published:', e);
       return DEFAULT_LANDING_CONFIG;
     }
+  }
+
+  public getGalleryConfig(): GalleryConfig {
+    const published = this.getPublishedConfig();
+    return published.gallery || DEFAULT_GALLERY_CONFIG;
+  }
+
+  public updateGallery(gallery: GalleryConfig, user: string = 'অ্যাডমিন', autoPublish: boolean = true): boolean {
+    const draft = this.getDraftConfig();
+    const updated: LandingPageConfig = {
+      ...draft,
+      gallery,
+    };
+    this.saveDraftConfig(updated, user);
+    if (autoPublish) {
+      return this.publish(user, 'গ্যালারি ছবি ও ভিডিও আপডেট করা হয়েছে');
+    }
+    return true;
   }
 
   public getFacilitiesConfig(): FacilitiesConfig {

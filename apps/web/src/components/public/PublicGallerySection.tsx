@@ -13,50 +13,54 @@ import {
   ZoomIn, 
   Calendar 
 } from 'lucide-react';
+import { GalleryConfig, GalleryMediaItem } from '@/services/landingPageService';
 
-interface GalleryMediaItem {
-  id: number;
-  type: 'image' | 'video';
-  title: string;
-  category: string;
-  thumbnail: string;
-  date: string;
-  videoUrl?: string;
-  caption: string;
+interface PublicGallerySectionProps {
+  galleryConfig?: GalleryConfig | null;
 }
 
-export default function PublicGallerySection() {
-  // 3 Gallery Items (Images and Video)
-  const galleryItems: GalleryMediaItem[] = [
+export default function PublicGallerySection({ galleryConfig }: PublicGallerySectionProps = {}) {
+  // Fallback Gallery Items if no dynamic items are configured
+  const defaultItems: GalleryMediaItem[] = [
     {
-      id: 1,
+      id: 'gal-1',
       type: 'image',
       title: 'স্মার্ট মাল্টিমিডিয়া ক্লাসরুমে আনন্দময় পাঠদান',
       category: 'অ্যাকাডেমিক',
       thumbnail: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=800&auto=format&fit=crop',
       date: '১২ অক্টোবর ২০২৬',
-      caption: 'শিক্ষার্থীদের ডিজিটাল কনটেন্ট ও ইন্টারেক্টিভ স্মার্টবোর্ডের মাধ্যমে পাঠদান কার্যক্রম।'
+      caption: 'শিক্ষার্থীদের ডিজিটাল কনটেন্ট ও ইন্টারেক্টিভ স্মার্টবোর্ডের মাধ্যমে পাঠদান কার্যক্রম।',
+      visible: true
     },
     {
-      id: 2,
+      id: 'gal-2',
       type: 'video',
       title: 'বার্ষিক ক্রীড়া ও সাংস্কৃতিক প্রতিযোগিতা ২০২৬',
       category: 'ভিডিও হাইলাইটস',
       thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=800&auto=format&fit=crop',
       date: '০৫ অক্টোবর ২০২৬',
       videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-      caption: 'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা ও মনোজ্ঞ সাংস্কৃতিক অনুষ্ঠানের সেরা মুহূর্তসমূহ।'
+      caption: 'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা ও মনোজ্ঞ সাংস্কৃতিক অনুষ্ঠানের সেরা মুহূর্তসমূহ।',
+      visible: true
     },
     {
-      id: 3,
+      id: 'gal-3',
       type: 'image',
       title: 'বিজ্ঞান মেলা ও শিক্ষার্থীদের রোবটিক্স প্রজেক্ট প্রদর্শনী',
       category: 'বিজ্ঞান ও প্রযুক্তি',
       thumbnail: 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=800&auto=format&fit=crop',
       date: '২৮ সেপ্টেম্বর ২০২৬',
-      caption: 'শেখ রাসেল ডিজিটাল ল্যাবে খুদে বিজ্ঞানীদের উদ্ভাবনী রোবটিক্স এবং বিজ্ঞান প্রজেক্ট প্রদর্শনী।'
+      caption: 'শেখ রাসেল ডিজিটাল ল্যাবে খুদে বিজ্ঞানীদের উদ্ভাবনী রোবটিক্স এবং বিজ্ঞান প্রজেক্ট প্রদর্শনী।',
+      visible: true
     }
   ];
+
+  const configuredItems = galleryConfig?.items?.filter(item => item.visible !== false);
+  const galleryItems = (configuredItems && configuredItems.length > 0) ? configuredItems : defaultItems;
+
+  const sectionEyebrow = galleryConfig?.eyebrow || 'ক্যাম্পাস লাইফ ও স্মৃতি';
+  const sectionTitle = galleryConfig?.title || 'ছবি এবং ভিডিও গ্যালারী';
+  const sectionSubtitle = galleryConfig?.subtitle || 'বিদ্যালয়ের প্রাণবন্ত পাঠদান, ক্রীড়া ও সাংস্কৃতিক উৎসব এবং বিজ্ঞান প্রদর্শনীর স্মরণীয় মুহূর্তসমূহ।';
 
   // Lightbox Modal State
   const [activeMedia, setActiveMedia] = useState<GalleryMediaItem | null>(null);
@@ -72,11 +76,11 @@ export default function PublicGallerySection() {
         <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
             <Camera className="w-3.5 h-3.5 text-[#F4B400]" />
-            <span>ক্যাম্পাস লাইফ ও স্মৃতি</span>
+            <span>{sectionEyebrow}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            ছবি এবং ভিডিও গ্যালারী
+            {sectionTitle}
           </h2>
 
           <div className="flex items-center justify-center gap-1.5 pt-0.5">
@@ -85,15 +89,15 @@ export default function PublicGallerySection() {
           </div>
 
           <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed pt-1">
-            বিদ্যালয়ের প্রাণবন্ত পাঠদান, ক্রীড়া ও সাংস্কৃতিক উৎসব এবং বিজ্ঞান প্রদর্শনীর স্মরণীয় মুহূর্তসমূহ।
+            {sectionSubtitle}
           </p>
         </div>
 
         {/* ===================================================================
-            ৩টি ছবির গ্রিড (Desktop: 3, Tablet: 2, Mobile: 1)
+            গ্যালারি ছবির গ্রিড (Desktop: 3, Tablet: 2, Mobile: 1)
             =================================================================== */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {galleryItems.map((item) => {
+          {galleryItems.slice(0, 6).map((item) => {
             const isVideo = item.type === 'video';
 
             return (
@@ -303,7 +307,7 @@ export default function PublicGallerySection() {
             </div>
 
             <div className="overflow-y-auto py-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
-              {galleryItems.concat(galleryItems).map((item, idx) => (
+              {galleryItems.map((item, idx) => (
                 <div
                   key={idx}
                   onClick={() => {

@@ -106,22 +106,21 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
         }))
     : [];
 
-  const bestStudents: BestStudent[] = autoSyncedStudents.length > 0
-    ? autoSyncedStudents
-    : (achieversConfig?.students && achieversConfig.students.length > 0
-        ? achieversConfig.students.filter(s => s.visible).map((st, i) => ({
-            id: st.id,
-            name: st.name,
-            class: st.class,
-            roll: st.roll,
-            year: st.year,
-            photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
-            badgeType: 'trophy' as const,
-            achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
-            gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
-            quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
-          }))
-        : defaultBestStudents);
+  const configuredAchievers = achieversConfig?.students?.filter(s => s.visible !== false);
+  const bestStudents: BestStudent[] = (configuredAchievers && configuredAchievers.length > 0)
+    ? configuredAchievers.map((st, i) => ({
+        id: st.id,
+        name: st.name,
+        class: st.class,
+        roll: st.roll,
+        year: st.year,
+        photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+        badgeType: (i % 2 === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
+        achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
+        gpa: st.gpa ? (st.gpa.startsWith('জিপিএ') ? st.gpa : `জিপিএ ${st.gpa}`) : 'জিপিএ ৫.০০',
+        quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+      }))
+    : (autoSyncedStudents.length > 0 ? autoSyncedStudents : defaultBestStudents);
 
   const sectionTitle = achieversConfig?.title || 'সেরা ছাত্র/ছাত্রী';
   const sectionSubtitle = achieversConfig?.subtitle || 'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';
