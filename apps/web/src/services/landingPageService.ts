@@ -601,7 +601,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
         ctaLink: '/admission',
       },
     ],
-    enableSlider: false,
+    enableSlider: true,
   },
   sections: [
     { id: 'sec-stats', key: 'stats', nameBn: 'ছাত্র/ছাত্রীদের পরিসংখ্যান', nameEn: 'Student Statistics', type: 'builtin', enabled: true, order: 1, icon: 'BarChart3', description: 'শ্রেণিভিত্তিক ছাত্র-ছাত্রীর সংখ্যা ও কাউন্টার অ্যানিমেশন' },

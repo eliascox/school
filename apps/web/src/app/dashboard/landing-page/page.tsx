@@ -118,6 +118,12 @@ export default function LandingPageManagementDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Hero Slide Management State
+  const [slideUrlInput, setSlideUrlInput] = useState<string>('');
+  const [replacingSlideId, setReplacingSlideId] = useState<string | null>(null);
+  const heroSlideFileInputRef = useRef<HTMLInputElement>(null);
+  const replaceSlideFileInputRef = useRef<HTMLInputElement>(null);
+
   // Versions state
   const [versions, setVersions] = useState<VersionSnapshot[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -255,7 +261,7 @@ export default function LandingPageManagementDashboard() {
   const handleToggleSection = (sectionId: string, current: boolean) => {
     const newSections = config.sections.map(s => (s.id === sectionId ? { ...s, enabled: !current } : s));
     handleUpdateConfig({ ...config, sections: newSections });
-    showToast(`সেকশন ${!current ? 'দৃশ্যমান (Show)' : 'লুকানো (Hide)'} করা হয়েছে`, 'info');
+    showToast(`সেকশন ${!current ? 'দৃশ্যমান' : 'লুকানো'} করা হয়েছে`, 'info');
   };
 
   // Duplicate Section
@@ -496,6 +502,150 @@ export default function LandingPageManagementDashboard() {
     showToast(`"${item.name}" হিরো স্লাইডারে যুক্ত করা হয়েছে!`, 'success');
   };
 
+  // Dedicated Slide Management Handlers
+  const handleAddHeroSlide = (fileOrUrl: File | string, title?: string, subtitle?: string) => {
+    if (typeof fileOrUrl === 'string') {
+      const newSlide: HeroSlide = {
+        id: `slide-${Date.now()}`,
+        title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+        subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
+        imageUrl: fileOrUrl,
+        ctaText: 'ভর্তি আবেদন',
+        ctaLink: '/admission',
+      };
+      const updated = {
+        ...config,
+        hero: {
+          ...config.hero,
+          enableSlider: true,
+          slides: [...(config.hero.slides || []), newSlide],
+        },
+      };
+      handleUpdateConfig(updated);
+      landingPageService.addMediaItem({
+        name: title || 'ব্যানার স্লাইডার ছবি',
+        category: 'banner',
+        url: fileOrUrl,
+        size: 1200000,
+        type: 'image/jpeg',
+        altText: title || 'ব্যানার ছবি',
+      });
+      setMediaList(landingPageService.getMediaList());
+      showToast('নতুন ব্যানার স্লাইড সফলভাবে যুক্ত হয়েছে!', 'success');
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        if (dataUrl) {
+          const newSlide: HeroSlide = {
+            id: `slide-${Date.now()}`,
+            title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+            subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
+            imageUrl: dataUrl,
+            ctaText: 'ভর্তি আবেদন',
+            ctaLink: '/admission',
+          };
+          const updated = {
+            ...config,
+            hero: {
+              ...config.hero,
+              enableSlider: true,
+              slides: [...(config.hero.slides || []), newSlide],
+            },
+          };
+          handleUpdateConfig(updated);
+          landingPageService.addMediaItem({
+            name: fileOrUrl.name || 'ব্যানার স্লাইডার ছবি',
+            category: 'banner',
+            url: dataUrl,
+            size: fileOrUrl.size || 1200000,
+            type: fileOrUrl.type || 'image/jpeg',
+            altText: title || fileOrUrl.name,
+          });
+          setMediaList(landingPageService.getMediaList());
+          showToast(`"${fileOrUrl.name}" স্লাইডারে সফলভাবে যুক্ত হয়েছে!`, 'success');
+        }
+      };
+      reader.readAsDataURL(fileOrUrl);
+    }
+  };
+
+  const handleDeleteHeroSlide = (slideId: string) => {
+    const updatedSlides = (config.hero.slides || []).filter((s) => s.id !== slideId);
+    const updated = {
+      ...config,
+      hero: {
+        ...config.hero,
+        slides: updatedSlides,
+      },
+    };
+    handleUpdateConfig(updated);
+    showToast('স্লাইডটি মুছে ফেলা হয়েছে!', 'info');
+  };
+
+  const handleMoveHeroSlide = (index: number, direction: 'up' | 'down') => {
+    const slides = [...(config.hero.slides || [])];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= slides.length) return;
+    const temp = slides[index];
+    slides[index] = slides[targetIndex];
+    slides[targetIndex] = temp;
+    const updated = {
+      ...config,
+      hero: {
+        ...config.hero,
+        slides,
+      },
+    };
+    handleUpdateConfig(updated);
+    showToast('স্লাইডারের ক্রম পরিবর্তন করা হয়েছে!', 'info');
+  };
+
+  const handleReplaceHeroSlideImage = (slideId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      if (dataUrl) {
+        const updatedSlides = (config.hero.slides || []).map((s) =>
+          s.id === slideId ? { ...s, imageUrl: dataUrl } : s
+        );
+        const updated = {
+          ...config,
+          hero: {
+            ...config.hero,
+            slides: updatedSlides,
+          },
+        };
+        handleUpdateConfig(updated);
+        landingPageService.addMediaItem({
+          name: file.name,
+          category: 'banner',
+          url: dataUrl,
+          size: file.size || 1200000,
+          type: file.type || 'image/jpeg',
+          altText: 'আপডেট করা ব্যানার ছবি',
+        });
+        setMediaList(landingPageService.getMediaList());
+        showToast('স্লাইডের ছবি সফলভাবে পরিবর্তন করা হয়েছে!', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearDemoHeroSlides = () => {
+    if (confirm('আপনি কি সমস্ত ডেমো স্টক স্লাইড মুছে ফেলতে চান? এরপর শুধুমাত্র আপনার আপলোড করা আসল ছবিগুলো স্লাইডারে থাকবে।')) {
+      const updated = {
+        ...config,
+        hero: {
+          ...config.hero,
+          slides: [],
+        },
+      };
+      handleUpdateConfig(updated);
+      showToast('সকল ডেমো স্লাইড মুছে ফেলা হয়েছে! এখন আপনার নতুন ছবি যোগ করুন।', 'info');
+    }
+  };
+
   // Add to Gallery
   const handleAddToGallery = (item: MediaItem) => {
     const currentGal = config.gallery || DEFAULT_LANDING_CONFIG.gallery!;
@@ -686,7 +836,7 @@ export default function LandingPageManagementDashboard() {
               title="মূল ওয়েবসাইটে লাইভ প্রকাশ করুন"
             >
               <Sparkles className="w-4 h-4 text-yellow-200" />
-              <span>প্রকাশ করুন (Live)</span>
+              <span>লাইভ প্রকাশ করুন</span>
             </button>
           </div>
         </div>
@@ -706,7 +856,7 @@ export default function LandingPageManagementDashboard() {
               { id: 'achievers', label: 'সেরা ছাত্র/ছাত্রী', icon: <GraduationCap className="w-4 h-4" /> },
               { id: 'gallery', label: 'গ্যালারি ছবি ও ভিডিও', icon: <Camera className="w-4 h-4" /> },
               { id: 'blog', label: 'সংবাদ ও ব্লগ', icon: <FileText className="w-4 h-4" /> },
-              { id: 'faq', label: 'প্রশ্নোত্তর (FAQ)', icon: <HelpCircle className="w-4 h-4" /> },
+              { id: 'faq', label: 'সাধারণ প্রশ্নোত্তর', icon: <HelpCircle className="w-4 h-4" /> },
               { id: 'media', label: 'ছবি ও মিডিয়া', icon: <ImageIcon className="w-4 h-4" /> },
               { id: 'theme', label: 'রং, ফন্ট ও থিম', icon: <Palette className="w-4 h-4" /> },
               { id: 'footer', label: 'যোগাযোগ ও ফুটার', icon: <Mail className="w-4 h-4" /> },
@@ -1511,6 +1661,265 @@ export default function LandingPageManagementDashboard() {
               </label>
             </div>
 
+            {/* ══════════════════════════════════════════════════════════════════
+             * 1. CAMPUS BANNER & TRANSITION SLIDES (হোমপেজ ব্যানার ও স্লাইডার ছবি)
+             * ══════════════════════════════════════════════════════════════════ */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 dark:from-slate-800/80 dark:via-slate-900 dark:to-slate-900 border-2 border-indigo-200 dark:border-indigo-900/60 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-100 dark:border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      হোমপেজ ব্যানার ও ট্রানজিশন স্লাইডার ছবিসমূহ
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+                      {(config.hero.slides || []).length} টি স্লাইড সক্রিয়
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                    হোমপেজের মূল ব্যানারে যে ছবিগুলো স্বয়ংক্রিয়ভাবে ট্রানজিশন (পরিবর্তন) হয় সেগুলো এখান থেকে সহজে আপলোড, পরিবর্তন, সাজানো বা মুছে ফেলা যাবে।
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => heroSlideFileInputRef.current?.click()}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer transition active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>নতুন ব্যানার ছবি যোগ করুন</span>
+                  </button>
+                  <input
+                    type="file"
+                    ref={heroSlideFileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleAddHeroSlide(file);
+                        e.target.value = '';
+                      }
+                    }}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <input
+                    type="file"
+                    ref={replaceSlideFileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && replacingSlideId) {
+                        handleReplaceHeroSlideImage(replacingSlideId, file);
+                        setReplacingSlideId(null);
+                        e.target.value = '';
+                      }
+                    }}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Slider Settings Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.hero.enableSlider !== false}
+                    onChange={(e) =>
+                      handleUpdateConfig({
+                        ...config,
+                        hero: { ...config.hero, enableSlider: e.target.checked },
+                      })
+                    }
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span>স্বয়ংক্রিয় স্লাইডার চালু রাখুন</span>
+                </label>
+
+                <div>
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    <span>ছবির ওপর ডার্ক ওভারলে:</span>
+                    <span className="font-mono text-indigo-600 dark:text-indigo-400 font-black">
+                      {config.hero.bgOverlayOpacity ?? 45}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="15"
+                    max="80"
+                    step="5"
+                    value={config.hero.bgOverlayOpacity ?? 45}
+                    onChange={(e) =>
+                      handleUpdateConfig({
+                        ...config,
+                        hero: { ...config.hero, bgOverlayOpacity: parseInt(e.target.value) || 45 },
+                      })
+                    }
+                    className="w-full accent-indigo-600 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={handleClearDemoHeroSlides}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5 cursor-pointer transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>সকল ডেমো স্টক স্লাইড মুছে ফেলুন</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* URL or Library Quick Add Option */}
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-3">
+                <input
+                  type="text"
+                  value={slideUrlInput}
+                  onChange={(e) => setSlideUrlInput(e.target.value)}
+                  placeholder="অথবা সরাসরি কোনো ছবির অনলাইন লিঙ্ক পেস্ট করুন..."
+                  className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-medium outline-none focus:border-indigo-500 w-full"
+                />
+                <button
+                  type="button"
+                  disabled={!slideUrlInput.trim()}
+                  onClick={() => {
+                    if (slideUrlInput.trim()) {
+                      handleAddHeroSlide(slideUrlInput.trim());
+                      setSlideUrlInput('');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white text-xs font-bold disabled:opacity-40 transition cursor-pointer shrink-0 w-full sm:w-auto"
+                >
+                  লিঙ্ক থেকে স্লাইড যোগ করুন
+                </button>
+              </div>
+
+              {/* Active Slides Cards Grid */}
+              <div className="space-y-3">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                  বর্তমান স্লাইড তালিকা (ট্রানজিশনের ক্রম অনুযায়ী প্রদর্শিত হবে):
+                </span>
+
+                {(!config.hero.slides || config.hero.slides.length === 0) ? (
+                  <div className="p-8 text-center rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-3">
+                    <ImageIcon className="w-10 h-10 text-indigo-400 mx-auto" />
+                    <div>
+                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">এখনো কোনো কাস্টম স্লাইড যোগ করা হয়নি</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">আপনার প্রতিষ্ঠানের ক্যাম্পাস, ভবন, অ্যাসেম্বলি বা অনুষ্ঠানের ছবি আপলোড করতে ওপরের &quot;নতুন ব্যানার ছবি যোগ করুন&quot; বাটনে ক্লিক করুন।</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {config.hero.slides.map((slide, idx) => (
+                      <div
+                        key={slide.id || idx}
+                        className="group relative rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col"
+                      >
+                        {/* Slide Preview Image */}
+                        <div className="relative aspect-[16/9] w-full bg-slate-900 overflow-hidden">
+                          <img
+                            src={slide.imageUrl}
+                            alt={slide.title || `Slide ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px] font-black border border-white/20">
+                            স্লাইড #{idx + 1}
+                          </div>
+                          <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplacingSlideId(slide.id);
+                                replaceSlideFileInputRef.current?.click();
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/90 backdrop-blur-md text-white text-[10.5px] font-bold border border-white/20 flex items-center gap-1 transition cursor-pointer"
+                              title="ছবি পরিবর্তন করুন"
+                            >
+                              <Camera className="w-3 h-3 text-amber-400" />
+                              <span>ছবি পরিবর্তন</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Slide Details */}
+                        <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={slide.title || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = (config.hero.slides || []).map((s, i) =>
+                                  i === idx ? { ...s, title: val } : s
+                                );
+                                handleUpdateConfig({
+                                  ...config,
+                                  hero: { ...config.hero, slides: updated },
+                                });
+                              }}
+                              placeholder="স্লাইড শিরোনাম"
+                              className="w-full px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-900 focus:bg-white outline-none"
+                            />
+                            <input
+                              type="text"
+                              value={slide.subtitle || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = (config.hero.slides || []).map((s, i) =>
+                                  i === idx ? { ...s, subtitle: val } : s
+                                );
+                                handleUpdateConfig({
+                                  ...config,
+                                  hero: { ...config.hero, slides: updated },
+                                });
+                              }}
+                              placeholder="উপশিরোনাম / বিবরণী..."
+                              className="w-full px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-medium bg-slate-50 dark:bg-slate-900 focus:bg-white outline-none"
+                            />
+                          </div>
+
+                          {/* Reorder and Delete Actions */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveHeroSlide(idx, 'up')}
+                                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer text-slate-600 dark:text-slate-300"
+                                title="আগে নিন"
+                              >
+                                <MoveUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === config.hero.slides.length - 1}
+                                onClick={() => handleMoveHeroSlide(idx, 'down')}
+                                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 cursor-pointer text-slate-600 dark:text-slate-300"
+                                title="পরে নিন"
+                              >
+                                <MoveDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHeroSlide(slide.id)}
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 cursor-pointer transition"
+                              title="স্লাইড মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Badge Text */}
               <div>
@@ -1534,7 +1943,7 @@ export default function LandingPageManagementDashboard() {
               {/* Main Title */}
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  প্রধান শিরোনাম (Main Heading)
+                  প্রধান শিরোনাম
                 </label>
                 <input
                   type="text"
@@ -1584,9 +1993,9 @@ export default function LandingPageManagementDashboard() {
                   }
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  <option value="gradient">আধুনিক ডার্ক গ্রেডিয়েন্ট (Gradient)</option>
-                  <option value="image">ক্যাম্পাস ব্যাকগ্রাউন্ড ছবি (Image Overlay)</option>
-                  <option value="solid">এক রঙের ব্যাকগ্রাউন্ড (Solid Color)</option>
+                  <option value="gradient">আধুনিক ডার্ক গ্রেডিয়েন্ট</option>
+                  <option value="image">ক্যাম্পাস ব্যাকগ্রাউন্ড ছবি</option>
+                  <option value="solid">এক রঙের ব্যাকগ্রাউন্ড</option>
                 </select>
               </div>
             </div>
@@ -1594,7 +2003,7 @@ export default function LandingPageManagementDashboard() {
             {/* Description */}
             <div>
               <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                সংক্ষিপ্ত বিবরণ (Description)
+                সংক্ষিপ্ত বিবরণ
               </label>
               <textarea
                 rows={3}
@@ -1612,12 +2021,12 @@ export default function LandingPageManagementDashboard() {
 
             {/* CTA Buttons */}
             <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-4">কল-টু-অ্যাকশন (CTA) বাটনসমূহ</h3>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white mb-4">অ্যাকশন বাটনসমূহ</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Primary CTA */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase">প্রধান বাটন (Primary CTA)</span>
+                    <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase">প্রধান বাটন</span>
                     <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
                       <input
                         type="checkbox"
@@ -1674,7 +2083,7 @@ export default function LandingPageManagementDashboard() {
                 {/* Secondary CTA */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase">দ্বিতীয় বাটন (Secondary CTA)</span>
+                    <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase">দ্বিতীয় বাটন</span>
                     <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
                       <input
                         type="checkbox"
@@ -1779,7 +2188,7 @@ export default function LandingPageManagementDashboard() {
 
             <div>
               <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                প্রতিষ্ঠানের সংক্ষিপ্ত ইতিহাস (History)
+                প্রতিষ্ঠানের সংক্ষিপ্ত ইতিহাস
               </label>
               <textarea
                 rows={4}
@@ -1847,7 +2256,7 @@ export default function LandingPageManagementDashboard() {
                     </label>
                     <input
                       type="text"
-                      placeholder="অথবা অনলাইন ছবির লিঙ্ক (URL)"
+                      placeholder="অথবা অনলাইন ছবির লিঙ্ক"
                       value={config.about.president?.photo || ''}
                       onChange={(e) => {
                         const currentPres = config.about.president || {
@@ -2011,7 +2420,7 @@ export default function LandingPageManagementDashboard() {
                     </label>
                     <input
                       type="text"
-                      placeholder="অথবা অনলাইন ছবির লিঙ্ক (URL)"
+                      placeholder="অথবা অনলাইন ছবির লিঙ্ক"
                       value={config.about.headmaster.photo || ''}
                       onChange={(e) =>
                         handleUpdateConfig({
@@ -2190,7 +2599,7 @@ export default function LandingPageManagementDashboard() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-500 mb-0.5">লিংক (URL)</label>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-0.5">ওয়েব লিংক</label>
                       <input
                         type="text"
                         value={card.link}
@@ -2230,7 +2639,7 @@ export default function LandingPageManagementDashboard() {
                   <span>ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ</span>
                 </div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  ক্যাম্পাস সুবিধাসমূহ সেটিংস (Facilities)
+                  ক্যাম্পাস সুবিধাসমূহ সেটিংস
                 </h2>
                 <p className="text-xs text-slate-500">
                   আইসিটি ল্যাব, বিজ্ঞানাগার, লাইব্রেরি, খেলার মাঠ ও স্যানিটেশন সংক্রান্ত তথ্যাদি সম্পাদনা করুন।
@@ -2290,7 +2699,7 @@ export default function LandingPageManagementDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  আইব্রো ট্যাগ (Badge)
+                  আইব্রো ট্যাগ
                 </label>
                 <input
                   type="text"
@@ -3404,8 +3813,8 @@ export default function LandingPageManagementDashboard() {
                             }}
                             className="w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
                           >
-                            <option value="image">📷 ছবি (Image)</option>
-                            <option value="video">🎥 ভিডিও (Video)</option>
+                            <option value="image">📷 ছবি</option>
+                            <option value="video">🎥 ভিডিও</option>
                           </select>
                         </div>
                         <div>
@@ -3427,7 +3836,7 @@ export default function LandingPageManagementDashboard() {
 
                       {isVideo && (
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-0.5">ভিডিও লিংক (YouTube Embed URL)</label>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-0.5">ভিডিও এম্বেড লিংক</label>
                           <input
                             type="text"
                             placeholder="https://www.youtube.com/embed/..."
@@ -3444,7 +3853,7 @@ export default function LandingPageManagementDashboard() {
                       )}
 
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-500 mb-0.5">শিরোনাম (Title)</label>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-0.5">শিরোনাম</label>
                         <input
                           type="text"
                           value={item.title}
@@ -4176,7 +4585,7 @@ export default function LandingPageManagementDashboard() {
               {/* Primary Color */}
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  প্রাইমারি কালার (Primary Brand Color)
+                  প্রধান ব্র্যান্ড কালার
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -4207,7 +4616,7 @@ export default function LandingPageManagementDashboard() {
               {/* Secondary Color */}
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  সেকেন্ডারি কালার (Secondary Accent)
+                  সেকেন্ডারি কালার
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -4271,7 +4680,7 @@ export default function LandingPageManagementDashboard() {
               {/* Font Family */}
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  বাংলা ফন্ট ফ্যামিলি (Font Family)
+                  বাংলা ফন্ট ফ্যামিলি
                 </label>
                 <select
                   value={config.theme.fontFamily}
@@ -4309,7 +4718,7 @@ export default function LandingPageManagementDashboard() {
                   <option value="md">মাঝারি গোল (Medium 8px)</option>
                   <option value="lg">সুন্দর গোল (Large 12px)</option>
                   <option value="xl">অতিরিক্ত গোল (Extra Rounded 16px)</option>
-                  <option value="full">সম্পূর্ণ পিল বা ক্যাপসুল (Full Pill)</option>
+                  <option value="full">সম্পূর্ণ পিল বা ক্যাপসুল</option>
                 </select>
               </div>
 
@@ -4505,11 +4914,11 @@ export default function LandingPageManagementDashboard() {
       {activeTab === 'seo' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">সার্চ ইঞ্জিন অপটিমাইজেশন (SEO) ও সোশ্যাল শেয়ার</h2>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white">সার্চ ইঞ্জিন অপটিমাইজেশন ও সোশ্যাল শেয়ার</h2>
 
             <div>
               <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                মেটা টাইটেল (Meta Title)
+                মেটা টাইটেল
               </label>
               <input
                 type="text"
@@ -4526,7 +4935,7 @@ export default function LandingPageManagementDashboard() {
 
             <div>
               <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                মেটা ডেসক্রিপশন (Meta Description)
+                মেটা ডেসক্রিপশন
               </label>
               <textarea
                 rows={3}
@@ -4930,7 +5339,7 @@ export default function LandingPageManagementDashboard() {
                 onClick={() => setShowImportModal(false)}
                 className="px-4 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-300 transition"
               >
-                সম্পন্ন (Done)
+                সম্পন্ন
               </button>
             </div>
           </div>

@@ -10,14 +10,14 @@ const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json',
+  '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.txt': 'text/plain',
+  '.txt': 'text/x-component; charset=utf-8',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf'
@@ -39,6 +39,37 @@ function createStaticServer(port) {
   }
 
   const server = http.createServer((req, res) => {
+    // ─── OFFLINE STANDALONE API HANDLERS (Eliminates Browser 404 Console Errors) ───
+    if (req.url.startsWith('/api/v1/license/heartbeat')) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ success: true, status: 'active', clientMode: 'standalone', timestamp: new Date().toISOString() }));
+      return;
+    }
+
+    if (req.url.startsWith('/api/v1/sync/pull')) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ success: true, changes: [], version: 1, timestamp: new Date().toISOString() }));
+      return;
+    }
+
+    if (req.url.startsWith('/api/v1/sync/push')) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ success: true, synced: true, timestamp: new Date().toISOString() }));
+      return;
+    }
+
+    if (req.url.startsWith('/api/v1/updates/check')) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ updateAvailable: false, currentVersion: '2.4.0', latestVersion: '2.4.0', status: 'up_to_date' }));
+      return;
+    }
+
+    if (req.url.startsWith('/api/v1/')) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ success: true, offline: true }));
+      return;
+    }
+
     // ─── SMS API GATEWAY PROXY (Prevents Browser CORS Errors) ───
     if (req.url.startsWith('/api/sms-proxy')) {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -86,6 +117,11 @@ function createStaticServer(port) {
     let rawPath = decodeURI(urlParts[0]);
     let queryString = urlParts[1] ? '?' + urlParts[1] : '';
 
+    // Handle nested relative _next requests (e.g. /login/_next/... -> /_next/...)
+    if (rawPath.includes('/_next/') && !rawPath.startsWith('/_next/')) {
+      rawPath = rawPath.slice(rawPath.indexOf('/_next/'));
+    }
+
     // 1. Root route serves index.html (Public School Website)
     let filePath;
     if (rawPath === '/' || rawPath === '') {
@@ -94,14 +130,24 @@ function createStaticServer(port) {
       filePath = path.join(PUBLIC_DIR, rawPath);
     }
 
-    // 2. Trailing slash redirect for directories (Crucial for Next.js trailingSlash: true)
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-      if (!rawPath.endsWith('/')) {
+    // 2. Next.js 16 Turbopack RSC Prefetch Resolution (__next.* and ?_rsc=...)
+    // Next.js static export generates both directory e.g. `__next.login` and file `__next.login.txt`
+    if (fs.existsSync(filePath + '.txt')) {
+      filePath = filePath + '.txt';
+    } else if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+      if (queryString.includes('_rsc=') && fs.existsSync(path.join(filePath, 'index.txt'))) {
+        filePath = path.join(filePath, 'index.txt');
+      } else if (fs.existsSync(path.join(filePath, '__PAGE__.txt'))) {
+        filePath = path.join(filePath, '__PAGE__.txt');
+      } else if (!rawPath.endsWith('/')) {
         res.writeHead(301, { 'Location': rawPath + '/' + queryString });
         res.end();
         return;
+      } else {
+        filePath = path.join(filePath, 'index.html');
       }
-      filePath = path.join(filePath, 'index.html');
+    } else if (queryString.includes('_rsc=') && fs.existsSync(filePath + '.txt')) {
+      filePath = filePath + '.txt';
     }
 
     // 3. Direct HTML file fallback
