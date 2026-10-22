@@ -159,7 +159,14 @@ export interface AboutConfig {
     message: string;
     visible: boolean;
   };
-  assistantHeadmaster: {
+  president?: {
+    name: string;
+    title: string;
+    photo: string;
+    message: string;
+    visible: boolean;
+  };
+  assistantHeadmaster?: {
     name: string;
     title: string;
     photo: string;
@@ -590,11 +597,18 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
     foundingYear: '১৯৬৯',
     eiin: '106184',
     campusPhoto: '/school-campus.jpg',
+    president: {
+      name: 'আলহাজ্ব মোস্তফা কামাল',
+      title: 'সভাপতি, ম্যানেজিং কমিটি',
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop',
+      message: 'শিক্ষার আলো ছড়িয়ে দিতে এবং আদর্শ মানবিক গুণাবলিসম্পন্ন ভবিষ্যৎ প্রজন্ম গড়ে তুলতে বরইতলী উচ্চ বিদ্যালয় বদ্ধপরিকর। পরিচালনা পর্ষদ, শিক্ষক এবং অভিভাবকদের সম্মিলিত প্রচেষ্টায় আমরা প্রতিষ্ঠানটিকে একটি আদর্শ মডেল বিদ্যাপীঠ হিসেবে গড়ে তুলছি। আধুনিক শ্রেণিকক্ষ, বিজ্ঞানাগার ও সহশিক্ষা কার্যক্রমের সুষ্ঠু বিকাশে আমরা নিরলস কাজ করছি।',
+      visible: true,
+    },
     headmaster: {
       name: 'মোহাম্মদ রফিকুল ইসলাম',
-      title: 'প্রধান শিক্ষক',
-      photo: '',
-      message: 'বরইতলী উচ্চ বিদ্যালয়ের পক্ষ থেকে সবাইকে আন্তরিক শুভেচ্ছা। আমরা বিশ্বাস করি প্রতিটি শিশুর মধ্যেই অফুরন্ত সম্ভাবনা রয়েছে। আমাদের কাজ হলো সেই প্রতিভাকে উপযুক্ত পরিচর্যা ও মানসম্মত শিক্ষার মাধ্যমে প্রস্ফুটিত করা।',
+      title: 'প্রধান শিক্ষক (অধ্যক্ষ)',
+      photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop',
+      message: 'জ্ঞান, শৃঙ্খলা ও নৈতিকতাই একটি আদর্শ শিক্ষাপ্রতিষ্ঠানের মূল চালিকাশক্তি। বরইতলী উচ্চ বিদ্যালয় দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে এই অঞ্চলের শিক্ষার্থীদের মাঝে শিক্ষার আলো ছড়িয়ে আসছে। আমরা প্রতিটি শিক্ষার্থীকে শুধু পরীক্ষায় ভালো ফলাফলের জন্য নয়, বরং মানবিক মূল্যবোধ ও দেশপ্রেমের আদর্শে উদ্বুদ্ধ করে গড়ে তুলতে প্রতিশ্রুতিবদ্ধ।',
       visible: true,
     },
     assistantHeadmaster: {

@@ -1263,6 +1263,90 @@ export default function LandingPageManagementDashboard() {
               />
             </div>
 
+            {/* President's Speech */}
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">সভাপতি (ম্যানেজিং কমিটি) মহোদয়ের বাণী</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">সভাপতির নাম</label>
+                  <input
+                    type="text"
+                    value={config.about.president?.name || 'আলহাজ্ব মোস্তফা কামাল'}
+                    onChange={(e) => {
+                      const currentPres = config.about.president || {
+                        name: 'আলহাজ্ব মোস্তফা কামাল',
+                        title: 'সভাপতি, ম্যানেজিং কমিটি',
+                        photo: '',
+                        message: '',
+                        visible: true,
+                      };
+                      handleUpdateConfig({
+                        ...config,
+                        about: {
+                          ...config.about,
+                          president: { ...currentPres, name: e.target.value },
+                        },
+                      });
+                    }}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">পদবি</label>
+                  <input
+                    type="text"
+                    value={config.about.president?.title || 'সভাপতি, ম্যানেজিং কমিটি'}
+                    onChange={(e) => {
+                      const currentPres = config.about.president || {
+                        name: 'আলহাজ্ব মোস্তফা কামাল',
+                        title: 'সভাপতি, ম্যানেজিং কমিটি',
+                        photo: '',
+                        message: '',
+                        visible: true,
+                      };
+                      handleUpdateConfig({
+                        ...config,
+                        about: {
+                          ...config.about,
+                          president: { ...currentPres, title: e.target.value },
+                        },
+                      });
+                    }}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">সভাপতির দিকনির্দেশনামূলক বাণী</label>
+                <textarea
+                  rows={3}
+                  value={config.about.president?.message || ''}
+                  placeholder="শিক্ষার আলো ছড়িয়ে দিতে এবং মানবিক গুণাবলিসম্পন্ন ভবিষ্যৎ প্রজন্ম গড়ে তুলতে বরইতলী উচ্চ বিদ্যালয় বদ্ধপরিকর..."
+                  onChange={(e) => {
+                    const currentPres = config.about.president || {
+                      name: 'আলহাজ্ব মোস্তফা কামাল',
+                      title: 'সভাপতি, ম্যানেজিং কমিটি',
+                      photo: '',
+                      message: '',
+                      visible: true,
+                    };
+                    handleUpdateConfig({
+                      ...config,
+                      about: {
+                        ...config.about,
+                        president: { ...currentPres, message: e.target.value },
+                      },
+                    });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium outline-none"
+                />
+              </div>
+            </div>
+
             {/* Principal's Speech */}
             <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between">

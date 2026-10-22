@@ -112,7 +112,7 @@ export default function PublicSchoolHomePage() {
       case 'services':
         return <PublicServicesSection key="services" />;
       case 'headmaster_message':
-        return <PublicHeadmasterMessage key="headmaster_message" settings={settings} />;
+        return <PublicHeadmasterMessage key="headmaster_message" settings={settings} aboutConfig={landingConfig.about} />;
       case 'about':
         return <PublicAbout key="about" settings={settings} />;
       case 'notices':
