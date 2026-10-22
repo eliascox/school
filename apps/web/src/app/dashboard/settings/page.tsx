@@ -718,7 +718,7 @@ export default function SettingsPage() {
   if (session && session.role !== 'admin') {
     return (
       <div className="max-w-xl mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm">
-        <h2 className="text-xl font-black text-slate-900 dark:text-white">অনুমতি নেই (Access Restricted)</h2>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white">অনুমতি নেই</h2>
         <p className="text-sm text-slate-500">শুধুমাত্র প্রধান প্রশাসক এই পাতায় প্রবেশ করতে পারবেন।</p>
         <Link href="/dashboard/teacher-portal" className="inline-block px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs">
           শিক্ষক ড্যাশবোর্ডে ফিরুন
@@ -1187,7 +1187,7 @@ export default function SettingsPage() {
                   অফিশিয়াল স্কুল প্যাড ম্যানেজমেন্ট
                 </h3>
                 <p className="text-xs text-indigo-200 max-w-2xl leading-relaxed">
-                  আপনার প্রতিষ্ঠানের প্রেস-প্রিন্টেড বা ডিজিটাল প্যাড (PDF / ইমেজ) এখানে আপলোড করুন। নোটিশ, ছাড়পত্র (TC), প্রশংসাপত্র, প্রত্যয়ন ও ফলাফল বিবরণী স্বয়ংক্রিয়ভাবে এই প্যাডের ভেতর নির্ধারিত মার্জিনে প্রিন্ট হবে।
+                  আপনার প্রতিষ্ঠানের প্রেস-প্রিন্টেড বা ডিজিটাল প্যাড (PDF / ইমেজ) এখানে আপলোড করুন। নোটিশ, ছাড়পত্র, প্রশংসাপত্র, প্রত্যয়ন ও ফলাফল বিবরণী স্বয়ংক্রিয়ভাবে এই প্যাডের ভেতর নির্ধারিত মার্জিনে প্রিন্ট হবে।
                 </p>
               </div>
               <div className="shrink-0">
@@ -1307,7 +1307,7 @@ export default function SettingsPage() {
                     {/* Top Margin */}
                     <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                        <span>উপরে মার্জিন (Top Margin)</span>
+                        <span>উপরে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
@@ -1336,7 +1336,7 @@ export default function SettingsPage() {
                     {/* Left Margin */}
                     <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                        <span>বামে মার্জিন (Left Margin)</span>
+                        <span>বামে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
@@ -1365,7 +1365,7 @@ export default function SettingsPage() {
                     {/* Right Margin */}
                     <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                        <span>ডানে মার্জিন (Right Margin)</span>
+                        <span>ডানে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
@@ -1393,7 +1393,7 @@ export default function SettingsPage() {
                     {/* Bottom Margin */}
                     <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-800">
-                        <span>নিচে মার্জিন (Bottom Margin)</span>
+                        <span>নিচে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
@@ -1453,7 +1453,7 @@ export default function SettingsPage() {
                       📄 নোটিশ বোর্ড
                     </Link>
                     <Link href="/dashboard/certificates" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
-                      📜 ছাড়পত্র / টিসি (TC)
+                      📜 ছাড়পত্র / টিসি
                     </Link>
                     <Link href="/dashboard/certificates" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
                       🎓 প্রশংসাপত্র ও প্রত্যয়ন
@@ -1530,7 +1530,7 @@ export default function SettingsPage() {
                         এতদ্বারা বরইতলী উচ্চ বিদ্যালয়ের সকল শিক্ষক-শিক্ষিকা, অভিভাবক ও সংশ্লিষ্ট সকলের অবগতির জন্য জানানো যাচ্ছে যে, অত্র বিদ্যালয়ের আপলোডকৃত অফিশিয়াল স্কুল প্যাড ম্যানেজমেন্ট সিস্টেমটি সক্রিয় রয়েছে।
                       </p>
                       <p>
-                        বিদ্যালয়ের প্রাতিষ্ঠানিক সকল নোটিশ, শিক্ষার্থীদের চারিত্রিক সনদপত্র, ছাড়পত্র (TC), প্রশংসাপত্র, অধ্যয়নরত প্রত্যয়ন পত্র, শ্রেণিভিত্তিক পরিসংখ্যান রিপোর্ট এবং পরীক্ষার ফলাফল বিবরণী অত্র নির্ধারিত মার্জিন ও প্যাডে মুদ্রিত হবে।
+                        বিদ্যালয়ের প্রাতিষ্ঠানিক সকল নোটিশ, শিক্ষার্থীদের চারিত্রিক সনদপত্র, ছাড়পত্র, প্রশংসাপত্র, অধ্যয়নরত প্রত্যয়ন পত্র, শ্রেণিভিত্তিক পরিসংখ্যান রিপোর্ট এবং পরীক্ষার ফলাফল বিবরণী অত্র নির্ধারিত মার্জিন ও প্যাডে মুদ্রিত হবে।
                       </p>
                       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono">
                         ★ বর্তমান মার্জিন: উপরে <strong>{formData.padMargins?.top ?? 0.5}&quot;</strong> | বামে <strong>{formData.padMargins?.left ?? 0.5}&quot;</strong> | ডানে <strong>{formData.padMargins?.right ?? 0.5}&quot;</strong> | নিচে <strong>{formData.padMargins?.bottom ?? 0.5}&quot;</strong>
@@ -1997,7 +1997,7 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        আইব্রো ট্যাগ (Eyebrow Badge)
+                        আইব্রো ট্যাগ
                       </label>
                       <input
                         type="text"
@@ -2012,7 +2012,7 @@ export default function SettingsPage() {
 
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        সেকশনের প্রধান শিরোনাম (Main Title)
+                        সেকশনের প্রধান শিরোনাম
                       </label>
                       <input
                         type="text"
@@ -2027,7 +2027,7 @@ export default function SettingsPage() {
 
                     <div className="sm:col-span-2">
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        সেকশনের সাবটাইটেল / বিবরণী (Subtitle Description)
+                        সেকশনের সাবটাইটেল / বিবরণী
                       </label>
                       <textarea
                         rows={2}
@@ -2326,7 +2326,7 @@ export default function SettingsPage() {
 
             {/* ━━━ TEACHER PASSWORDS & USER ID MANAGEMENT ━━━ */}
             <SettingsCard
-              title="শিক্ষকদের ইউজার আইডি ও পাসওয়ার্ড ব্যবস্থাপনা (Teacher Credentials)"
+              title="শিক্ষকদের ইউজার আইডি ও পাসওয়ার্ড ব্যবস্থাপনা"
               subtitle="শিক্ষকের ইউজার আইডি হবে তার ফোন নম্বর এবং এডমিন এখান থেকে পাসওয়ার্ড সেট ও নিয়ন্ত্রণ করবেন"
               icon={<Key className="w-5 h-5" />}
               iconBg="bg-indigo-50" iconColor="text-indigo-600"
@@ -2483,7 +2483,7 @@ export default function SettingsPage() {
                         <Sun className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">☀️ লাইট মোড (Light Theme)</h4>
+                        <h4 className="text-sm font-black text-slate-900">☀️ লাইট মোড</h4>
                         <p className="text-[11px] text-slate-500 font-medium">উজ্জ্বল ও পরিষ্কার অফিস কালার থিম</p>
                       </div>
                     </div>
@@ -2512,7 +2512,7 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <h4 className={`text-sm font-black ${(formData.theme === 'dark' || themeService.getTheme() === 'dark') ? 'text-white' : 'text-slate-900'}`}>
-                          🌙 নাইট মোড (Night / Dark Theme)
+                          🌙 নাইট মোড
                         </h4>
                         <p className="text-[11px] text-slate-500 font-medium">চোখের আরামদায়ক আধুনিক ডার্ক মোড</p>
                       </div>
@@ -2580,7 +2580,7 @@ export default function SettingsPage() {
                 {/* Watermark Toggle */}
                 <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">ব্যাকগ্রাউন্ড জলছাপ (Watermark)</span>
+                    <span className="text-xs font-bold text-slate-900 block">ব্যাকগ্রাউন্ড জলছাপ</span>
                     <span className="text-[11px] text-slate-500">প্রিন্ট নম্বরপত্রে হালকা ওয়াটারমার্ক দেখাবে</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -2598,7 +2598,7 @@ export default function SettingsPage() {
                 {formData.showWatermark && (
                   <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                     <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-700">জলছাপের দৃশ্যমানতা / ঘনত্ব (Opacity):</span>
+                      <span className="text-slate-700">জলছাপের দৃশ্যমানতা / ঘনত্ব:</span>
                       <span className="text-indigo-600 font-mono font-black text-sm">{Math.round(formData.watermarkOpacity * 100)}%</span>
                     </div>
                     <input
@@ -2746,8 +2746,8 @@ export default function SettingsPage() {
                   }`}>
                     <span className={`w-2 h-2 rounded-full ${formData.onlineAdmissionEnabled !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                     {formData.onlineAdmissionEnabled !== false 
-                      ? (currentLang === 'en' ? 'Portal Active (ON)' : 'পোর্টাল চালু (ON)')
-                      : (currentLang === 'en' ? 'Portal Closed (OFF)' : 'পোর্টাল বন্ধ (OFF)')}
+                      ? (currentLang === 'en' ? 'Portal Active (ON)' : 'পোর্টাল চালু')
+                      : (currentLang === 'en' ? 'Portal Closed (OFF)' : 'পোর্টাল বন্ধ')}
                   </span>
                 }
               >
@@ -2829,7 +2829,7 @@ export default function SettingsPage() {
 
               {/* Main SMS Gateway Configuration */}
               <SettingsCard
-                title="এসএমএস গেটওয়ে কনফিগারেশন (Bulk SMS Gateway)"
+                title="এসএমএস গেটওয়ে কনফিগারেশন"
                 subtitle="bulksmsdhaka.net ও অন্যান্য গেটওয়ে ব্যবহার করে স্বয়ংক্রিয় নোটিশ, বকেয়া ফি এবং ওটিপি পাঠান"
                 icon={<MessageSquare className="w-5 h-5" />}
                 iconBg="bg-blue-50"
@@ -2925,7 +2925,7 @@ export default function SettingsPage() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
-                          এপিআই কি (API Key) <span className="text-rose-500">*</span>
+                          এপিআই কি <span className="text-rose-500">*</span>
                         </span>
                         <button
                           type="button"
@@ -2966,7 +2966,7 @@ export default function SettingsPage() {
                     {/* Caller ID / Sender ID */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        কলার আইডি / সেন্ডার আইডি (Caller ID) <span className="text-rose-500">*</span>
+                        কলার আইডি / সেন্ডার আইডি <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -2996,7 +2996,7 @@ export default function SettingsPage() {
                     {/* Brand Name for OTP */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        ওটিপি ব্র্যান্ডের নাম (Brand / School Name for OTP)
+                        ওটিপি ব্র্যান্ডের নাম
                       </label>
                       <input
                         type="text"
@@ -3013,7 +3013,7 @@ export default function SettingsPage() {
                     {/* Balance */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        বর্তমান ব্যালেন্স / ক্রেডিট (SMS Balance)
+                        বর্তমান ব্যালেন্স / ক্রেডিট
                       </label>
                       <div className="relative">
                         <input
@@ -3089,7 +3089,7 @@ export default function SettingsPage() {
                 <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-200 leading-relaxed">
                   <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-amber-300 font-bold block mb-0.5">⚠️ ওটিপি (OTP) সতর্কবার্তা ও শর্ত:</strong>
+                    <strong className="text-amber-300 font-bold block mb-0.5">⚠️ ওটিপি সতর্কবার্তা ও শর্ত:</strong>
                     OTP পাঠানোর জন্য অবশ্যই <span className="font-mono bg-amber-400/20 px-1 py-0.2 rounded font-bold text-amber-100">Your {'{Brand/Company Name}'} OTP is XXXX</span> ফরম্যাট মেনে পাঠাতে হবে।
                     নোট: OTP টির এসএমএস কনটেন্ট অবশ্যই <strong>৭০ ক্যারেক্টারের মধ্যে</strong> থাকতে হবে, অন্যথায় OTP সেন্ড হবে না এবং একাউন্ট থেকে ব্যালেন্স কেটে নেওয়া হতে পারে।
                   </div>
@@ -3133,7 +3133,7 @@ export default function SettingsPage() {
 
               {/* Interactive Live Test Console */}
               <SettingsCard
-                title="লাইভ টেস্ট কনসোল (Live Test Console)"
+                title="লাইভ টেস্ট কনসোল"
                 subtitle="আপনার গেটওয়ে সক্রিয় কিনা এবং বার্তা পৌঁছাচ্ছে কিনা তা এখনই যাচাই করুন"
                 icon={<Radio className="w-5 h-5" />}
                 iconBg="bg-emerald-50"
@@ -3162,7 +3162,7 @@ export default function SettingsPage() {
                           : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
-                      ওটিপি (OTP) টেস্ট
+                      ওটিপি টেস্ট
                     </button>
                   </div>
 
@@ -3186,7 +3186,7 @@ export default function SettingsPage() {
                     {testSmsMode === 'text' ? (
                       <div className="space-y-1.5 sm:col-span-2">
                         <div className="flex items-center justify-between text-xs">
-                          <label className="font-bold text-slate-700">টেস্ট বার্তা (Message Content)</label>
+                          <label className="font-bold text-slate-700">টেস্ট বার্তা</label>
                           <span className="text-[10.5px] font-mono text-slate-500">
                             {testSmsMessage.length} অক্ষর | {smsService.calculateSMSCredit(testSmsMessage).smsParts} ক্রেডিট
                           </span>
@@ -3393,7 +3393,7 @@ export default function SettingsPage() {
 
               {/* Database Clean Reset Management */}
               <SettingsCard
-                title="ডেটাবেস রিসেট ও ফ্রেশ স্টার্ট (Clean Database Reset)"
+                title="ডেটাবেস রিসেট ও ফ্রেশ স্টার্ট"
                 subtitle="সমস্ত রেকর্ড মুছে প্রতিষ্ঠানকে সম্পূর্ণ ফ্রেশ ও খালি অবস্থায় শুরু করুন"
                 icon={<Trash2 className="w-5 h-5" />}
                 iconBg="bg-rose-50 dark:bg-rose-950/50" iconColor="text-rose-600 dark:text-rose-400"
@@ -3416,7 +3416,7 @@ export default function SettingsPage() {
 
               {/* 🌟 CARD 1: COMPLETE DATABASE JSON BACKUP */}
               <SettingsCard
-                title="সম্পূর্ণ ডেটাবেস JSON ব্যাকআপ (Database JSON Backup)"
+                title="সম্পূর্ণ ডেটাবেস JSON ব্যাকআপ"
                 subtitle="প্রতিষ্ঠানের সকল শিক্ষার্থী, শিক্ষক, ফলাফল, উপস্থিতি, হিসাব ও সেটিংস এক ক্লিকে অফলাইনে সুরক্ষিত রাখুন"
                 icon={<Database className="w-5 h-5" />}
                 iconBg="bg-indigo-50 dark:bg-indigo-950/70" iconColor="text-indigo-600 dark:text-indigo-400"
@@ -3506,7 +3506,7 @@ export default function SettingsPage() {
 
               {/* 🌟 CARD 2: RESTORE DATABASE FROM JSON BACKUP */}
               <SettingsCard
-                title="JSON ব্যাকআপ থেকে ডেটাবেস রিস্টোর (Restore Database)"
+                title="JSON ব্যাকআপ থেকে ডেটাবেস রিস্টোর"
                 subtitle="পূর্বে ডাউনলোড করা যেকোনো JSON ব্যাকআপ ফাইল নির্বাচন করে সমস্ত ডেটা নিমিষে ফিরিয়ে আনুন"
                 icon={<RefreshCw className="w-5 h-5" />}
                 iconBg="bg-teal-50 dark:bg-teal-950/70" iconColor="text-teal-600 dark:text-teal-400"
@@ -3633,7 +3633,7 @@ export default function SettingsPage() {
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        🇧🇩 বাংলা (Bengali)
+                        🇧🇩 বাংলা
                       </button>
                       <button
                         type="button"
@@ -3644,7 +3644,7 @@ export default function SettingsPage() {
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        🇬🇧 English (EN)
+                        🇬🇧 English
                       </button>
                     </div>
                   </div>
@@ -4074,7 +4074,7 @@ export default function SettingsPage() {
                       type="url"
                       value={committeeForm.photo || ''}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, photo: e.target.value }))}
-                      placeholder="অথবা সরাসরি ছবির ওয়েব লিংক (URL) পেস্ট করুন"
+                      placeholder="অথবা সরাসরি ছবির ওয়েব লিংক পেস্ট করুন"
                       className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-500"
                     />
                   </div>
