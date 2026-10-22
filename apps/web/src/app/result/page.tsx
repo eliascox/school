@@ -443,19 +443,15 @@ function ResultSearchContent() {
         <div id="search-section" className="space-y-6 print:hidden">
           
           {/* Hero Titles */}
-          <div className="text-center max-w-3xl mx-auto space-y-2.5">
+          <div className="text-center max-w-5xl mx-auto space-y-3">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-emerald-800 dark:text-emerald-300 border border-emerald-200/90 dark:border-emerald-800 shadow-2xs">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>OFFICIAL RESULT PORTAL</span>
             </div>
             
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-              Online Examination Results & <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 dark:from-emerald-400 dark:via-teal-300 dark:to-indigo-400 bg-clip-text text-transparent">Marksheet</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[44px] font-black text-slate-900 dark:text-white tracking-tight leading-tight md:whitespace-nowrap">
+              Online Examination Results &amp; <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 dark:from-emerald-400 dark:via-teal-300 dark:to-indigo-400 bg-clip-text text-transparent">Marksheet</span>
             </h2>
-            
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl mx-auto">
-              Select examination, class, and enter student roll number to search and view official marksheet and grade report.
-            </p>
           </div>
 
           {/* ─── THE WHITE FROSTED GLASS SEARCH CARD ("এক লাইনে সকল কিছু") ─── */}
@@ -570,7 +566,7 @@ function ResultSearchContent() {
                 )}
 
                 {/* 4. Student Roll Number */}
-                <div className="w-full lg:w-36 shrink-0 space-y-1.5">
+                <div className="w-full lg:w-40 shrink-0 space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Hash className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -583,8 +579,8 @@ function ResultSearchContent() {
                       required
                       value={rollInput}
                       onChange={(e) => setRollInput(e.target.value)}
-                      placeholder="Roll (e.g. 01)"
-                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder-slate-400 font-mono tracking-wide focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs outline-none"
+                      placeholder="Roll No (01)"
+                      className="w-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder-slate-400 font-mono tracking-normal focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs outline-none"
                     />
                     {rollInput && (
                       <button
