@@ -793,24 +793,15 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                           <span
                             className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                               isDirectActive
-                                ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                                ? 'bg-white/20 text-white'
                                 : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
                             }`}
                           >
                             {item.icon}
                           </span>
-                          <div className="leading-tight min-w-0">
-                            <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 font-bold' : 'text-slate-800'}`}>
-                              {currentLang === 'en' ? item.title : item.title}
-                            </span>
-                            <span
-                              className={`text-[11px] block truncate ${
-                                isDirectActive ? 'text-indigo-100' : 'text-slate-400'
-                              }`}
-                            >
-                              {currentLang === 'en' ? item.subtitle : item.subtitleBn}
-                            </span>
-                          </div>
+                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isDirectActive ? 'text-white' : 'text-slate-800'}`}>
+                            {currentLang === 'en' ? item.title : item.titleBn || item.title}
+                          </span>
                         </div>
 
                         {item.badge && (
@@ -852,14 +843,9 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                           >
                             {item.icon}
                           </span>
-                          <div className="text-left leading-tight min-w-0">
-                            <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 font-bold' : 'text-slate-800'}`}>
-                              {currentLang === 'en' ? item.title : item.title}
-                            </span>
-                            <span className="text-[11px] text-slate-400 block truncate">
-                              {currentLang === 'en' ? item.subtitle : item.subtitleBn}
-                            </span>
-                          </div>
+                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 font-bold' : 'text-slate-800'}`}>
+                            {currentLang === 'en' ? item.title : item.titleBn || item.title}
+                          </span>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
@@ -953,24 +939,15 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                       <span
                         className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                           active
-                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                            ? 'bg-white/20 text-white'
                             : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
                         }`}
                       >
                         {item.icon}
                       </span>
-                      <div className="leading-tight min-w-0">
-                        <span className={`block font-semibold truncate text-xs sm:text-sm ${active ? 'text-white' : 'text-slate-800'}`}>
-                          {currentLang === 'en' ? item.title : item.title}
-                        </span>
-                        <span
-                          className={`text-[11px] block truncate ${
-                            active ? 'text-indigo-100' : 'text-slate-400'
-                          }`}
-                        >
-                          {currentLang === 'en' ? item.subtitle : item.subtitleBn}
-                        </span>
-                      </div>
+                      <span className={`block font-semibold truncate text-xs sm:text-sm ${active ? 'text-white' : 'text-slate-800'}`}>
+                        {currentLang === 'en' ? item.title : item.titleBn || item.title}
+                      </span>
                     </div>
 
                     {item.badge && (
