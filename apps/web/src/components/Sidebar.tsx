@@ -694,7 +694,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-300 border-r border-slate-800/80 select-none transition-colors duration-200">
+    <div className="flex flex-col h-full bg-slate-900 text-slate-300 border-r-2 border-white select-none transition-colors duration-200">
       
       {/* ── 1. BRAND HEADER WITH GRADIENT ACCENT ── */}
       <div className="h-20 px-5 flex items-center justify-between border-b border-slate-800/80 shrink-0">
@@ -757,7 +757,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       </div>
 
       {/* ── 3. SCROLLABLE NAVIGATION MENU ITEMS ── */}
-      <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-6 scrollbar-thin scrollbar-thumb-slate-800">
+      <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         
         {isAdmin ? (
           /* ── ADMIN TIERED SECTIONS ── */
@@ -1052,7 +1052,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden">
         <React.Suspense
           fallback={
-            <div className="w-72 bg-slate-900 h-screen border-r border-slate-800" />
+            <div className="w-72 bg-slate-900 h-screen border-r-2 border-white" />
           }
         >
           <SidebarContent session={session} />
@@ -1080,7 +1080,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           <React.Suspense
             fallback={
-              <div className="w-72 bg-slate-900 h-full border-r border-slate-800" />
+              <div className="w-72 bg-slate-900 h-full border-r-2 border-white" />
             }
           >
             <SidebarContent session={session} onClose={onClose} />
