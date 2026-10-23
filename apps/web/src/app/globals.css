@@ -114,6 +114,17 @@ h1, h2, h3, h4, h5, h6 {
 .dark .scrollbar-thin {
   scrollbar-color: #334155 transparent;
 }
+
+/* Hide scrollbar completely */
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
 }

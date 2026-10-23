@@ -757,7 +757,10 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       </div>
 
       {/* ── 3. SCROLLABLE NAVIGATION MENU ITEMS ── */}
-      <nav className="flex-1 overflow-y-auto px-3.5 py-3 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <nav
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex-1 overflow-y-auto px-3.5 py-3 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden no-scrollbar"
+      >
         
         {isAdmin ? (
           /* ── ADMIN TIERED SECTIONS ── */
@@ -1049,7 +1052,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar (w-72 matches modern high-end ERP layout) */}
-      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden">
+      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden border-r-2 border-white bg-slate-900">
         <React.Suspense
           fallback={
             <div className="w-72 bg-slate-900 h-screen border-r-2 border-white" />
@@ -1074,7 +1077,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
         {/* Drawer */}
         <aside
-          className={`absolute left-0 top-0 bottom-0 w-72 shadow-2xl transition-transform duration-300 ease-in-out ${
+          className={`absolute left-0 top-0 bottom-0 w-72 shadow-2xl transition-transform duration-300 ease-in-out border-r-2 border-white bg-slate-900 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >

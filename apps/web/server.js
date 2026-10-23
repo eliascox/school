@@ -185,7 +185,12 @@ function createStaticServer(port) {
         res.end('500 Internal Server Error');
         return;
       }
-      res.writeHead(res.statusCode === 404 ? 404 : 200, { 'Content-Type': contentType });
+      res.writeHead(res.statusCode === 404 ? 404 : 200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       res.end(content);
     });
   });
