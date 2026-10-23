@@ -740,7 +740,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       <div className="px-4 pt-4 pb-2 shrink-0">
         <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
               <CalendarRange className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -759,18 +759,18 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       {/* ── 3. SCROLLABLE NAVIGATION MENU ITEMS ── */}
       <nav
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        className="flex-1 overflow-y-auto px-3.5 py-3 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden no-scrollbar"
+        className="flex-1 overflow-y-auto px-3 py-2 space-y-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden no-scrollbar"
       >
         
         {isAdmin ? (
           /* ── ADMIN TIERED SECTIONS ── */
           ADMIN_SECTIONS.map((section, idx) => (
-            <div key={idx} className="space-y-1">
-              <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div key={idx} className="space-y-0.5">
+              <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {currentLang === 'en' ? section.header : section.headerBn}
               </p>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const isDirect = Boolean(item.href);
                   const isDirectActive = isDirect && item.href ? isItemActive(item.href) : false;
@@ -783,7 +783,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                         key={item.id}
                         href={item.href}
                         onClick={handleLinkClick}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                        className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
                           isDirectActive
                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -791,7 +791,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                               isDirectActive
                                 ? 'bg-white/20 text-white'
                                 : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
@@ -827,7 +827,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                       <button
                         type="button"
                         onClick={() => toggleGroup(item.id)}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
                           isGActive
                             ? 'bg-slate-100 text-slate-900 border border-slate-200/80 font-bold'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -835,7 +835,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                               isGActive
                                 ? 'bg-indigo-600 text-white shadow-xs'
                                 : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
@@ -917,11 +917,11 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
         ) : (
           /* ── TEACHER DEDICATED ITEMS ── */
           <div className="space-y-1">
-            <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               {currentLang === 'en' ? 'Teacher Portal' : 'শিক্ষক সেবা ও কার্যক্রম'}
             </p>
 
-            <div className="space-y-1.5">
+            <div className="space-y-0.5">
               {TEACHER_ITEMS.map((item) => {
                 const active = item.href ? isItemActive(item.href) : false;
                 return (
@@ -929,7 +929,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                     key={item.id}
                     href={item.href || '/dashboard/teacher-portal'}
                     onClick={handleLinkClick}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                    className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
                       active
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -937,7 +937,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                           active
                             ? 'bg-white/20 text-white'
                             : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
