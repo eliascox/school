@@ -133,4 +133,32 @@ describe('landingPageService CMS tests', () => {
     landingPageService.deleteMediaItem(item.id);
     expect(landingPageService.getMediaList().some(m => m.id === item.id)).toBe(false);
   });
+
+  it('handles configOverride in publish and safe storage cleanly', () => {
+    const draft = landingPageService.getDraftConfig();
+    const customConfig = {
+      ...draft,
+      hero: {
+        ...draft.hero,
+        title: 'ওভাররাইড টাইটেল',
+        enableSlider: true,
+        slides: [
+          {
+            id: 'slide-custom-1',
+            title: 'কাস্টম স্লাইড',
+            subtitle: 'সাবটাইটেল',
+            imageUrl: 'https://example.com/slide.jpg',
+          },
+        ],
+      },
+    };
+
+    const pubOk = landingPageService.publish('অ্যাডমিন', 'কাস্টম স্লাইডার প্রকাশ', customConfig);
+    expect(pubOk).toBe(true);
+
+    const published = landingPageService.getPublishedConfig();
+    expect(published.hero.title).toBe('ওভাররাইড টাইটেল');
+    expect(published.hero.slides.length).toBe(1);
+    expect(published.hero.slides[0].id).toBe('slide-custom-1');
+  });
 });

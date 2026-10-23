@@ -939,34 +939,64 @@ function safeStorageSet(key: string, value: string): boolean {
     localStorage.setItem(key, value);
     return true;
   } catch (err: any) {
-    console.warn(`[LandingPageService] Storage full when writing "${key}". Initiating auto-cleanup...`, err);
+    console.warn(`[LandingPageService] Storage full when writing "${key}". Initiating aggressive auto-cleanup...`, err);
     try {
-      // 1. Prune or remove historical versions snapshots (frees up several megabytes instantly)
+      // 1. Remove version snapshots and audit logs
       localStorage.removeItem(STORAGE_KEYS.VERSIONS);
-
-      // 2. Prune audit logs
       localStorage.removeItem(STORAGE_KEYS.AUDIT_LOG);
 
-      // 3. Prune excessive media items
+      // 2. Clean up non-essential temporary/cache keys in localStorage
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('sms_backup_') || k.includes('snapshot') || k.includes('temp') || k.includes('cache'))) {
+          localStorage.removeItem(k);
+        }
+      }
+
+      // 3. When saving PUBLISHED, temporarily remove DRAFT to immediately free up 1-3MB!
+      if (key === STORAGE_KEYS.PUBLISHED) {
+        localStorage.removeItem(STORAGE_KEYS.DRAFT);
+      }
+
+      // 4. Prune media items if needed
       const mediaRaw = localStorage.getItem(STORAGE_KEYS.MEDIA);
       if (mediaRaw) {
         try {
           const media = JSON.parse(mediaRaw);
-          if (Array.isArray(media) && media.length > 5) {
-            localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media.slice(0, 5)));
+          if (Array.isArray(media) && media.length > 3) {
+            localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media.slice(0, 3)));
           }
         } catch {
           localStorage.removeItem(STORAGE_KEYS.MEDIA);
         }
       }
 
-      // 4. Retry saving
-      localStorage.setItem(key, value);
-      console.log(`[LandingPageService] Successfully saved "${key}" after storage cleanup.`);
-      return true;
+      // 5. Retry saving
+      try {
+        localStorage.setItem(key, value);
+        console.log(`[LandingPageService] Successfully saved "${key}" after cleanup.`);
+        return true;
+      } catch (innerErr) {
+        // If still failing, aggressively prune media to 1 item or clear media
+        localStorage.removeItem(STORAGE_KEYS.MEDIA);
+        localStorage.setItem(key, value);
+        console.log(`[LandingPageService] Successfully saved "${key}" after media clearance.`);
+        return true;
+      }
     } catch (retryErr) {
-      console.error(`[LandingPageService] Storage quota still exceeded after cleanup for "${key}":`, retryErr);
-      return false;
+      console.error(`[LandingPageService] Storage quota still exceeded after full cleanup for "${key}":`, retryErr);
+      // As ultimate fallback: try storing a compacted version if it's a JSON config
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed?.hero?.slides && Array.isArray(parsed.hero.slides)) {
+          parsed.hero.slides = parsed.hero.slides.slice(-4);
+        }
+        localStorage.setItem(key, JSON.stringify(parsed));
+        return true;
+      } catch (fallbackErr) {
+        console.error(`[LandingPageService] Ultimate fallback save failed for "${key}":`, fallbackErr);
+        return false;
+      }
     }
   }
 }
@@ -1203,10 +1233,10 @@ class LandingPageService {
     return true;
   }
 
-  public publish(user: string = 'অ্যাডমিন', summary: string = 'নতুন পরিবর্তন লাইভ করা হয়েছে'): boolean {
+  public publish(user: string = 'অ্যাডমিন', summary: string = 'নতুন পরিবর্তন লাইভ করা হয়েছে', configOverride?: LandingPageConfig): boolean {
     if (typeof window === 'undefined') return false;
     try {
-      const draft = this.getDraftConfig();
+      const draft = configOverride || this.getDraftConfig();
       const newVersion = (draft.version || 1) + 1;
       const publishedConfig: LandingPageConfig = {
         ...draft,

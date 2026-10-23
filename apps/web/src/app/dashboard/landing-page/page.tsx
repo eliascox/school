@@ -165,6 +165,86 @@ export default function LandingPageManagementDashboard() {
     };
   }, []);
 
+  // 🛡️ Auto-healing background asset optimizer: detects oversized legacy base64 images in localStorage and downscales them
+  useEffect(() => {
+    let isCancelled = false;
+    const optimizeExistingHeavyAssets = async () => {
+      try {
+        let draftChanged = false;
+        const currentDraft = landingPageService.getDraftConfig();
+        const updatedHero = { ...currentDraft.hero };
+
+        if (updatedHero.slides && updatedHero.slides.length > 0) {
+          const optimizedSlides = await Promise.all(
+            updatedHero.slides.map(async (slide) => {
+              if (slide.imageUrl && slide.imageUrl.startsWith('data:image/') && slide.imageUrl.length > 70000) {
+                try {
+                  const smaller = await compressImage(slide.imageUrl, 1000, 560, 0.65);
+                  if (smaller && smaller.length < slide.imageUrl.length) {
+                    draftChanged = true;
+                    return { ...slide, imageUrl: smaller };
+                  }
+                } catch (e) {}
+              }
+              return slide;
+            })
+          );
+          updatedHero.slides = optimizedSlides;
+        }
+
+        if (updatedHero.bgImage && updatedHero.bgImage.startsWith('data:image/') && updatedHero.bgImage.length > 70000) {
+          try {
+            const smaller = await compressImage(updatedHero.bgImage, 1000, 560, 0.65);
+            if (smaller && smaller.length < updatedHero.bgImage.length) {
+              draftChanged = true;
+              updatedHero.bgImage = smaller;
+            }
+          } catch (e) {}
+        }
+
+        const currentMedia = landingPageService.getMediaList();
+        let mediaChanged = false;
+        const optimizedMedia = await Promise.all(
+          currentMedia.map(async (m) => {
+            if (m.url && m.url.startsWith('data:image/') && m.url.length > 70000) {
+              try {
+                const smaller = await compressImage(m.url, 1000, 560, 0.65);
+                if (smaller && smaller.length < m.url.length) {
+                  mediaChanged = true;
+                  return { ...m, url: smaller, size: Math.round(smaller.length * 0.75) };
+                }
+              } catch (e) {}
+            }
+            return m;
+          })
+        );
+
+        if (isCancelled) return;
+
+        if (mediaChanged) {
+          try {
+            localStorage.setItem('sms_landing_media', JSON.stringify(optimizedMedia));
+            setMediaList(optimizedMedia);
+          } catch (e) {}
+        }
+
+        if (draftChanged) {
+          const updatedConfig = { ...currentDraft, hero: updatedHero };
+          landingPageService.saveDraftConfig(updatedConfig, 'সিস্টেম অপ্টিমাইজার');
+          setConfig(updatedConfig);
+        }
+      } catch (err) {
+        console.warn('Auto-optimizer non-critical notice:', err);
+      }
+    };
+
+    const timer = setTimeout(optimizeExistingHeavyAssets, 600);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => {
@@ -202,7 +282,7 @@ export default function LandingPageManagementDashboard() {
   const handlePublishLive = () => {
     setIsPublishing(true);
     try {
-      const success = landingPageService.publish('অ্যাডমিন', publishSummary || 'ওয়েবসাইট কনটেন্ট আপডেট');
+      const success = landingPageService.publish('অ্যাডমিন', publishSummary || 'ওয়েবসাইট কনটেন্ট আপডেট', config);
       if (success) {
         setShowPublishModal(false);
         setHasChanges(false);
@@ -297,7 +377,7 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Helper to resize/compress images for lightning-fast performance & safe storage
-  const processImageFile = async (file: File): Promise<{ dataUrl: string; width: number; height: number; size: number }> => {
+  const processImageFile = async (file: File, targetCategory?: string): Promise<{ dataUrl: string; width: number; height: number; size: number }> => {
     if (file.type === 'image/svg+xml') {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -306,11 +386,16 @@ export default function LandingPageManagementDashboard() {
         reader.readAsDataURL(file);
       });
     }
-    const compressed = await compressImage(file, 1280, 720, 0.76);
+    // High-efficiency adaptive dimensions: produces crisp ~25KB-45KB photos that never break storage quota
+    const maxWidth = targetCategory === 'logo' ? 300 : targetCategory === 'student' ? 360 : 1000;
+    const maxHeight = targetCategory === 'logo' ? 300 : targetCategory === 'student' ? 450 : 560;
+    const quality = targetCategory === 'logo' ? 0.8 : targetCategory === 'student' ? 0.75 : 0.65;
+
+    const compressed = await compressImage(file, maxWidth, maxHeight, quality);
     return {
       dataUrl: compressed,
-      width: 1280,
-      height: 720,
+      width: maxWidth,
+      height: maxHeight,
       size: Math.round(compressed.length * 0.75),
     };
   };
@@ -332,7 +417,7 @@ export default function LandingPageManagementDashboard() {
       let updatedAny = false;
 
       for (const file of files) {
-        const { dataUrl, size } = await processImageFile(file);
+        const { dataUrl, size } = await processImageFile(file, targetCat);
         if (!dataUrl) continue;
 
         landingPageService.addMediaItem({
@@ -459,21 +544,32 @@ export default function LandingPageManagementDashboard() {
 
   // Add to Hero Slider
   const handleAddToHeroSlider = (item: MediaItem) => {
+    const currentSlides = config.hero.slides || [];
+    const alreadyExists = currentSlides.some(s => s.imageUrl === item.url);
+    if (alreadyExists) {
+      showToast('এই ছবিটি ইতিমধ্যে স্লাইডারে যুক্ত রয়েছে!', 'info');
+      return;
+    }
+
     const newSlide: HeroSlide = {
       id: `slide-${Date.now()}`,
       title: config.hero.title || config.header.schoolName,
-      subtitle: config.hero.subtitle || 'জ্ঞানে ও আলোয় আলোকিত ভবিষ্যৎ',
+      subtitle: config.hero.subtitle || 'জ্ঞান, প্রজ্ঞা ও মূল্যবোধের অনন্য বিদ্যাপীঠ',
       imageUrl: item.url,
-      ctaText: 'ভর্তি তথ্য',
+      ctaText: 'ভর্তি আবেদন',
       ctaLink: '/admission',
     };
-    const currentSlides = config.hero.slides || [];
+
+    // If current slides are only default demo stock slides, place user's photo as primary slide
+    const isDefaultDemoCollection = currentSlides.length > 0 && currentSlides[0]?.id === 'slide-1' && currentSlides[0]?.imageUrl === '/school-campus.jpg';
+    const slidesList = isDefaultDemoCollection ? [newSlide] : [...currentSlides, newSlide];
+
     const updatedCfg: LandingPageConfig = {
       ...config,
       hero: {
         ...config.hero,
         enableSlider: true,
-        slides: [...currentSlides, newSlide],
+        slides: slidesList,
       },
     };
     handleUpdateConfig(updatedCfg);
@@ -481,7 +577,22 @@ export default function LandingPageManagementDashboard() {
       landingPageService.updateMediaItem(item.id, { category: 'banner' });
       setMediaList(landingPageService.getMediaList());
     }
-    showToast(`"${item.name}" হিরো স্লাইডারে যুক্ত করা হয়েছে!`, 'success');
+    showToast(`"${item.name}" স্লাইডারে সফলভাবে যুক্ত হয়েছে!`, 'success');
+  };
+
+  // Remove from Hero Slider
+  const handleRemoveFromHeroSlider = (imageUrl: string) => {
+    const currentSlides = config.hero.slides || [];
+    const updatedSlides = currentSlides.filter(s => s.imageUrl !== imageUrl);
+    const updatedCfg: LandingPageConfig = {
+      ...config,
+      hero: {
+        ...config.hero,
+        slides: updatedSlides,
+      },
+    };
+    handleUpdateConfig(updatedCfg);
+    showToast('স্লাইডার থেকে ছবিটি বাদ দেওয়া হয়েছে', 'info');
   };
 
   // Dedicated Slide Management Handlers
@@ -496,12 +607,14 @@ export default function LandingPageManagementDashboard() {
           ctaText: 'ভর্তি আবেদন',
           ctaLink: '/admission',
         };
+        const currentSlides = config.hero.slides || [];
+        const isDefaultDemoCollection = currentSlides.length > 0 && currentSlides[0]?.id === 'slide-1' && currentSlides[0]?.imageUrl === '/school-campus.jpg';
         const updated = {
           ...config,
           hero: {
             ...config.hero,
             enableSlider: true,
-            slides: [...(config.hero.slides || []), newSlide],
+            slides: isDefaultDemoCollection ? [newSlide] : [...currentSlides, newSlide],
           },
         };
         handleUpdateConfig(updated);
@@ -521,8 +634,8 @@ export default function LandingPageManagementDashboard() {
         showToast('নতুন ব্যানার স্লাইড সফলভাবে যুক্ত হয়েছে!', 'success');
       } else {
         showToast('ছবি প্রসেসিং ও অপটিমাইজেশন হচ্ছে...', 'info');
-        // 🖼️ Compress uploaded file to high-definition 1600x900 JPEG (~80KB) to prevent storage quota exhaustion
-        const compressedUrl = await compressImage(fileOrUrl, 1600, 900, 0.78);
+        // 🖼️ Compress uploaded file to ultra-crisp 1000x560 JPEG (~35KB) to guarantee storage safety
+        const compressedUrl = await compressImage(fileOrUrl, 1000, 560, 0.65);
         const finalUrl = compressedUrl || (await new Promise<string>((res) => {
           const r = new FileReader();
           r.onload = () => res(r.result as string);
@@ -543,12 +656,14 @@ export default function LandingPageManagementDashboard() {
           ctaText: 'ভর্তি আবেদন',
           ctaLink: '/admission',
         };
+        const currentSlides = config.hero.slides || [];
+        const isDefaultDemoCollection = currentSlides.length > 0 && currentSlides[0]?.id === 'slide-1' && currentSlides[0]?.imageUrl === '/school-campus.jpg';
         const updated = {
           ...config,
           hero: {
             ...config.hero,
             enableSlider: true,
-            slides: [...(config.hero.slides || []), newSlide],
+            slides: isDefaultDemoCollection ? [newSlide] : [...currentSlides, newSlide],
           },
         };
         handleUpdateConfig(updated);
@@ -607,7 +722,7 @@ export default function LandingPageManagementDashboard() {
   const handleReplaceHeroSlideImage = async (slideId: string, file: File) => {
     try {
       showToast('ছবি পরিবর্তন ও অপটিমাইজেশন হচ্ছে...', 'info');
-      const compressedUrl = await compressImage(file, 1600, 900, 0.78);
+      const compressedUrl = await compressImage(file, 1000, 560, 0.65);
       const finalUrl = compressedUrl || (await new Promise<string>((res) => {
         const r = new FileReader();
         r.onload = () => res(r.result as string);
@@ -4422,6 +4537,8 @@ export default function LandingPageManagementDashboard() {
                     const isCurrentLogo = item.url === config.header.logoUrl;
                     const isHeroBg = item.url === config.hero.bgImage;
                     const isInGallery = (config.gallery?.items || []).some(g => g.thumbnail === item.url);
+                    const isInSlider = (config.hero.slides || []).some(s => s.imageUrl === item.url);
+                    const sliderIndex = (config.hero.slides || []).findIndex(s => s.imageUrl === item.url);
 
                     return (
                       <div
@@ -4431,6 +4548,8 @@ export default function LandingPageManagementDashboard() {
                             ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
                             : isHeroBg
                             ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-md'
+                            : isInSlider
+                            ? 'border-sky-500 ring-2 ring-sky-500/20 shadow-md'
                             : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -4443,15 +4562,21 @@ export default function LandingPageManagementDashboard() {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                             {isCurrentLogo && (
-                              <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1">
+                              <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1 z-10">
                                 <Check className="w-2.5 h-2.5" />
                                 <span>প্রধান লোগো</span>
                               </div>
                             )}
                             {isHeroBg && (
-                              <div className="absolute top-1.5 right-1.5 bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1">
+                              <div className="absolute top-1.5 right-1.5 bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1 z-10">
                                 <Check className="w-2.5 h-2.5" />
                                 <span>ব্যানার ব্যাকগ্রাউন্ড</span>
+                              </div>
+                            )}
+                            {isInSlider && !isCurrentLogo && (
+                              <div className="absolute top-1.5 left-1.5 bg-sky-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1 z-10">
+                                <Play className="w-2.5 h-2.5 fill-current" />
+                                <span>স্লাইডার #{sliderIndex + 1}</span>
                               </div>
                             )}
                             <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.5 rounded capitalize">
@@ -4496,14 +4621,31 @@ export default function LandingPageManagementDashboard() {
                                   <span>হোমপেজ ব্যানার করুন</span>
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => handleAddToHeroSlider(item)}
-                                className="w-full py-1 text-center rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-700 dark:text-sky-300 text-[10px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
-                              >
-                                <Play className="w-3 h-3" />
-                                <span>স্লাইডারে যোগ করুন</span>
-                              </button>
+                              {isInSlider ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="flex-1 py-1 px-1.5 text-center rounded-lg bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-[10px] font-black flex items-center justify-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    <span>স্লাইডারে সক্রিয় (#{sliderIndex + 1})</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFromHeroSlider(item.url)}
+                                    className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-900 transition cursor-pointer"
+                                    title="স্লাইডার থেকে বাদ দিন"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddToHeroSlider(item)}
+                                  className="w-full py-1 text-center rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-700 dark:text-sky-300 text-[10px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                                >
+                                  <Play className="w-3 h-3" />
+                                  <span>স্লাইডারে যোগ করুন</span>
+                                </button>
+                              )}
                             </div>
                           )}
 
