@@ -78,6 +78,7 @@ import {
 import { teacherAuthService } from '@/services/teacherAuthService';
 import { studentService, Student } from '@/services/studentService';
 import { settingsService } from '@/services/settingsService';
+import { compressImage } from '@/lib/imageUtils';
 
 type ActiveTab =
   | 'overview'
@@ -174,18 +175,26 @@ export default function LandingPageManagementDashboard() {
   // Helper to update draft state & service
   const handleUpdateConfig = (newConfig: LandingPageConfig) => {
     setConfig(newConfig);
-    landingPageService.saveDraftConfig(newConfig, 'অ্যাডমিন');
+    const ok = landingPageService.saveDraftConfig(newConfig, 'অ্যাডমিন');
+    if (!ok) {
+      console.warn('Storage notice: safe storage cleanup triggered.');
+    }
     setHasChanges(true);
   };
 
   // Save Draft Action
   const handleSaveDraft = () => {
-    const success = landingPageService.saveDraftConfig(config, 'অ্যাডমিন');
-    if (success) {
-      setHasChanges(landingPageService.hasDraftChanges());
-      showToast('খসড়া সফলভাবে সংরক্ষণ করা হয়েছে', 'success');
-    } else {
-      showToast('খসড়া সংরক্ষণে ত্রুটি দেখা দিয়েছে', 'error');
+    try {
+      const success = landingPageService.saveDraftConfig(config, 'অ্যাডমিন');
+      if (success) {
+        setHasChanges(landingPageService.hasDraftChanges());
+        showToast('খসড়া সফলভাবে সংরক্ষণ করা হয়েছে', 'success');
+      } else {
+        showToast('খসড়া সংরক্ষণে ত্রুটি দেখা দিয়েছে, ব্রাউজারের স্টোরেজ খালি করার চেষ্টা করা হয়েছে। পুনরায় চেষ্টা করুন।', 'error');
+      }
+    } catch (err: any) {
+      console.error('Save draft error:', err);
+      showToast('খসড়া সংরক্ষণে সমস্যা হয়েছে: ' + (err?.message || ''), 'error');
     }
   };
 
@@ -200,16 +209,19 @@ export default function LandingPageManagementDashboard() {
         setVersions(landingPageService.getVersions());
         setAuditLogs(landingPageService.getAuditLogs());
 
-    try {
-      const stds = studentService.getAllStudents();
-      setLiveStudents(stds);
-    } catch (e) {
-      console.error('Failed to load students for landing page:', e);
-    }
+        try {
+          const stds = studentService.getAllStudents();
+          setLiveStudents(stds);
+        } catch (e) {
+          console.error('Failed to load students for landing page:', e);
+        }
         showToast('🎉 সফলভাবে মূল ওয়েবসাইটে লাইভ প্রকাশ করা হয়েছে!', 'success');
       } else {
         showToast('প্রকাশ করতে সমস্যা হয়েছে, পুনরায় চেষ্টা করুন', 'error');
       }
+    } catch (err: any) {
+      console.error('Publish error:', err);
+      showToast('প্রকাশ করতে সমস্যা হয়েছে: ' + (err?.message || 'পুনরায় চেষ্টা করুন'), 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -285,52 +297,22 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Helper to resize/compress images for lightning-fast performance & safe storage
-  const processImageFile = (file: File): Promise<{ dataUrl: string; width: number; height: number; size: number }> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const rawResult = reader.result as string;
-        if (file.type === 'image/svg+xml') {
-          resolve({ dataUrl: rawResult, width: 100, height: 100, size: file.size });
-          return;
-        }
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 1600;
-          let w = img.width;
-          let h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else {
-              w = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve({ dataUrl: rawResult, width: img.width, height: img.height, size: file.size });
-            return;
-          }
-          ctx.drawImage(img, 0, 0, w, h);
-          const format = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-          const dataUrl = canvas.toDataURL(format, 0.85);
-          resolve({ dataUrl, width: w, height: h, size: Math.round((dataUrl.length * 3) / 4) });
-        };
-        img.onerror = () => {
-          resolve({ dataUrl: rawResult, width: 0, height: 0, size: file.size });
-        };
-        img.src = rawResult;
-      };
-      reader.onerror = () => {
-        resolve({ dataUrl: '', width: 0, height: 0, size: 0 });
-      };
-      reader.readAsDataURL(file);
-    });
+  const processImageFile = async (file: File): Promise<{ dataUrl: string; width: number; height: number; size: number }> => {
+    if (file.type === 'image/svg+xml') {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ dataUrl: reader.result as string, width: 100, height: 100, size: file.size });
+        reader.onerror = () => resolve({ dataUrl: '', width: 0, height: 0, size: 0 });
+        reader.readAsDataURL(file);
+      });
+    }
+    const compressed = await compressImage(file, 1280, 720, 0.76);
+    return {
+      dataUrl: compressed,
+      width: 1280,
+      height: 720,
+      size: Math.round(compressed.length * 0.75),
+    };
   };
 
   // Unified batch file upload handler
@@ -503,70 +485,91 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Dedicated Slide Management Handlers
-  const handleAddHeroSlide = (fileOrUrl: File | string, title?: string, subtitle?: string) => {
-    if (typeof fileOrUrl === 'string') {
-      const newSlide: HeroSlide = {
-        id: `slide-${Date.now()}`,
-        title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-        subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-        imageUrl: fileOrUrl,
-        ctaText: 'ভর্তি আবেদন',
-        ctaLink: '/admission',
-      };
-      const updated = {
-        ...config,
-        hero: {
-          ...config.hero,
-          enableSlider: true,
-          slides: [...(config.hero.slides || []), newSlide],
-        },
-      };
-      handleUpdateConfig(updated);
-      landingPageService.addMediaItem({
-        name: title || 'ব্যানার স্লাইডার ছবি',
-        category: 'banner',
-        url: fileOrUrl,
-        size: 1200000,
-        type: 'image/jpeg',
-        altText: title || 'ব্যানার ছবি',
-      });
-      setMediaList(landingPageService.getMediaList());
-      showToast('নতুন ব্যানার স্লাইড সফলভাবে যুক্ত হয়েছে!', 'success');
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        if (dataUrl) {
-          const newSlide: HeroSlide = {
-            id: `slide-${Date.now()}`,
-            title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-            subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-            imageUrl: dataUrl,
-            ctaText: 'ভর্তি আবেদন',
-            ctaLink: '/admission',
-          };
-          const updated = {
-            ...config,
-            hero: {
-              ...config.hero,
-              enableSlider: true,
-              slides: [...(config.hero.slides || []), newSlide],
-            },
-          };
-          handleUpdateConfig(updated);
+  const handleAddHeroSlide = async (fileOrUrl: File | string, title?: string, subtitle?: string) => {
+    try {
+      if (typeof fileOrUrl === 'string') {
+        const newSlide: HeroSlide = {
+          id: `slide-${Date.now()}`,
+          title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+          subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
+          imageUrl: fileOrUrl,
+          ctaText: 'ভর্তি আবেদন',
+          ctaLink: '/admission',
+        };
+        const updated = {
+          ...config,
+          hero: {
+            ...config.hero,
+            enableSlider: true,
+            slides: [...(config.hero.slides || []), newSlide],
+          },
+        };
+        handleUpdateConfig(updated);
+        try {
+          landingPageService.addMediaItem({
+            name: title || 'ব্যানার স্লাইডার ছবি',
+            category: 'banner',
+            url: fileOrUrl,
+            size: 120000,
+            type: 'image/jpeg',
+            altText: title || 'ব্যানার ছবি',
+          });
+          setMediaList(landingPageService.getMediaList());
+        } catch {
+          // ignore media quota warning
+        }
+        showToast('নতুন ব্যানার স্লাইড সফলভাবে যুক্ত হয়েছে!', 'success');
+      } else {
+        showToast('ছবি প্রসেসিং ও অপটিমাইজেশন হচ্ছে...', 'info');
+        // 🖼️ Compress uploaded file to high-definition 1600x900 JPEG (~80KB) to prevent storage quota exhaustion
+        const compressedUrl = await compressImage(fileOrUrl, 1600, 900, 0.78);
+        const finalUrl = compressedUrl || (await new Promise<string>((res) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result as string);
+          r.onerror = () => res('');
+          r.readAsDataURL(fileOrUrl);
+        }));
+
+        if (!finalUrl) {
+          showToast('ছবি পড়তে সমস্যা হয়েছে। অন্য ছবি চেষ্টা করুন।', 'error');
+          return;
+        }
+
+        const newSlide: HeroSlide = {
+          id: `slide-${Date.now()}`,
+          title: title || config.hero.title || config.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+          subtitle: subtitle || config.hero.subtitle || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
+          imageUrl: finalUrl,
+          ctaText: 'ভর্তি আবেদন',
+          ctaLink: '/admission',
+        };
+        const updated = {
+          ...config,
+          hero: {
+            ...config.hero,
+            enableSlider: true,
+            slides: [...(config.hero.slides || []), newSlide],
+          },
+        };
+        handleUpdateConfig(updated);
+        try {
           landingPageService.addMediaItem({
             name: fileOrUrl.name || 'ব্যানার স্লাইডার ছবি',
             category: 'banner',
-            url: dataUrl,
-            size: fileOrUrl.size || 1200000,
-            type: fileOrUrl.type || 'image/jpeg',
+            url: finalUrl,
+            size: Math.round(finalUrl.length * 0.75),
+            type: 'image/jpeg',
             altText: title || fileOrUrl.name,
           });
           setMediaList(landingPageService.getMediaList());
-          showToast(`"${fileOrUrl.name}" স্লাইডারে সফলভাবে যুক্ত হয়েছে!`, 'success');
+        } catch {
+          // ignore media quota warning
         }
-      };
-      reader.readAsDataURL(fileOrUrl);
+        showToast(`"${fileOrUrl.name}" স্লাইডারে সফলভাবে যুক্ত হয়েছে!`, 'success');
+      }
+    } catch (err: any) {
+      console.error('Error adding hero slide:', err);
+      showToast('ছবি যুক্ত করতে সমস্যা হয়েছে: ' + (err?.message || 'পুনরায় চেষ্টা করুন'), 'error');
     }
   };
 
@@ -601,35 +604,51 @@ export default function LandingPageManagementDashboard() {
     showToast('স্লাইডারের ক্রম পরিবর্তন করা হয়েছে!', 'info');
   };
 
-  const handleReplaceHeroSlideImage = (slideId: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      if (dataUrl) {
-        const updatedSlides = (config.hero.slides || []).map((s) =>
-          s.id === slideId ? { ...s, imageUrl: dataUrl } : s
-        );
-        const updated = {
-          ...config,
-          hero: {
-            ...config.hero,
-            slides: updatedSlides,
-          },
-        };
-        handleUpdateConfig(updated);
+  const handleReplaceHeroSlideImage = async (slideId: string, file: File) => {
+    try {
+      showToast('ছবি পরিবর্তন ও অপটিমাইজেশন হচ্ছে...', 'info');
+      const compressedUrl = await compressImage(file, 1600, 900, 0.78);
+      const finalUrl = compressedUrl || (await new Promise<string>((res) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result as string);
+        r.onerror = () => res('');
+        r.readAsDataURL(file);
+      }));
+
+      if (!finalUrl) {
+        showToast('ছবি পড়তে সমস্যা হয়েছে। অন্য ছবি চেষ্টা করুন।', 'error');
+        return;
+      }
+
+      const updatedSlides = (config.hero.slides || []).map((s) =>
+        s.id === slideId ? { ...s, imageUrl: finalUrl } : s
+      );
+      const updated = {
+        ...config,
+        hero: {
+          ...config.hero,
+          slides: updatedSlides,
+        },
+      };
+      handleUpdateConfig(updated);
+      try {
         landingPageService.addMediaItem({
           name: file.name,
           category: 'banner',
-          url: dataUrl,
-          size: file.size || 1200000,
-          type: file.type || 'image/jpeg',
+          url: finalUrl,
+          size: Math.round(finalUrl.length * 0.75),
+          type: 'image/jpeg',
           altText: 'আপডেট করা ব্যানার ছবি',
         });
         setMediaList(landingPageService.getMediaList());
-        showToast('স্লাইডের ছবি সফলভাবে পরিবর্তন করা হয়েছে!', 'success');
+      } catch {
+        // ignore media quota warning
       }
-    };
-    reader.readAsDataURL(file);
+      showToast('স্লাইডের ছবি সফলভাবে পরিবর্তন করা হয়েছে!', 'success');
+    } catch (err: any) {
+      console.error('Error replacing hero slide image:', err);
+      showToast('ছবি পরিবর্তনে সমস্যা হয়েছে: ' + (err?.message || 'পুনরায় চেষ্টা করুন'), 'error');
+    }
   };
 
   const handleClearDemoHeroSlides = () => {

@@ -929,6 +929,48 @@ const STORAGE_KEYS = {
   AUDIT_LOG: 'sms_landing_audit_log',
 };
 
+/**
+ * 🛡️ Safe LocalStorage Setter with automatic self-healing quota recovery
+ * Prevents QuotaExceededError from breaking draft saves or publishing
+ */
+function safeStorageSet(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err: any) {
+    console.warn(`[LandingPageService] Storage full when writing "${key}". Initiating auto-cleanup...`, err);
+    try {
+      // 1. Prune or remove historical versions snapshots (frees up several megabytes instantly)
+      localStorage.removeItem(STORAGE_KEYS.VERSIONS);
+
+      // 2. Prune audit logs
+      localStorage.removeItem(STORAGE_KEYS.AUDIT_LOG);
+
+      // 3. Prune excessive media items
+      const mediaRaw = localStorage.getItem(STORAGE_KEYS.MEDIA);
+      if (mediaRaw) {
+        try {
+          const media = JSON.parse(mediaRaw);
+          if (Array.isArray(media) && media.length > 5) {
+            localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(media.slice(0, 5)));
+          }
+        } catch {
+          localStorage.removeItem(STORAGE_KEYS.MEDIA);
+        }
+      }
+
+      // 4. Retry saving
+      localStorage.setItem(key, value);
+      console.log(`[LandingPageService] Successfully saved "${key}" after storage cleanup.`);
+      return true;
+    } catch (retryErr) {
+      console.error(`[LandingPageService] Storage quota still exceeded after cleanup for "${key}":`, retryErr);
+      return false;
+    }
+  }
+}
+
 class LandingPageService {
   private draftListeners: Array<(config: LandingPageConfig) => void> = [];
   private publishedListeners: Array<(config: LandingPageConfig) => void> = [];
@@ -1031,20 +1073,15 @@ class LandingPageService {
     if (!parsed.gallery) {
       parsed.gallery = DEFAULT_GALLERY_CONFIG;
     }
-    // Upgrade legacy single-slide configs to the curated academic multi-slide set
-    if (
-      !parsed.hero?.slides ||
-      parsed.hero.slides.length === 0 ||
-      (parsed.hero.slides.length === 1 && parsed.hero.slides[0].imageUrl === '/school-campus.jpg')
-    ) {
-      if (!parsed.hero) parsed.hero = { ...DEFAULT_LANDING_CONFIG.hero };
+    // Only initialize default slides if slides property is completely missing (not if user intentionally deleted them)
+    if (!parsed.hero) {
+      parsed.hero = { ...DEFAULT_LANDING_CONFIG.hero };
+    } else if (!Array.isArray(parsed.hero.slides)) {
       parsed.hero.slides = DEFAULT_LANDING_CONFIG.hero.slides;
     }
-    // Normalize opacity: replace old heavy dark washes (70% or 45%) with soft, vibrant 25%
-    if (parsed.hero) {
-      if (parsed.hero.bgOverlayOpacity === 70 || parsed.hero.bgOverlayOpacity === 45 || typeof parsed.hero.bgOverlayOpacity !== 'number') {
-        parsed.hero.bgOverlayOpacity = 25;
-      }
+    // Normalize opacity: replace old heavy dark washes (70% or 45%) with soft, vibrant 25% if not set
+    if (parsed.hero && typeof parsed.hero.bgOverlayOpacity !== 'number') {
+      parsed.hero.bgOverlayOpacity = 25;
     }
     return parsed;
   }
@@ -1060,7 +1097,7 @@ class LandingPageService {
       }
       // If no draft exists, initialize with published or default
       const published = this.getPublishedConfig();
-      localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(published));
+      safeStorageSet(STORAGE_KEYS.DRAFT, JSON.stringify(published));
       return published;
     } catch (e) {
       console.error('[LandingPageService] Error reading draft:', e);
@@ -1076,7 +1113,11 @@ class LandingPageService {
         lastUpdatedAt: new Date().toISOString(),
         updatedBy: user,
       };
-      localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(updatedConfig));
+      const ok = safeStorageSet(STORAGE_KEYS.DRAFT, JSON.stringify(updatedConfig));
+      if (!ok) {
+        console.error('[LandingPageService] Failed to save draft to storage');
+        return false;
+      }
       this.addAuditLog('SAVE_DRAFT', user, 'খসড়া কনফিগারেশন আপডেট করা হয়েছে');
       this.draftListeners.forEach(fn => fn(updatedConfig));
       window.dispatchEvent(new Event('storage'));
@@ -1097,7 +1138,7 @@ class LandingPageService {
         return this.normalizeLoadedConfig(parsed);
       }
       // First run: seed with DEFAULT_LANDING_CONFIG
-      localStorage.setItem(STORAGE_KEYS.PUBLISHED, JSON.stringify(DEFAULT_LANDING_CONFIG));
+      safeStorageSet(STORAGE_KEYS.PUBLISHED, JSON.stringify(DEFAULT_LANDING_CONFIG));
       return DEFAULT_LANDING_CONFIG;
     } catch (e) {
       console.error('[LandingPageService] Error reading published:', e);
@@ -1174,17 +1215,29 @@ class LandingPageService {
         updatedBy: user,
       };
 
-      // 1. Save to Published
-      localStorage.setItem(STORAGE_KEYS.PUBLISHED, JSON.stringify(publishedConfig));
+      // 1. Save to Published (using safeStorageSet)
+      const pubOk = safeStorageSet(STORAGE_KEYS.PUBLISHED, JSON.stringify(publishedConfig));
+      if (!pubOk) {
+        console.error('[LandingPageService] Failed to write published config to localStorage');
+        return false;
+      }
 
       // 2. Sync draft with published
-      localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(publishedConfig));
+      safeStorageSet(STORAGE_KEYS.DRAFT, JSON.stringify(publishedConfig));
 
-      // 3. Create Version Snapshot
-      this.createVersionSnapshot(publishedConfig, user, summary);
+      // 3. Create Version Snapshot (non-fatal)
+      try {
+        this.createVersionSnapshot(publishedConfig, user, summary);
+      } catch (snapErr) {
+        console.warn('[LandingPageService] Version snapshot skipped due to storage limit');
+      }
 
-      // 4. Record Audit Log
-      this.addAuditLog('PUBLISH', user, `সংস্করণ ${newVersion} সফলভাবে লাইভে প্রকাশ করা হয়েছে: ${summary}`);
+      // 4. Record Audit Log (non-fatal)
+      try {
+        this.addAuditLog('PUBLISH', user, `সংস্করণ ${newVersion} সফলভাবে লাইভে প্রকাশ করা হয়েছে: ${summary}`);
+      } catch (logErr) {
+        // ignore
+      }
 
       // 5. Notify listeners
       this.publishedListeners.forEach(fn => fn(publishedConfig));
@@ -1257,19 +1310,34 @@ class LandingPageService {
   private createVersionSnapshot(config: LandingPageConfig, author: string, summary: string): void {
     try {
       const versions = this.getVersions();
+      // To keep snapshots ultra-light (~2KB) and prevent quota exhaustion, strip heavy base64 images from historical snapshots
+      const slimConfig: LandingPageConfig = JSON.parse(JSON.stringify(config));
+      if (slimConfig.hero?.slides) {
+        slimConfig.hero.slides = slimConfig.hero.slides.map(s => ({
+          ...s,
+          imageUrl: s.imageUrl && s.imageUrl.length > 500 ? '[photo-preserved]' : s.imageUrl
+        }));
+      }
+      if (slimConfig.gallery?.items) {
+        slimConfig.gallery.items = slimConfig.gallery.items.slice(0, 6).map(item => ({
+          ...item,
+          thumbnail: item.thumbnail && item.thumbnail.length > 500 ? '[photo-preserved]' : item.thumbnail
+        }));
+      }
+
       const snapshot: VersionSnapshot = {
         id: `ver-${Date.now()}`,
         version: config.version,
         timestamp: new Date().toISOString(),
         author,
         summary,
-        config: JSON.parse(JSON.stringify(config)),
+        config: slimConfig,
       };
-      // Keep last 25 versions
-      const updated = [snapshot, ...versions].slice(0, 25);
-      localStorage.setItem(STORAGE_KEYS.VERSIONS, JSON.stringify(updated));
+      // Keep only 3 snapshots
+      const updated = [snapshot, ...versions].slice(0, 3);
+      safeStorageSet(STORAGE_KEYS.VERSIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('[LandingPageService] Error creating version snapshot:', e);
+      console.warn('[LandingPageService] Error creating version snapshot:', e);
     }
   }
 
@@ -1341,8 +1409,9 @@ class LandingPageService {
       id: `media-${Date.now()}`,
       uploadedAt: new Date().toISOString(),
     };
-    const updated = [newItem, ...list];
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+    // Keep max 15 media items to protect localStorage quota
+    const updated = [newItem, ...list].slice(0, 15);
+    safeStorageSet(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
     this.addAuditLog('UPLOAD_MEDIA', 'অ্যাডমিন', `মিডিয়া আপলোড: ${item.name}`);
     return newItem;
   }
@@ -1352,7 +1421,7 @@ class LandingPageService {
     const index = list.findIndex(m => m.id === id);
     if (index === -1) return false;
     list[index] = { ...list[index], ...updates };
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(list));
+    safeStorageSet(STORAGE_KEYS.MEDIA, JSON.stringify(list));
     return true;
   }
 
@@ -1360,7 +1429,7 @@ class LandingPageService {
     const list = this.getMediaList();
     const item = list.find(m => m.id === id);
     const updated = list.filter(m => m.id !== id);
-    localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
+    safeStorageSet(STORAGE_KEYS.MEDIA, JSON.stringify(updated));
     if (item) {
       this.addAuditLog('DELETE_MEDIA', 'অ্যাডমিন', `মিডিয়া মুছে ফেলা হয়েছে: ${item.name}`);
     }
@@ -1390,8 +1459,8 @@ class LandingPageService {
         user,
         details,
       };
-      const updated = [entry, ...logs].slice(0, 100);
-      localStorage.setItem(STORAGE_KEYS.AUDIT_LOG, JSON.stringify(updated));
+      const updated = [entry, ...logs].slice(0, 30);
+      safeStorageSet(STORAGE_KEYS.AUDIT_LOG, JSON.stringify(updated));
     } catch (e) {
       console.error('[LandingPageService] Error adding audit log:', e);
     }
