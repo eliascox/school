@@ -4,17 +4,24 @@ import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { School, CheckCircle2, ArrowRight, Award, Calendar, BookOpen } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
+import { AboutConfig } from '@/services/landingPageService';
 
 interface PublicAboutProps {
   settings: SchoolSettings | null;
+  aboutConfig?: AboutConfig | null;
 }
 
-export default function PublicAbout({ settings }: PublicAboutProps) {
+export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps) {
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const estd = settings?.estdYear || '1969';
+  const estd = aboutConfig?.foundingYear || settings?.estdYear || '১৯৬৯';
   const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';
-  const eiin = settings?.eiin || '106184';
-  const schoolPhoto = settings?.schoolPhoto || '/school-campus.jpg';
+  const eiin = aboutConfig?.eiin || settings?.eiin || '106184';
+  const schoolPhoto = aboutConfig?.campusPhoto || settings?.schoolPhoto || '/school-campus.jpg';
+
+  const title = aboutConfig?.title || 'আমাদের ঐতিহ্য, গৌরব ও পথচলা';
+  const eyebrow = aboutConfig?.subtitle || 'প্রতিষ্ঠান পরিচিতি ও ইতিহাস';
+  const defaultHistoryText = `কক্সবাজার জেলার চকরিয়া উপজেলার অন্তর্গত ঐতিহ্যবাহী বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ১৯৬৯ খ্রিষ্টাব্দে প্রতিষ্ঠিত হয় ‘${schoolName}’। তৎকালীন স্থানীয় শিক্ষানুরাগী, সমাজসেবক ও বিদ্যোৎসাহী ব্যক্তিবর্গের ঐকান্তিক প্রচেষ্টা ও ত্যাগের বিনিময়ে এই অঞ্চলে শিক্ষার আলো ছড়িয়ে দিতে বিদ্যালয়টির যাত্রা শুরু হয়েছিল। প্রতিষ্ঠালগ্ন থেকেই অত্র অঞ্চলের শিক্ষার্থীদের মানবিক গুণাবলি, শৃঙ্খলাবোধ এবং আধুনিক জ্ঞান-বিজ্ঞানে সমৃদ্ধ করে গড়ে তোলাই ছিল মূল ব্রত। দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে চট্টগ্রাম শিক্ষাবোর্ডের অধীনে বিদ্যালয়টি শতভাগ মেধা ও কৃতিত্বপূর্ণ ফলাফলের ধারাবাহিকতা অক্ষুণ্ণ রেখেছে। বর্তমান ডিজিটাল যুগে যুগোপযোগী বিজ্ঞান ও কম্পিউটার শিক্ষার সমন্বয়ে বিদ্যালয়টি আগামীর একবিংশ শতাব্দীর যোগ্য নাগরিক তৈরিতে অবিচল ও প্রতিশ্রুতিবদ্ধ।`;
+  const historyText = aboutConfig?.historyText || defaultHistoryText;
 
   const sectionRef = useRef<HTMLElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
@@ -107,13 +114,13 @@ export default function PublicAbout({ settings }: PublicAboutProps) {
             {/* Top Eyebrow Tag */}
             <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
               <School className="w-3.5 h-3.5" />
-              <span>প্রতিষ্ঠান পরিচিতি ও ইতিহাস</span>
+              <span>{eyebrow}</span>
             </div>
 
             {/* Section Heading with Custom Underline */}
             <div>
               <h2 className="text-2xl sm:text-4xl lg:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
-                আমাদের ঐতিহ্য, গৌরব ও পথচলা
+                {title}
               </h2>
               {/* Dual-colored Underline */}
               <div className="flex items-center gap-1.5 mt-3">
@@ -123,8 +130,8 @@ export default function PublicAbout({ settings }: PublicAboutProps) {
             </div>
 
             {/* ৫-৬ লাইনের সাবলীল ইতিহাস বর্ণনা */}
-            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed text-justify">
-              কক্সবাজার জেলার চকরিয়া উপজেলার অন্তর্গত ঐতিহ্যবাহী বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ১৯৬৯ খ্রিষ্টাব্দে প্রতিষ্ঠিত হয় ‘<strong>{schoolName}</strong>’। তৎকালীন স্থানীয় শিক্ষানুরাগী, সমাজসেবক ও বিদ্যোৎসাহী ব্যক্তিবর্গের ঐকান্তিক প্রচেষ্টা ও ত্যাগের বিনিময়ে এই অঞ্চলে শিক্ষার আলো ছড়িয়ে দিতে বিদ্যালয়টির যাত্রা শুরু হয়েছিল। প্রতিষ্ঠালগ্ন থেকেই অত্র অঞ্চলের শিক্ষার্থীদের মানবিক গুণাবলি, শৃঙ্খলাবোধ এবং আধুনিক জ্ঞান-বিজ্ঞানে সমৃদ্ধ করে গড়ে তোলাই ছিল মূল ব্রত। দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে চট্টগ্রাম শিক্ষাবোর্ডের অধীনে বিদ্যালয়টি শতভাগ মেধা ও কৃতিত্বপূর্ণ ফলাফলের ধারাবাহিকতা অক্ষুণ্ণ রেখেছে। বর্তমান ডিজিটাল যুগে যুগোপযোগী বিজ্ঞান ও কম্পিউটার শিক্ষার সমন্বয়ে বিদ্যালয়টি আগামীর একবিংশ শতাব্দীর যোগ্য নাগরিক তৈরিতে অবিচল ও প্রতিশ্রুতিবদ্ধ।
+            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed text-justify whitespace-pre-line">
+              {historyText}
             </p>
 
             {/* Key Features Bullet List */}

@@ -1446,6 +1446,26 @@ export default function LandingPageManagementDashboard() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
             <h2 className="text-lg font-black text-slate-900 dark:text-white">হেডার ও ব্র্যান্ডিং সেটিংস</h2>
 
+            {/* Image Dimension Guidelines Banner for Header */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-blue-900 dark:text-blue-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — হেডার ও লোগো
+                  </h4>
+                  <p className="text-[11px] text-blue-800 dark:text-blue-300 mt-0.5">
+                    <span className="font-bold">• অফিসিয়াল লোগো ডাইমেনশন:</span> ৩০০ × ৩০০ px (১:১ স্কয়ার বা ব্যাকগ্রাউন্ড ট্রান্সপারেন্ট PNG/SVG), সর্বোচ্চ ২০-৪০ KB।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[10px] font-black shrink-0 border border-blue-300 dark:border-blue-700">
+                ১:১ স্কয়ার (PNG/SVG)
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* School Name */}
               <div>
@@ -1793,6 +1813,26 @@ export default function LandingPageManagementDashboard() {
                 />
                 <span className="text-xs font-black">হিরো সেকশন সক্রিয় রাখুন</span>
               </label>
+            </div>
+
+            {/* Image Dimension Guidelines Banner for Hero */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200 dark:border-indigo-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-indigo-900 dark:text-indigo-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — ব্যানার ও হিরো স্লাইডার
+                  </h4>
+                  <p className="text-[11px] text-indigo-800 dark:text-indigo-300 mt-0.5">
+                    <span className="font-bold">• ব্যানার ও স্লাইড ডাইমেনশন:</span> ১২০০ × ৬৭৫ px অথবা ১০০০ × ৫৬০ px (১৬:৯ ওয়াইডস্ক্রিন অনুপাত), সর্বোচ্চ ৩৫-৫০ KB (স্বয়ংক্রিয় কম্প্রেসড)।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 text-[10px] font-black shrink-0 border border-indigo-300 dark:border-indigo-800">
+                ১৬:৯ ল্যান্ডস্কেপ
+              </span>
             </div>
 
             {/* ══════════════════════════════════════════════════════════════════
@@ -2282,12 +2322,163 @@ export default function LandingPageManagementDashboard() {
       {activeTab === 'about' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">প্রতিষ্ঠান পরিচিতি ও দিকনির্দেশনামূলক বাণী</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">প্রতিষ্ঠান পরিচিতি, ক্যাম্পাস ছবি ও দিকনির্দেশনামূলক বাণী</h2>
+                <p className="text-xs text-slate-500">হোমপেজের মূল পরিচিতি, ক্যাম্পাস ফটো, প্রতিষ্ঠা সাল, EIIN ও পরিচালনা পর্ষদের বাণী পরিচালনা করুন।</p>
+              </div>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Image Dimension Guidelines Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-amber-900 dark:text-amber-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — পরিচিতি সেকশন
+                  </h4>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                    <span className="font-bold">• ক্যাম্পাস ছবি:</span> ১০০০ × ৬৫০ px (১৬:১০ বা ৪:৩ ল্যান্ডস্কেপ), সর্বোচ্চ ৩৫-৫০ KB (স্বয়ংক্রিয় অপ্টিমাইজড)।
+                    <span className="mx-1.5 opacity-40">|</span>
+                    <span className="font-bold">• সভাপতি / প্রধান শিক্ষক প্রতিকৃতি:</span> ৩০০ × ৩৮০ px (৩:৪ অনুপাত বা ১:১ পাসপোর্ট সাইজ), সর্বোচ্চ ২০-৩০ KB।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-black shrink-0 border border-amber-300 dark:border-amber-700">
+                স্বয়ংক্রিয় কম্প্রেসড ও অপ্টিমাইজড
+              </span>
+            </div>
+
+            {/* Campus Photo Upload & Preview Card */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    বিদ্যালয় ক্যাম্পাসের মূল ছবি (Campus Feature Photo)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    হোমপেজের &ldquo;প্রতিষ্ঠান পরিচিতি ও ইতিহাস&rdquo; সেকশনে এই ক্যাম্পাস ছবিটি আকর্ষণীয়ভাবে প্রদর্শিত হবে।
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold text-slate-400">সাইজ: ১০০০ × ৬৫০ px</span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4 pt-1">
+                {/* Photo Preview */}
+                <div className="relative w-full sm:w-64 h-36 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 border-2 border-indigo-200 dark:border-indigo-900 shrink-0 group shadow-xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={config.about.campusPhoto || '/school-campus.jpg'}
+                    alt="Campus"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    বর্তমান ক্যাম্পাস ছবি
+                  </div>
+                </div>
+
+                {/* Upload Actions & URL input */}
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition shadow-xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>ডিভাইস থেকে ক্যাম্পাস ছবি আপলোড</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const compressed = await compressImage(file, 1000, 650, 0.68);
+                              handleUpdateConfig({
+                                ...config,
+                                about: { ...config.about, campusPhoto: compressed },
+                              });
+                              showToast('ক্যাম্পাসের ছবি সফলভাবে আপলোড হয়েছে', 'success');
+                            } catch (err) {
+                              showToast('ছবি আপলোড করতে সমস্যা হয়েছে', 'error');
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaCategoryFilter('banner');
+                        setActiveTab('media');
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>মিডিয়া লাইব্রেরি</span>
+                    </button>
+
+                    {config.about.campusPhoto && config.about.campusPhoto !== '/school-campus.jpg' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdateConfig({
+                            ...config,
+                            about: { ...config.about, campusPhoto: '/school-campus.jpg' },
+                          });
+                          showToast('ডিফল্ট ক্যাম্পাস ছবি রিসেট করা হয়েছে', 'info');
+                        }}
+                        className="px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 text-xs font-bold transition cursor-pointer"
+                      >
+                        রিসেট
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">অথবা সরাসরি অনলাইন ছবির লিঙ্ক (URL)</label>
+                    <input
+                      type="text"
+                      placeholder="https://... অথবা /school-campus.jpg"
+                      value={config.about.campusPhoto || ''}
+                      onChange={(e) =>
+                        handleUpdateConfig({
+                          ...config,
+                          about: { ...config.about, campusPhoto: e.target.value },
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Texts & Metadata */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  পরিচিতি সেকশনের শিরোনাম
+                  আইব্রো সাব-শিরোনাম (সেকশন ট্যাগ)
+                </label>
+                <input
+                  type="text"
+                  value={config.about.subtitle || 'প্রতিষ্ঠান পরিচিতি ও ইতিহাস'}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      about: { ...config.about, subtitle: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: প্রতিষ্ঠান পরিচিতি ও ইতিহাস"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  পরিচিতি সেকশনের মূল শিরোনাম
                 </label>
                 <input
                   type="text"
@@ -2299,16 +2490,17 @@ export default function LandingPageManagementDashboard() {
                     })
                   }
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: আমাদের ঐতিহ্য, গৌরব ও পথচলা"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                  প্রতিষ্ঠা সাল ও ইতিহাস সারসংক্ষেপ
+                  প্রতিষ্ঠা সাল
                 </label>
                 <input
                   type="text"
-                  value={config.about.foundingYear}
+                  value={config.about.foundingYear || '১৯৬৯'}
                   onChange={(e) =>
                     handleUpdateConfig({
                       ...config,
@@ -2316,16 +2508,35 @@ export default function LandingPageManagementDashboard() {
                     })
                   }
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: ১৯৬৯"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                  EIIN নম্বর
+                </label>
+                <input
+                  type="text"
+                  value={config.about.eiin || '106184'}
+                  onChange={(e) =>
+                    handleUpdateConfig({
+                      ...config,
+                      about: { ...config.about, eiin: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold outline-none"
+                  placeholder="যেমন: 106184"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                প্রতিষ্ঠানের সংক্ষিপ্ত ইতিহাস
+                প্রতিষ্ঠানের ইতিহাস ও ঐতিহ্য বিস্তারিত বিবরণ
               </label>
               <textarea
-                rows={4}
+                rows={5}
                 value={config.about.historyText}
                 onChange={(e) =>
                   handleUpdateConfig({
@@ -2333,7 +2544,8 @@ export default function LandingPageManagementDashboard() {
                     about: { ...config.about, historyText: e.target.value },
                   })
                 }
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium outline-none leading-relaxed"
+                placeholder="বিদ্যালয়ের গৌরবময় ইতিহাস বিস্তারিত লিখুন..."
               />
             </div>
 
@@ -3429,6 +3641,26 @@ export default function LandingPageManagementDashboard() {
               </div>
             </div>
 
+            {/* Image Dimension Guidelines Banner for Achievers */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200 dark:border-amber-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-amber-900 dark:text-amber-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — কৃতী শিক্ষার্থী প্রতিকৃতি
+                  </h4>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                    <span className="font-bold">• শিক্ষার্থীর ছবি ডাইমেনশন:</span> ৩০০ × ৩৮০ px (৩:৪ উল্লম্ব প্রতিকৃতি বা ১:১ পাসপোর্ট সাইজ), সর্বোচ্চ ১৫-২৫ KB (স্বয়ংক্রিয় কম্প্রেসড)।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-black shrink-0 border border-amber-300 dark:border-amber-700">
+                ৩:৪ পোর্ট্রেট বা ১:১ পাসপোর্ট
+              </span>
+            </div>
+
             {/* Section Settings Header */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
               <div>
@@ -3722,6 +3954,26 @@ export default function LandingPageManagementDashboard() {
                 <Plus className="w-4 h-4" />
                 <span>নতুন ছবি/ভিডিও যোগ করুন</span>
               </button>
+            </div>
+
+            {/* Image Dimension Guidelines Banner for Gallery */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-purple-900 dark:text-purple-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — ফটো গ্যালারি
+                  </h4>
+                  <p className="text-[11px] text-purple-800 dark:text-purple-300 mt-0.5">
+                    <span className="font-bold">• গ্যালারি ফটো ডাইমেনশন:</span> ৮০০ × ৬০০ px (৪:৩ অনুপাত) অথবা ৮০০ × ৪৫০ px (১৬:৯ অনুপাত), সর্বোচ্চ ২৫-৪০ KB (স্বয়ংক্রিয় কম্প্রেসড)।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[10px] font-black shrink-0 border border-purple-300 dark:border-purple-800">
+                ৪:৩ বা ১৬:৯ অনুপাত
+              </span>
             </div>
 
             {/* Section Settings */}
@@ -4078,6 +4330,26 @@ export default function LandingPageManagementDashboard() {
               </button>
             </div>
 
+            {/* Image Dimension Guidelines Banner for Blog */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                  📐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                    ছবি সাইজ ও ডাইমেনশন নির্দেশিকা — সংবাদ ও ব্লগ সেকশন
+                  </h4>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 mt-0.5">
+                    <span className="font-bold">• সংবাদ ব্যানার/ফিচার ছবি:</span> ৮০০ × ৫০০ px (১৬:১০ অনুপাত) অথবা ৮০০ × ৪৫০ px (১৬:৯ ল্যান্ডস্কেপ), সর্বোচ্চ ৩০-৪৫ KB (স্বয়ংক্রিয় কম্প্রেসড)।
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 text-[10px] font-black shrink-0 border border-emerald-300 dark:border-emerald-700">
+                ১৬:১০ বা ১৬:৯ ল্যান্ডস্কেপ
+              </span>
+            </div>
+
             <div className="space-y-4">
               {config.blog.posts.map((post, idx) => (
                 <div
@@ -4095,6 +4367,74 @@ export default function LandingPageManagementDashboard() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  </div>
+
+                  {/* Blog Post Image Uploader & Preview */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative w-full sm:w-36 h-24 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-slate-700">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={post.imageUrl || '/school-campus.jpg'}
+                        alt={post.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        ৮০০ × ৫০০ px
+                      </span>
+                    </div>
+
+                    <div className="flex-1 w-full space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition shadow-xs">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>ডিভাইস থেকে ছবি আপলোড</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const compressed = await compressImage(file, 800, 500, 0.68);
+                                  const updated = [...config.blog.posts];
+                                  updated[idx] = { ...updated[idx], imageUrl: compressed };
+                                  handleUpdateConfig({ ...config, blog: { ...config.blog, posts: updated } });
+                                  showToast('সংবাদের ছবি সফলভাবে পরিবর্তন হয়েছে', 'success');
+                                } catch (err) {
+                                  showToast('ছবি আপলোড করতে ব্যর্থ হয়েছে', 'error');
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMediaCategoryFilter('banner');
+                            setActiveTab('media');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <ImageIcon className="w-3 h-3" />
+                          <span>মিডিয়া</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="অনলাইন ছবি লিঙ্ক (URL)"
+                          value={post.imageUrl || ''}
+                          onChange={(e) => {
+                            const updated = [...config.blog.posts];
+                            updated[idx] = { ...updated[idx], imageUrl: e.target.value };
+                            handleUpdateConfig({ ...config, blog: { ...config.blog, posts: updated } });
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -4266,6 +4606,67 @@ export default function LandingPageManagementDashboard() {
                       : 'নতুন ছবি আপলোড করুন'}
                   </span>
                 </button>
+              </div>
+            </div>
+
+            {/* Master Image Dimension Guidelines Grid for Media Library */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-slate-50 dark:from-slate-800/80 dark:via-slate-900 dark:to-slate-900 border-2 border-indigo-200 dark:border-indigo-900/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs">
+                  📐
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                    সকল সেকশনের ছবি সাইজ ও ডাইমেনশন নির্দেশিকা (Master Image Dimension Guide)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    ওয়েবসাইটের বিভিন্ন সেকশনে সুন্দর ও দ্রুত লোডিংয়ের জন্য নিচে উল্লেখিত স্ট্যান্ডার্ড সাইজের ছবি ব্যবহারের পরামর্শ দেওয়া হচ্ছে:
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 block uppercase">হেডার লোগো</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">৩০০ × ৩০০ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">১:১ স্কয়ার (PNG/SVG)</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">২০-৪০ KB</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 block uppercase">হিরো ব্যানার</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">১২০০ × ৬৭৫ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">১৬:৯ ওয়াইডস্ক্রিন</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">৩৫-৫০ KB</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 block uppercase">ক্যাম্পাস ফটো</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">১০০০ × ৬৫০ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">১৬:১০ বা ৪:৩</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">৩৫-৫০ KB</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-purple-600 dark:text-purple-400 block uppercase">ফটো গ্যালারি</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">৮০০ × ৬০০ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">৪:৩ বা ১৬:৯</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">২৫-৪০ KB</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 block uppercase">সংবাদ ও ব্লগ</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">৮০০ × ৫০০ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">১৬:১০ ল্যান্ডস্কেপ</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">৩০-৪৫ KB</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 block uppercase">ব্যক্তিগত প্রতিকৃতি</span>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">৩০০ × ৩৮০ px</div>
+                  <div className="text-[10px] text-slate-500 font-medium">৩:৪ পোর্ট্রেট</div>
+                  <span className="inline-block text-[9px] font-bold text-slate-400">১৫-২৫ KB</span>
+                </div>
               </div>
             </div>
 

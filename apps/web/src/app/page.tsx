@@ -25,6 +25,7 @@ import PublicFacilitiesSection from '@/components/public/PublicFacilitiesSection
 import PublicGallerySection from '@/components/public/PublicGallerySection';
 import PublicBlogSection from '@/components/public/PublicBlogSection';
 import PublicContactSection from '@/components/public/PublicContactSection';
+import PublicFaqSection from '@/components/public/PublicFaqSection';
 import PublicFooter from '@/components/public/PublicFooter';
 
 export default function PublicSchoolHomePage() {
@@ -114,7 +115,7 @@ export default function PublicSchoolHomePage() {
       case 'headmaster_message':
         return <PublicHeadmasterMessage key="headmaster_message" settings={settings} aboutConfig={landingConfig.about} />;
       case 'about':
-        return <PublicAbout key="about" settings={settings} />;
+        return <PublicAbout key="about" settings={settings} aboutConfig={landingConfig.about} />;
       case 'notices':
         return (
           <PublicNoticesSection
@@ -141,7 +142,7 @@ export default function PublicSchoolHomePage() {
       case 'contact':
         return <PublicContactSection key="contact" settings={settings} />;
       case 'faq':
-        return <PublicBlogSection key="faq" blogConfig={landingConfig.blog} />;
+        return <PublicFaqSection key="faq" faqConfig={landingConfig.faq} />;
       default:
         return null;
     }
