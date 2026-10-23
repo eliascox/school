@@ -110,7 +110,7 @@ export default function PublicSchoolHomePage() {
           />
         );
       case 'services':
-        return <PublicServicesSection key="services" />;
+        return <PublicServicesSection key="services" servicesConfig={landingConfig.services} />;
       case 'headmaster_message':
         return <PublicHeadmasterMessage key="headmaster_message" settings={settings} aboutConfig={landingConfig.about} />;
       case 'about':
@@ -140,6 +140,8 @@ export default function PublicSchoolHomePage() {
         return <PublicBlogSection key="blog" blogConfig={landingConfig.blog} />;
       case 'contact':
         return <PublicContactSection key="contact" settings={settings} />;
+      case 'faq':
+        return <PublicBlogSection key="faq" blogConfig={landingConfig.blog} />;
       default:
         return null;
     }

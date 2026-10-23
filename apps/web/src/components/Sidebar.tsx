@@ -246,8 +246,8 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
               icon: <Printer className="w-3.5 h-3.5 text-slate-400" />,
             },
             {
-              label: 'Teachers & Staff',
-              labelBn: 'শিক্ষক ও কর্মচারী (Faculty)',
+              label: 'Teachers & Staff (HR)',
+              labelBn: 'শিক্ষক ব্যবস্থাপনা (HR)',
               href: '/dashboard/teacher',
               icon: <Users className="w-3.5 h-3.5 text-emerald-400" />,
               badge: teacherCount,

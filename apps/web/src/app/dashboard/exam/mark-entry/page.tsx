@@ -84,18 +84,7 @@ const getSubjectMarksConfig = (subjectName: string, classSubjectsList: any[] = [
 };
 
 const checkIsHinduStudent = (s: any): boolean => {
-  const rel = (s.religion || s.religionBn || '').toString().toLowerCase();
-  if (rel.includes('hindu') || rel.includes('হিন্দু') || rel.includes('sanatan') || rel.includes('সনাতন') || rel.includes('হিন্')) {
-    return true;
-  }
-  const fullText = `${s.name || ''} ${s.fatherName || ''} ${s.guardian || ''} ${s.motherName || ''}`;
-  const hinduKeywords = [
-    'সেন', 'দাস', 'সরকার', 'বনিক', 'বণিক', 'বিশ্বাস', 'দত্ত', 'দে', 'রায়', 'রায়', 
-    'পাল', 'চক্রবর্তী', 'শীল', 'বর্মণ', 'মহাজন', 'মন্ডল', 'মণ্ডল', 'ভট্টাচার্য', 
-    'অধিকারী', 'নাথ', 'হালদার', 'ঘোষ', 'মজুমদার', 'দেবনাথ', 'সুতোর', 'সাহা', 
-    'অংকন', 'প্রিয়াঙ্কা', 'জয়দেব', 'বিপ্লব', 'সুচরিতা', 'রানী', 'প্রদীপ', 'সুমন'
-  ];
-  return hinduKeywords.some(kw => fullText.includes(kw));
+  return getStudentReligion(s) === 'Hindu';
 };
 
 export default function ProfessionalMarkEntryPage() {

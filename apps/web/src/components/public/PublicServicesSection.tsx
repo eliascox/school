@@ -18,7 +18,27 @@ import {
   UserCheck
 } from 'lucide-react';
 
-export default function PublicServicesSection() {
+interface PublicServicesSectionProps {
+  servicesConfig?: { 
+    enabled?: boolean; 
+    title?: string; 
+    subtitle?: string; 
+    cards?: Array<{ 
+      id: string; 
+      title: string; 
+      description: string; 
+      icon: string; 
+      link: string; 
+      badge?: string; 
+      badgeColor?: string; 
+      visible: boolean;
+    }>;
+  };
+}
+
+export default function PublicServicesSection({ servicesConfig }: PublicServicesSectionProps = {}) {
+  // Use admin-configured services if provided and has cards, otherwise use defaults
+  // (The hardcoded services array below serves as fallback)
   const services = [
     {
       title: 'অনলাইন ভর্তি পোর্টাল',

@@ -18,7 +18,7 @@ export default function HRRedirectPage() {
 
   return (
     <div className="p-8 text-center font-bold text-slate-400">
-      রিডাইরেক্ট হচ্ছে...
+      শিক্ষক ব্যবস্থাপনা (HR) পোর্টালে রিডাইরেক্ট হচ্ছে...
     </div>
   );
 }

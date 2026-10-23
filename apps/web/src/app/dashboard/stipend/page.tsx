@@ -95,6 +95,13 @@ export default function StipendPage() {
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editingStudent, setEditingStudent] = useState<StipendStudentItem | null>(null);
 
+  // C-06: Bulk selection state
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState<string>('সাধারণ উপবৃত্তি');
+  const [bulkAssignLoading, setBulkAssignLoading] = useState<boolean>(false);
+  const [addModalMode, setAddModalMode] = useState<'single' | 'bulk'>('single');
+  const [bulkCandidateSearch, setBulkCandidateSearch] = useState<string>('');
+
   // Form states for Add Candidate
   const [candidateStudentId, setCandidateStudentId] = useState<string>('');
   const [candidateCategory, setCandidateCategory] = useState<string>('সাধারণ উপবৃত্তি');
@@ -218,6 +225,41 @@ export default function StipendPage() {
       setAlertMsg({ type: 'error', text: res.message });
     }
     setTimeout(() => setAlertMsg(null), 4000);
+  };
+
+  // C-06: Bulk assign handler
+  const handleBulkToggleSelect = (id: string) => {
+    setBulkSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkSelectAll = (ids: string[]) => {
+    setBulkSelectedIds(prev => {
+      if (prev.size === ids.length) return new Set();
+      return new Set(ids);
+    });
+  };
+
+  const handleBulkAssign = () => {
+    if (bulkSelectedIds.size === 0) return;
+    setBulkAssignLoading(true);
+    let successCount = 0;
+    bulkSelectedIds.forEach(id => {
+      try {
+        studentService.toggleStipendStatus(id, true, bulkCategory);
+        successCount++;
+      } catch (e) {}
+    });
+    setBulkSelectedIds(new Set());
+    setBulkAssignLoading(false);
+    setShowAddModal(false);
+    loadData();
+    setAlertMsg({ type: 'success', text: `${successCount} জন শিক্ষার্থীকে "${bulkCategory}" উপবৃত্তি প্রদান করা হয়েছে!` });
+    setTimeout(() => setAlertMsg(null), 5000);
   };
 
   // Add Candidate to Stipend
@@ -996,56 +1038,152 @@ export default function StipendPage() {
               </button>
             </div>
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">
-                  শিক্ষার্থী নির্বাচন করুন *
-                </label>
-                <select
-                  value={candidateStudentId}
-                  onChange={(e) => setCandidateStudentId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900 focus:bg-white focus:border-indigo-500"
-                >
-                  <option value="">-- শিক্ষার্থী বেছে নিন ({nonStipendCandidates.length} জন উপলব্ধ) --</option>
-                  {nonStipendCandidates.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.name} | {st.gradeBn || st.grade} ({st.section || st.branch || 'A'}) - রোল: {st.roll || '-'} (ID: {st.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">
-                  উপবৃত্তি ক্যাটাগরি
-                </label>
-                <select
-                  value={candidateCategory}
-                  onChange={(e) => setCandidateCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
-                >
-                  {STIPEND_CATEGORIES.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name} — মাসিক {toBnDigit(c.amount)}৳
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Selection Mode Switch */}
+            <div className="flex bg-slate-100 p-1 rounded-xl gap-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setAddModalMode('single')}
+                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'single' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                একক শিক্ষার্থী
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalMode('bulk')}
+                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'bulk' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                একত্রে একাধিক / বাল্ক নির্বাচন {bulkSelectedIds.size > 0 ? `(${bulkSelectedIds.size})` : ''}
+              </button>
             </div>
+
+            {addModalMode === 'single' ? (
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                    শিক্ষার্থী নির্বাচন করুন *
+                  </label>
+                  <select
+                    value={candidateStudentId}
+                    onChange={(e) => setCandidateStudentId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900 focus:bg-white focus:border-indigo-500"
+                  >
+                    <option value="">-- শিক্ষার্থী বেছে নিন ({nonStipendCandidates.length} জন উপলব্ধ) --</option>
+                    {nonStipendCandidates.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name} | {st.gradeBn || st.grade} ({st.section || st.branch || 'A'}) - রোল: {st.roll || '-'} (ID: {st.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                    উপবৃত্তি ক্যাটাগরি
+                  </label>
+                  <select
+                    value={candidateCategory}
+                    onChange={(e) => setCandidateCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                  >
+                    {STIPEND_CATEGORIES.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name} — মাসিক {toBnDigit(c.amount)}৳
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="নাম বা রোল দিয়ে খুঁজুন..."
+                    value={bulkCandidateSearch}
+                    onChange={(e) => setBulkCandidateSearch(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const filtered = nonStipendCandidates
+                        .filter(st => !bulkCandidateSearch || st.name.toLowerCase().includes(bulkCandidateSearch.toLowerCase()) || (st.roll || '').includes(bulkCandidateSearch))
+                        .map(st => st.id);
+                      handleBulkSelectAll(filtered);
+                    }}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer shrink-0"
+                  >
+                    {bulkSelectedIds.size === nonStipendCandidates.length ? 'সব বাদ' : 'সকল নির্বাচন'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                    উপবৃত্তি ক্যাটাগরি
+                  </label>
+                  <select
+                    value={bulkCategory}
+                    onChange={(e) => setBulkCategory(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                  >
+                    {STIPEND_CATEGORIES.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name} — মাসিক {toBnDigit(c.amount)}৳
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 rounded-xl p-2 bg-slate-50">
+                  {nonStipendCandidates
+                    .filter(st => !bulkCandidateSearch || st.name.toLowerCase().includes(bulkCandidateSearch.toLowerCase()) || (st.roll || '').includes(bulkCandidateSearch))
+                    .map(st => (
+                      <label key={st.id} className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-100 hover:border-indigo-200 cursor-pointer text-xs font-bold text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={bulkSelectedIds.has(st.id)}
+                          onChange={() => handleBulkToggleSelect(st.id)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div className="flex-1 flex items-center justify-between">
+                          <span>{st.name} ({st.gradeBn || st.grade})</span>
+                          <span className="text-slate-500 text-[11px] font-mono">রোল: {st.roll || '-'}</span>
+                        </div>
+                      </label>
+                    ))}
+                  {nonStipendCandidates.length === 0 && (
+                    <div className="text-center p-4 text-xs font-bold text-slate-400">কোনো অনির্বাচিত শিক্ষার্থী পাওয়া যায়নি</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
               >
                 বাতিল
               </button>
-              <button
-                onClick={handleAddCandidate}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
-              >
-                যুক্ত করুন
-              </button>
+              {addModalMode === 'single' ? (
+                <button
+                  type="button"
+                  onClick={handleAddCandidate}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+                >
+                  যুক্ত করুন
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={bulkSelectedIds.size === 0 || bulkAssignLoading}
+                  onClick={handleBulkAssign}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+                >
+                  {bulkAssignLoading ? 'যোগ করা হচ্ছে...' : `নির্বাচিত ${bulkSelectedIds.size} জনকে যুক্ত করুন`}
+                </button>
+              )}
             </div>
           </div>
         </div>

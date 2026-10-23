@@ -36,6 +36,7 @@ import { leaveService, LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/le
 import { getStudentReligion } from '@/lib/religionUtils';
 import { localDateKey } from '@/lib/dateUtils';
 import { languageService, AppLanguage } from '@/services/languageService';
+import { teacherAuthService } from '@/services/teacherAuthService';
 
 import AttendanceTrendChart from '@/components/dashboard/AttendanceTrendChart';
 import DemographicsDonutChart from '@/components/dashboard/DemographicsDonutChart';
@@ -87,6 +88,7 @@ export default function DashboardPage() {
   const [analyticsView, setAnalyticsView] = useState<'charts' | 'table'>('charts');
   const [pendingLeaves, setPendingLeaves] = useState<LeaveApplication[]>([]);
   const [attendanceView, setAttendanceView] = useState<'visual' | 'table'>('visual');
+  const [teacherCount, setTeacherCount] = useState<number>(0);
 
   useEffect(() => {
     setMounted(true);
@@ -122,6 +124,10 @@ export default function DashboardPage() {
       try {
         const all = leaveService.getLeaves();
         setPendingLeaves(all.filter(l => l.status === 'pending'));
+      } catch (e) {}
+      try {
+        const teachers = teacherAuthService.getAllTeachers();
+        setTeacherCount(teachers.length);
       } catch (e) {}
     };
 
@@ -424,7 +430,7 @@ export default function DashboardPage() {
     : 0;
 
   const schoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const eiin = schoolSettings?.eiin || '১০৬২৮৮';
+  const eiin = schoolSettings?.eiin || '';
 
   if (!mounted) {
     return <div className="p-8 text-center text-slate-400 font-bold">{currentLang === 'en' ? 'Loading...' : 'লোড হচ্ছে...'}</div>;
@@ -510,7 +516,7 @@ export default function DashboardPage() {
       {/* ═════════════════════════════════════════════════════════════════ */}
       {/* 🚀 1. KPI METRIC CARDS WITH GLASSMORPHISM & GRADIENTS           */}
       {/* ═════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
         
         {/* Card 1: Total Students */}
         <div className="bg-gradient-to-br from-indigo-500/10 via-white to-indigo-500/5 dark:from-indigo-950/40 dark:via-slate-900 dark:to-indigo-950/20 p-4 sm:p-5 rounded-3xl border border-indigo-100 dark:border-indigo-900/50 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all relative overflow-hidden group">
@@ -534,6 +540,29 @@ export default function DashboardPage() {
             <span className="px-1.5 py-0.5 rounded-md bg-indigo-100/80 dark:bg-indigo-900/60 text-[9.5px]">সক্রিয়</span>
           </div>
         </div>
+
+        {/* Card: Total Teachers & Staff */}
+        <Link href="/dashboard/teacher" className="bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 p-4 sm:p-5 rounded-3xl border border-purple-100 dark:border-purple-900/50 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all relative overflow-hidden group block">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl -mr-6 -mt-6 group-hover:bg-purple-500/20 transition-all"></div>
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+              {currentLang === 'en' ? 'Teachers & Staff' : 'শিক্ষক ও স্টাফ'}
+            </span>
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-purple-500/25 group-hover:scale-110 transition-all">
+              <School size={18} />
+            </div>
+          </div>
+          <div className="mt-3 relative z-10">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">{teacherCount}</span>
+            <span className="text-xs text-purple-600 dark:text-purple-400 font-bold ml-1">{currentLang === 'en' ? 'Total' : 'জন'}</span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-purple-100/70 dark:border-purple-900/40 flex items-center justify-between text-[10.5px] font-bold text-purple-600 dark:text-purple-400 relative z-10">
+            <span className="flex items-center gap-1">
+              <Sparkles size={12} /> {currentLang === 'en' ? 'Faculty' : 'অনুমোদিত'}
+            </span>
+            <span className="px-1.5 py-0.5 rounded-md bg-purple-100/80 dark:bg-purple-900/60 text-[9.5px]">কর্মরত</span>
+          </div>
+        </Link>
 
         {/* Card 2: Male Students */}
         <div className="bg-gradient-to-br from-blue-500/10 via-white to-blue-500/5 dark:from-blue-950/40 dark:via-slate-900 dark:to-blue-950/20 p-4 sm:p-5 rounded-3xl border border-blue-100 dark:border-blue-900/50 shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all relative overflow-hidden group">

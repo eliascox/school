@@ -948,7 +948,7 @@ class LandingPageService {
   }
 
   // --- AUTO SYNC WITH SCHOOL SETTINGS ---
-  public syncWithSchoolSettings(settings: any, autoPublish: boolean = false): void {
+  public syncWithSchoolSettings(settings: any, autoPublish: boolean = true): void {
     if (!settings || typeof window === 'undefined') return;
     try {
       const draft = this.getDraftConfig();
@@ -996,6 +996,23 @@ class LandingPageService {
       if (settings.principalName && draft.about.headmaster.name !== settings.principalName) {
         draft.about.headmaster.name = settings.principalName;
         changed = true;
+      }
+
+      // Sync online admission toggle → hero CTA visibility + nav admission link
+      if (typeof settings.onlineAdmissionEnabled !== 'undefined') {
+        const admEnabled = settings.onlineAdmissionEnabled !== false;
+        if (draft.hero.primaryCta.visible !== admEnabled) {
+          draft.hero.primaryCta.visible = admEnabled;
+          changed = true;
+        }
+        // Also hide/show admission nav link
+        const admNavIdx = draft.header.navLinks.findIndex(
+          (l: any) => l.href === '/admission' || (l.label && (l.label.includes('ভর্তি') || l.label.toLowerCase().includes('admission')))
+        );
+        if (admNavIdx !== -1 && draft.header.navLinks[admNavIdx].visible !== admEnabled) {
+          draft.header.navLinks[admNavIdx] = { ...draft.header.navLinks[admNavIdx], visible: admEnabled };
+          changed = true;
+        }
       }
 
       if (changed) {

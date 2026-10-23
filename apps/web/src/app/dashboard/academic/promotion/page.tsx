@@ -28,15 +28,18 @@ interface StudentPromotionItem {
   gpa: string;
   status: 'Pass' | 'Fail';
   selected: boolean;
+  alreadyPromoted?: boolean;
 }
 
 interface PromotionLog {
   id: string;
   timestamp: string;
   fromGrade: string;
+  fromGradeKey?: string;
   toGrade: string;
   count: number;
   session: string;
+  promotedIds?: string[];
 }
 
 export default function StudentPromotionPage() {
@@ -53,17 +56,35 @@ export default function StudentPromotionPage() {
 
   const loadStudents = (grade: string) => {
     const rawStudents = studentService.getStudentsByFilter(grade);
-    const mapped: StudentPromotionItem[] = rawStudents.map((st, idx) => ({
-      id: st.id,
-      roll: st.roll || String(idx + 1).padStart(2, '0'),
-      name: st.name,
-      grade: st.grade || grade,
-      section: st.section || st.branch || 'A',
-      group: st.group || 'সাধারণ',
-      gpa: st.gpa || '5.00',
-      status: (st.gpa && parseFloat(st.gpa) < 1.0) ? 'Fail' : 'Pass',
-      selected: (st.gpa && parseFloat(st.gpa) < 1.0) ? false : true
-    }));
+    
+    // C-05 FIX: Load promotion history to prevent double-promotion
+    let promotionHistory: PromotionLog[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sms_promotion_history');
+        if (saved) promotionHistory = JSON.parse(saved);
+      } catch (e) {}
+    }
+    
+    const mapped: StudentPromotionItem[] = rawStudents.map((st, idx) => {
+      const isFail = (st.gpa && parseFloat(st.gpa) < 1.0);
+      // Check if already promoted from this grade in current target session
+      const alreadyPromoted = promotionHistory.some(
+        (log) => log.promotedIds && log.promotedIds.includes(st.id) && log.fromGradeKey === grade
+      );
+      return {
+        id: st.id,
+        roll: st.roll || String(idx + 1).padStart(2, '0'),
+        name: st.name,
+        grade: st.grade || grade,
+        section: st.section || st.branch || 'A',
+        group: st.group || 'সাধারণ',
+        gpa: st.gpa || '5.00',
+        status: isFail ? 'Fail' : 'Pass',
+        selected: (!isFail && !alreadyPromoted),
+        alreadyPromoted,
+      };
+    });
     setStudents(mapped);
   };
 
@@ -119,7 +140,7 @@ export default function StudentPromotionPage() {
   };
 
   const handleToggleSelectAll = (checked: boolean) => {
-    setStudents(prev => prev.map(s => ({ ...s, selected: checked })));
+    setStudents(prev => prev.map(s => s.alreadyPromoted ? s : { ...s, selected: checked }));
   };
 
   const handleToggleStudent = (id: string) => {
@@ -127,7 +148,7 @@ export default function StudentPromotionPage() {
   };
 
   const handleExecutePromotion = () => {
-    const selectedIds = students.filter(s => s.selected).map(s => s.id);
+    const selectedIds = students.filter(s => s.selected && !s.alreadyPromoted).map(s => s.id);
 
     if (selectedIds.length === 0) {
       return showAlert('error', 'অনুগ্রহ করে অন্তত একজন শিক্ষার্থী নির্বাচন করুন!');
@@ -142,9 +163,11 @@ export default function StudentPromotionPage() {
         id: `LOG-${Date.now()}`,
         timestamp: new Date().toLocaleString('bn-BD'),
         fromGrade: fromGrade === '6th' ? '৬ষ্ঠ' : fromGrade === '7th' ? '৭ম' : fromGrade === '8th' ? '৮ম' : fromGrade === '9th' ? '৯ম' : '১০ম',
+        fromGradeKey: fromGrade,
         toGrade,
         count: res.count,
-        session: targetSession
+        session: targetSession,
+        promotedIds: selectedIds,
       };
 
       const updatedLogs = [newLog, ...promotionLogs];
@@ -312,13 +335,14 @@ export default function StudentPromotionPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {students.map((st) => (
-                    <tr key={st.id} className={`hover:bg-slate-50 transition ${st.selected ? 'bg-indigo-50/20' : ''}`}>
+                    <tr key={st.id} className={`hover:bg-slate-50 transition ${st.alreadyPromoted ? 'bg-amber-50/30 opacity-80' : st.selected ? 'bg-indigo-50/20' : ''}`}>
                       <td className="p-3 text-center">
                         <input
                           type="checkbox"
                           checked={st.selected}
-                          onChange={() => handleToggleStudent(st.id)}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          disabled={st.alreadyPromoted}
+                          onChange={() => !st.alreadyPromoted && handleToggleStudent(st.id)}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </td>
                       <td className="p-3 text-center font-mono font-black text-slate-900">{st.roll}</td>
@@ -337,7 +361,11 @@ export default function StudentPromotionPage() {
                         </span>
                       </td>
                       <td className="p-3 text-center">
-                        {st.selected ? (
+                        {st.alreadyPromoted ? (
+                          <span className="px-2.5 py-1 bg-amber-100 text-amber-800 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-amber-300">
+                            <AlertCircle size={13} /> ইতোমধ্যে প্রমোশন হয়েছে
+                          </span>
+                        ) : st.selected ? (
                           <span className="px-2.5 py-1 bg-emerald-600 text-white font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 shadow-sm">
                             <CheckCircle2 size={13} /> {toGrade} এ প্রমোশন হবে
                           </span>
