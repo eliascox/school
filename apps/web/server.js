@@ -3,7 +3,6 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const PORTS = [3000, 3001];
 const PUBLIC_DIR = path.join(__dirname, 'out');
 
 const MIME_TYPES = {
@@ -23,22 +22,39 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf'
 };
 
-function createStaticServer(port) {
-  // BUG-001: Canonical origin redirect. Port 3001 redirects to 3000 to prevent split localStorage databases
-  if (port === 3001) {
-    const server = http.createServer((req, res) => {
-      const host = (req.headers.host || 'localhost:3001').replace(':3001', ':3000');
-      res.writeHead(301, { 'Location': `http://${host}${req.url}` });
-      res.end();
-    });
-    server.on('error', (err) => console.log(`[PORT ${port}] Warning: ${err.message}`));
-    server.listen(port, '0.0.0.0', () => {
-      console.log(`[SMS REDIRECT READY] http://localhost:3001 -> http://localhost:3000 (Single Origin Canonical Guard)`);
-    });
-    return server;
-  }
+function createDualStackServer(port, requestHandler, label) {
+  // 1. IPv4 Listener (0.0.0.0)
+  const server4 = http.createServer(requestHandler);
+  server4.on('error', (err) => console.log(`[PORT ${port} IPv4] Warning: ${err.message}`));
+  server4.listen(port, '0.0.0.0', () => {
+    console.log(`[${label} IPv4 READY] http://127.0.0.1:${port}`);
+  });
 
-  const server = http.createServer((req, res) => {
+  // 2. IPv6 Listener (::) - Essential on Windows so localhost (::1) cannot be hijacked by other rogue dev servers!
+  const server6 = http.createServer(requestHandler);
+  server6.on('error', (err) => {
+    if (err.code !== 'EADDRINUSE') {
+      console.log(`[PORT ${port} IPv6] Notice: ${err.message}`);
+    }
+  });
+  server6.listen(port, '::', () => {
+    console.log(`[${label} IPv6 READY] http://[::1]:${port} (localhost locked to SchoolPro SMS)`);
+  });
+
+  return { server4, server6 };
+}
+
+function startServers() {
+  // ─── PORT 3001: Canonical origin redirect -> Port 3000 (Single Origin Database Guard)
+  const redirectHandler = (req, res) => {
+    const host = (req.headers.host || 'localhost:3001').replace(':3001', ':3000');
+    res.writeHead(301, { 'Location': `http://${host}${req.url}` });
+    res.end();
+  };
+  createDualStackServer(3001, redirectHandler, 'SMS REDIRECT');
+
+  // ─── PORT 3000: Full School Management System Server
+  const mainHandler = (req, res) => {
     // ─── OFFLINE STANDALONE API HANDLERS (Eliminates Browser 404 Console Errors) ───
     if (req.url.startsWith('/api/v1/license/heartbeat')) {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
@@ -100,53 +116,30 @@ function createStaticServer(port) {
             'Content-Type': 'application/json; charset=utf-8',
             'Access-Control-Allow-Origin': '*'
           });
-          res.end(JSON.stringify({ success: false, error: 'Proxy request failed', message: err.message }));
+          res.end(JSON.stringify({ success: false, error: 'Proxy request failed: ' + err.message }));
         });
-        return;
-      } catch (err) {
+      } catch (e) {
         res.writeHead(400, {
           'Content-Type': 'application/json; charset=utf-8',
           'Access-Control-Allow-Origin': '*'
         });
-        res.end(JSON.stringify({ success: false, error: 'Invalid URL', message: err.message }));
-        return;
+        res.end(JSON.stringify({ success: false, error: 'Invalid URL format' }));
       }
+      return;
     }
 
-    let urlParts = req.url.split('?');
-    let rawPath = decodeURI(urlParts[0]);
-    let queryString = urlParts[1] ? '?' + urlParts[1] : '';
+    // Normal static file handling
+    const [rawPath, queryString] = req.url.split('?');
+    const safePath = path.normalize(decodeURIComponent(rawPath)).replace(/^(\.\.[\/\\])+/, '');
+    let filePath = path.join(PUBLIC_DIR, safePath);
 
-    // Handle nested relative _next requests (e.g. /login/_next/... -> /_next/...)
-    if (rawPath.includes('/_next/') && !rawPath.startsWith('/_next/')) {
-      rawPath = rawPath.slice(rawPath.indexOf('/_next/'));
-    }
-
-    // 1. Root route serves index.html (Public School Website)
-    let filePath;
-    if (rawPath === '/' || rawPath === '') {
+    // 1. Root route fallback
+    if (safePath === '/' || safePath === '\\') {
       filePath = path.join(PUBLIC_DIR, 'index.html');
-    } else {
-      filePath = path.join(PUBLIC_DIR, rawPath);
     }
 
-    // 2. Next.js 16 Turbopack RSC Prefetch Resolution (__next.* and ?_rsc=...)
-    // Next.js static export generates both directory e.g. `__next.login` and file `__next.login.txt`
-    if (fs.existsSync(filePath + '.txt')) {
-      filePath = filePath + '.txt';
-    } else if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-      if (queryString.includes('_rsc=') && fs.existsSync(path.join(filePath, 'index.txt'))) {
-        filePath = path.join(filePath, 'index.txt');
-      } else if (fs.existsSync(path.join(filePath, '__PAGE__.txt'))) {
-        filePath = path.join(filePath, '__PAGE__.txt');
-      } else if (!rawPath.endsWith('/')) {
-        res.writeHead(301, { 'Location': rawPath + '/' + queryString });
-        res.end();
-        return;
-      } else {
-        filePath = path.join(filePath, 'index.html');
-      }
-    } else if (queryString.includes('_rsc=') && fs.existsSync(filePath + '.txt')) {
+    // 2. Next.js RSC payload (.txt) fallback
+    if (!fs.existsSync(filePath) && fs.existsSync(filePath + '.txt')) {
       filePath = filePath + '.txt';
     }
 
@@ -158,7 +151,7 @@ function createStaticServer(port) {
     // 4. Subdirectory index.html fallback
     if (!fs.existsSync(filePath) && fs.existsSync(path.join(filePath, 'index.html'))) {
       if (!rawPath.endsWith('/')) {
-        res.writeHead(301, { 'Location': rawPath + '/' + queryString });
+        res.writeHead(301, { 'Location': rawPath + '/' + (queryString ? '?' + queryString : '') });
         res.end();
         return;
       }
@@ -193,18 +186,9 @@ function createStaticServer(port) {
       });
       res.end(content);
     });
-  });
+  };
 
-  server.on('error', (err) => {
-    console.log(`[PORT ${port}] Warning: ${err.message}`);
-  });
-
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`[SMS LIVE SERVER READY] Accessible at: http://localhost:${port}`);
-  });
-
-  return server;
+  createDualStackServer(3000, mainHandler, 'SMS LIVE SERVER');
 }
 
-PORTS.forEach(createStaticServer);
-
+startServers();
