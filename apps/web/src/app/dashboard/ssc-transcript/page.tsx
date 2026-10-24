@@ -2885,6 +2885,7 @@ function SSCTestimonialSheetCard({
                 {getEnglishPrincipalTitle(schoolSettings?.principalTitle)}
               </p>
               <p className="text-[10px] text-slate-600 font-serif tracking-wide">{schoolNameEn}</p>
+              <p className="text-[9px] text-slate-500 font-serif">{schoolAddressEn}</p>
             </div>
           </div>
         </div>

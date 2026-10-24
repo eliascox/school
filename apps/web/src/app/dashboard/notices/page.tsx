@@ -2125,7 +2125,9 @@ ${generateClassFeeString(classFees)}
                 signatures={[
                   {
                     title: selectedNoticeForPrint.publisherName || schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
-                    subtitle: `${selectedNoticeForPrint.publisherRole || schoolSettings.principalTitle || 'প্রধান শিক্ষক'}, ${schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}`,
+                    designation: selectedNoticeForPrint.publisherRole || schoolSettings.principalTitle || 'প্রধান শিক্ষক',
+                    institution: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+                    address: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
                     rightAligned: true
                   }
                 ]}

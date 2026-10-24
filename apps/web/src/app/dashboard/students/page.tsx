@@ -2848,7 +2848,13 @@ export default function StudentListPage() {
                 title=""
                 hideHeaderActions={true}
                 signatures={[
-                  { title: 'প্রধান শিক্ষক', subtitle: schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়', rightAligned: true }
+                  {
+                    title: schoolSettings?.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+                    designation: schoolSettings?.principalTitle || 'প্রধান শিক্ষক',
+                    institution: schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+                    address: schoolSettings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+                    rightAligned: true
+                  }
                 ]}
               />
             </div>

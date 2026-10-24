@@ -1522,7 +1522,13 @@ export default function SettingsPage() {
                     refNo="স্মারক নং: ব.উ.বি/২০২৬/০০১"
                     hideHeaderActions={true}
                     signatures={[
-                      { title: 'প্রধান শিক্ষক', subtitle: 'বরইতলী উচ্চ বিদ্যালয়, চকরিয়া', rightAligned: true }
+                      {
+                        title: formData.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+                        designation: formData.principalTitle || 'প্রধান শিক্ষক',
+                        institution: formData.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+                        address: formData.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+                        rightAligned: true
+                      }
                     ]}
                   >
                     <div className="space-y-3 text-xs leading-relaxed text-slate-800 font-medium">

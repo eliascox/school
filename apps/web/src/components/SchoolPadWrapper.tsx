@@ -6,6 +6,9 @@ import { Printer, FileText, Upload, Sparkles } from 'lucide-react';
 
 export interface SignatureItem {
   title: string;
+  designation?: string;
+  institution?: string;
+  address?: string;
   subtitle?: string;
   date?: string;
   rightAligned?: boolean;
@@ -244,21 +247,32 @@ export default function SchoolPadWrapper({
               {signatures && signatures.length > 0 ? (
                 <div className={`pt-4 pb-2 flex ${signatures.length === 1 && signatures[0].rightAligned ? 'justify-end' : 'justify-between'} items-end text-center text-xs font-bold text-slate-900`}>
                   {signatures.map((sig, idx) => (
-                    <div key={idx} className={`space-y-1 ${sig.rightAligned ? 'ml-auto' : ''}`}>
-                      <div className="w-48 border-b border-slate-900 mx-auto mb-1.5"></div>
+                    <div key={idx} className={`space-y-0.5 text-center ${sig.rightAligned ? 'ml-auto' : ''}`}>
+                      <div className="w-52 border-b border-slate-900 mx-auto mb-1.5"></div>
                       <p className="font-black text-slate-950 text-xs sm:text-sm">{sig.title}</p>
-                      {sig.subtitle && <p className="text-[11px] text-slate-700 font-bold">{sig.subtitle}</p>}
+                      {sig.designation && <p className="text-[11px] text-slate-800 font-bold">{sig.designation}</p>}
+                      {sig.institution && <p className="text-[11px] text-slate-700 font-semibold">{sig.institution}</p>}
+                      {sig.address && <p className="text-[10px] text-slate-600">{sig.address}</p>}
+                      {!sig.designation && sig.subtitle && <p className="text-[11px] text-slate-700 font-bold">{sig.subtitle}</p>}
                       {sig.date && <p className="text-[10px] text-slate-500 font-normal">তারিখ: {sig.date}</p>}
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="pt-4 pb-2 flex justify-end text-center text-xs font-bold text-slate-900">
-                  <div className="space-y-1">
-                    <div className="w-48 border-b border-slate-900 mx-auto mb-1.5"></div>
-                    <p className="font-black text-slate-950 text-xs sm:text-sm">প্রধান শিক্ষক</p>
-                    <p className="text-[11px] text-slate-700 font-bold">
-                      {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, চকরিয়া
+                  <div className="space-y-0.5 ml-auto text-center">
+                    <div className="w-52 border-b border-slate-900 mx-auto mb-1.5"></div>
+                    <p className="font-black text-slate-950 text-xs sm:text-sm">
+                      {settings?.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
+                    </p>
+                    <p className="text-[11px] text-slate-800 font-bold">
+                      {settings?.principalTitle || 'প্রধান শিক্ষক'}
+                    </p>
+                    <p className="text-[11px] text-slate-700 font-semibold">
+                      {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                    </p>
+                    <p className="text-[10px] text-slate-600">
+                      {settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
                     </p>
                   </div>
                 </div>

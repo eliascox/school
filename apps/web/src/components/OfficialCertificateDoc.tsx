@@ -227,14 +227,22 @@ export default function OfficialCertificateDoc({
                 </div>
 
                 {/* Right: Principal Signature */}
-                <div className="text-right space-y-1">
-                  <div className="h-12 flex items-end justify-end">
-                    <div className="font-sans italic font-bold text-slate-600 text-sm border-b border-slate-900 pb-1 w-44 text-center">
-                      {settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
-                    </div>
+                <div className="text-right space-y-0.5 min-w-[200px]">
+                  <div className="h-10 flex items-end justify-end">
+                    <div className="border-b border-slate-900 pb-1 w-52 text-center"></div>
                   </div>
-                  <p className="text-xs font-bold text-slate-900">{settings.principalTitle || 'প্রধান শিক্ষক'}</p>
-                  <p className="text-[10px] text-slate-600">{settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}</p>
+                  <p className="text-xs sm:text-sm font-black text-slate-950 text-center">
+                    {settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
+                  </p>
+                  <p className="text-[11px] font-bold text-slate-800 text-center">
+                    {settings.principalTitle || 'প্রধান শিক্ষক'}
+                  </p>
+                  <p className="text-[11px] text-slate-700 font-semibold text-center">
+                    {settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                  </p>
+                  <p className="text-[10px] text-slate-600 text-center">
+                    {settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
+                  </p>
                 </div>
 
               </div>
@@ -260,18 +268,30 @@ export default function OfficialCertificateDoc({
       title={title}
       hideHeaderActions={true}
       signaturePosition="flow"
-      signatures={[
-        {
-          title: cert.authorizedPersonTitle || 'প্রস্তুতকারক / সহকারী শিক্ষক',
-          subtitle: 'যাচাইকৃত',
-          rightAligned: false
-        },
-        {
-          title: settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
-          subtitle: `${settings.principalTitle || 'প্রধান শিক্ষক'}, ${settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}`,
-          rightAligned: true
-        }
-      ]}
+      signatures={
+        cert.authorizedPersonTitle ? [
+          {
+            title: cert.authorizedPersonTitle,
+            subtitle: 'যাচাইকৃত',
+            rightAligned: false
+          },
+          {
+            title: settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+            designation: settings.principalTitle || 'প্রধান শিক্ষক',
+            institution: settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+            address: settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+            rightAligned: true
+          }
+        ] : [
+          {
+            title: settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+            designation: settings.principalTitle || 'প্রধান শিক্ষক',
+            institution: settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+            address: settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+            rightAligned: true
+          }
+        ]
+      }
     >
       <div className="text-xs sm:text-sm font-sans leading-relaxed text-slate-950 px-2 pt-2 pb-4 space-y-4">
         
@@ -309,7 +329,7 @@ export default function OfficialCertificateDoc({
         )}
 
         {/* QR Code & Online Verification Footnote */}
-        <div className="pt-6 border-t border-slate-200/80 flex items-center justify-between gap-4 mt-6">
+        <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-4 mt-6">
           <div className="flex items-center gap-3">
             {qrCodeUrl && (
               <img src={qrCodeUrl} alt="QR Verification" className="w-16 h-16 border border-slate-300 p-1 bg-white rounded-lg shadow-sm" />
@@ -318,14 +338,11 @@ export default function OfficialCertificateDoc({
               <p className="font-bold text-slate-800 flex items-center gap-1">
                 <ShieldCheck size={13} className="text-emerald-600" /> সরকারি ডিজিটাল সনদ ভেরিফিকেশন
               </p>
-              <p className="font-mono text-slate-500">সনদ নম্বর: <strong className="text-slate-800">{cert.id}</strong></p>
+              <p className="font-mono text-slate-600">
+                সনদ নম্বর: <strong className="text-slate-900">{cert.id}</strong> | স্মারক: <span className="text-slate-700">{cert.refNo}</span>
+              </p>
               <p className="text-slate-500">অনলাইনে সত্যতা নিশ্চিত করতে QR কোডটি স্ক্যান করুন।</p>
             </div>
-          </div>
-
-          <div className="text-[10px] text-right text-slate-400 font-mono">
-            ইস্যুর তারিখ: {cert.issueDate}<br />
-            SchoolPro Digital Registry
           </div>
         </div>
 
