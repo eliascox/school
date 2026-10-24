@@ -134,21 +134,42 @@ function startServers() {
     let filePath = path.join(PUBLIC_DIR, safePath);
 
     // 1. Root route fallback
-    if (safePath === '/' || safePath === '\\') {
+    if (safePath === '/' || safePath === '\\' || safePath === '') {
       filePath = path.join(PUBLIC_DIR, 'index.html');
     }
 
-    // 2. Next.js RSC payload (.txt) fallback
+    // Check if filePath is an existing directory
+    let isDir = false;
+    try {
+      if (fs.existsSync(filePath)) {
+        isDir = fs.statSync(filePath).isDirectory();
+      }
+    } catch (e) {}
+
+    // 2. Directory handling: redirect to trailing slash or serve index.html
+    if (isDir) {
+      if (!rawPath.endsWith('/')) {
+        res.writeHead(301, { 'Location': rawPath + '/' + (queryString ? '?' + queryString : '') });
+        res.end();
+        return;
+      }
+      const dirIndex = path.join(filePath, 'index.html');
+      if (fs.existsSync(dirIndex)) {
+        filePath = dirIndex;
+      }
+    }
+
+    // 3. Next.js RSC payload (.txt) fallback
     if (!fs.existsSync(filePath) && fs.existsSync(filePath + '.txt')) {
       filePath = filePath + '.txt';
     }
 
-    // 3. Direct HTML file fallback
+    // 4. Direct HTML file fallback
     if (!fs.existsSync(filePath) && fs.existsSync(filePath + '.html')) {
       filePath = filePath + '.html';
     }
 
-    // 4. Subdirectory index.html fallback
+    // 5. Subdirectory index.html fallback (if rawPath didn't have trailing slash but dir exists)
     if (!fs.existsSync(filePath) && fs.existsSync(path.join(filePath, 'index.html'))) {
       if (!rawPath.endsWith('/')) {
         res.writeHead(301, { 'Location': rawPath + '/' + (queryString ? '?' + queryString : '') });
@@ -158,8 +179,15 @@ function startServers() {
       filePath = path.join(filePath, 'index.html');
     }
 
-    // 5. If still not found, return 404 or SPA fallback
-    if (!fs.existsSync(filePath)) {
+    // 6. If still not found or it is a directory without index.html, return 404 or SPA fallback
+    let isStillDir = false;
+    try {
+      if (fs.existsSync(filePath)) {
+        isStillDir = fs.statSync(filePath).isDirectory();
+      }
+    } catch (e) {}
+
+    if (!fs.existsSync(filePath) || isStillDir) {
       const notFoundPath = path.join(PUBLIC_DIR, '404.html');
       if (fs.existsSync(notFoundPath)) {
         filePath = notFoundPath;
