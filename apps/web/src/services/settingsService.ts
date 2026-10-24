@@ -120,32 +120,22 @@ export type SchoolSettings = {
   uploadedPadType?: 'image' | 'pdf';
   uploadedPadFileName?: string;
   uploadedPadFileSize?: number;
-  activePadMode?: 'uploaded' | 'system' | 'preprinted';
-  schoolNameEn?: string;
-  padAffiliationText?: string;
-  padThemeColor?: string;
-  padHeaderStyle?: PadHeaderStyle;
+  activePadMode?: 'uploaded' | 'preprinted';
   padMargins?: PadMargins;
-  showPadWatermark?: boolean;
-  padWatermarkText?: string;
-  padWatermarkOpacity?: number;
-  padSecondaryLogo?: string;
-  padFooterText?: string;
+  padFontSize?: number;
+  padLineHeight?: number;
+  padSignatureGap?: number;
   padRefPrefix?: string;
-  showPadHeaderLine?: boolean;
-  showPadFooter?: boolean;
-  showPadDateRef?: boolean;
-  padSlogan?: string;
 
   // 👥 Managing Committee Members
   committeeMembers?: CommitteeMember[];
 };
 
 export const DEFAULT_PAD_MARGINS: PadMargins = {
-  top: 0.5,
-  left: 0.5,
-  right: 0.5,
-  bottom: 0.5,
+  top: 2.0,    // 2.0 inches clear space for uploaded school letterhead header
+  left: 0.8,   // 0.8 inches left margin
+  right: 0.8,  // 0.8 inches right margin
+  bottom: 1.0, // 1.0 inch bottom space for footer
 };
 
 const DEFAULT_SETTINGS: SchoolSettings = {
@@ -179,22 +169,12 @@ const DEFAULT_SETTINGS: SchoolSettings = {
   uploadedPadType: 'image',
   uploadedPadFileName: '',
   uploadedPadFileSize: 0,
-  activePadMode: 'system',
-  schoolNameEn: 'BORAITOLI HIGH SCHOOL',
-  padAffiliationText: 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার অনুমোদিত ও শিক্ষা বোর্ড অধিভুক্ত',
-  padThemeColor: '#064e3b',
-  padHeaderStyle: 'classic',
+  activePadMode: 'uploaded',
   padMargins: DEFAULT_PAD_MARGINS,
-  showPadWatermark: true,
-  padWatermarkText: 'বরইতলী উচ্চ বিদ্যালয়',
-  padWatermarkOpacity: 0.04,
-  padSecondaryLogo: '',
-  padFooterText: 'বরইতলী, চকরিয়া, কক্সবাজার | ফোন: 01819-000000 | ইমেইল: boroitoli.high.school@gmail.com | www.boroitolihs.edu.bd',
+  padFontSize: 14,
+  padLineHeight: 2.1,
+  padSignatureGap: 2.5,
   padRefPrefix: 'স্মারক নং: ব.উ.বি/',
-  showPadHeaderLine: true,
-  showPadFooter: true,
-  showPadDateRef: true,
-  padSlogan: 'শিক্ষাই জাতির মেরুদণ্ড — জ্ঞানই আলো, শিক্ষাই শক্তি',
   committeeMembers: DEFAULT_COMMITTEE_MEMBERS,
 };
 

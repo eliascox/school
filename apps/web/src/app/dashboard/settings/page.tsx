@@ -1206,7 +1206,7 @@ export default function SettingsPage() {
                   </span>
                 ) : (
                   <span className="px-3.5 py-1.5 bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                    ডিফল্ট সিস্টেম প্যাড সক্রিয়
+                    ছাপা প্যাড মোড
                   </span>
                 )}
               </div>

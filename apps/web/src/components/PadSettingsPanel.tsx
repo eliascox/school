@@ -9,15 +9,12 @@ import {
   Trash2,
   AlertTriangle,
   RefreshCw,
-  Sparkles,
   Printer,
   Eye,
   Info,
-  Palette,
-  Shield,
-  Layers,
   Save,
-  X
+  X,
+  Type
 } from 'lucide-react';
 import { SchoolSettings, settingsService, DEFAULT_PAD_MARGINS, PadMargins } from '@/services/settingsService';
 import { processPadUpload, ProcessedPadResult } from '@/lib/padPdfRenderer';
@@ -40,7 +37,7 @@ export default function PadSettingsPanel({
     return initialSettings || settingsService.getSettings();
   });
 
-  const [activeTab, setActiveTab] = useState<'upload' | 'margins' | 'system_pad'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'margins'>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processStatus, setProcessStatus] = useState<string>('');
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -71,11 +68,11 @@ export default function PadSettingsPanel({
         return;
       }
 
-      // Default smart margins for uploaded pads (if currently default small margins)
-      const currentTop = settings.padMargins?.top || 0.5;
-      const suggestedTop = currentTop < 1.5 ? 2.0 : currentTop;
-      const currentBottom = settings.padMargins?.bottom || 0.5;
-      const suggestedBottom = currentBottom < 0.8 ? 1.0 : currentBottom;
+      // Default smart margins for uploaded pads
+      const currentTop = settings.padMargins?.top || 2.0;
+      const suggestedTop = currentTop < 1.2 ? 2.0 : currentTop;
+      const currentBottom = settings.padMargins?.bottom || 1.0;
+      const suggestedBottom = currentBottom < 0.6 ? 1.0 : currentBottom;
 
       const updatedSettings: SchoolSettings = {
         ...settings,
@@ -111,44 +108,25 @@ export default function PadSettingsPanel({
 
   // Remove uploaded pad
   const handleRemovePad = () => {
-    if (!confirm('আপনি কি আপলোডকৃত প্যাডটি সরিয়ে ডিফল্ট সিস্টেম প্যাডে ফিরে যেতে চান?')) return;
+    if (!confirm('আপনি কি আপলোডকৃত প্যাডটি মুছে ফেলতে চান?')) return;
     const updatedSettings: SchoolSettings = {
       ...settings,
       uploadedPadTemplateUrl: '',
       uploadedPadFileName: '',
       uploadedPadFileSize: 0,
-      activePadMode: 'system',
-      padMargins: {
-        ...DEFAULT_PAD_MARGINS,
-        top: 0.5,
-        bottom: 0.5,
-        left: 0.6,
-        right: 0.6,
-      },
+      activePadMode: 'preprinted',
     };
     setSettings(updatedSettings);
     settingsService.updateSettings(updatedSettings);
-    setAlertMsg({ type: 'success', text: 'আপলোডকৃত প্যাড সরানো হয়েছে। ডিফল্ট সিস্টেম প্যাড সক্রিয় করা হয়েছে।' });
+    setAlertMsg({ type: 'success', text: 'আপলোডকৃত প্যাড মুছে ফেলা হয়েছে।' });
     if (onSaved) onSaved(updatedSettings);
   };
 
   // Change active pad mode
-  const handleModeSelect = (mode: 'uploaded' | 'system' | 'preprinted') => {
-    let newMargins = { ...(settings.padMargins || DEFAULT_PAD_MARGINS) };
-
-    // Auto-adjust default top margin for user convenience
-    if (mode === 'uploaded' && newMargins.top < 1.5) {
-      newMargins.top = 2.0;
-      newMargins.bottom = 1.0;
-    } else if (mode === 'system' && newMargins.top > 1.2) {
-      newMargins.top = 0.5;
-      newMargins.bottom = 0.5;
-    }
-
+  const handleModeSelect = (mode: 'uploaded' | 'preprinted') => {
     const updatedSettings: SchoolSettings = {
       ...settings,
       activePadMode: mode,
-      padMargins: newMargins,
     };
     setSettings(updatedSettings);
     settingsService.updateSettings(updatedSettings);
@@ -170,21 +148,20 @@ export default function PadSettingsPanel({
     setSettings(updatedSettings);
   };
 
-  // Step margin helper (+/- 0.1")
   const stepMargin = (key: keyof PadMargins, delta: number) => {
     const current = settings.padMargins?.[key] ?? DEFAULT_PAD_MARGINS[key];
     updateMargin(key, current + delta);
   };
 
   // Quick Preset Handlers
-  const applyPreset = (preset: 'uploaded_standard' | 'compact' | 'system_default') => {
+  const applyPreset = (preset: 'standard' | 'compact' | 'large_header') => {
     let margins: PadMargins;
-    if (preset === 'uploaded_standard') {
+    if (preset === 'standard') {
       margins = { top: 2.0, bottom: 1.0, left: 0.8, right: 0.8 };
     } else if (preset === 'compact') {
       margins = { top: 1.5, bottom: 0.8, left: 0.6, right: 0.6 };
     } else {
-      margins = { top: 0.5, bottom: 0.5, left: 0.6, right: 0.6 };
+      margins = { top: 2.5, bottom: 1.0, left: 0.8, right: 0.8 };
     }
     const updatedSettings: SchoolSettings = {
       ...settings,
@@ -203,7 +180,7 @@ export default function PadSettingsPanel({
   };
 
   const currentMargins = settings.padMargins || DEFAULT_PAD_MARGINS;
-  const activeMode = settings.activePadMode || (settings.uploadedPadTemplateUrl ? 'uploaded' : 'system');
+  const activeMode = settings.activePadMode || (settings.uploadedPadTemplateUrl ? 'uploaded' : 'preprinted');
 
   return (
     <div className={`pad-settings-container ${isModal ? 'bg-white rounded-3xl p-6 shadow-2xl max-w-6xl w-full max-h-[92vh] overflow-y-auto' : 'space-y-6'}`}>
@@ -215,10 +192,10 @@ export default function PadSettingsPanel({
             <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
               <FileText size={20} />
             </span>
-            প্রাতিষ্ঠানিক লেটারহেড প্যাড ও মার্জিন কন্ট্রোল প্যানেল
+            লেটারহেড প্যাড ও মার্জিন কন্ট্রোল প্যানেল
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            আপনার নিজস্ব পিডিএফ/ছবি প্যাড আপলোড করুন, মার্জিন ক্যালিব্রেট করুন অথবা প্রিমিয়াম সিস্টেম প্যাড কাস্টমাইজ করুন।
+            আপনার প্রতিষ্ঠানের তৈরি করা নিজস্ব পিডিএফ বা ছবির প্যাড আপলোড করুন এবং লেখার অবস্থান ও স্বাক্ষরের অটো-স্কেলিং মার্জিন ক্যালিব্রেট করুন।
           </p>
         </div>
 
@@ -268,12 +245,12 @@ export default function PadSettingsPanel({
         </div>
       )}
 
-      {/* ─── 1. MODE SELECTOR (3 CLEAR TILES) ────────────────────────── */}
+      {/* ─── 1. MODE SELECTOR (2 REAL MODES: UPLOADED VS PRE-PRINTED) ─── */}
       <div className="space-y-2">
         <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
           প্যাড ব্যবহারের মোড নির্বাচন করুন:
         </label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           
           {/* Mode 1: Custom Uploaded Pad */}
           <div
@@ -295,47 +272,17 @@ export default function PadSettingsPanel({
                   </span>
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">১. আমার আপলোডকৃত প্যাড (PDF/ছবি)</h3>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">১. আপলোডকৃত নিজস্ব প্যাড (PDF বা ছবি)</h3>
               <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                আপনার প্রতিষ্ঠানের নিজস্ব প্রেস-প্রিন্টেড প্যাডের স্ক্যান কপি বা ডিজিটাল PDF আপলোড করে ব্যাকগ্রাউন্ড হিসেবে ব্যবহার করুন।
+                আপনার প্রতিষ্ঠানের নিজস্ব প্রেস-প্রিন্টেড প্যাডের স্ক্যান কপি বা ডিজিটাল PDF আপলোড করুন। প্রত্যয়নপত্রের যাবতীয় লেখা স্বয়ংক্রিয়ভাবে এই প্যাডের ভেতর নির্ধারিত মার্জিনে বসে যাবে।
               </p>
             </div>
-            <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-indigo-700 flex items-center justify-between">
-              <span>{settings.uploadedPadTemplateUrl ? '✓ প্যাড আপলোড করা আছে' : '⚠ প্যাড আপলোড প্রয়োজন'}</span>
+            <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-indigo-700">
+              {settings.uploadedPadTemplateUrl ? '✓ নিজস্ব প্যাড আপলোড করা আছে' : '⚠ প্যাড আপলোড করুন'}
             </div>
           </div>
 
-          {/* Mode 2: System Generated Prestigious Pad */}
-          <div
-            onClick={() => handleModeSelect('system')}
-            className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
-              activeMode === 'system'
-                ? 'border-emerald-600 bg-emerald-50/50 shadow-sm'
-                : 'border-slate-200 bg-white hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
-                  <Sparkles size={18} />
-                </span>
-                {activeMode === 'system' && (
-                  <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={10} /> সক্রিয়
-                  </span>
-                )}
-              </div>
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">২. সিস্টেম জেনারেট করা প্রিমিয়াম প্যাড</h3>
-              <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                সিস্টেমের তৈরি করা অফিশিয়াল প্রাতিষ্ঠানিক লেটারহেড প্যাড (বাংলাদেশ সরকার ও শিক্ষা বোর্ড অনুমোদিত স্টাইল)।
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-emerald-700">
-              রেডিমেড প্রফেশনাল ডিজাইন
-            </div>
-          </div>
-
-          {/* Mode 3: Pre-printed Paper Pad */}
+          {/* Mode 2: Pre-printed Paper Pad */}
           <div
             onClick={() => handleModeSelect('preprinted')}
             className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
@@ -355,20 +302,20 @@ export default function PadSettingsPanel({
                   </span>
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">৩. ছাপা প্যাড (Pre-printed Paper)</h3>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">২. ছাপা প্যাড (Pre-printed Paper)</h3>
               <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                আপনার প্রিন্টারে আগে থেকেই ছাপানো প্যাড পেপার থাকলে এই মোড নির্বাচন করুন। হেডার ও ফুটার ফাঁকা থাকবে।
+                আপনার প্রিন্টারে আগে থেকেই ছাপানো প্যাড পেপার থাকলে এই মোড নির্বাচন করুন। সফটওয়্যারে কোনো ব্যাকগ্রাউন্ড আসবে না, শুধু নির্ধারিত মার্জিনে লেখা প্রিন্ট হবে।
               </p>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-amber-700">
-              ফাঁকা হেডার মার্জিন
+              হেডার ও ফুটার ফাঁকা রেখে শুধু টেক্সট প্রিন্ট
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* ─── 2. TAB NAVIGATION (UPLOAD / MARGINS / SYSTEM DESIGN) ────── */}
+      {/* ─── 2. TAB NAVIGATION ───────────────────────────────────────── */}
       <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-1">
         <button
           type="button"
@@ -390,18 +337,7 @@ export default function PadSettingsPanel({
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Sliders size={14} /> মার্জিন ক্যালিব্রেশন (টপ/বটম/লেফট/রাইট)
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('system_pad')}
-          className={`px-4 py-2.5 rounded-t-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border-b-2 ${
-            activeTab === 'system_pad'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 font-black'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Palette size={14} /> সিস্টেম প্যাড ডিজাইন ও তথ্য
+          <Sliders size={14} /> মার্জিন ও টেক্সট স্কেলিং কাস্টমাইজেশন
         </button>
       </div>
 
@@ -421,7 +357,7 @@ export default function PadSettingsPanel({
                     লেটারহেড প্যাড ফাইল আপলোড
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    প্রতিষ্ঠানের অফিসিয়াল PDF প্যাড অথবা হাই-রেজ্যুলেশন PNG/JPG ছবি আপলোড করুন।
+                    প্রতিষ্ঠানের অফিসিয়াল PDF প্যাড অথবা স্ক্যান করা হাই-রেজ্যুলেশন PNG/JPG ছবি আপলোড করুন।
                   </p>
                 </div>
                 {settings.uploadedPadTemplateUrl && (
@@ -437,7 +373,7 @@ export default function PadSettingsPanel({
                   <div className="py-6 space-y-3">
                     <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
                     <p className="text-xs font-bold text-indigo-900">{processStatus}</p>
-                    <p className="text-[11px] text-slate-500">A4 সাইজে অপটিমাইজ করা হচ্ছে...</p>
+                    <p className="text-[11px] text-slate-500">A4 সাইজে অটো-স্কেলিং করা হচ্ছে...</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -446,7 +382,7 @@ export default function PadSettingsPanel({
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-900">
-                        আপনার স্কুল প্যাড ফাইল নির্বাচন করুন
+                        আপনার প্রতিষ্ঠানের প্যাড ফাইল নির্বাচন করুন
                       </p>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         সাপোর্টেড ফরম্যাট: <strong>PDF (.pdf)</strong>, <strong>PNG</strong>, <strong>JPG/JPEG</strong>
@@ -496,10 +432,10 @@ export default function PadSettingsPanel({
                     </button>
                   </div>
 
-                  <div className="p-2 bg-indigo-50/60 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
+                  <div className="p-2.5 bg-indigo-50/70 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
                     <Info size={15} className="text-indigo-600 shrink-0 mt-0.5" />
                     <span>
-                      <strong>পরামর্শ:</strong> প্যাডের উপরে কতটুকু ফাঁকা জায়গা রাখবেন তা নির্ধারণ করতে <strong>মার্জিন ক্যালিব্রেশন</strong> ট্যাবে গিয়ে <strong>টপ মার্জিন</strong> এডজাস্ট করুন।
+                      <strong>অটো লিখা ও মার্জিন:</strong> আপলোড করা প্যাডের হেডারের লেখার নিচে প্রত্যয়নের টেক্সট নিখুঁতভাবে বসানোর জন্য <strong>মার্জিন কাস্টমাইজেশন</strong> ট্যাবে গিয়ে <strong>টপ মার্জিন</strong> এডজাস্ট করুন।
                     </span>
                   </div>
                 </div>
@@ -507,17 +443,17 @@ export default function PadSettingsPanel({
             </div>
           )}
 
-          {/* ═══════ TAB 2: MARGIN CALIBRATION ═══════ */}
+          {/* ═══════ TAB 2: MARGIN & TEXT SCALING CONTROLS ═══════ */}
           {activeTab === 'margins' && (
             <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
                     <Sliders size={16} className="text-indigo-600" />
-                    মার্জিন ক্যালিব্রেশন কন্ট্রোল
+                    মার্জিন ও টেক্সট স্কেলিং কাস্টমাইজেশন
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    লেখা ও স্বাক্ষরের সঠিক অবস্থান নির্ধারণের জন্য ইঞ্চি বা মিলিমিটারে মার্জিন সেট করুন।
+                    লেখা ও স্বাক্ষরের সঠিক অবস্থান ও ফন্ট সাইজ নির্ধারণ করুন।
                   </p>
                 </div>
 
@@ -525,19 +461,27 @@ export default function PadSettingsPanel({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => applyPreset('uploaded_standard')}
+                    onClick={() => applyPreset('standard')}
                     className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="আপলোডকৃত প্যাডের জন্য আদর্শ মার্জিন (Top: 2.0in, Bottom: 1.0in)"
+                    title="আদর্শ মার্জিন (Top: 2.0in, Bottom: 1.0in)"
                   >
-                    আপলোড প্যাড প্রিসেট
+                    স্ট্যান্ডার্ড মার্জিন
                   </button>
                   <button
                     type="button"
-                    onClick={() => applyPreset('system_default')}
+                    onClick={() => applyPreset('compact')}
                     className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="সিস্টেম জেনারেট করা প্যাডের জন্য ডিফল্ট মার্জিন (Top: 0.5in)"
+                    title="ছোট হেডারের জন্য (Top: 1.5in)"
                   >
-                    ডিফল্ট প্রিসেট
+                    কম্প্যাক্ট
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('large_header')}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    title="বড় হেডারের জন্য (Top: 2.5in)"
+                  >
+                    বড় হেডার
                   </button>
                 </div>
               </div>
@@ -551,7 +495,7 @@ export default function PadSettingsPanel({
                     <div>
                       <span className="text-xs font-black text-slate-900">টপ মার্জিন (হেডার স্পেস)</span>
                       <p className="text-[10px] text-slate-500">
-                        প্যাডের হেডারের নিচে প্রত্যয়নের মূল বক্তব্য শুরু হওয়ার দূরত্ব
+                        আপলোড করা প্যাডের হেডারের লেখার নিচে প্রত্যয়নের মূল বক্তব্য শুরু হওয়ার দূরত্ব
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -576,17 +520,17 @@ export default function PadSettingsPanel({
                   </div>
                   <input
                     type="range"
-                    min="0.2"
-                    max="4.0"
+                    min="0.5"
+                    max="4.5"
                     step="0.05"
                     value={currentMargins.top}
                     onChange={(e) => updateMargin('top', parseFloat(e.target.value))}
                     className="w-full accent-indigo-600 cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                    <span>কম (0.2&quot;)</span>
+                    <span>কম (0.5&quot;)</span>
                     <span className="text-indigo-600 font-bold">{(currentMargins.top * 25.4).toFixed(0)} mm</span>
-                    <span>বেশি (4.0&quot;)</span>
+                    <span>বেশি (4.5&quot;)</span>
                   </div>
                 </div>
 
@@ -596,7 +540,7 @@ export default function PadSettingsPanel({
                     <div>
                       <span className="text-xs font-black text-slate-900">বটম মার্জিন (ফুটার স্পেস)</span>
                       <p className="text-[10px] text-slate-500">
-                        প্রধান শিক্ষকের সিল ও স্বাক্ষরের নিচের খালি জায়গা
+                        পৃষ্ঠার নিচ থেকে ন্যূনতম দূরত্ব যাতে প্যাডের ফুটারে লেখা না লাগে
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -621,7 +565,7 @@ export default function PadSettingsPanel({
                   </div>
                   <input
                     type="range"
-                    min="0.2"
+                    min="0.5"
                     max="3.0"
                     step="0.05"
                     value={currentMargins.bottom}
@@ -629,16 +573,14 @@ export default function PadSettingsPanel({
                     className="w-full accent-indigo-600 cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                    <span>কম (0.2&quot;)</span>
+                    <span>কম (0.5&quot;)</span>
                     <span className="text-indigo-600 font-bold">{(currentMargins.bottom * 25.4).toFixed(0)} mm</span>
                     <span>বেশি (3.0&quot;)</span>
                   </div>
                 </div>
 
-                {/* 3. LEFT & RIGHT MARGINS IN 2 COLUMNS */}
+                {/* 3. LEFT & RIGHT MARGINS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
-                  {/* Left Margin */}
                   <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-slate-900">বাম মার্জিন (Left)</span>
@@ -653,13 +595,8 @@ export default function PadSettingsPanel({
                       onChange={(e) => updateMargin('left', parseFloat(e.target.value))}
                       className="w-full accent-indigo-600 cursor-pointer"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>0.3&quot;</span>
-                      <span>2.5&quot;</span>
-                    </div>
                   </div>
 
-                  {/* Right Margin */}
                   <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-slate-900">ডান মার্জিন (Right)</span>
@@ -674,117 +611,74 @@ export default function PadSettingsPanel({
                       onChange={(e) => updateMargin('right', parseFloat(e.target.value))}
                       className="w-full accent-indigo-600 cursor-pointer"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>0.3&quot;</span>
-                      <span>2.5&quot;</span>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {/* ═══════ TAB 3: SYSTEM PAD DESIGN ═══════ */}
-          {activeTab === 'system_pad' && (
-            <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                  <Palette size={16} className="text-indigo-600" />
-                  সিস্টেম লেটারহেড প্যাড ডিজাইন ও তথ্য
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  সিস্টেম জেনারেট করা প্যাডের রঙ, হেডারের লেখা, বোর্ড অনুমোদন ও স্লোগান কাস্টমাইজ করুন।
-                </p>
-              </div>
-
-              <div className="space-y-3.5 pt-1">
-                
-                {/* Government / Board Recognition Line */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">সরকারি অনুমোদন / শিক্ষা বোর্ড সাব-হেড:</label>
-                  <input
-                    type="text"
-                    value={settings.padAffiliationText || ''}
-                    onChange={(e) => setSettings({ ...settings, padAffiliationText: e.target.value })}
-                    placeholder="যেমনঃ গণপ্রজাতন্ত্রী বাংলাদেশ সরকার অনুমোদিত ও শিক্ষা বোর্ড অধিভুক্ত"
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* School Name English */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">ইংরেজি নাম (English School Name):</label>
-                  <input
-                    type="text"
-                    value={settings.schoolNameEn || ''}
-                    onChange={(e) => setSettings({ ...settings, schoolNameEn: e.target.value })}
-                    placeholder="BORAITOLI HIGH SCHOOL"
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium font-serif uppercase focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* Slogan / Bismillah */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">শীর্ষ বাণী / বিসমিল্লাহির রাহমানির রাহিম:</label>
-                  <input
-                    type="text"
-                    value={settings.padSlogan || ''}
-                    onChange={(e) => setSettings({ ...settings, padSlogan: e.target.value })}
-                    placeholder="বিসমিল্লাহির রাহমানির রাহিম"
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* Theme Color Selector */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">প্যাড থিম কালার (Theme Palette):</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { name: 'রয়্যাল এমারেল্ড', hex: '#064e3b', bgClass: 'bg-emerald-900' },
-                      { name: 'ক্লাসিক নেভি ব্লু', hex: '#0f2b48', bgClass: 'bg-slate-900' },
-                      { name: 'অফিশিয়াল ব্ল্যাক', hex: '#111827', bgClass: 'bg-neutral-900' },
-                      { name: 'হেরিটেজ বার্গেন্ডি', hex: '#581c87', bgClass: 'bg-purple-900' },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setSettings({ ...settings, padThemeColor: c.hex })}
-                        className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 cursor-pointer ${
-                          settings.padThemeColor === c.hex
-                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
-                        }`}
-                      >
-                        <span className={`w-4 h-4 rounded-full ${c.bgClass} shrink-0`}></span>
-                        <span className="text-[11px] font-bold text-slate-800">{c.name}</span>
-                      </button>
-                    ))}
                   </div>
                 </div>
 
-                {/* Watermark Opacity */}
-                <div className="space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                {/* 4. PRINCIPAL SIGNATURE AUTO-SCALING GAP */}
+                <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">ওয়াটারমার্কের অপাসিটি (হালকা রঙ):</label>
-                    <span className="font-mono text-xs font-bold text-indigo-700">
-                      {Math.round((settings.padWatermarkOpacity || 0.038) * 100)}%
+                    <div>
+                      <span className="text-xs font-black text-indigo-950 flex items-center gap-1">
+                        প্রধান শিক্ষকের স্বাক্ষরের অটো-স্কেলিং ব্যবধান
+                      </span>
+                      <p className="text-[10px] text-indigo-700">
+                        বক্তব্য শেষ হবার পর স্বাক্ষরের মধ্যকার স্বয়ংক্রিয় ফাঁকা দূরত্ব
+                      </p>
+                    </div>
+                    <span className="font-mono font-black text-xs text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-200">
+                      {settings.padSignatureGap || 2.5} rem
                     </span>
                   </div>
                   <input
                     type="range"
-                    min="0.01"
-                    max="0.12"
-                    step="0.005"
-                    value={settings.padWatermarkOpacity || 0.038}
-                    onChange={(e) => setSettings({ ...settings, padWatermarkOpacity: parseFloat(e.target.value) })}
+                    min="1.0"
+                    max="5.0"
+                    step="0.25"
+                    value={settings.padSignatureGap || 2.5}
+                    onChange={(e) => setSettings({ ...settings, padSignatureGap: parseFloat(e.target.value) })}
                     className="w-full accent-indigo-600 cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>খুব হালকা (১%)</span>
-                    <span>মাঝারি (৬%)</span>
-                    <span>স্পষ্ট (১২%)</span>
+                  <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                    <span>কাছাকাছি (1.0 rem)</span>
+                    <span>আদর্শ (2.5 rem)</span>
+                    <span>দূরবর্তী (5.0 rem)</span>
+                  </div>
+                </div>
+
+                {/* 5. TYPOGRAPHY SCALING (FONT SIZE & LINE HEIGHT) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                        <Type size={12} /> ফন্ট সাইজ
+                      </span>
+                      <span className="font-mono font-bold text-xs text-indigo-700">{settings.padFontSize || 14} px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="12"
+                      max="18"
+                      step="0.5"
+                      value={settings.padFontSize || 14}
+                      onChange={(e) => setSettings({ ...settings, padFontSize: parseFloat(e.target.value) })}
+                      className="w-full accent-indigo-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-900">লাইন ব্যবধান (Line Height)</span>
+                      <span className="font-mono font-bold text-xs text-indigo-700">{settings.padLineHeight || 2.1}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1.6"
+                      max="2.6"
+                      step="0.1"
+                      value={settings.padLineHeight || 2.1}
+                      onChange={(e) => setSettings({ ...settings, padLineHeight: parseFloat(e.target.value) })}
+                      className="w-full accent-indigo-600 cursor-pointer"
+                    />
                   </div>
                 </div>
 
@@ -799,7 +693,7 @@ export default function PadSettingsPanel({
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
               <Eye size={14} className="text-indigo-600" />
-              লাইভ A4 প্যাড প্রিভিউ
+              লাইভ A4 শিট প্রিভিউ
             </span>
             <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
               A4 Portrait (210×297mm)
@@ -831,17 +725,17 @@ export default function PadSettingsPanel({
                   },
                 ]}
               >
-                <div className="text-xs font-sans leading-relaxed text-slate-900 space-y-3 pt-2">
-                  <p className="leading-loose text-justify">
+                <div className="space-y-3 pt-1">
+                  <p className="leading-loose text-justify indent-6">
                     এই মর্মে প্রত্যয়ন করা যাইতেছে যে, <strong className="font-black text-slate-950 underline">মোঃ তানভীর হাসান</strong>, পিতা: মোঃ আবদুল মান্নান, মাতা: খালেদা বেগম, গ্রাম: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার।
                   </p>
-                  <p className="leading-loose text-justify">
-                    সে অত্র বিদ্যালয়ের দশম শ্রেণির বিজ্ঞান বিভাগের একজন নিয়মিত শিক্ষার্থী (রোল: ০১, সেশন: ২০২৫-২০২৬)। ভর্তিবহি অনুযায়ী তাহার জন্ম তারিখ: ১৫/০৫/২০১০ খ্রি.।
+                  <p className="leading-loose text-justify indent-6">
+                    সে অত্র বিদ্যালয়ের দশম শ্রেণির বিজ্ঞান বিভাগের একজন নিয়মিত শিক্ষার্থী (রোল: ০১, শিক্ষাবর্ষ: ২০২৫-২০২৬)। ভর্তিবহি অনুযায়ী তাহার জন্ম তারিখ: ১৫/০৫/২০১০ খ্রি.।
                   </p>
-                  <p className="leading-loose text-justify">
+                  <p className="leading-loose text-justify indent-6">
                     বিদ্যালয়ে অধ্যয়নকালে তাহার চরিত্র, আচার-আচরণ ও স্বভাব অত্যন্ত সন্তোষজনক ও প্রশংসনীয় ছিল। সে রাষ্ট্রবিরোধী কোনো কর্মকাণ্ডে জড়িত নহে।
                   </p>
-                  <p className="leading-loose text-justify">
+                  <p className="leading-loose text-justify indent-6">
                     আমি তাহার জীবনের সর্বাঙ্গীন উন্নতি ও উজ্জ্বল ভবিষ্যৎ কামনা করি।
                   </p>
                 </div>
@@ -849,12 +743,12 @@ export default function PadSettingsPanel({
             </div>
           </div>
 
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 space-y-1">
-            <p className="font-bold flex items-center gap-1">
-              <Info size={14} className="text-amber-700" /> প্রিন্ট কোয়ালিটি নিশ্চয়তা:
+          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 space-y-1">
+            <p className="font-bold flex items-center gap-1 text-emerald-800">
+              <CheckCircle2 size={14} className="text-emerald-600" /> অটো-স্কেলিং সিগনেচার ফ্লো:
             </p>
-            <p className="text-[10.5px] leading-relaxed">
-              সিস্টেমটি ব্রাউজার প্রিন্টে ৩০১ ডিপিআই নির্ভুল স্কেলিং নিশ্চিত করে। আপলোড করা পিডিএফ প্যাড স্বয়ংক্রিয়ভাবে মূল কাগজের আকারে ব্যাকগ্রাউন্ড হিসেবে ফিট হবে।
+            <p className="text-[10.5px] leading-relaxed text-emerald-900">
+              বক্তব্যের দৈর্ঘ্য অনুযায়ী প্রধান শিক্ষকের স্বাক্ষর ও ৪-স্তরের পদবী সরাসরি লিখা শেষ হবার পরে স্বয়ংক্রিয়ভাবে ডানপাশে অবস্থান নেয়।
             </p>
           </div>
         </div>

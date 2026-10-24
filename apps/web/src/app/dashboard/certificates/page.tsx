@@ -1480,9 +1480,9 @@ export default function CertificatesPage() {
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
                       padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
-                    title="ডিজিটাল স্কুল লেটারহেড প্যাড (সম্পূর্ণ হেডার সহ)"
+                    title="আপলোডকৃত প্রাতিষ্ঠানিক লেটারহেড প্যাড ব্যাকগ্রাউন্ডে থাকবে"
                   >
-                    <FileText size={13} /> ডিজিটাল লেটারহেড প্যাড
+                    <FileText size={13} /> আপলোডকৃত প্যাড
                   </button>
                   <button
                     type="button"
