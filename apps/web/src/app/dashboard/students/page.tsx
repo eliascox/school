@@ -1226,6 +1226,7 @@ export default function StudentListPage() {
                         cert={selectedCertForPrint}
                         settings={settingsService.getSettings()}
                         overrideStyle={selectedCertForPrint.layoutStyle}
+                        mode="full_pad"
                       />
                     </div>
                   </div>

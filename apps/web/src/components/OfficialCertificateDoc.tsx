@@ -14,7 +14,7 @@
 
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
-import { SchoolSettings } from '@/services/settingsService';
+import { SchoolSettings, settingsService } from '@/services/settingsService';
 import { CertificateRecord, CertificateLayoutStyle } from '@/services/certificateService';
 import SchoolPadWrapper from './SchoolPadWrapper';
 import { ShieldCheck, Award, CheckCircle2 } from 'lucide-react';
@@ -25,6 +25,7 @@ interface OfficialCertificateDocProps {
   overrideStyle?: CertificateLayoutStyle;
   mode?: 'full_pad' | 'preprinted' | 'blank_pad';
   onModeChange?: (mode: 'full_pad' | 'preprinted' | 'blank_pad') => void;
+  hideHeaderActions?: boolean;
 }
 
 export default function OfficialCertificateDoc({
@@ -32,9 +33,15 @@ export default function OfficialCertificateDoc({
   settings,
   overrideStyle,
   mode = 'full_pad',
-  onModeChange
+  onModeChange,
+  hideHeaderActions = true
 }: OfficialCertificateDocProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  const safeSettings: SchoolSettings = {
+    ...settingsService.getSettings(),
+    ...(settings || {})
+  };
 
   const layoutStyle: CertificateLayoutStyle = overrideStyle || cert.layoutStyle || 'pad';
 
@@ -109,10 +116,10 @@ export default function OfficialCertificateDoc({
             <div className="absolute bottom-2 right-2 w-8 h-8 border-b-2 border-r-2 border-amber-600"></div>
 
             {/* Background Watermark */}
-            {settings.showWatermark && (
+            {safeSettings.showWatermark && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] select-none">
                 <span className="text-7xl font-black text-slate-900 uppercase tracking-widest text-center -rotate-25">
-                  {settings.schoolName || 'BORATOLI HIGH SCHOOL'}
+                  {safeSettings.schoolName || 'BORATOLI HIGH SCHOOL'}
                 </span>
               </div>
             )}
@@ -120,8 +127,8 @@ export default function OfficialCertificateDoc({
             {/* Header Section */}
             <div className="text-center space-y-2 relative z-10 border-b border-amber-300/60 pb-5">
               <div className="flex items-center justify-center gap-3">
-                {settings.schoolLogo ? (
-                  <img src={settings.schoolLogo} alt="Logo" className="w-16 h-16 object-contain" />
+                {safeSettings.schoolLogo ? (
+                  <img src={safeSettings.schoolLogo} alt="Logo" className="w-16 h-16 object-contain" />
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-amber-100 border border-amber-400 flex items-center justify-center text-amber-800 font-black text-xl">
                     BHS
@@ -129,10 +136,10 @@ export default function OfficialCertificateDoc({
                 )}
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
-                    {settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                    {safeSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                   </h1>
                   <p className="text-xs text-slate-600 font-sans font-medium">
-                    {settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার'} | স্থাপিত: {settings.estdYear || '১৯৬৯'} খ্রি. | EIIN: {settings.eiin || '106184'}
+                    {safeSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার'} | স্থাপিত: {safeSettings.estdYear || '১৯৬৯'} খ্রি. | EIIN: {safeSettings.eiin || '106184'}
                   </p>
                 </div>
               </div>
@@ -232,16 +239,16 @@ export default function OfficialCertificateDoc({
                     <div className="border-b border-slate-900 pb-1 w-52 text-center"></div>
                   </div>
                   <p className="text-xs sm:text-sm font-black text-slate-950 text-center">
-                    {settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
+                    {safeSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
                   </p>
                   <p className="text-[11px] font-bold text-slate-800 text-center">
-                    {settings.principalTitle || 'প্রধান শিক্ষক'}
+                    {safeSettings.principalTitle || 'প্রধান শিক্ষক'}
                   </p>
                   <p className="text-[11px] text-slate-700 font-semibold text-center">
-                    {settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                    {safeSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                   </p>
                   <p className="text-[10px] text-slate-600 text-center">
-                    {settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
+                    {safeSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
                   </p>
                 </div>
 
@@ -260,13 +267,14 @@ export default function OfficialCertificateDoc({
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <SchoolPadWrapper
-      settings={settings}
+      settings={safeSettings}
       mode={mode}
+      onModeChange={onModeChange}
       refNo={cert.refNo ? `স্মারক নং: ${cert.refNo}` : undefined}
       date={cert.issueDate}
       dateLabel="তারিখ"
       title={title}
-      hideHeaderActions={true}
+      hideHeaderActions={hideHeaderActions}
       signaturePosition="flow"
       signatures={
         cert.authorizedPersonTitle ? [
@@ -276,18 +284,18 @@ export default function OfficialCertificateDoc({
             rightAligned: false
           },
           {
-            title: settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
-            designation: settings.principalTitle || 'প্রধান শিক্ষক',
-            institution: settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-            address: settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+            title: safeSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+            designation: safeSettings.principalTitle || 'প্রধান শিক্ষক',
+            institution: safeSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+            address: safeSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
             rightAligned: true
           }
         ] : [
           {
-            title: settings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
-            designation: settings.principalTitle || 'প্রধান শিক্ষক',
-            institution: settings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-            address: settings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+            title: safeSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+            designation: safeSettings.principalTitle || 'প্রধান শিক্ষক',
+            institution: safeSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+            address: safeSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
             rightAligned: true
           }
         ]

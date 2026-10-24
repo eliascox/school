@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolSettings, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
 import { Printer, FileText, Upload, Sparkles } from 'lucide-react';
 
@@ -53,9 +53,16 @@ export default function SchoolPadWrapper({
   onPrint,
   onModeChange,
 }: SchoolPadWrapperProps) {
+  const [imgLoadError, setImgLoadError] = useState(false);
+  const rawPadUrl = settings?.uploadedPadTemplateUrl?.trim() || '';
+  const padUrl = imgLoadError ? '' : rawPadUrl;
+  const padType = settings?.uploadedPadType || (rawPadUrl.includes('application/pdf') || rawPadUrl.endsWith('.pdf') ? 'pdf' : 'image');
+
   const padMargins = settings?.padMargins || DEFAULT_PAD_MARGINS;
-  const padUrl = settings?.uploadedPadTemplateUrl;
-  const padType = settings?.uploadedPadType || (padUrl?.includes('application/pdf') || padUrl?.endsWith('.pdf') ? 'pdf' : 'image');
+
+  useEffect(() => {
+    setImgLoadError(false);
+  }, [rawPadUrl]);
 
   const formattedDate = date || new Date().toLocaleDateString('bn-BD');
   const formattedRef = refNo || `${settings?.padRefPrefix || 'স্মারক নং: ব.উ.বি/'}২০২৬/${Math.floor(100 + Math.random() * 900)}`;
@@ -67,6 +74,8 @@ export default function SchoolPadWrapper({
       window.print();
     }
   };
+
+  const isCustomPadActive = Boolean(padUrl && !imgLoadError && mode !== 'preprinted');
 
   return (
     <div className={`school-pad-container ${className}`}>
@@ -86,7 +95,7 @@ export default function SchoolPadWrapper({
                 className={`px-3 py-1 rounded-lg transition cursor-pointer ${
                   mode === 'full_pad' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'
                 }`}
-                title="আপলোড করা প্যাড ব্যাকগ্রাউন্ড সহ প্রিন্ট হবে"
+                title="সম্পূর্ণ ডিজিটাল লেটারহেড প্যাড সহ প্রিন্ট হবে"
               >
                 ডিজিটাল প্যাড
               </button>
@@ -96,9 +105,9 @@ export default function SchoolPadWrapper({
                 className={`px-3 py-1 rounded-lg transition cursor-pointer ${
                   mode === 'preprinted' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'
                 }`}
-                title="ম্যানুয়েল প্রি-প্রিন্টেড প্যাডে প্রিন্টের জন্য ব্যাকগ্রাউন্ড হাইড হবে (শুধু লেখা প্রিন্ট হবে)"
+                title="ম্যানুয়েল ছাপা প্যাডে প্রিন্টের জন্য হেডার স্পেস ফাঁকা থাকবে"
               >
-                প্রি-প্রিন্টেড প্যাড
+                ছাপা প্যাড
               </button>
               <button
                 type="button"
@@ -142,63 +151,180 @@ export default function SchoolPadWrapper({
         }}
       >
         {/* ─── 1. UPLOADED PDF / IMAGE PAD TEMPLATE BACKGROUND ─────────── */}
-        {mode !== 'preprinted' && padUrl && (
+        {isCustomPadActive && (
           <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden print:w-[210mm] print:h-[297mm]">
-            <img
-              src={padUrl}
-              alt="Uploaded School Pad"
-              className="w-full h-full object-fill pointer-events-none select-none print:w-[210mm] print:h-[297mm]"
-              style={{
-                WebkitPrintColorAdjust: 'exact',
-                printColorAdjust: 'exact',
-              }}
-            />
+            {padType === 'pdf' ? (
+              <object
+                data={padUrl}
+                type="application/pdf"
+                className="w-full h-full pointer-events-none select-none print:w-[210mm] print:h-[297mm]"
+              >
+                <img
+                  src={padUrl}
+                  alt="Uploaded School Pad"
+                  onError={() => setImgLoadError(true)}
+                  className="w-full h-full object-fill pointer-events-none select-none print:w-[210mm] print:h-[297mm]"
+                  style={{
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact',
+                  }}
+                />
+              </object>
+            ) : (
+              <img
+                src={padUrl}
+                alt="Uploaded School Pad"
+                onError={() => setImgLoadError(true)}
+                className="w-full h-full object-fill pointer-events-none select-none print:w-[210mm] print:h-[297mm]"
+                style={{
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                }}
+              />
+            )}
           </div>
         )}
 
         {/* ─── 2. DEFAULT INSTITUTIONAL HEADER IF NO PAD UPLOADED ──────── */}
-        {mode !== 'preprinted' && !padUrl && (
+        {mode !== 'preprinted' && !isCustomPadActive && (
           <div 
-            className="default-pad-header border-b-2 border-slate-900 pb-3"
+            className="default-pad-header relative z-10"
             style={{
               paddingTop: `${padMargins.top}in`,
               paddingLeft: `${padMargins.left}in`,
               paddingRight: `${padMargins.right}in`,
             }}
           >
+            {/* Optional Slogan / Bismillah on Top */}
+            {(settings?.padSlogan || 'বিসমিল্লাহির রাহমানির রাহিম') && (
+              <div className="text-center text-[10px] text-slate-600 font-serif mb-1 tracking-wider">
+                {settings?.padSlogan || 'বিসমিল্লাহির রাহমানির রাহিম'}
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-4">
-              <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+              {/* Left Column: Primary Monogram / Logo */}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center">
                 {settings?.schoolLogo ? (
-                  <img src={settings.schoolLogo} alt="Logo" className="w-16 h-16 object-contain" />
+                  <img
+                    src={settings.schoolLogo}
+                    alt="Logo"
+                    className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentElement;
+                      if (parent && !parent.querySelector('.logo-fallback')) {
+                        const fallback = document.createElement('div');
+                        fallback.className = 'logo-fallback w-16 h-16 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm shadow-md';
+                        fallback.innerText = 'BHS';
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                  />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs">
+                  <div className="w-16 h-16 rounded-full bg-emerald-800 text-white flex items-center justify-center font-black text-sm shadow-md">
                     BHS
                   </div>
                 )}
               </div>
-              <div className="text-center flex-1 pr-16">
-                <h1 className="text-2xl font-black text-slate-950 tracking-tight">
+
+              {/* Center Column: School Name, Address, EIIN, Code, Estd */}
+              <div className="text-center flex-1 min-w-0 px-2">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-950 font-serif tracking-tight leading-tight uppercase">
                   {institutionName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                 </h1>
-                <p className="text-xs font-bold text-slate-800">
+                <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5">
                   {institutionAddress || settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
                 </p>
-                <p className="text-[11px] text-slate-600">
-                  {institutionSubtext || `EIIN: ${settings?.eiin || '106184'} , স্থাপিত: ${settings?.estdYear || '১৯৬৯'} খ্রি.`}
-                </p>
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[11px] font-medium text-slate-700 mt-0.5">
+                  <span>EIIN: <strong className="font-mono text-slate-900">{settings?.eiin || '106184'}</strong></span>
+                  <span>•</span>
+                  <span>বিদ্যালয় কোড: <strong className="font-mono text-slate-900">৩২০১</strong></span>
+                  <span>•</span>
+                  <span>স্থাপিত: <strong className="font-mono text-slate-900">{settings?.estdYear || '১৯৬৯'}</strong> খ্রি.</span>
+                </div>
+                {(settings?.phone || settings?.email) && (
+                  <p className="text-[10px] text-slate-600 mt-0.5 font-mono">
+                    {settings?.phone ? `মোবাইল: ${settings.phone}` : ''}
+                    {settings?.phone && settings?.email ? ' | ' : ''}
+                    {settings?.email ? `ইমেইল: ${settings.email}` : ''}
+                  </p>
+                )}
               </div>
+
+              {/* Right Column: Secondary Logo or Exact Balance Spacer */}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center">
+                {settings?.padSecondaryLogo ? (
+                  <img
+                    src={settings.padSecondaryLogo}
+                    alt="Secondary Logo"
+                    className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+                  />
+                ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 opacity-0 pointer-events-none select-none" aria-hidden="true" />
+                )}
+              </div>
+            </div>
+
+            {/* Official Double Rule Bottom Divider */}
+            <div className="mt-2.5 border-b-2 border-slate-900"></div>
+            <div className="mt-0.5 border-b border-slate-700"></div>
+          </div>
+        )}
+
+        {/* ─── 3. WATERMARK (Subtle Institutional Logo / Text) ────────── */}
+        {mode !== 'blank_pad' && (settings?.showPadWatermark || settings?.showWatermark) && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden">
+            <div 
+              className="text-center transform -rotate-12"
+              style={{ opacity: settings?.padWatermarkOpacity || settings?.watermarkOpacity || 0.035 }}
+            >
+              {settings?.schoolLogo ? (
+                <img
+                  src={settings.schoolLogo}
+                  alt=""
+                  className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale mx-auto"
+                />
+              ) : (
+                <div className="text-5xl sm:text-6xl font-black text-slate-950 uppercase tracking-widest">
+                  {settings?.padWatermarkText || settings?.watermarkText || settings?.schoolName || 'BORATOLI HIGH SCHOOL'}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* ─── 3. MAIN DOCUMENT CONTENT CONTAINER ─────────────────────── */}
+        {/* ─── 4. OFFICIAL PAD FOOTER (Bottom of A4 Sheet) ─────────────── */}
+        {mode !== 'preprinted' && !isCustomPadActive && settings?.showPadFooter !== false && (
+          <div 
+            className="absolute bottom-3 inset-x-0 z-10 pointer-events-none text-center"
+            style={{
+              paddingLeft: `${padMargins.left}in`,
+              paddingRight: `${padMargins.right}in`,
+            }}
+          >
+            <div className="border-t border-slate-300 pt-1 flex items-center justify-between text-[10px] text-slate-500 font-sans">
+              <span>{settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}</span>
+              <span className="font-medium text-slate-600">
+                {settings?.padFooterText || (settings?.website ? settings.website : 'www.boroitolihs.edu.bd')}
+              </span>
+              <span>ইমেইল: {settings?.email || 'boroitoli.high.school@gmail.com'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 5. MAIN DOCUMENT CONTENT CONTAINER ─────────────────────── */}
         <div 
           className={`relative z-10 flex flex-col ${signaturePosition === 'flow' ? 'justify-start' : 'justify-between'}`}
           style={{
-            height: padUrl ? '100%' : 'calc(100% - 110px)',
+            height: isCustomPadActive ? '100%' : 'calc(100% - 135px)',
             minHeight: 'auto',
             boxSizing: 'border-box',
-            paddingTop: padUrl ? `${padMargins.top}in` : (!padUrl && mode === 'preprinted' ? `${padMargins.top}in` : '0.5rem'),
+            paddingTop: isCustomPadActive
+              ? `${padMargins.top > 0.8 ? padMargins.top : 1.8}in`
+              : (mode === 'preprinted'
+                ? `${padMargins.top > 0.8 ? padMargins.top : 1.8}in`
+                : '0.4rem'),
             paddingLeft: `${padMargins.left}in`,
             paddingRight: `${padMargins.right}in`,
             paddingBottom: `${padMargins.bottom}in`,
@@ -207,13 +333,15 @@ export default function SchoolPadWrapper({
           <div>
             {/* Smarok / Ref & Date line if available */}
             {mode !== 'blank_pad' && (title || refNo) && (
-              <div className="flex justify-between items-center text-xs font-bold text-slate-800 mb-3 pb-1 border-b border-slate-300">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-900 mb-3 pb-1.5 border-b border-slate-300">
                 <div>
-                  <span>{formattedRef}</span>
+                  <span className="font-semibold text-slate-800">{formattedRef}</span>
                 </div>
                 <div>
-                  <span>{dateLabel || 'তারিখ: '}</span>
-                  <span className="font-mono">{formattedDate}</span>
+                  <span className="font-semibold text-slate-800">
+                    {dateLabel ? (dateLabel.endsWith(':') ? dateLabel : `${dateLabel}: `) : 'তারিখ: '}
+                  </span>
+                  <span className="font-mono font-bold text-slate-950">{formattedDate}</span>
                 </div>
               </div>
             )}
@@ -221,7 +349,7 @@ export default function SchoolPadWrapper({
             {/* Document Title if specified */}
             {mode !== 'blank_pad' && title && (
               <div className="text-center my-3">
-                <h2 className="text-base sm:text-lg font-black text-slate-950 inline-block px-4 py-0.5 border-b-2 border-slate-900 font-serif">
+                <h2 className="text-base sm:text-lg font-black text-slate-950 inline-block px-5 py-0.5 border-b-2 border-slate-900 font-serif tracking-wide">
                   {title}
                 </h2>
               </div>
@@ -241,9 +369,9 @@ export default function SchoolPadWrapper({
             )}
           </div>
 
-          {/* ─── 4. SIGNATURES (if any) ─────────────────────────────────── */}
+          {/* ─── 6. SIGNATURES (if any) ─────────────────────────────────── */}
           {mode !== 'blank_pad' && showSignatures && (
-            <div className={signaturePosition === 'flow' ? 'mt-12 sm:mt-16 pt-2' : 'mt-8 pt-4'}>
+            <div className={signaturePosition === 'flow' ? 'mt-8 sm:mt-12 pt-2' : 'mt-8 pt-4'}>
               {signatures && signatures.length > 0 ? (
                 <div className={`pt-4 pb-2 flex ${signatures.length === 1 && signatures[0].rightAligned ? 'justify-end' : 'justify-between'} items-end text-center text-xs font-bold text-slate-900`}>
                   {signatures.map((sig, idx) => (

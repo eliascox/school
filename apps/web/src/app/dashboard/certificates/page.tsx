@@ -233,6 +233,7 @@ export default function CertificatesPage() {
   // Modals & Popups
   const [showPrintModal, setShowPrintModal] = useState<CertificateRecord | null>(null);
   const [printLayoutOverride, setPrintLayoutOverride] = useState<CertificateLayoutStyle | null>(null);
+  const [padPrintMode, setPadPrintMode] = useState<'full_pad' | 'preprinted' | 'blank_pad'>('full_pad');
   const [cancelModalCert, setCancelModalCert] = useState<CertificateRecord | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState<string>('');
   const [auditModalCert, setAuditModalCert] = useState<CertificateRecord | null>(null);
@@ -1591,11 +1592,11 @@ export default function CertificatesPage() {
 
               {/* Style Switcher & Action */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
                   <button
                     onClick={() => setPrintLayoutOverride('pad')}
                     className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                      printLayoutOverride === 'pad' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
+                      (printLayoutOverride || showPrintModal.layoutStyle) === 'pad' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
                     }`}
                   >
                     লেটারহেড প্যাড
@@ -1603,12 +1604,38 @@ export default function CertificatesPage() {
                   <button
                     onClick={() => setPrintLayoutOverride('royal_border')}
                     className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                      printLayoutOverride === 'royal_border' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
+                      (printLayoutOverride || showPrintModal.layoutStyle) === 'royal_border' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
                     }`}
                   >
                     রয়্যাল বর্ডার
                   </button>
                 </div>
+
+                {/* Pad Mode Toggle (Only when Pad layout is active) */}
+                {(printLayoutOverride || showPrintModal.layoutStyle) === 'pad' && (
+                  <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPadPrintMode('full_pad')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                        padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="ডিজিটাল স্কুল লেটারহেড প্যাড (সম্পূর্ণ হেডার ও ফুটার সহ)"
+                    >
+                      <FileText size={12} /> ডিজিটাল প্যাড
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPadPrintMode('preprinted')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                        padPrintMode === 'preprinted' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="স্কুলের ছাপা প্যাডের জন্য (হেডার বাদ দিয়ে বডি প্রিন্ট হবে)"
+                    >
+                      <Sparkles size={12} /> ছাপা প্যাড
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={() => {
@@ -1635,6 +1662,8 @@ export default function CertificatesPage() {
                 cert={showPrintModal}
                 settings={schoolSettings}
                 overrideStyle={printLayoutOverride || showPrintModal.layoutStyle}
+                mode={padPrintMode}
+                onModeChange={setPadPrintMode}
               />
             </div>
 
