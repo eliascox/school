@@ -92,29 +92,33 @@ export default function OfficialCertificateDoc({
         ) : (
           <div className="space-y-4 text-justify indent-6">
             <p className="leading-loose">
-              এই মর্মে প্রত্যয়ন করা যাইতেছে যে, <strong className="font-black underline">{cert.studentName}</strong>
+              এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, <strong className="font-black underline">{cert.studentName}</strong>
               {cert.studentNameEn && <span> ({cert.studentNameEn})</span>}, পিতা: <strong className="font-extrabold">{cert.fatherName}</strong>, মাতা: <strong className="font-extrabold">{cert.motherName}</strong>, 
-              গ্রাম: <strong className="font-bold">{cert.village || 'বরইতলী'}</strong>, ডাকঘর: <strong className="font-bold">{cert.postOffice || 'বরইতলী'}</strong>, উপজেলা: <strong className="font-bold">{cert.upazila || 'চকরিয়া'}</strong>, জেলা: <strong className="font-bold">{cert.district || 'কক্সবাজার'}</strong>।
+              {cert.address && !cert.village ? (
+                <>ঠিকানা: <strong className="font-bold">{cert.address}</strong>।</>
+              ) : (
+                <>গ্রাম: <strong className="font-bold">{cert.village || 'বরইতলী'}</strong>, ডাকঘর: <strong className="font-bold">{cert.postOffice || 'বরইতলী'}</strong>, উপজেলা: <strong className="font-bold">{cert.upazila || 'চকরিয়া'}</strong>, জেলা: <strong className="font-bold">{cert.district || 'কক্সবাজার'}</strong>।</>
+              )}
             </p>
             
             <p className="leading-loose">
-              সে অত্র বিদ্যালয়ের <strong className="font-bold">{cert.grade}</strong> শ্রেণির <strong className="font-bold">{cert.group}</strong> বিভাগের একজন নিয়মিত শিক্ষার্থী {cert.isAlumni ? 'ছিল' : 'হিসেবে বর্তমানে অধ্যয়নরত আছে'}। 
+              সে এই বিদ্যালয়ের <strong className="font-bold">{cert.grade}</strong> শ্রেণির <strong className="font-bold">{cert.group}</strong> বিভাগের একজন নিয়মিত শিক্ষার্থী {cert.isAlumni ? 'ছিল' : 'হিসেবে বর্তমানে অধ্যয়নরত আছে'}। 
               তার শ্রেণি রোল নম্বর: <strong className="font-mono font-black">#{cert.roll}</strong> এবং শিক্ষাবর্ষ: <strong className="font-mono font-bold">{cert.session}</strong>। 
-              ভর্তিবহি মতে তাহার জন্ম তারিখ: <strong className="font-mono font-bold">{cert.dob}</strong> খ্রি.।
+              ভর্তিবহি মতে তার জন্ম তারিখ: <strong className="font-mono font-bold">{cert.dob}</strong> খ্রি.।
             </p>
 
             {cert.achievementTitle && (
               <p className="leading-loose">
-                অত্র প্রতিষ্ঠানে অধ্যয়নকালে সে <strong className="font-bold">{cert.achievementTitle}</strong> হিসেবে বিশেষ ভূমিকা পালন করে।
+                এই প্রতিষ্ঠানে অধ্যয়নকালে সে <strong className="font-bold">{cert.achievementTitle}</strong> হিসেবে বিশেষ ভূমিকা পালন করে।
               </p>
             )}
 
             <p className="leading-loose">
-              {cert.characterRemarks || 'বিদ্যালয়ে অবস্থানকালে তাহার চরিত্র, শৃঙ্খলা ও ব্যবহার প্রশংসনীয় ছিল। আমার জানামতে সে কোন রাষ্ট্র বা সমাজবিরোধী কর্মকাণ্ডে জড়িত নয়।'}
+              {cert.characterRemarks || 'বিদ্যালয়ে অবস্থানকালে তার চরিত্র, শৃঙ্খলা ও আচার-আচরণ প্রশংসনীয় ছিল। আমার জানামতে সে কোন প্রকার রাষ্ট্র বা সমাজবিরোধী কর্মকাণ্ডে জড়িত নয়।'}
             </p>
 
             <p className="leading-loose">
-              আমি তাহার উজ্জ্বল ভবিষ্যৎ ও সার্বিক উন্নতি কামনা করি।
+              আমি তার উজ্জ্বল ভবিষ্যৎ ও সার্বিক উন্নতি কামনা করি।
             </p>
           </div>
         )}

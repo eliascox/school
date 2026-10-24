@@ -155,7 +155,7 @@ export default function CertificatesPage() {
   const [customTitle, setCustomTitle] = useState<string>('');
   const [achievementTitle, setAchievementTitle] = useState<string>('');
   const [characterRemarks, setCharacterRemarks] = useState<string>(
-    'অত্র বিদ্যালয়ে অধ্যয়নকালে তাহার নৈতিক চরিত্র, শৃঙ্খলা ও আচার-আচরণ প্রশংসনীয় ছিল।'
+    'এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, শৃঙ্খলা ও আচার-আচরণ প্রশংসনীয় ছিল।'
   );
   const [customBody, setCustomBody] = useState<string>('');
   const [isAlumni, setIsAlumni] = useState<boolean>(false);
@@ -251,7 +251,41 @@ export default function CertificatesPage() {
     setSection(selectedStudent.section || (selectedStudent as any).branch || 'A');
     setGroup(selectedStudent.group || 'বিজ্ঞান');
     setDob(selectedStudent.dob || '2010-05-15');
-    setVillage(selectedStudent.currentAddress ? selectedStudent.currentAddress.split(',')[0]?.trim() : 'বরইতলী');
+    
+    // Auto-populate student address components
+    const rawAddr = (selectedStudent as any).permanentAddress || selectedStudent.currentAddress || '';
+    if (rawAddr) {
+      const cleanAddr = rawAddr
+        .replace(/গ্রাম\s*[:ঃ]?\s*/gi, '')
+        .replace(/ডাকঘর\s*[:ঃ]?\s*/gi, '')
+        .replace(/উপজেলা\s*[:ঃ]?\s*/gi, '')
+        .replace(/জেলা\s*[:ঃ]?\s*/gi, '');
+      const parts = cleanAddr.split(',').map((p: string) => p.trim()).filter(Boolean);
+      if (parts.length >= 4) {
+        setVillage(parts[0] || 'বরইতলী');
+        setPostOffice(parts[1] || 'বরইতলী');
+        setUpazila(parts[2] || 'চকরিয়া');
+        setDistrict(parts[3] || 'কক্সবাজার');
+      } else if (parts.length === 3) {
+        setVillage(parts[0] || 'বরইতলী');
+        setPostOffice(parts[0] || 'বরইতলী');
+        setUpazila(parts[1] || 'চকরিয়া');
+        setDistrict(parts[2] || 'কক্সবাজার');
+      } else if (parts.length === 2) {
+        setVillage(parts[0] || 'বরইতলী');
+        setPostOffice(parts[0] || 'বরইতলী');
+        setUpazila(parts[1] || 'চকরিয়া');
+        setDistrict('কক্সবাজার');
+      } else if (parts.length === 1 && parts[0]) {
+        setVillage(parts[0]);
+      }
+    } else {
+      setVillage('বরইতলী');
+      setPostOffice('বরইতলী');
+      setUpazila('চকরিয়া');
+      setDistrict('কক্সবাজার');
+    }
+
     setSession(selectedStudent.session || '২০২৬');
   }, [selectedStudent]);
 
@@ -396,6 +430,7 @@ export default function CertificatesPage() {
       postOffice: postOffice.trim(),
       upazila: upazila.trim(),
       district: district.trim(),
+      address: [village.trim(), postOffice.trim(), upazila.trim(), district.trim()].filter(Boolean).join(', '),
 
       boardRoll: boardRoll.trim() || undefined,
       boardReg: boardReg.trim() || undefined,

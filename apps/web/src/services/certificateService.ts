@@ -116,6 +116,8 @@ export interface CertificateTemplate {
 
 const STORAGE_KEY = 'sms_certificates_history';
 const TEMPLATES_STORAGE_KEY = 'sms_certificate_templates';
+const TEMPLATES_VERSION_KEY = 'sms_templates_version';
+const CURRENT_TEMPLATES_VERSION = 'v4_with_student_address';
 
 // ─── DEFAULT TEMPLATES WITH DYNAMIC VARIABLES ──────────────────────────────
 export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
@@ -131,7 +133,7 @@ export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
 
 এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, সামাজিক শৃঙ্খলাবোধ ও আচার-ব্যবহার অত্যন্ত প্রশংসনীয়। আমার জানামতে সে কোন প্রকার রাষ্ট্রবিরোধী বা শৃঙ্খলাপরিপন্থী কর্মকাণ্ডে জড়িত নয়।
 
-আমি তাহার জীবনের সর্বাঙ্গীন মঙ্গল, সুস্বাস্থ্য ও উত্তরোত্তর সমৃদ্ধি কামনা করি।`
+আমি তার জীবনের সর্বাঙ্গীন মঙ্গল, সুস্বাস্থ্য ও উত্তরোত্তর সমৃদ্ধি কামনা করি।`
   },
   {
     id: 'tmpl_character_certificate',
@@ -141,9 +143,9 @@ export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে চারিত্রিক সনদ প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, জন্ম তারিখ: {{date_of_birth}} খ্রি.। সে এই বিদ্যালয়ের {{class}} শ্রেণির একজন নিয়মিত শিক্ষার্থী ছিল/আছে (রোল: {{roll_no}}, সেশন: {{session}})।
+    bodyTemplate: `এই মর্মে চারিত্রিক সনদ প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, জন্ম তারিখ: {{date_of_birth}} খ্রি.। সে এই বিদ্যালয়ের {{class}} শ্রেণির একজন নিয়মিত শিক্ষার্থী ছিল/আছে (রোল: {{roll_no}}, সেশন: {{session}})।
 
-অত্র বিদ্যালয়ে অধ্যয়নকালে তাহার নৈতিক চরিত্র, আচার-আচরণ ও স্বভাব অত্যন্ত উত্তম ও সন্তোষজনক ছিল। আমার জানামতে সে কোন রাষ্ট্র, সমাজ বা বিদ্যালয় শৃঙ্খলা পরিপন্থী কাজে কখনোই জড়িত ছিল না।
+এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, আচার-আচরণ ও স্বভাব অত্যন্ত উত্তম ও সন্তোষজনক ছিল। আমার জানামতে সে কোনো রাষ্ট্র, সমাজ বা বিদ্যালয় শৃঙ্খলাপরিপন্থী কাজে কখনোই জড়িত ছিল না।
 
 আমি তার জীবনের সার্বিক সাফল্য ও উজ্জ্বল ভবিষ্যৎ কামনা করি।`
   },
@@ -171,11 +173,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে ছাড়পত্র (TC) প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে অত্র বিদ্যালয়ের {{class}} শ্রেণির {{group}} বিভাগের একজন নিয়মিত শিক্ষার্থী ছিল। তাহার শ্রেণি রোল নম্বর: {{roll_no}}, সেশন: {{session}} এবং ভর্তিবহি অনুসারে তাহার জন্ম তারিখ: {{date_of_birth}} খ্রি.।
+    bodyTemplate: `এই মর্মে ছাড়পত্র (TC) প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে এই বিদ্যালয়ের {{class}} শ্রেণির {{group}} বিভাগের একজন নিয়মিত শিক্ষার্থী ছিল। তার শ্রেণি রোল নম্বর: {{roll_no}}, সেশন: {{session}} এবং ভর্তিবহি অনুসারে তার জন্ম তারিখ: {{date_of_birth}} খ্রি.।
 
-অত্র বিদ্যালয়ে অধ্যয়নকালীন তাহার সমস্ত বকেয়া ও পাওনাদি পরিশোধিত হয়েছে। তাহার স্বভাব-চরিত্র সন্তোষজনক ছিল। অভিভাবকের আবেদনের প্রেক্ষিতে এবং যথাযথ নিয়ম মেনে তাহাকে অত্র বিদ্যালয় হইতে এই ছাড়পত্র প্রদান করা হইল।
+এই বিদ্যালয়ে অধ্যয়নকালে তার সমস্ত বকেয়া ও পাওনাদি পরিশোধিত হয়েছে। তার স্বভাব-চরিত্র সন্তোষজনক ছিল। অভিভাবকের আবেদনের প্রেক্ষিতে এবং প্রাতিষ্ঠানিক নিয়ম মেনে তাকে এই বিদ্যালয় থেকে এই ছাড়পত্র প্রদান করা হলো।
 
-আমরা তাহার ভবিষ্যৎ জীবনের সর্বাঙ্গীন মঙ্গল ও সাফল্য কামনা করি।`
+আমরা তার ভবিষ্যৎ জীবনের সর্বাঙ্গীন মঙ্গল ও সাফল্য কামনা করি।`
   },
   {
     id: 'tmpl_school_leaving',
@@ -185,9 +187,9 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, আইডি নং: {{student_id}}, পিতা: {{father_name}}, মাতা: {{mother_name}} অত্র বিদ্যালয়ের {{class}} শ্রেণিতে অধ্যয়ন সম্পন্ন করিয়া অত্র বিদ্যালয় ত্যাগ করিতেছে। বিদ্যালয়ে অবস্থানকালে তাহার আচরণ ও লেখাপড়ার মান প্রশংসনীয় ছিল।
+    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, আইডি নং: {{student_id}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে এই বিদ্যালয়ের {{class}} শ্রেণিতে অধ্যয়ন সম্পন্ন করে বিদ্যালয় ত্যাগ করছে। বিদ্যালয়ে অবস্থানকালে তার আচরণ ও লেখাপড়ার মান প্রশংসনীয় ছিল।
 
-তাহার ভবিষ্যৎ জীবনের সাফল্য ও উজ্জ্বল কর্মজীবনের জন্য শুভকামনা রইল।`
+তার ভবিষ্যৎ জীবনের সাফল্য ও উজ্জ্বল কর্মজীবনের জন্য শুভকামনা রইল।`
   },
   {
     id: 'tmpl_appreciation',
@@ -197,11 +199,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'royal_border',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `অত্র বিদ্যালয় অত্যন্ত আনন্দের সহিত প্রত্যয়ন করিতেছে যে, শিক্ষার্থী {{student_name}} (আইডি: {{student_id}}, শ্রেণি: {{class}}, রোল: {{roll_no}}) তাহার অসামান্য মেধা, নিষ্ঠা ও কৃতিত্বপূর্ণ অবদানের স্বীকৃতিস্বরূপ এই প্রশংসা সনদ লাভ করিল।
+    bodyTemplate: `এই বিদ্যালয় অত্যন্ত আনন্দের সাথে প্রত্যয়ন করছে যে, শিক্ষার্থী {{student_name}} (আইডি: {{student_id}}, শ্রেণি: {{class}}, রোল: {{roll_no}}), পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}} তার অসামান্য মেধা, নিষ্ঠা ও কৃতিত্বপূর্ণ অবদানের স্বীকৃতিস্বরূপ এই প্রশংসা সনদ লাভ করল।
 
 বিশেষ অবদান / ক্ষেত্র: {{achievement}}।
 
-তাহার এই গৌরবোজ্জ্বল অর্জন ও অধ্যবসায় ভবিষ্যৎ প্রজন্মের জন্য এক অনন্য অনুপ্রেরণা হইয়া থাকিবে।`
+তার এই গৌরবোজ্জ্বল অর্জন ও অধ্যবসায় ভবিষ্যৎ প্রজন্মের জন্য এক অনন্য অনুপ্রেরণা হয়ে থাকবে।`
   },
   {
     id: 'tmpl_merit_certificate',
@@ -211,11 +213,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'royal_border',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `শিক্ষার্থী {{student_name}}, শ্রেণি: {{class}}, রোল: {{roll_no}}, শাখা: {{section}} কে তাহার অসাধারণ মেধা, পরীক্ষায় সর্বোত্তম ফলাফল ও একনিষ্ঠ জ্ঞানচর্চার স্বীকৃতিস্বরূপ এই মেধা সনদ প্রদান করা হইল।
+    bodyTemplate: `শিক্ষার্থী {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, শ্রেণি: {{class}}, রোল: {{roll_no}}, শাখা: {{section}}-কে তার অসাধারণ মেধা, পরীক্ষায় সর্বোত্তম ফলাফল ও একনিষ্ঠ জ্ঞানচর্চার স্বীকৃতিস্বরূপ এই মেধা সনদ প্রদান করা হলো।
 
 শিক্ষাবর্ষ: {{session}} | অর্জিত জিপিএ: {{gpa}} | বিশেষ কৃতিত্ব: {{achievement}}।
 
-আমরা তাহার মেধার উত্তরোত্তর স্ফূরণ ও সমৃদ্ধ ভবিষ্যৎ কামনা করি।`
+আমরা তার মেধার উত্তরোত্তর স্ফূরণ ও সমৃদ্ধ ভবিষ্যৎ কামনা করি।`
   },
   {
     id: 'tmpl_participation',
@@ -225,11 +227,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'royal_border',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাইতেছে যে, {{student_name}} (শ্রেণি: {{class}}, রোল: {{roll_no}}) অত্র বিদ্যালয় আয়োজিত বিশেষ সহশিক্ষা কার্যক্রম / প্রতিযোগিতায় অত্যন্ত সক্রিয়ভাবে ও দক্ষতার সহিত অংশগ্রহণ করিয়াছে।
+    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}} (শ্রেণি: {{class}}, রোল: {{roll_no}}) এই বিদ্যালয় আয়োজিত বিশেষ সহশিক্ষা কার্যক্রম / প্রতিযোগিতায় অত্যন্ত সক্রিয়ভাবে ও দক্ষতার সাথে অংশগ্রহণ করেছে।
 
 আয়োজন / কার্যক্রম: {{achievement}}।
 
-তাহার এই ক্রীড়াসুলভ মনোভাব ও উদ্দীপনা প্রশংসনীয়।`
+তার এই ক্রীড়াসুলভ মনোভাব ও উদ্দীপনা প্রশংসনীয়।`
   },
   {
     id: 'tmpl_student_verification',
@@ -239,9 +241,9 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `যাহাকে উদ্বেগ করিতে পারে, এই মর্মে নিশ্চিত করা যাইতেছে যে শিক্ষার্থী {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, জন্ম তারিখ: {{date_of_birth}}, ডিজিটাল জন্ম নিবন্ধন নং: {{birth_reg_no}} অত্র বিদ্যালয়ের অফিশিয়াল রেজিস্ট্রিভুক্ত শিক্ষার্থী।
+    bodyTemplate: `সংশ্লিষ্ট সকলের অবগতির জন্য জানানো যাচ্ছে যে, শিক্ষার্থী {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, জন্ম তারিখ: {{date_of_birth}}, ডিজিটাল জন্ম নিবন্ধন নং: {{birth_reg_no}} এই বিদ্যালয়ের অফিশিয়াল রেজিস্ট্রিভুক্ত শিক্ষার্থী।
 
-তাহার আইডি নং: {{student_id}}, শ্রেণি: {{class}}, শাখা: {{section}}, সেশন: {{session}}। তাহার প্রদত্ত যাবতীয় তথ্য অত্র বিদ্যালয়ের মূল রেকর্ডের সহিত পুঙ্খানুপুঙ্খরূপে যাচাইপূর্বক সঠিক ও নির্ভুল পাওয়া গিয়াছে।`
+তার আইডি নং: {{student_id}}, শ্রেণি: {{class}}, শাখা: {{section}}, সেশন: {{session}}। তার প্রদত্ত যাবতীয় তথ্য এই বিদ্যালয়ের মূল রেকর্ডের সাথে পুঙ্খানুপুঙ্খভাবে যাচাই করে সম্পূর্ণ সঠিক ও নির্ভুল পাওয়া গেছে।`
   },
   {
     id: 'tmpl_activity_certificate',
@@ -251,11 +253,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাইতেছে যে, {{student_name}} (শ্রেণি: {{class}}, সেশন: {{session}}) অত্র বিদ্যালয়ের স্কাউট/গার্ল গাইড/বিজ্ঞান ক্লাব/বিতর্ক ক্লাবে উল্লেখযোগ্য দায়িত্ব পালন ও অভিজ্ঞতা অর্জন করিয়াছে।
+    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}} (শ্রেণি: {{class}}, সেশন: {{session}}) এই বিদ্যালয়ের স্কাউট/গার্ল গাইড/বিজ্ঞান ক্লাব/বিতর্ক ক্লাবে উল্লেখযোগ্য দায়িত্ব পালন ও অভিজ্ঞতা অর্জন করেছে।
 
 বিশেষ ভূমিকা ও দায়িত্ব: {{achievement}}।
 
-তাহার নেতৃত্বগুণ, দলগত চেতনা ও শৃঙ্খলার মান ছিল অত্যন্ত প্রশংসনীয়।`
+তার নেতৃত্বগুণ, দলগত চেতনা ও শৃঙ্খলার মান ছিল অত্যন্ত প্রশংসনীয়।`
   },
   {
     id: 'tmpl_custom_certificate',
@@ -265,11 +267,11 @@ We wish him/her every success in all future academic and personal endeavors.`
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, শ্রেণি: {{class}}, রোল: {{roll_no}} অত্র বিদ্যালয়ের একজন শিক্ষার্থী।
+    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, শ্রেণি: {{class}}, রোল: {{roll_no}} এই বিদ্যালয়ের একজন শিক্ষার্থী।
 
 {{remarks}}
 
-তাহার উত্তরোত্তর মঙ্গল ও শুভকামনা করি।`
+তার উত্তরোত্তর মঙ্গল ও শুভকামনা করি।`
   }
 ];
 
@@ -457,6 +459,15 @@ class CertificateService {
 
   getTemplates(): CertificateTemplate[] {
     if (typeof window === 'undefined') return DEFAULT_CERTIFICATE_TEMPLATES;
+
+    // Auto-migrate cached templates to modern Cholito Bangla standard
+    const currentVersion = localStorage.getItem(TEMPLATES_VERSION_KEY);
+    if (currentVersion !== CURRENT_TEMPLATES_VERSION) {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(DEFAULT_CERTIFICATE_TEMPLATES));
+      localStorage.setItem(TEMPLATES_VERSION_KEY, CURRENT_TEMPLATES_VERSION);
+      return DEFAULT_CERTIFICATE_TEMPLATES;
+    }
+
     const stored = localStorage.getItem(TEMPLATES_STORAGE_KEY);
     if (stored) {
       try {
@@ -564,7 +575,8 @@ class CertificateService {
       '{{issue_date}}': vars.issue_date || new Date().toLocaleDateString('bn-BD'),
       '{{certificate_no}}': vars.certificate_no || '—',
       '{{school_name}}': vars.school_name || 'বরইতলী উচ্চ বিদ্যালয়',
-      '{{address}}': vars.address || 'বরইতলী, চকরিয়া, কক্সবাজার',
+      '{{address}}': vars.address || [vars.village, vars.post_office, vars.upazila, vars.district].filter(Boolean).join(', ') || 'বরইতলী, চকরিয়া, কক্সবাজার',
+      '{{student_address}}': [vars.village, vars.post_office, vars.upazila, vars.district].filter(Boolean).join(', ') || vars.address || 'বরইতলী, চকরিয়া, কক্সবাজার',
       '{{village}}': vars.village || 'বরইতলী',
       '{{post_office}}': vars.post_office || 'বরইতলী',
       '{{upazila}}': vars.upazila || 'চকরিয়া',
