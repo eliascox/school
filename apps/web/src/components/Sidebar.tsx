@@ -18,8 +18,7 @@ import {
   FileBadge,
   Globe,
   Sliders,
-  CalendarRange,
-  ChevronDown,
+    ChevronDown,
   ChevronRight,
   LogOut,
   X,
@@ -734,26 +733,6 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
             <X className="w-5 h-5" />
           </button>
         )}
-      </div>
-
-      {/* ── 2. ACADEMIC YEAR QUICK SWITCHER PILL ── */}
-      <div className="px-4 pt-4 pb-2 shrink-0">
-        <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-              <CalendarRange className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold truncate">
-                {currentLang === 'en' ? 'Session' : 'শিক্ষাবর্ষ (Session)'}
-              </p>
-              <p className="text-xs font-bold text-slate-900 truncate">Academic Year 2026</p>
-            </div>
-          </div>
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full shrink-0">
-            Active
-          </span>
-        </div>
       </div>
 
       {/* ── 3. SCROLLABLE NAVIGATION MENU ITEMS ── */}
