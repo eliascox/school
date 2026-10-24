@@ -330,7 +330,7 @@ export default function LandingPageManagementDashboard() {
     }
   };
 
-  // Section Reordering
+  // Section Reordering with Live Sync
   const handleMoveSection = (index: number, direction: 'up' | 'down') => {
     const newSections = [...config.sections];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -345,24 +345,58 @@ export default function LandingPageManagementDashboard() {
       s.order = idx + 1;
     });
 
-    handleUpdateConfig({ ...config, sections: newSections });
-    showToast('সেকশনের ক্রম পরিবর্তন করা হয়েছে', 'info');
+    const updatedConfig = { ...config, sections: newSections };
+    setConfig(updatedConfig);
+    landingPageService.saveDraftConfig(updatedConfig, 'অ্যাডমিন');
+    landingPageService.publish('অ্যাডমিন', 'সেকশনের ক্রম পরিবর্তন ও লাইভ প্রকাশ', updatedConfig);
+    setHasChanges(false);
+    setVersions(landingPageService.getVersions());
+    showToast('সেকশনের ক্রম সফলভাবে পরিবর্তন ও লাইভ ওয়েবসাইটে আপডেট করা হয়েছে', 'success');
   };
 
-  // Section Toggle Visibility
+  // Section Toggle Visibility with Instant Live Auto-Publish
   const handleToggleSection = (sectionId: string, current: boolean) => {
-    const newSections = config.sections.map(s => (s.id === sectionId ? { ...s, enabled: !current } : s));
-    handleUpdateConfig({ ...config, sections: newSections });
-    showToast(`সেকশন ${!current ? 'দৃশ্যমান' : 'লুকানো'} করা হয়েছে`, 'info');
+    const targetSec = config.sections.find(s => s.id === sectionId);
+    const secName = targetSec?.nameBn || 'সেকশন';
+    const newEnabled = !current;
+
+    const newSections = config.sections.map(s => (s.id === sectionId ? { ...s, enabled: newEnabled } : s));
+
+    // Also sync sub-config enabled flag if one exists (e.g. stats, services, academic, etc.)
+    const secKey = targetSec?.key as keyof LandingPageConfig;
+    const updatedSubConfig = { ...config };
+    if (secKey && updatedSubConfig[secKey] && typeof (updatedSubConfig[secKey] as any).enabled === 'boolean') {
+      (updatedSubConfig[secKey] as any) = {
+        ...(updatedSubConfig[secKey] as any),
+        enabled: newEnabled,
+      };
+    }
+
+    const updatedConfig: LandingPageConfig = {
+      ...updatedSubConfig,
+      sections: newSections,
+    };
+
+    setConfig(updatedConfig);
+    // 1. Save to draft
+    landingPageService.saveDraftConfig(updatedConfig, 'অ্যাডমিন');
+    // 2. Auto-publish immediately so the landing page reflects this instant change!
+    landingPageService.publish('অ্যাডমিন', `"${secName}" ${newEnabled ? 'দৃশ্যমান' : 'লুকানো'} করা হয়েছে`, updatedConfig);
+    setHasChanges(false);
+    setVersions(landingPageService.getVersions());
+
+    showToast(`"${secName}" সফলভাবে ${newEnabled ? 'দৃশ্যমান' : 'লুকানো'} হয়েছে এবং ল্যান্ডিং পেইজে লাইভ আপডেট হয়েছে!`, 'success');
   };
 
   // Duplicate Section
   const handleDuplicateSection = (sec: SectionItem) => {
     landingPageService.duplicateSection(sec.id, 'অ্যাডমিন');
     const updated = landingPageService.getDraftConfig();
+    landingPageService.publish('অ্যাডমিন', `"${sec.nameBn}" ডুপ্লিকেট করা হয়েছে`, updated);
     setConfig(updated);
-    setHasChanges(true);
-    showToast(`"${sec.nameBn}" ডুপ্লিকেট করা হয়েছে`, 'success');
+    setHasChanges(false);
+    setVersions(landingPageService.getVersions());
+    showToast(`"${sec.nameBn}" ডুপ্লিকেট করা হয়েছে এবং লাইভ আপডেট হয়েছে`, 'success');
   };
 
   // Delete Section
@@ -370,9 +404,11 @@ export default function LandingPageManagementDashboard() {
     if (confirm(`আপনি কি "${sec.nameBn}" সেকশনটি মুছে ফেলতে চান?`)) {
       landingPageService.deleteSection(sec.id, 'অ্যাডমিন');
       const updated = landingPageService.getDraftConfig();
+      landingPageService.publish('অ্যাডমিন', `"${sec.nameBn}" সেকশন মুছে ফেলা হয়েছে`, updated);
       setConfig(updated);
-      setHasChanges(true);
-      showToast(`সেকশন মুছে ফেলা হয়েছে`, 'info');
+      setHasChanges(false);
+      setVersions(landingPageService.getVersions());
+      showToast(`সেকশন মুছে ফেলা হয়েছে এবং লাইভ আপডেট হয়েছে`, 'info');
     }
   };
 

@@ -1113,6 +1113,17 @@ class LandingPageService {
     if (parsed.hero && typeof parsed.hero.bgOverlayOpacity !== 'number') {
       parsed.hero.bgOverlayOpacity = 25;
     }
+    if (!parsed.sections || !Array.isArray(parsed.sections)) {
+      parsed.sections = DEFAULT_LANDING_CONFIG.sections;
+    } else {
+      // Ensure any missing builtin sections are appended
+      DEFAULT_LANDING_CONFIG.sections.forEach(defSec => {
+        const existing = parsed.sections.find((s: any) => s.id === defSec.id || s.key === defSec.key);
+        if (!existing) {
+          parsed.sections.push({ ...defSec, order: parsed.sections.length + 1 });
+        }
+      });
+    }
     return parsed;
   }
 
@@ -1519,12 +1530,23 @@ class LandingPageService {
     return this.saveDraftConfig(draft, user);
   }
 
-  public toggleSection(sectionId: string, enabled: boolean, user: string = 'অ্যাডমিন'): boolean {
+  public toggleSection(sectionId: string, enabled: boolean, user: string = 'অ্যাডমিন', autoPublish: boolean = true): boolean {
     const draft = this.getDraftConfig();
     const sec = draft.sections.find(s => s.id === sectionId);
     if (!sec) return false;
     sec.enabled = enabled;
-    return this.saveDraftConfig(draft, user);
+
+    // Also sync sub-config enabled flag if one exists (e.g. stats, services, academic, etc.)
+    const key = sec.key as keyof LandingPageConfig;
+    if (draft[key] && typeof (draft[key] as any).enabled === 'boolean') {
+      (draft[key] as any).enabled = enabled;
+    }
+
+    this.saveDraftConfig(draft, user);
+    if (autoPublish) {
+      this.publish(user, `সেকশন "${sec.nameBn}" ${enabled ? 'দৃশ্যমান' : 'লুকানো'} করা হয়েছে`, draft);
+    }
+    return true;
   }
 
   public duplicateSection(sectionId: string, user: string = 'অ্যাডমিন'): boolean {

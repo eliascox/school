@@ -34,6 +34,10 @@ export default function PublicStats({
   students,
   schoolName = 'বরইতলী উচ্চ বিদ্যালয়'
 }: PublicStatsProps = {}) {
+  if (statsConfig && statsConfig.enabled === false) {
+    return null;
+  }
+
   const [activeTab, setActiveTab] = useState<'overview' | 'classes'>('overview');
   const [hasAnimated, setHasAnimated] = useState(false);
 

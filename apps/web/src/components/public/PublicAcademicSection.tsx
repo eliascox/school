@@ -24,6 +24,10 @@ interface PublicAcademicSectionProps {
 }
 
 export default function PublicAcademicSection({ academicConfig }: PublicAcademicSectionProps) {
+  if (academicConfig && academicConfig.enabled === false) {
+    return null;
+  }
+
   const cfg = academicConfig || DEFAULT_ACADEMIC_CONFIG;
 
   // Visual style tokens for the 3 Academic Stage Cards

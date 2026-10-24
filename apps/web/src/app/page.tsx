@@ -31,7 +31,14 @@ import PublicFooter from '@/components/public/PublicFooter';
 export default function PublicSchoolHomePage() {
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
-  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(DEFAULT_LANDING_CONFIG);
+  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return landingPageService.getPublishedConfig();
+      } catch (e) {}
+    }
+    return DEFAULT_LANDING_CONFIG;
+  });
   const [notices, setNotices] = useState<Notice[]>([]);
   const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -99,6 +106,7 @@ export default function PublicSchoolHomePage() {
   const renderSection = (secKey: string) => {
     switch (secKey) {
       case 'stats':
+        if (landingConfig.stats && landingConfig.stats.enabled === false) return null;
         return (
           <PublicStats
             key="stats"
@@ -111,10 +119,12 @@ export default function PublicSchoolHomePage() {
           />
         );
       case 'services':
+        if (landingConfig.services && landingConfig.services.enabled === false) return null;
         return <PublicServicesSection key="services" servicesConfig={landingConfig.services} />;
       case 'headmaster_message':
         return <PublicHeadmasterMessage key="headmaster_message" settings={settings} aboutConfig={landingConfig.about} />;
       case 'about':
+        if (landingConfig.about && landingConfig.about.enabled === false) return null;
         return <PublicAbout key="about" settings={settings} aboutConfig={landingConfig.about} />;
       case 'notices':
         return (
@@ -149,7 +159,7 @@ export default function PublicSchoolHomePage() {
   };
 
   // Sort sections by order and filter enabled ones
-  const activeSections = [...landingConfig.sections]
+  const activeSections = (landingConfig.sections || [])
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
 

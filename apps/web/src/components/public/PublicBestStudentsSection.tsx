@@ -35,6 +35,10 @@ interface PublicBestStudentsSectionProps {
 }
 
 export default function PublicBestStudentsSection({ achieversConfig, students }: PublicBestStudentsSectionProps = {}) {
+  if (achieversConfig && achieversConfig.enabled === false) {
+    return null;
+  }
+
   // 4 Best Students matching user requirements
   const defaultBestStudents: BestStudent[] = [
     {

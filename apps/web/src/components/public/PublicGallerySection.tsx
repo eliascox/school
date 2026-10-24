@@ -20,6 +20,10 @@ interface PublicGallerySectionProps {
 }
 
 export default function PublicGallerySection({ galleryConfig }: PublicGallerySectionProps = {}) {
+  if (galleryConfig && galleryConfig.enabled === false) {
+    return null;
+  }
+
   // Fallback Gallery Items if no dynamic items are configured
   const defaultItems: GalleryMediaItem[] = [
     {

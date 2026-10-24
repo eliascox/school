@@ -12,6 +12,10 @@ interface PublicAboutProps {
 }
 
 export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps) {
+  if (aboutConfig && aboutConfig.enabled === false) {
+    return null;
+  }
+
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
   const estd = aboutConfig?.foundingYear || settings?.estdYear || '১৯৬৯';
   const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';

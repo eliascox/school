@@ -32,6 +32,10 @@ interface PublicBlogSectionProps {
 }
 
 export default function PublicBlogSection({ blogConfig }: PublicBlogSectionProps = {}) {
+  if (blogConfig && blogConfig.enabled === false) {
+    return null;
+  }
+
   // Default Blog Cards
   const defaultBlogPosts: BlogPost[] = [
     {

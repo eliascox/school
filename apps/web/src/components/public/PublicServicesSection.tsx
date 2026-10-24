@@ -37,6 +37,10 @@ interface PublicServicesSectionProps {
 }
 
 export default function PublicServicesSection({ servicesConfig }: PublicServicesSectionProps = {}) {
+  if (servicesConfig && servicesConfig.enabled === false) {
+    return null;
+  }
+
   // Use admin-configured services if provided and has cards, otherwise use defaults
   // (The hardcoded services array below serves as fallback)
   const services = [
