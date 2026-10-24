@@ -118,6 +118,12 @@ export type SchoolSettings = {
   // 📜 Official School Pad Template (Uploaded PDF or Image)
   uploadedPadTemplateUrl?: string;
   uploadedPadType?: 'image' | 'pdf';
+  uploadedPadFileName?: string;
+  uploadedPadFileSize?: number;
+  activePadMode?: 'uploaded' | 'system' | 'preprinted';
+  schoolNameEn?: string;
+  padAffiliationText?: string;
+  padThemeColor?: string;
   padHeaderStyle?: PadHeaderStyle;
   padMargins?: PadMargins;
   showPadWatermark?: boolean;
@@ -171,6 +177,12 @@ const DEFAULT_SETTINGS: SchoolSettings = {
   // 📜 Default School Pad Values
   uploadedPadTemplateUrl: '',
   uploadedPadType: 'image',
+  uploadedPadFileName: '',
+  uploadedPadFileSize: 0,
+  activePadMode: 'system',
+  schoolNameEn: 'BORAITOLI HIGH SCHOOL',
+  padAffiliationText: 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার অনুমোদিত ও শিক্ষা বোর্ড অধিভুক্ত',
+  padThemeColor: '#064e3b',
   padHeaderStyle: 'classic',
   padMargins: DEFAULT_PAD_MARGINS,
   showPadWatermark: true,

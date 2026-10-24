@@ -49,7 +49,8 @@ import {
   ExternalLink,
   History,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Sliders
 } from 'lucide-react';
 import {
   certificateService,
@@ -63,8 +64,9 @@ import { studentService, Student } from '@/services/studentService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
+import PadSettingsPanel from '@/components/PadSettingsPanel';
 
-type MainTab = 'register' | 'create' | 'templates' | 'audit';
+type MainTab = 'register' | 'create' | 'pad-settings' | 'templates' | 'audit';
 
 // ─── 6 OFFICIAL TESTIMONIAL & CERTIFICATE TYPES ──────────────────────────────
 const ALL_CERT_TYPES: {
@@ -187,6 +189,7 @@ export default function CertificatesPage() {
 
   // Modals & Popups
   const [showPrintModal, setShowPrintModal] = useState<CertificateRecord | null>(null);
+  const [showPadSettingsModal, setShowPadSettingsModal] = useState(false);
   const [printLayoutOverride, setPrintLayoutOverride] = useState<CertificateLayoutStyle | null>(null);
   const [padPrintMode, setPadPrintMode] = useState<'full_pad' | 'preprinted' | 'blank_pad'>('full_pad');
   const [cancelModalCert, setCancelModalCert] = useState<CertificateRecord | null>(null);
@@ -538,6 +541,7 @@ export default function CertificatesPage() {
           {[
             { id: 'register', label: 'প্রত্যয়ন রেজিস্টার ও তালিকা', icon: BookOpen },
             { id: 'create', label: 'নতুন প্রত্যয়ন প্রস্তুত', icon: PlusCircle },
+            { id: 'pad-settings', label: 'লেটারহেড প্যাড ও মার্জিন', icon: Sliders },
             { id: 'templates', label: 'টেমপ্লেট ব্যবস্থাপনা', icon: Settings2 },
             { id: 'audit', label: 'অডিট লগ ও হিস্ট্রি', icon: History }
           ].map((tab) => {
@@ -1176,6 +1180,18 @@ export default function CertificatesPage() {
       )}
 
       {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB: প্রাতিষ্ঠানিক লেটারহেড প্যাড ও মার্জিন কন্ট্রোল প্যানেল         */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'pad-settings' && (
+        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm print:hidden">
+          <PadSettingsPanel
+            initialSettings={schoolSettings}
+            onSaved={(updated) => setSchoolSettings(updated)}
+          />
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
       {/* TAB 3: টেমপ্লেট ব্যবস্থাপনা (TEMPLATE MANAGEMENT)                   */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'templates' && (
@@ -1480,6 +1496,16 @@ export default function CertificatesPage() {
                   </button>
                 </div>
 
+                {/* Pad Settings Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPadSettingsModal(true)}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="প্যাড আপলোড ও মার্জিন সেটিংস প্যানেল"
+                >
+                  <Sliders size={13} /> প্যাড সেটিংস
+                </button>
+
                 <button
                   onClick={() => {
                     certificateService.logPrintAction(showPrintModal.id, currentUser?.teacherName || 'অ্যাডমিন');
@@ -1507,10 +1533,25 @@ export default function CertificatesPage() {
                 overrideStyle={printLayoutOverride || showPrintModal.layoutStyle}
                 mode={padPrintMode}
                 onModeChange={setPadPrintMode}
+                onOpenSettings={() => setShowPadSettingsModal(true)}
               />
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* PAD SETTINGS & MARGINS MODAL                                        */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {showPadSettingsModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-5 overflow-y-auto print:hidden">
+          <PadSettingsPanel
+            isModal={true}
+            initialSettings={schoolSettings}
+            onSaved={(updated) => setSchoolSettings(updated)}
+            onClose={() => setShowPadSettingsModal(false)}
+          />
         </div>
       )}
 

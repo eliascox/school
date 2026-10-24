@@ -25,6 +25,7 @@ interface OfficialCertificateDocProps {
   overrideStyle?: CertificateLayoutStyle;
   mode?: 'full_pad' | 'preprinted' | 'blank_pad';
   onModeChange?: (mode: 'full_pad' | 'preprinted' | 'blank_pad') => void;
+  onOpenSettings?: () => void;
   hideHeaderActions?: boolean;
 }
 
@@ -34,6 +35,7 @@ export default function OfficialCertificateDoc({
   overrideStyle,
   mode = 'full_pad',
   onModeChange,
+  onOpenSettings,
   hideHeaderActions = true
 }: OfficialCertificateDocProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -270,6 +272,7 @@ export default function OfficialCertificateDoc({
       settings={safeSettings}
       mode={mode}
       onModeChange={onModeChange}
+      onOpenSettings={onOpenSettings}
       refNo={cert.refNo ? `স্মারক নং: ${cert.refNo}` : undefined}
       date={cert.issueDate}
       dateLabel="তারিখ"

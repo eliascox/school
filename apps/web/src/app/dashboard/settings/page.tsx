@@ -81,6 +81,7 @@ import { financeService } from '@/services/financeService';
 import { ledgerService } from '@/services/ledgerService';
 import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import { SystemPurgeReport } from '@/services/systemResetService';
+import { processPadUpload } from '@/lib/padPdfRenderer';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
 type SettingsTab = 'identity' | 'committee' | 'facilities' | 'pad' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
@@ -789,17 +790,24 @@ export default function SettingsPage() {
     }
   };
 
-  const handlePadFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePadFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const res = reader.result as string;
-        handleChange('uploadedPadTemplateUrl', res);
-        handleChange('uploadedPadType', isPdf ? 'pdf' : 'image');
-      };
-      reader.readAsDataURL(file);
+      try {
+        const result = await processPadUpload(file);
+        if (result.dataUrl) {
+          handleChange('uploadedPadTemplateUrl', result.dataUrl);
+          handleChange('uploadedPadType', result.padType);
+          handleChange('uploadedPadFileName', result.fileName);
+          handleChange('uploadedPadFileSize', result.fileSize);
+          handleChange('activePadMode', 'uploaded');
+        } else if (result.error) {
+          alert(result.error);
+        }
+      } catch (err: any) {
+        console.error('Failed to process pad file', err);
+        alert('প্যাড ফাইল প্রসেস করতে ব্যর্থ হয়েছে: ' + err.message);
+      }
     }
   };
 
@@ -1234,13 +1242,13 @@ export default function SettingsPage() {
 
                         {/* Thumbnail / Status View */}
                         <div className="h-28 bg-white rounded-xl border border-emerald-200 overflow-hidden flex items-center justify-center p-2 shadow-inner relative group">
-                          {formData.uploadedPadType === 'pdf' ? (
-                            <div className="flex flex-col items-center text-slate-600 space-y-1">
-                              <FileText className="w-8 h-8 text-rose-600" />
-                              <span className="text-[11px] font-bold text-slate-800">অফিশিয়াল PDF প্যাড ফাইল সংযুক্ত</span>
-                            </div>
-                          ) : (
+                          {formData.uploadedPadTemplateUrl ? (
                             <img src={formData.uploadedPadTemplateUrl} alt="Pad Thumbnail" className="h-full object-contain" />
+                          ) : (
+                            <div className="flex flex-col items-center text-slate-600 space-y-1">
+                              <FileText className="w-8 h-8 text-indigo-600" />
+                              <span className="text-[11px] font-bold text-slate-800">কোন প্যাড সংযুক্ত নেই</span>
+                            </div>
                           )}
                         </div>
 
