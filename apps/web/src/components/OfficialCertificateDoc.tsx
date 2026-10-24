@@ -321,9 +321,9 @@ export default function OfficialCertificateDoc({
             </p>
 
             {cert.achievementTitle && (
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800 text-center">
-                বিশেষ কৃতিত্ব / ভূমিকা: {cert.achievementTitle}
-              </div>
+              <p className="leading-loose">
+                অত্র প্রতিষ্ঠানে অধ্যয়নকালে সে <strong className="font-bold">{cert.achievementTitle}</strong> হিসেবে বিশেষ ভূমিকা পালন করে।
+              </p>
             )}
 
             <p className="leading-loose">
@@ -335,24 +335,6 @@ export default function OfficialCertificateDoc({
             </p>
           </div>
         )}
-
-        {/* QR Code & Online Verification Footnote */}
-        <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-4 mt-6">
-          <div className="flex items-center gap-3">
-            {qrCodeUrl && (
-              <img src={qrCodeUrl} alt="QR Verification" className="w-16 h-16 border border-slate-300 p-1 bg-white rounded-lg shadow-sm" />
-            )}
-            <div className="text-[10px] space-y-0.5">
-              <p className="font-bold text-slate-800 flex items-center gap-1">
-                <ShieldCheck size={13} className="text-emerald-600" /> সরকারি ডিজিটাল সনদ ভেরিফিকেশন
-              </p>
-              <p className="font-mono text-slate-600">
-                সনদ নম্বর: <strong className="text-slate-900">{cert.id}</strong> | স্মারক: <span className="text-slate-700">{cert.refNo}</span>
-              </p>
-              <p className="text-slate-500">অনলাইনে সত্যতা নিশ্চিত করতে QR কোডটি স্ক্যান করুন।</p>
-            </div>
-          </div>
-        </div>
 
       </div>
     </SchoolPadWrapper>

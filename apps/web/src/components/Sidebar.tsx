@@ -539,7 +539,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
             },
             {
               label: 'Certificates & Documents',
-              labelBn: 'প্রত্যয়ন ও সনদপত্র তৈরি',
+              labelBn: 'প্রত্যয়ন পত্র ব্যবস্থাপনা',
               href: '/dashboard/certificates',
               icon: <FileCheck className="w-3.5 h-3.5 text-emerald-600" />,
             },

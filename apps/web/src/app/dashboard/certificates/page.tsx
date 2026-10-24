@@ -66,7 +66,7 @@ import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
 
 type MainTab = 'register' | 'create' | 'templates' | 'audit';
 
-// ─── 11+ CERTIFICATE TYPES CONFIGURATION ──────────────────────────────────────
+// ─── 6 OFFICIAL TESTIMONIAL & CERTIFICATE TYPES ──────────────────────────────
 const ALL_CERT_TYPES: {
   id: CertificateType;
   title: string;
@@ -88,20 +88,11 @@ const ALL_CERT_TYPES: {
   {
     id: 'character_certificate',
     title: 'চারিত্রিক সনদ পত্র',
-    desc: 'নৈতিক চরিত্র, আচরণ ও স্বভাব সম্পর্কিত সনদ',
+    desc: 'নৈতিক চরিত্র, আচরণ ও স্বভাব সম্পর্কিত প্রত্যয়ন',
     icon: Award,
     defaultLayout: 'pad',
     color: 'text-sky-700',
     bgColor: 'bg-sky-50'
-  },
-  {
-    id: 'ssc_testimonial',
-    title: 'এসএসসি প্রশংসাপত্র (Testimonial)',
-    desc: 'মাধ্যমিক স্কুল সার্টিফিকেট পরীক্ষার অফিশিয়াল প্রশংসাপত্র',
-    icon: GraduationCap,
-    defaultLayout: 'royal_border',
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50'
   },
   {
     id: 'transfer_certificate',
@@ -122,26 +113,8 @@ const ALL_CERT_TYPES: {
     bgColor: 'bg-purple-50'
   },
   {
-    id: 'appreciation',
-    title: 'কৃতিত্ব ও প্রশংসা সনদ',
-    desc: 'অসাধারণ মেধা, নিষ্ঠা ও অবদানের স্বীকৃতিস্বরূপ প্রশংসা সনদ',
-    icon: Award,
-    defaultLayout: 'royal_border',
-    color: 'text-indigo-700',
-    bgColor: 'bg-indigo-50'
-  },
-  {
-    id: 'merit_certificate',
-    title: 'মেধা সনদ পত্র',
-    desc: 'পরীক্ষায় মেধা স্থান ও সর্বোত্তম ফলাফলের স্বীকৃতি',
-    icon: Sparkles,
-    defaultLayout: 'royal_border',
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50'
-  },
-  {
     id: 'student_verification',
-    title: 'শিক্ষার্থী যাচাইকরণ প্রত্যয়ন',
+    title: 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন',
     desc: 'পাসপোর্ট, ব্যাংক বা সরকারি কাজে প্রাতিষ্ঠানিক তথ্য যাচাই',
     icon: UserCheck,
     defaultLayout: 'pad',
@@ -149,26 +122,8 @@ const ALL_CERT_TYPES: {
     bgColor: 'bg-teal-50'
   },
   {
-    id: 'participation',
-    title: 'অংশগ্রহণ সনদ (Participation)',
-    desc: 'ক্রীড়া, বিতর্ক, বিজ্ঞান মেলা বা সাংস্কৃতিক কার্যক্রমে অংশগ্রহণ',
-    icon: Layers,
-    defaultLayout: 'royal_border',
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50'
-  },
-  {
-    id: 'activity_certificate',
-    title: 'সহশিক্ষা ও অভিজ্ঞতা সনদ',
-    desc: 'স্কাউট, গার্ল গাইড, বিজ্ঞান ক্লাব বা নেতৃত্বের অভিজ্ঞতা',
-    icon: ShieldCheck,
-    defaultLayout: 'pad',
-    color: 'text-cyan-700',
-    bgColor: 'bg-cyan-50'
-  },
-  {
     id: 'custom_certificate',
-    title: 'বিশেষ কাস্টম প্রত্যয়ন',
+    title: 'বিশেষ প্রাতিষ্ঠানিক প্রত্যয়ন',
     desc: 'বিদ্যালয় কর্তৃপক্ষের যেকোনো বিশেষ উদ্দেশ্যের প্রত্যয়ন পত্র',
     icon: FileCheck,
     defaultLayout: 'pad',
@@ -508,9 +463,9 @@ export default function CertificatesPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">মোট সনদ</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">মোট প্রত্যয়ন</p>
               <p className="text-2xl font-black text-slate-900 mt-1 tabular-nums">{totalCerts}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">সর্বমোট নিবন্ধিত সনদ</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">সর্বমোট ইস্যুকৃত প্রত্যয়ন</p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <FileCheck size={20} />
@@ -550,9 +505,9 @@ export default function CertificatesPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">সক্রিয় ও বৈধ</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">সক্রিয় প্রত্যয়ন</p>
               <p className="text-2xl font-black text-teal-600 mt-1 tabular-nums">{validCerts}</p>
-              <p className="text-[10px] text-emerald-600 font-bold mt-0.5">অনলাইন ভেরিফায়েড</p>
+              <p className="text-[10px] text-emerald-600 font-bold mt-0.5">বৈধ ও সক্রিয়</p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
               <CheckCircle2 size={20} />
@@ -564,7 +519,7 @@ export default function CertificatesPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">বাতিলকৃত সনদ</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">বাতিলকৃত প্রত্যয়ন</p>
               <p className="text-2xl font-black text-rose-600 mt-1 tabular-nums">{cancelledCerts}</p>
               <p className="text-[10px] text-rose-500 font-medium mt-0.5">কার্যকারিতাহীন</p>
             </div>
@@ -581,7 +536,7 @@ export default function CertificatesPage() {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-1 overflow-x-auto">
           {[
-            { id: 'register', label: 'সনদ রেজিস্টার ও তালিকা', icon: BookOpen },
+            { id: 'register', label: 'প্রত্যয়ন রেজিস্টার ও তালিকা', icon: BookOpen },
             { id: 'create', label: 'নতুন প্রত্যয়ন প্রস্তুত', icon: PlusCircle },
             { id: 'templates', label: 'টেমপ্লেট ব্যবস্থাপনা', icon: Settings2 },
             { id: 'audit', label: 'অডিট লগ ও হিস্ট্রি', icon: History }
@@ -962,39 +917,14 @@ export default function CertificatesPage() {
               </div>
             </div>
 
-            {/* Design & Layout Style Selector */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-3">
-              <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">৩</span>
-                সনদপত্রের ডিজাইন লেআউট
-              </span>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLayoutStyle('pad')}
-                  className={`p-3 rounded-xl border text-center transition cursor-pointer ${
-                    layoutStyle === 'pad'
-                      ? 'bg-indigo-50 border-indigo-600 text-indigo-900 font-bold shadow-sm'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <p className="text-xs font-bold">স্কুল লেটারহেড প্যাড</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">সরকারি প্রাতিষ্ঠানিক ফরম্যাট</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setLayoutStyle('royal_border')}
-                  className={`p-3 rounded-xl border text-center transition cursor-pointer ${
-                    layoutStyle === 'royal_border'
-                      ? 'bg-amber-50 border-amber-600 text-amber-900 font-bold shadow-sm'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <p className="text-xs font-bold">রয়্যাল সনদ বর্ডার</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">স্বর্ণালী অলংকরণ ও সিল</p>
-                </button>
+            {/* Pad Format Info */}
+            <div className="bg-indigo-50/70 rounded-2xl border border-indigo-200/80 p-4 shadow-sm flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                <FileText size={18} />
+              </div>
+              <div className="text-xs">
+                <p className="font-bold text-indigo-950">অফিশিয়াল স্কুল লেটারহেড প্যাড</p>
+                <p className="text-[11px] text-indigo-700 mt-0.5">সকল প্রত্যয়ন পত্র স্কুলের প্রাতিষ্ঠানিক লেটারহেড প্যাডে মুদ্রিত হবে।</p>
               </div>
             </div>
 
@@ -1206,71 +1136,6 @@ export default function CertificatesPage() {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
                   />
                 </div>
-              </div>
-
-              {/* Conditional Exam Fields (SSC Testimonial / Board info) */}
-              {(certType === 'ssc_testimonial' || isAlumni) && (
-                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2 text-xs">
-                  <p className="font-bold text-amber-900 flex items-center gap-1.5 text-[11px]">
-                    <GraduationCap size={14} /> বোর্ড পরীক্ষা ও ফলাফলের তথ্য (SSC Testimonial Details)
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">বোর্ড রোল</label>
-                      <input
-                        type="text"
-                        value={boardRoll}
-                        onChange={(e) => setBoardRoll(e.target.value)}
-                        placeholder="e.g. 102931"
-                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">রেজিস্ট্রেশন নং</label>
-                      <input
-                        type="text"
-                        value={boardReg}
-                        onChange={(e) => setBoardReg(e.target.value)}
-                        placeholder="e.g. 1810293819"
-                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">পাশের সাল</label>
-                      <input
-                        type="text"
-                        value={passingYear}
-                        onChange={(e) => setPassingYear(e.target.value)}
-                        placeholder="e.g. 2026"
-                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">অর্জিত জিপিএ (GPA)</label>
-                      <input
-                        type="text"
-                        value={gpa}
-                        onChange={(e) => setGpa(e.target.value)}
-                        placeholder="e.g. 5.00"
-                        className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Achievement / Special Remarks */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  বিশেষ কৃতিত্ব / ভূমিকা (মেধা, প্রশংসা ও অংশগ্রহণ সনদের জন্য)
-                </label>
-                <input
-                  type="text"
-                  value={achievementTitle}
-                  onChange={(e) => setAchievementTitle(e.target.value)}
-                  placeholder="যেমন: আন্তঃবিদ্যালয় বিজ্ঞান মেলা ২০২৬-এ ১ম স্থান অর্জন / ক্রীড়া চ্যাম্পিয়ন"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white"
-                />
               </div>
 
               {/* Editable Body Text */}
@@ -1590,52 +1455,30 @@ export default function CertificatesPage() {
                 </div>
               </div>
 
-              {/* Style Switcher & Action */}
+              {/* Pad Mode Toggle & Print Action */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
                   <button
-                    onClick={() => setPrintLayoutOverride('pad')}
-                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                      (printLayoutOverride || showPrintModal.layoutStyle) === 'pad' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
+                    type="button"
+                    onClick={() => setPadPrintMode('full_pad')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                      padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
+                    title="ডিজিটাল স্কুল লেটারহেড প্যাড (সম্পূর্ণ হেডার সহ)"
                   >
-                    লেটারহেড প্যাড
+                    <FileText size={13} /> ডিজিটাল লেটারহেড প্যাড
                   </button>
                   <button
-                    onClick={() => setPrintLayoutOverride('royal_border')}
-                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                      (printLayoutOverride || showPrintModal.layoutStyle) === 'royal_border' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'
+                    type="button"
+                    onClick={() => setPadPrintMode('preprinted')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                      padPrintMode === 'preprinted' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
+                    title="স্কুলের ছাপা প্যাডের জন্য (হেডার ফাঁকা রেখে প্রিন্ট)"
                   >
-                    রয়্যাল বর্ডার
+                    <Sparkles size={13} /> ছাপা প্যাড
                   </button>
                 </div>
-
-                {/* Pad Mode Toggle (Only when Pad layout is active) */}
-                {(printLayoutOverride || showPrintModal.layoutStyle) === 'pad' && (
-                  <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setPadPrintMode('full_pad')}
-                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                        padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                      title="ডিজিটাল স্কুল লেটারহেড প্যাড (সম্পূর্ণ হেডার ও ফুটার সহ)"
-                    >
-                      <FileText size={12} /> ডিজিটাল প্যাড
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPadPrintMode('preprinted')}
-                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                        padPrintMode === 'preprinted' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                      title="স্কুলের ছাপা প্যাডের জন্য (হেডার বাদ দিয়ে বডি প্রিন্ট হবে)"
-                    >
-                      <Sparkles size={12} /> ছাপা প্যাড
-                    </button>
-                  </div>
-                )}
 
                 <button
                   onClick={() => {
