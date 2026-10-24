@@ -363,7 +363,8 @@ export default function LandingPageManagementDashboard() {
     const newSections = config.sections.map(s => (s.id === sectionId ? { ...s, enabled: newEnabled } : s));
 
     // Also sync sub-config enabled flag if one exists (e.g. stats, services, academic, etc.)
-    const secKey = targetSec?.key as keyof LandingPageConfig;
+    const rawSecKey = targetSec?.key;
+    const secKey = (rawSecKey === 'mobile_app' ? 'mobileApp' : rawSecKey) as keyof LandingPageConfig;
     const updatedSubConfig = { ...config };
     if (secKey && updatedSubConfig[secKey] && typeof (updatedSubConfig[secKey] as any).enabled === 'boolean') {
       (updatedSubConfig[secKey] as any) = {

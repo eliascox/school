@@ -281,6 +281,92 @@ export interface FAQConfig {
   items: FAQItem[];
 }
 
+export interface MobileAppFeature {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  color?: string;
+}
+
+export interface MobileAppConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  apkDownloadUrl: string;
+  playStoreUrl: string;
+  appStoreUrl: string;
+  version: string;
+  fileSize: string;
+  releaseDate: string;
+  rating: string;
+  downloadCount: string;
+  qrCodeUrl?: string;
+  features: MobileAppFeature[];
+}
+
+export const DEFAULT_MOBILE_APP_CONFIG: MobileAppConfig = {
+  enabled: true,
+  eyebrow: '📱 অফিসিয়াল মোবাইল অ্যাপ',
+  title: 'আমাদের স্কুলের মোবাইল অ্যাপ ডাউনলোড করুন',
+  subtitle: 'শিক্ষার্থী, অভিভাবক ও শিক্ষকদের জন্য স্মার্ট হাজিরা, নোটিফিকেশন, পরীক্ষার ফলাফল ও ফি পরিশোধের সমন্বিত প্ল্যাটফর্ম।',
+  description: 'স্মার্টফোন থেকেই পেয়ে যান সন্তানের প্রতিদিনের উপস্থিতি, পরীক্ষার গ্রেডশিট, ক্লাস রুটিন, ডায়েরি এবং জরুরি নোটিশ। এছাড়াও ঘরে বসেই বিকাশ বা নগদের মাধ্যমে স্কুলের যাবতীয় ফি নিরাপদে পরিশোধ করুন।',
+  apkDownloadUrl: '/downloads/baraitoli-school.apk',
+  playStoreUrl: 'https://play.google.com/store',
+  appStoreUrl: 'https://www.apple.com/app-store/',
+  version: '১.২.০ (v1.2.0)',
+  fileSize: '১৮.৪ মেগাবাইট (18.4 MB)',
+  releaseDate: 'অক্টোবর ২০২৬',
+  rating: '৪.৯',
+  downloadCount: '১,২০০+',
+  features: [
+    {
+      id: 'feat-1',
+      title: 'ইনস্ট্যান্ট নোটিফিকেশন ও পুশ অ্যালার্ট',
+      desc: 'পরীক্ষার সময়সূচি, জরুরি নোটিশ ও ছুটির বার্তা সাথে সাথে মোবাইলে পেয়ে যান।',
+      icon: 'Bell',
+      color: 'emerald',
+    },
+    {
+      id: 'feat-2',
+      title: 'স্মার্ট ডিজিটাল হাজিরা ও ট্র্যাকিং',
+      desc: 'প্রতিদিনের প্রবেশ ও প্রস্থানের সময়সহ রিয়েল-টাইম উপস্থিতি এবং অনুপস্থিতির এসএমএস।',
+      icon: 'CheckCircle2',
+      color: 'blue',
+    },
+    {
+      id: 'feat-3',
+      title: 'পরীক্ষার ফলাফল ও গ্রেডশিট',
+      desc: 'সাময়িক ও বার্ষিক পরীক্ষার বিস্তারিত মার্কশিট এবং একাডেমিক প্রগ্রেস রিপোর্ট।',
+      icon: 'FileText',
+      color: 'violet',
+    },
+    {
+      id: 'feat-4',
+      title: 'অনলাইন ফি ও বেতন পরিশোধ',
+      desc: 'বিকাশ, নগদ বা রকেটের মাধ্যমে সরাসরি টিউশন ফি পরিশোধ ও ডিজিটাল রসিদ সংগ্রহ।',
+      icon: 'CreditCard',
+      color: 'amber',
+    },
+    {
+      id: 'feat-5',
+      title: 'ক্লাস রুটিন ও শিক্ষকের ডায়েরি',
+      desc: 'দৈনিক ক্লাসের রুটিন, বাড়ির কাজ (Home Work) এবং ক্লাস টিচারের বিশেষ নির্দেশনা।',
+      icon: 'Calendar',
+      color: 'rose',
+    },
+    {
+      id: 'feat-6',
+      title: 'অফলাইন সিঙ্ক ও দ্রুত গতি',
+      desc: 'ইন্টারনেট না থাকলেও রুটিন, নোটিশ ও প্রোফাইল ডাটা অফলাইনে দেখার সুবিধা।',
+      icon: 'Smartphone',
+      color: 'indigo',
+    },
+  ],
+};
+
 export interface ContactConfig {
   enabled: boolean;
   title: string;
@@ -382,6 +468,7 @@ export interface LandingPageConfig {
   blog: BlogConfig;
   faq: FAQConfig;
   contact: ContactConfig;
+  mobileApp?: MobileAppConfig;
   footer: FooterConfig;
   theme: ThemeConfig;
   seo: SEOConfig;
@@ -650,6 +737,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
     { id: 'sec-blog', key: 'blog', nameBn: 'সংবাদ ও ব্লগ', nameEn: 'News & Blog', type: 'builtin', enabled: true, order: 12, icon: 'FileText', description: 'বিদ্যালয়ের সাম্প্রতিক অর্জন ও কার্যক্রম বিষয়ক ব্লগ' },
     { id: 'sec-faq', key: 'faq', nameBn: 'সাধারণ প্রশ্নোত্তর (FAQ)', nameEn: 'FAQ', type: 'builtin', enabled: true, order: 13, icon: 'HelpCircle', description: 'ভর্তি ও স্কুল বিষয়ক বহুল জিজ্ঞাসিত প্রশ্ন ও উত্তর' },
     { id: 'sec-contact', key: 'contact', nameBn: 'যোগাযোগ ও মেসেজ ফর্ম', nameEn: 'Contact Section', type: 'builtin', enabled: true, order: 14, icon: 'Mail', description: 'ঠিকানা, ফোন নম্বর, গুগল ম্যাপ ও অনুসন্ধান বার্তা' },
+    { id: 'sec-app', key: 'mobile_app', nameBn: 'মোবাইল অ্যাপ ডাউনলোড', nameEn: 'Mobile App Download', type: 'builtin', enabled: true, order: 15, icon: 'Smartphone', description: 'স্মার্ট স্কুল অভিভাবক ও শিক্ষক মোবাইল অ্যাপ' },
   ],
   stats: {
     enabled: true,
@@ -855,6 +943,7 @@ export const DEFAULT_LANDING_CONFIG: LandingPageConfig = {
     mapEmbedUrl: '',
     officeHours: 'রবিবার - বৃহস্পতিবার: সকাল ৯:০০ টা - বিকাল ৪:০০ টা',
   },
+  mobileApp: DEFAULT_MOBILE_APP_CONFIG,
   footer: {
     col1Title: 'অন্যান্য লিঙ্ক',
     col1Links: [
@@ -1102,6 +1191,9 @@ class LandingPageService {
     if (!parsed) return DEFAULT_LANDING_CONFIG;
     if (!parsed.gallery) {
       parsed.gallery = DEFAULT_GALLERY_CONFIG;
+    }
+    if (!parsed.mobileApp) {
+      parsed.mobileApp = DEFAULT_MOBILE_APP_CONFIG;
     }
     // Only initialize default slides if slides property is completely missing (not if user intentionally deleted them)
     if (!parsed.hero) {
@@ -1537,7 +1629,8 @@ class LandingPageService {
     sec.enabled = enabled;
 
     // Also sync sub-config enabled flag if one exists (e.g. stats, services, academic, etc.)
-    const key = sec.key as keyof LandingPageConfig;
+    const normalizedKey = (sec.key === 'mobile_app' ? 'mobileApp' : sec.key) as keyof LandingPageConfig;
+    const key = normalizedKey;
     if (draft[key] && typeof (draft[key] as any).enabled === 'boolean') {
       (draft[key] as any).enabled = enabled;
     }

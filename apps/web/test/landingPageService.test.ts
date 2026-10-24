@@ -161,4 +161,19 @@ describe('landingPageService CMS tests', () => {
     expect(published.hero.slides.length).toBe(1);
     expect(published.hero.slides[0].id).toBe('slide-custom-1');
   });
+  it('provides mobileApp config and toggles mobile_app section cleanly', () => {
+    const config = landingPageService.getPublishedConfig();
+    expect(config.mobileApp).toBeDefined();
+    expect(config.mobileApp?.enabled).toBe(true);
+    expect(config.mobileApp?.apkDownloadUrl).toContain('.apk');
+
+    const appSec = config.sections.find(s => s.key === 'mobile_app');
+    expect(appSec).toBeDefined();
+    expect(appSec?.enabled).toBe(true);
+
+    landingPageService.toggleSection(appSec!.id, false);
+    const updatedDraft = landingPageService.getDraftConfig();
+    expect(updatedDraft.sections.find(s => s.key === 'mobile_app')?.enabled).toBe(false);
+    expect(updatedDraft.mobileApp?.enabled).toBe(false);
+  });
 });

@@ -26,6 +26,7 @@ import PublicGallerySection from '@/components/public/PublicGallerySection';
 import PublicBlogSection from '@/components/public/PublicBlogSection';
 import PublicContactSection from '@/components/public/PublicContactSection';
 import PublicFaqSection from '@/components/public/PublicFaqSection';
+import PublicMobileAppSection from '@/components/public/PublicMobileAppSection';
 import PublicFooter from '@/components/public/PublicFooter';
 
 export default function PublicSchoolHomePage() {
@@ -153,6 +154,9 @@ export default function PublicSchoolHomePage() {
         return <PublicContactSection key="contact" settings={settings} />;
       case 'faq':
         return <PublicFaqSection key="faq" faqConfig={landingConfig.faq} />;
+      case 'mobile_app':
+        if (landingConfig.mobileApp && landingConfig.mobileApp.enabled === false) return null;
+        return <PublicMobileAppSection key="mobile_app" appConfig={landingConfig.mobileApp} settings={settings} />;
       default:
         return null;
     }
@@ -185,6 +189,11 @@ export default function PublicSchoolHomePage() {
 
         {/* 4. Dynamically Ordered & Enabled Sections */}
         {activeSections.map((sec) => renderSection(sec.key))}
+
+        {/* 5. Mobile App Download Section Fallback (if not already included in activeSections) */}
+        {!activeSections.some((s) => s.key === 'mobile_app') && landingConfig.mobileApp?.enabled !== false && (
+          <PublicMobileAppSection appConfig={landingConfig.mobileApp} settings={settings} />
+        )}
       </main>
 
       {/* Institutional Footer */}
