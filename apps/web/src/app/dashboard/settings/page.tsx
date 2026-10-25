@@ -1432,17 +1432,17 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => handleChange('padMargins', { top: 0.5, left: 0.5, right: 0.5, bottom: 0.5 })}
+                          onClick={() => handleChange('padMargins', { top: 3.0, left: 0.8, right: 0.8, bottom: 1.0 })}
                           className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                         >
-                          ★ স্ট্যান্ডার্ড মার্জিন (০.৫ ইঞ্চি চতুর্দিকে)
+                          ★ প্রাতিষ্ঠানিক প্যাড (Top: ৩.০&quot;, Left/Right: ০.৮&quot;)
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleChange('padMargins', { top: 1.2, left: 0.5, right: 0.5, bottom: 0.5 })}
+                          onClick={() => handleChange('padMargins', { top: 2.0, left: 0.8, right: 0.8, bottom: 1.0 })}
                           className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                         >
-                          ★ প্রেস লেটারহেড (Top: ১.২&quot;)
+                          ★ ছোট হেডার প্যাড (Top: ২.০&quot;)
                         </button>
                       </div>
                     </div>

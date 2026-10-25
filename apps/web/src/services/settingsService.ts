@@ -132,7 +132,7 @@ export type SchoolSettings = {
 };
 
 export const DEFAULT_PAD_MARGINS: PadMargins = {
-  top: 2.0,    // 2.0 inches clear space for uploaded school letterhead header
+  top: 3.0,    // 3.0 inches clear space for official school letterhead header (উপর থেকে ৩ ইঞ্চি নিচ থেকে লিখা শুরু হবে)
   left: 0.8,   // 0.8 inches left margin
   right: 0.8,  // 0.8 inches right margin
   bottom: 1.0, // 1.0 inch bottom space for footer
@@ -187,7 +187,7 @@ const getInitialSettings = (): SchoolSettings => {
     if (stored) {
       const parsed = JSON.parse(stored);
       const margins = parsed.padMargins || {};
-      const isLegacy = margins.top === 1.2 && margins.left === 1.4;
+      const isLegacy = !margins.top || margins.top < 3.0 || (margins.top === 1.2 && margins.left === 1.4) || margins.top === 2.0;
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,

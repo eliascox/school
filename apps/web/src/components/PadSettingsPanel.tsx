@@ -157,11 +157,11 @@ export default function PadSettingsPanel({
   const applyPreset = (preset: 'standard' | 'compact' | 'large_header') => {
     let margins: PadMargins;
     if (preset === 'standard') {
-      margins = { top: 2.0, bottom: 1.0, left: 0.8, right: 0.8 };
+      margins = { top: 3.0, bottom: 1.0, left: 0.8, right: 0.8 };
     } else if (preset === 'compact') {
-      margins = { top: 1.5, bottom: 0.8, left: 0.6, right: 0.6 };
+      margins = { top: 2.0, bottom: 0.8, left: 0.6, right: 0.6 };
     } else {
-      margins = { top: 2.5, bottom: 1.0, left: 0.8, right: 0.8 };
+      margins = { top: 3.5, bottom: 1.0, left: 0.8, right: 0.8 };
     }
     const updatedSettings: SchoolSettings = {
       ...settings,
@@ -463,25 +463,25 @@ export default function PadSettingsPanel({
                     type="button"
                     onClick={() => applyPreset('standard')}
                     className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="আদর্শ মার্জিন (Top: 2.0in, Bottom: 1.0in)"
+                    title="আদর্শ মার্জিন (Top: 3.0in, Bottom: 1.0in)"
                   >
-                    স্ট্যান্ডার্ড মার্জিন
+                    স্ট্যান্ডার্ড (৩.০&quot;)
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('compact')}
                     className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="ছোট হেডারের জন্য (Top: 1.5in)"
+                    title="ছোট হেডারের জন্য (Top: 2.0in)"
                   >
-                    কম্প্যাক্ট
+                    কম্প্যাক্ট (২.০&quot;)
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('large_header')}
                     className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="বড় হেডারের জন্য (Top: 2.5in)"
+                    title="বড় হেডারের জন্য (Top: 3.5in)"
                   >
-                    বড় হেডার
+                    বড় হেডার (৩.৫&quot;)
                   </button>
                 </div>
               </div>
@@ -727,7 +727,7 @@ export default function PadSettingsPanel({
               >
                 <div className="space-y-3 pt-1">
                   <p className="leading-loose text-justify indent-6">
-                    এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, <strong className="font-black text-slate-950 underline">মোঃ তানভীর হাসান</strong>, পিতা: মোঃ আবদুল মান্নান, মাতা: খালেদা বেগম, গ্রাম: বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার।
+                    এই মর্মে <strong className="font-black text-slate-950 font-serif">চারিত্রিক সনদ পত্র</strong> প্রদান করা যাচ্ছে যে, <strong className="font-black text-slate-950 underline">মোঃ তানভীর হাসান</strong>, পিতা: মোঃ আবদুল মান্নান, মাতা: খালেদা বেগম, গ্রাম: বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার।
                   </p>
                   <p className="leading-loose text-justify indent-6">
                     সে এই বিদ্যালয়ের দশম শ্রেণির বিজ্ঞান বিভাগের একজন নিয়মিত শিক্ষার্থী (রোল: ০১, শিক্ষাবর্ষ: ২০২৫-২০২৬)। ভর্তিবহি অনুযায়ী তার জন্ম তারিখ: ১৫/০৫/২০১০ খ্রি.।

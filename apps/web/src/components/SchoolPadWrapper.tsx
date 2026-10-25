@@ -216,10 +216,10 @@ export default function SchoolPadWrapper({
             </div>
           )}
 
-          {/* Document Title if specified */}
-          {mode !== 'blank_pad' && title && (
-            <div className="text-center my-3">
-              <span className="inline-block px-8 py-1 border-2 border-slate-900 rounded-sm font-serif font-black text-base sm:text-lg text-slate-950 tracking-wider shadow-xs bg-slate-50/50">
+          {/* Document Title if specified - prominent & bold */}
+          {title && (
+            <div className="text-center my-4 print:my-3">
+              <span className="inline-block px-10 py-1.5 border-2 border-slate-950 rounded-sm font-serif font-black text-xl sm:text-2xl text-slate-950 tracking-wider shadow-xs bg-slate-100/70">
                 {title}
               </span>
             </div>

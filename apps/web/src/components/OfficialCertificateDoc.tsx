@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { SchoolSettings, settingsService } from '@/services/settingsService';
+import { SchoolSettings, settingsService, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
 import { CertificateRecord, CertificateLayoutStyle } from '@/services/certificateService';
 import SchoolPadWrapper from './SchoolPadWrapper';
 
@@ -39,7 +39,17 @@ export default function OfficialCertificateDoc({
     ...(settings || {}),
   };
 
-  // Compute Title
+  // Ensure writing begins 3 inches down from the top as required by official school letterhead pad
+  const padMargins = {
+    ...(safeSettings.padMargins || DEFAULT_PAD_MARGINS),
+    top: Math.max(3.0, safeSettings.padMargins?.top || 3.0),
+  };
+  const docSettings: SchoolSettings = {
+    ...safeSettings,
+    padMargins,
+  };
+
+  // Compute Title - boldly emphasized
   const title =
     cert.title ||
     (cert.type === 'current_student'
@@ -52,19 +62,33 @@ export default function OfficialCertificateDoc({
       ? 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন'
       : 'প্রত্যয়ন পত্র');
 
-  // Format Text with Line breaks
+  // Format Text with Line breaks and bold formatting (**text**)
+  const renderFormattedText = (para: string) => {
+    const parts = para.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={idx} className="font-black text-slate-950 font-serif">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
   const formatParagraphs = (text?: string) => {
     if (!text) return null;
     return text.split('\n\n').map((para, i) => (
       <p key={i} className="mb-4 leading-relaxed text-justify indent-6">
-        {para}
+        {renderFormattedText(para)}
       </p>
     ));
   };
 
   return (
     <SchoolPadWrapper
-      settings={safeSettings}
+      settings={docSettings}
       mode={mode}
       onModeChange={onModeChange}
       onOpenSettings={onOpenSettings}
@@ -90,7 +114,7 @@ export default function OfficialCertificateDoc({
         ) : (
           <div className="space-y-4 text-justify indent-6">
             <p className="leading-loose">
-              এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, <strong className="font-black underline">{cert.studentName}</strong>
+              এই মর্মে <strong className="font-black text-slate-950 underline decoration-slate-900">{title}</strong> প্রদান করা যাচ্ছে যে, <strong className="font-black underline">{cert.studentName}</strong>
               {cert.studentNameEn && <span> ({cert.studentNameEn})</span>}, পিতা: <strong className="font-extrabold">{cert.fatherName}</strong>, মাতা: <strong className="font-extrabold">{cert.motherName}</strong>, 
               {cert.address && !cert.village ? (
                 <>ঠিকানা: <strong className="font-bold">{cert.address}</strong>।</>
