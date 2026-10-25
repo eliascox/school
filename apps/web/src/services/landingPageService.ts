@@ -1122,6 +1122,9 @@ class LandingPageService {
       }
       if (settings.schoolLogo && draft.header.logoUrl !== settings.schoolLogo) {
         draft.header.logoUrl = settings.schoolLogo;
+        if (draft.seo) {
+          draft.seo.favicon = settings.schoolLogo;
+        }
         changed = true;
       }
       if (settings.schoolPhoto && draft.hero.bgImage !== settings.schoolPhoto) {

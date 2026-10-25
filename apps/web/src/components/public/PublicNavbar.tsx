@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { SchoolSettings } from '@/services/settingsService';
+import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { HeaderConfig } from '@/services/landingPageService';
 
 interface PublicNavbarProps {
@@ -12,12 +12,40 @@ interface PublicNavbarProps {
 }
 
 export default function PublicNavbar({ settings, headerConfig, isOverHero = true }: PublicNavbarProps) {
+  const [activeSettings, setActiveSettings] = useState<SchoolSettings | null>(settings || null);
+  const [logoError, setLogoError] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [academicsOpen, setAcademicsOpen] = useState(false);
   const [mobileAcademicsOpen, setMobileAcademicsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const schoolName = headerConfig?.schoolName || settings?.schoolName || 'Baraitali High School';
+  // Sync settings dynamically from settingsService (Settings is primary source of truth)
+  useEffect(() => {
+    try {
+      const stored = settingsService.getSettings();
+      if (stored) setActiveSettings(stored);
+    } catch (e) {}
+
+    const unsub = settingsService.subscribe((s) => {
+      if (s) setActiveSettings(s);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (settings) {
+      setActiveSettings(settings);
+    }
+  }, [settings]);
+
+  // Primary source of truth is School Settings (`settingsService`)
+  const schoolLogo = activeSettings?.schoolLogo || settings?.schoolLogo || headerConfig?.logoUrl || '/logo.png';
+  const schoolName = activeSettings?.schoolName || headerConfig?.schoolName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+
+  // Reset image error state whenever logo URL changes
+  useEffect(() => {
+    setLogoError(false);
+  }, [schoolLogo]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -43,13 +71,18 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
           }}
           className="flex items-center gap-3 group shrink-0"
         >
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition">
-            <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden">
-              {headerConfig?.logoUrl || settings?.schoolLogo ? (
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-emerald-600/20 group-hover:scale-105 transition shrink-0">
+            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
+              {schoolLogo && !logoError ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={headerConfig?.logoUrl || settings?.schoolLogo} alt="Logo" className="w-full h-full object-cover" />
+                <img 
+                  src={schoolLogo} 
+                  alt={schoolName} 
+                  className="w-full h-full object-contain"
+                  onError={() => setLogoError(true)}
+                />
               ) : (
-                <i className="fa-solid fa-graduation-cap text-emerald-400 text-lg"></i>
+                <i className="fa-solid fa-graduation-cap text-emerald-500 text-lg"></i>
               )}
             </div>
           </div>
@@ -240,6 +273,28 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="xl:hidden glass-dropdown rounded-2xl mt-2 p-4 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 space-y-3 pointer-events-auto">
+          {/* Mobile School Brand Header */}
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 shadow-sm shrink-0">
+              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
+                {schoolLogo && !logoError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain" />
+                ) : (
+                  <i className="fa-solid fa-graduation-cap text-emerald-500 text-base"></i>
+                )}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-en font-bold text-sm text-slate-900 dark:text-white truncate">
+                {schoolName}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {activeSettings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার'}
+              </p>
+            </div>
+          </div>
+
           {/* Action buttons on mobile */}
           <div className="grid grid-cols-2 gap-2 pb-3 border-b border-slate-200 dark:border-slate-700">
             <Link

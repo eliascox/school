@@ -31,7 +31,14 @@ import PublicFooter from '@/components/public/PublicFooter';
 
 export default function PublicSchoolHomePage() {
   const [mounted, setMounted] = useState(false);
-  const [settings, setSettings] = useState<SchoolSettings | null>(null);
+  const [settings, setSettings] = useState<SchoolSettings | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return settingsService.getSettings();
+      } catch (e) {}
+    }
+    return null;
+  });
   const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(() => {
     if (typeof window !== 'undefined') {
       try {
