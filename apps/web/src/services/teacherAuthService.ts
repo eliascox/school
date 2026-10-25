@@ -2,6 +2,7 @@
 
 import { smsService } from './smsService';
 import { settingsService } from './settingsService';
+import { auditTrailService } from './auditTrailService';
 import { hashPassword, verifyPassword } from '@/lib/passwordUtils';
 
 export interface TeacherAccount {
@@ -27,6 +28,16 @@ export interface UserSession {
   expiresAt?: number;
 }
 
+export interface LockoutStatus {
+  isLocked: boolean;
+  remainingSeconds: number;
+  attempts: number;
+}
+
+const MAX_FAILED_ATTEMPTS = 5;
+const BASE_LOCKOUT_MS = 60 * 1000; // 1 minute
+const REPEAT_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes on repeated locks
+
 // Helper: Normalize phone numbers (convert Bengali digits, remove dashes/spaces/country code)
 export function normalizePhoneNumber(raw?: string): string {
   if (!raw) return '';
@@ -39,6 +50,11 @@ export function normalizePhoneNumber(raw?: string): string {
     digits = digits.slice(2);
   }
   return digits;
+}
+
+// Helper: Convert English numbers to Bengali numerals
+export function toBnDigits(num: number | string): string {
+  return String(num).replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[parseInt(d, 10)]);
 }
 
 export const teacherAuthService = {
@@ -134,8 +150,72 @@ export const teacherAuthService = {
     });
   },
 
+  // SEC-105: Check Brute-Force lockout status for an identifier
+  getLockoutStatus: (identifier: string): LockoutStatus => {
+    if (typeof window === 'undefined') return { isLocked: false, remainingSeconds: 0, attempts: 0 };
+    const clean = identifier.trim().toLowerCase();
+    const digits = normalizePhoneNumber(clean);
+    const key = 'sms_auth_lock_' + (digits.length >= 10 ? digits : clean);
+    const raw = localStorage.getItem(key);
+    if (!raw) return { isLocked: false, remainingSeconds: 0, attempts: 0 };
+    try {
+      const data = JSON.parse(raw);
+      const now = Date.now();
+      if (data.lockedUntil && data.lockedUntil > now) {
+        const remainingSeconds = Math.ceil((data.lockedUntil - now) / 1000);
+        return { isLocked: true, remainingSeconds, attempts: data.attempts || MAX_FAILED_ATTEMPTS };
+      }
+      if (data.lockedUntil && data.lockedUntil <= now) {
+        localStorage.removeItem(key);
+        return { isLocked: false, remainingSeconds: 0, attempts: 0 };
+      }
+      return { isLocked: false, remainingSeconds: 0, attempts: data.attempts || 0 };
+    } catch (e) {
+      localStorage.removeItem(key);
+      return { isLocked: false, remainingSeconds: 0, attempts: 0 };
+    }
+  },
+
+  // SEC-105: Record failed attempt and trigger progressive lockout
+  recordFailedAttempt: (identifier: string): { isNewlyLocked: boolean; remainingSeconds: number; attempts: number } => {
+    if (typeof window === 'undefined') return { isNewlyLocked: false, remainingSeconds: 0, attempts: 1 };
+    const clean = identifier.trim().toLowerCase();
+    const digits = normalizePhoneNumber(clean);
+    const key = 'sms_auth_lock_' + (digits.length >= 10 ? digits : clean);
+    const raw = localStorage.getItem(key);
+    let data = { attempts: 0, lockedUntil: 0, lockCount: 0 };
+    if (raw) {
+      try { data = JSON.parse(raw); } catch (e) {}
+    }
+
+    data.attempts = (data.attempts || 0) + 1;
+    let isNewlyLocked = false;
+    let remainingSeconds = 0;
+
+    if (data.attempts >= MAX_FAILED_ATTEMPTS) {
+      isNewlyLocked = true;
+      data.lockCount = (data.lockCount || 0) + 1;
+      const duration = data.lockCount > 1 ? REPEAT_LOCKOUT_MS : BASE_LOCKOUT_MS;
+      data.lockedUntil = Date.now() + duration;
+      remainingSeconds = Math.ceil(duration / 1000);
+    }
+
+    localStorage.setItem(key, JSON.stringify(data));
+    return { isNewlyLocked, remainingSeconds, attempts: data.attempts };
+  },
+
+  // SEC-105: Clear failed attempts on successful authentication
+  clearFailedAttempts: (identifier: string) => {
+    if (typeof window === 'undefined') return;
+    const clean = identifier.trim().toLowerCase();
+    const digits = normalizePhoneNumber(clean);
+    const key = 'sms_auth_lock_' + (digits.length >= 10 ? digits : clean);
+    localStorage.removeItem(key);
+  },
+
   // Unified Login (Teacher User ID is Phone Number, Admin is 'admin' or admin phone)
   // SEC-102: Uses PBKDF2 WebCrypto verification with transparent legacy migration
+  // SEC-105: Enforces brute-force lockout & enterprise security audit logging
   unifiedLogin: async (
     identifier: string,
     passwordInput: string
@@ -153,6 +233,23 @@ export const teacherAuthService = {
       return { success: false, message: 'অনুগ্রহ করে পাসওয়ার্ড লিখুন।' };
     }
 
+    // 0. SEC-105: Check Brute-Force Lockout Status
+    const lockout = teacherAuthService.getLockoutStatus(cleanInput);
+    if (lockout.isLocked) {
+      auditTrailService.addLog({
+        action: 'LOGIN_BLOCKED_LOCKOUT',
+        category: 'Security',
+        details: `লকড অ্যাকাউন্টে লগইন চেষ্টা প্রতিহত করা হয়েছে (আইডি: ${cleanInput}, বাকি: ${lockout.remainingSeconds} সেকেন্ড)`,
+        performedBy: cleanInput,
+        severity: 'danger',
+        status: 'Blocked'
+      });
+      return {
+        success: false,
+        message: `নিরাপত্তা সতর্কতা: অতিরিক্ত ভুল চেষ্টার কারণে অ্যাকাউন্টটি সাময়িকভাবে লক করা আছে। অনুগ্রহ করে আর ${toBnDigits(lockout.remainingSeconds)} সেকেন্ড পর চেষ্টা করুন।`
+      };
+    }
+
     // 1. Check Admin Credentials
     const storedAdminPass = localStorage.getItem('sms_admin_password') || 'admin123';
     const storedAdminPhone = (localStorage.getItem('sms_admin_phone') || 'admin').toLowerCase();
@@ -168,6 +265,9 @@ export const teacherAuthService = {
     if (isAdminIdentifier) {
       const verification = await verifyPassword(cleanPass, storedAdminPass);
       if (verification.valid) {
+        // SEC-105: Clear failed attempts on valid login
+        teacherAuthService.clearFailedAttempts(cleanInput);
+
         // SEC-102: Transparent Migration from legacy plaintext to PBKDF2 hash
         if (verification.needsRehash) {
           try {
@@ -179,7 +279,45 @@ export const teacherAuthService = {
         }
         const session: UserSession = { role: 'admin' };
         teacherAuthService.setSession(session);
+        auditTrailService.addLog({
+          action: 'LOGIN_SUCCESS',
+          category: 'Security',
+          details: 'প্রধান শিক্ষক / অ্যাডমিন সফলভাবে লগইন করেছেন।',
+          performedBy: 'অ্যাডমিন',
+          severity: 'info',
+          status: 'Success'
+        });
         return { success: true, message: 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!', role: 'admin' };
+      } else {
+        // Failed admin password attempt
+        const fail = teacherAuthService.recordFailedAttempt(cleanInput);
+        if (fail.isNewlyLocked) {
+          auditTrailService.addLog({
+            action: 'LOGIN_BRUTE_FORCE_LOCKOUT',
+            category: 'Security',
+            details: `পরপর ৫ বার ভুল পাসওয়ার্ড দেওয়ার কারণে অ্যাডমিন একাউন্টটি লক করা হয়েছে (ইউজার: ${cleanInput})`,
+            performedBy: cleanInput,
+            severity: 'danger',
+            status: 'Locked'
+          });
+          return {
+            success: false,
+            message: `নিরাপত্তা সতর্কতা: পরপর ৫ বার ভুল পাসওয়ার্ড দেওয়ার কারণে অ্যাডমিন একাউন্টটি ${toBnDigits(fail.remainingSeconds)} সেকেন্ডের জন্য লক করা হয়েছে।`
+          };
+        }
+        const remaining = Math.max(0, MAX_FAILED_ATTEMPTS - fail.attempts);
+        auditTrailService.addLog({
+          action: 'LOGIN_FAILED',
+          category: 'Security',
+          details: `অ্যাডমিন লগইন ব্যর্থ (ভুল পাসওয়ার্ড, অবশিষ্ট সুযোগ: ${remaining})`,
+          performedBy: cleanInput,
+          severity: 'warning',
+          status: 'Failed'
+        });
+        return {
+          success: false,
+          message: `অ্যাডমিন পাসওয়ার্ডটি ভুল হয়েছে! আর ${toBnDigits(remaining)} বার ভুল করলে একাউন্ট সাময়িকভাবে লক হয়ে যাবে।`
+        };
       }
     }
 
@@ -200,6 +338,9 @@ export const teacherAuthService = {
       const storedTeacherPass = found.passwordHash || found.password || '123456';
       const verification = await verifyPassword(cleanPass, storedTeacherPass);
       if (verification.valid) {
+        // SEC-105: Clear failed attempts on valid login
+        teacherAuthService.clearFailedAttempts(cleanInput);
+
         // SEC-102: Transparent Migration from legacy plaintext to PBKDF2 hash
         if (verification.needsRehash) {
           try {
@@ -228,13 +369,76 @@ export const teacherAuthService = {
           teacherName: found.name
         };
         teacherAuthService.setSession(session);
+        auditTrailService.addLog({
+          action: 'LOGIN_SUCCESS',
+          category: 'Security',
+          details: `শিক্ষক (${found.name}) সফলভাবে লগইন করেছেন।`,
+          performedBy: found.name,
+          severity: 'info',
+          status: 'Success'
+        });
         return { success: true, message: `স্বাগতম ${found.name}! সফলভাবে লগইন হয়েছে।`, role: 'teacher', teacher: found };
       } else {
-        return { success: false, message: 'পাসওয়ার্ডটি ভুল হয়েছে! অ্যাডমিন নির্ধারিত সঠিক পাসওয়ার্ড দিন।' };
+        const fail = teacherAuthService.recordFailedAttempt(cleanInput);
+        if (fail.isNewlyLocked) {
+          auditTrailService.addLog({
+            action: 'LOGIN_BRUTE_FORCE_LOCKOUT',
+            category: 'Security',
+            details: `পরপর ৫ বার ভুল পাসওয়ার্ড দেওয়ার কারণে শিক্ষক অ্যাকাউন্টটি লক করা হয়েছে (শিক্ষক: ${found.name})`,
+            performedBy: cleanInput,
+            severity: 'danger',
+            status: 'Locked'
+          });
+          return {
+            success: false,
+            message: `নিরাপত্তা সতর্কতা: পরপর ৫ বার ভুল পাসওয়ার্ড দেওয়ার কারণে আপনার শিক্ষক অ্যাকাউন্টটি ${toBnDigits(fail.remainingSeconds)} সেকেন্ডের জন্য লক করা হয়েছে।`
+          };
+        }
+        const remaining = Math.max(0, MAX_FAILED_ATTEMPTS - fail.attempts);
+        auditTrailService.addLog({
+          action: 'LOGIN_FAILED',
+          category: 'Security',
+          details: `শিক্ষক লগইন ব্যর্থ (শিক্ষক: ${found.name}, অবশিষ্ট সুযোগ: ${remaining})`,
+          performedBy: cleanInput,
+          severity: 'warning',
+          status: 'Failed'
+        });
+        return {
+          success: false,
+          message: `পাসওয়ার্ডটি ভুল হয়েছে! আর ${toBnDigits(remaining)} বার ভুল করলে একাউন্ট সাময়িকভাবে লক হয়ে যাবে।`
+        };
       }
     }
 
-    return { success: false, message: 'এই ফোন নম্বর/ইউজার আইডি দিয়ে কোনো শিক্ষক পাওয়া যায়নি! সঠিক নম্বর দিন।' };
+    // 3. User Not Found - Record attempt against malicious probe
+    const fail = teacherAuthService.recordFailedAttempt(cleanInput);
+    if (fail.isNewlyLocked) {
+      auditTrailService.addLog({
+        action: 'LOGIN_BRUTE_FORCE_LOCKOUT',
+        category: 'Security',
+        details: `অস্তিত্বহীন আইডিতে পরপর ৫ বার ব্যর্থ লগইন চেষ্টা (আইডি: ${cleanInput})`,
+        performedBy: cleanInput,
+        severity: 'danger',
+        status: 'Locked'
+      });
+      return {
+        success: false,
+        message: `নিরাপত্তা সতর্কতা: বারবার ব্যর্থ লগইন চেষ্টার কারণে প্রক্রিয়াটি ${toBnDigits(fail.remainingSeconds)} সেকেন্ডের জন্য লক করা হয়েছে।`
+      };
+    }
+    const remaining = Math.max(0, MAX_FAILED_ATTEMPTS - fail.attempts);
+    auditTrailService.addLog({
+      action: 'LOGIN_FAILED',
+      category: 'Security',
+      details: `অস্তিত্বহীন আইডিতে লগইন চেষ্টা (আইডি: ${cleanInput})`,
+      performedBy: cleanInput,
+      severity: 'warning',
+      status: 'Failed'
+    });
+    return {
+      success: false,
+      message: `এই ফোন নম্বর/ইউজার আইডি দিয়ে কোনো শিক্ষক পাওয়া যায়নি! (সতর্কতা: আর ${toBnDigits(remaining)} বার ভুল করলে সাময়িক লক হবে)`
+    };
   },
 
   loginTeacher: (identifier: string, passwordInput: string) => {
