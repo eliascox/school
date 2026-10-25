@@ -73,7 +73,6 @@ function VerificationContent() {
       case 'character_certificate': return 'চারিত্রিক সনদ পত্র (Character Certificate)';
       case 'transfer_certificate': return 'ছাড়পত্র / টিসি (Transfer Certificate - TC)';
       case 'current_student': return 'অধ্যয়নরত প্রত্যয়ন পত্র (Bonafide/Study Certificate)';
-      case 'school_leaving': return 'বিদ্যালয় ত্যাগের সনদ (School Leaving Certificate)';
       case 'appreciation': return 'কৃতিত্ব ও প্রশংসা সনদ (Appreciation Certificate)';
       case 'merit_certificate': return 'মেধা সনদ পত্র (Certificate of Merit)';
       case 'student_verification': return 'শিক্ষার্থী যাচাইকরণ প্রত্যয়ন (Verification Certificate)';

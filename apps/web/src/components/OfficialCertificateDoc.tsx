@@ -48,8 +48,6 @@ export default function OfficialCertificateDoc({
       ? 'চারিত্রিক সনদ পত্র'
       : cert.type === 'transfer_certificate'
       ? 'ছাড়পত্র / টিসি (TC)'
-      : cert.type === 'school_leaving'
-      ? 'বিদ্যালয় ত্যাগের সনদ'
       : cert.type === 'student_verification'
       ? 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন'
       : 'প্রত্যয়ন পত্র');

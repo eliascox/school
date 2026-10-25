@@ -106,15 +106,6 @@ const ALL_CERT_TYPES: {
     bgColor: 'bg-rose-50'
   },
   {
-    id: 'school_leaving',
-    title: 'বিদ্যালয় ত্যাগের সনদ',
-    desc: 'অধ্যয়ন সমাপ্তিপূর্বক প্রতিষ্ঠান ত্যাগের প্রত্যয়ন',
-    icon: BookOpen,
-    defaultLayout: 'pad',
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-50'
-  },
-  {
     id: 'student_verification',
     title: 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন',
     desc: 'পাসপোর্ট, ব্যাংক বা সরকারি কাজে প্রাতিষ্ঠানিক তথ্য যাচাই',
@@ -325,7 +316,7 @@ export default function CertificatesPage() {
       setCustomBody(interpolated);
     }
 
-    if (certType === 'ssc_testimonial' || certType === 'transfer_certificate' || certType === 'school_leaving') {
+    if (certType === 'ssc_testimonial' || certType === 'transfer_certificate') {
       setIsAlumni(true);
     } else {
       setIsAlumni(false);

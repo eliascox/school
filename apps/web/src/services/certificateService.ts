@@ -6,7 +6,6 @@ export type CertificateType =
   | 'character_certificate'   // চারিত্রিক সনদ পত্র (Character Certificate)
   | 'transfer_certificate'    // ছাড়পত্র / টিসি (Transfer Certificate - TC)
   | 'current_student'         // অধ্যয়নরত প্রত্যয়ন পত্র (Study / Bonafide Certificate)
-  | 'school_leaving'          // বিদ্যালয় ত্যাগের সনদ (School Leaving Certificate)
   | 'appreciation'            // কৃতিত্ব / প্রশংসা সনদ (Appreciation Certificate)
   | 'merit_certificate'       // মেধা সনদ পত্র (Merit Certificate)
   | 'student_verification'    // শিক্ষার্থী যাচাইকরণ সনদ (Student Verification Certificate)
@@ -117,7 +116,7 @@ export interface CertificateTemplate {
 const STORAGE_KEY = 'sms_certificates_history';
 const TEMPLATES_STORAGE_KEY = 'sms_certificate_templates';
 const TEMPLATES_VERSION_KEY = 'sms_templates_version';
-const CURRENT_TEMPLATES_VERSION = 'v4_with_student_address';
+const CURRENT_TEMPLATES_VERSION = 'v5_remove_school_leaving';
 
 // ─── DEFAULT TEMPLATES WITH DYNAMIC VARIABLES ──────────────────────────────
 export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
@@ -178,18 +177,6 @@ We wish him/her every success in all future academic and personal endeavors.`
 এই বিদ্যালয়ে অধ্যয়নকালে তার সমস্ত বকেয়া ও পাওনাদি পরিশোধিত হয়েছে। তার স্বভাব-চরিত্র সন্তোষজনক ছিল। অভিভাবকের আবেদনের প্রেক্ষিতে এবং প্রাতিষ্ঠানিক নিয়ম মেনে তাকে এই বিদ্যালয় থেকে এই ছাড়পত্র প্রদান করা হলো।
 
 আমরা তার ভবিষ্যৎ জীবনের সর্বাঙ্গীন মঙ্গল ও সাফল্য কামনা করি।`
-  },
-  {
-    id: 'tmpl_school_leaving',
-    type: 'school_leaving',
-    name: 'বিদ্যালয় ত্যাগের সনদ (School Leaving Certificate)',
-    title: 'বিদ্যালয় ত্যাগের সনদ পত্র',
-    layoutStyle: 'pad',
-    language: 'bn',
-    isDefault: true,
-    bodyTemplate: `এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {{student_name}}, আইডি নং: {{student_id}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে এই বিদ্যালয়ের {{class}} শ্রেণিতে অধ্যয়ন সম্পন্ন করে বিদ্যালয় ত্যাগ করছে। বিদ্যালয়ে অবস্থানকালে তার আচরণ ও লেখাপড়ার মান প্রশংসনীয় ছিল।
-
-তার ভবিষ্যৎ জীবনের সাফল্য ও উজ্জ্বল কর্মজীবনের জন্য শুভকামনা রইল।`
   },
   {
     id: 'tmpl_appreciation',
