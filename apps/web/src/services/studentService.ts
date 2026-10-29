@@ -417,11 +417,11 @@ export const studentService = {
   },
 
   // Save Bulk Imported Students
-  saveBulkStudents: (importedList: Student[]): void => {
+  saveBulkStudents: (importedList: Student[], replaceExisting: boolean = false): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('sms_uploaded_students');
 
-    const existing = studentService.getAllStudents();
+    const existing = replaceExisting ? [] : studentService.getAllStudents();
     const merged = deduplicateStudentList([...importedList, ...existing]);
 
     localStorage.setItem('sms_students', JSON.stringify(merged));

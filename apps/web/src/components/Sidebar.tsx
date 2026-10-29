@@ -43,6 +43,7 @@ import {
   Send,
   FileCheck,
   FileText,
+  FileSpreadsheet,
   ExternalLink,
   Sparkles
 } from 'lucide-react';
@@ -237,6 +238,12 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
               icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600" />,
               badge: studentCount,
               badgeColor: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+            },
+            {
+              label: 'Bulk Student Upload',
+              labelBn: 'বাল্ক শিক্ষার্থী আপলোড',
+              href: '/dashboard/settings?tab=bulk-student',
+              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
             },
             {
               label: 'Print & Reports',
@@ -584,6 +591,12 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
               labelBn: 'স্কুল সাধারণ সেটিংস',
               href: '/dashboard/settings',
               icon: <Sliders className="w-3.5 h-3.5 text-pink-600" />,
+            },
+            {
+              label: 'Bulk Student Upload',
+              labelBn: 'বাল্ক শিক্ষার্থী তথ্য আপলোড',
+              href: '/dashboard/settings?tab=bulk-student',
+              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
             },
             {
               label: 'Managing Committee',

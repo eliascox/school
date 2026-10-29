@@ -82,9 +82,10 @@ import { ledgerService } from '@/services/ledgerService';
 import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import { SystemPurgeReport } from '@/services/systemResetService';
 import { processPadUpload } from '@/lib/padPdfRenderer';
+import StudentBulkImportPanel from '@/components/StudentBulkImportPanel';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
-type SettingsTab = 'identity' | 'committee' | 'facilities' | 'pad' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
+type SettingsTab = 'identity' | 'committee' | 'facilities' | 'pad' | 'bulk-student' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
 
 interface TabConfig {
   id: SettingsTab;
@@ -101,6 +102,7 @@ const TABS: TabConfig[] = [
   { id: 'committee', label: 'Managing Committee', labelBn: 'ম্যানেজিং কমিটি', icon: <Users className="w-4 h-4" />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
   { id: 'facilities', label: 'Campus Facilities', labelBn: 'ক্যাম্পাস সুবিধাসমূহ', icon: <Building2 className="w-4 h-4" />, color: 'text-teal-600', bgColor: 'bg-teal-50', borderColor: 'border-teal-200' },
   { id: 'pad', label: 'School Pad', labelBn: 'স্কুল প্যাড', icon: <Printer className="w-4 h-4" />, color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-200' },
+  { id: 'bulk-student', label: 'Bulk Student Upload', labelBn: 'বাল্ক শিক্ষার্থী তথ্য', icon: <FileSpreadsheet className="w-4 h-4" />, color: 'text-violet-600', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
   { id: 'security', label: 'Security', labelBn: 'নিরাপত্তা', icon: <Shield className="w-4 h-4" />, color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
   { id: 'appearance', label: 'Appearance', labelBn: 'ডিজাইন', icon: <Palette className="w-4 h-4" />, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   { id: 'academic', label: 'Academic', labelBn: 'একাডেমিক', icon: <GraduationCap className="w-4 h-4" />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
@@ -204,6 +206,17 @@ export default function SettingsPage() {
   useEffect(() => {
     loadTeachers();
   }, [loadTeachers, activeTab]);
+
+  // Sync activeTab with URL query parameter (e.g. ?tab=bulk-student)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['identity', 'committee', 'facilities', 'pad', 'bulk-student', 'security', 'appearance', 'academic', 'sms', 'data', 'system'].includes(tabParam)) {
+        setActiveTab(tabParam as SettingsTab);
+      }
+    }
+  }, []);
 
   const handleSaveTeacherPassword = (tId: string, tName: string) => {
     const newPass = teacherPasswords[tId]?.trim();
@@ -2236,6 +2249,11 @@ export default function SettingsPage() {
             </>
           )}
 
+          {/* ━━━ TAB: BULK STUDENT UPLOAD ━━━ */}
+          {activeTab === 'bulk-student' && (
+            <StudentBulkImportPanel />
+          )}
+
           {/* ━━━ TAB: SECURITY ━━━ */}
           {activeTab === 'security' && (
             <>
@@ -3312,98 +3330,8 @@ export default function SettingsPage() {
               {/* 🛡️ Native Disaster Recovery & Encrypted Backup Engine */}
               <DisasterRecoveryPanel />
 
-              {/* Bulk Student Upload */}
-              <SettingsCard
-                title="বাল্ক শিক্ষার্থী আপলোড"
-                subtitle="সিএসভি ফাইলে শিক্ষার্থীদের তথ্য একত্রে ইম্পোর্ট করুন"
-                icon={<Users className="w-5 h-5" />}
-                iconBg="bg-purple-50" iconColor="text-purple-600"
-                badge={
-                  <button
-                    type="button"
-                    onClick={downloadSampleCSV}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-[11px] font-bold transition-all shadow-sm shrink-0"
-                  >
-                    <Download className="w-3.5 h-3.5 text-amber-700" /> নমুনা CSV
-                  </button>
-                }
-              >
-                {/* Dropzone */}
-                <div className="p-6 border-2 border-dashed border-purple-200 bg-purple-50/30 rounded-2xl text-center space-y-3">
-                  <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center">
-                    <FileSpreadsheet className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <label className="inline-block px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-lg cursor-pointer transition-all">
-                      ফাইল নির্বাচন করুন (.CSV)
-                      <input
-                        type="file"
-                        accept=".csv, .txt, .xlsx"
-                        onChange={handleCSVUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-[11px] font-medium text-slate-500 mt-2">
-                      উপরে নমুনা CSV ফাইল ডাউনলোড করে নির্দেশিত কলাম অনুযায়ী তথ্য আপলোড করুন
-                    </p>
-                  </div>
-                </div>
-
-                {/* Import Success Message */}
-                {importSuccessMsg && (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{importSuccessMsg}</span>
-                    <button onClick={() => setImportSuccessMsg('')} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg"><X className="w-3 h-3" /></button>
-                  </div>
-                )}
-
-                {/* Parsed Students Preview */}
-                {parsedStudentsList.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-900 flex items-center gap-1.5">
-                        <FileSpreadsheet className="w-4 h-4 text-purple-600" />
-                        প্রাপ্ত শিক্ষার্থী: <span className="text-purple-700 font-black">{parsedStudentsList.length} জন</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleSaveUploadedStudents}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
-                      >
-                        <Upload className="w-3.5 h-3.5" /> সংরক্ষণ
-                      </button>
-                    </div>
-
-                    <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl text-[11px]">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-100 text-slate-800 font-bold sticky top-0">
-                          <tr>
-                            <th className="p-2 border-b">রোল</th>
-                            <th className="p-2 border-b">নাম</th>
-                            <th className="p-2 border-b">শ্রেণি</th>
-                            <th className="p-2 border-b">শাখা</th>
-                            <th className="p-2 border-b">বিভাগ</th>
-                            <th className="p-2 border-b">ঐচ্ছিক</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-medium">
-                          {(Array.isArray(parsedStudentsList) ? parsedStudentsList : []).map((st, i) => (
-                            <tr key={i} className="hover:bg-purple-50/50">
-                              <td className="p-2 font-mono font-bold">{st.roll}</td>
-                              <td className="p-2 font-bold text-slate-900">{st.name}</td>
-                              <td className="p-2">{st.grade}</td>
-                              <td className="p-2">{st.section}</td>
-                              <td className="p-2">{st.group}</td>
-                              <td className="p-2 text-purple-900 font-bold">{st.optionalSubject}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </SettingsCard>
+              {/* 🌟 COMPLETE BULK STUDENT UPLOAD ENGINE */}
+              <StudentBulkImportPanel />
 
               {/* Database Clean Reset Management */}
               <SettingsCard
