@@ -318,6 +318,36 @@ class TeacherRBACService {
     return { success: true, message: 'শিক্ষকের তথ্য ও সকল অ্যাসাইনমেন্ট সফলভাবে মুছে ফেলা হয়েছে!' };
   }
 
+  clearAllTeachers(): { success: boolean; message: string; count: number } {
+    if (typeof window === 'undefined') return { success: false, message: 'Browser missing', count: 0 };
+    const teachers = this.getTeachers();
+    const count = teachers.length;
+    localStorage.setItem('sms_rbac_teachers', JSON.stringify([]));
+    localStorage.setItem('sms_teachers_list', JSON.stringify([]));
+    localStorage.setItem('sms_rbac_subject_assignments', JSON.stringify([]));
+    localStorage.setItem('sms_rbac_class_teachers', JSON.stringify([]));
+    localStorage.setItem('sms_teacher_leaves', JSON.stringify([]));
+    
+    // Also remove any teacher auth lockout keys & attendance
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach(k => {
+      if (k.startsWith('sms_auth_lock_') || k.startsWith('sms_teacher_attendance_')) {
+        localStorage.removeItem(k);
+      }
+    });
+
+    auditTrailService.addLog({
+      action: 'CLEAR_ALL_TEACHERS',
+      category: 'RBAC',
+      details: `সকল শিক্ষক ও স্টাফ রেকর্ড (${count} জন) সিস্টেম থেকে স্থায়ীভাবে মুছে ফেলা হয়েছে`,
+      performedBy: 'অ্যাডমিন',
+      status: 'SUCCESS'
+    });
+
+    window.dispatchEvent(new Event('storage'));
+    return { success: true, message: `সকল শিক্ষকের তথ্য (${count} জন) সফলভাবে মুছে ফেলা হয়েছে!`, count };
+  }
+
   getClassTeachers(): ClassTeacherAssignment[] {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem('sms_rbac_class_teachers');

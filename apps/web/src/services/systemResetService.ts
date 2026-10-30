@@ -80,16 +80,42 @@ export const systemResetService = {
       localStorage.setItem('sms_student_photos', JSON.stringify({}));
       localStorage.setItem('sms_online_applications', JSON.stringify([]));
       localStorage.setItem('sms_promotion_history', JSON.stringify([]));
+      localStorage.setItem('sms_stipend_students', JSON.stringify([]));
+      localStorage.setItem('sms_ssc_transcripts', JSON.stringify([]));
+      localStorage.setItem('sms_ssc_testimonials', JSON.stringify([]));
       layers.push({
         layer: 'শিক্ষার্থী স্তর',
-        description: 'সকল শিক্ষার্থী, আপলোড তালিকা, ছবি ও অনলাইন ভর্তি আবেদন সম্পূর্ণ খালি করা হয়েছে',
+        description: 'সকল শিক্ষার্থী, আপলোড তালিকা, ছবি, উপবৃত্তি ও অনলাইন ভর্তি আবেদন সম্পূর্ণ খালি করা হয়েছে',
         status: 'cleared'
       });
     } catch (e) {
       console.error('Error clearing student layer:', e);
     }
 
-    // ─── ২. পরীক্ষা, নম্বর ও ফলাফল স্তর (Exams & Marks) ───
+    // ─── ২. শিক্ষক, স্টাফ ও পারমিশন স্তর (Teachers, Staff & RBAC) ───
+    try {
+      localStorage.setItem('sms_rbac_teachers', JSON.stringify([]));
+      localStorage.setItem('sms_teachers_list', JSON.stringify([]));
+      localStorage.setItem('sms_rbac_subject_assignments', JSON.stringify([]));
+      localStorage.setItem('sms_rbac_class_teachers', JSON.stringify([]));
+      localStorage.setItem('sms_teacher_leaves', JSON.stringify([]));
+      let teacherKeysCount = 0;
+      allKeys.forEach((key) => {
+        if (key.startsWith('sms_teacher_attendance_') || key.startsWith('sms_auth_lock_')) {
+          localStorage.removeItem(key);
+          teacherKeysCount++;
+        }
+      });
+      layers.push({
+        layer: 'শিক্ষক ও স্টাফ স্তর',
+        description: 'সকল শিক্ষক, বিষয় বণ্টন, শ্রেণি শিক্ষক অ্যাসাইনমেন্ট ও ছুটির আবেদন সম্পূর্ণ খালি করা হয়েছে',
+        status: 'cleared'
+      });
+    } catch (e) {
+      console.error('Error clearing teachers layer:', e);
+    }
+
+    // ─── ৩. পরীক্ষা, নম্বর ও ফলাফল স্তর (Exams & Marks) ───
     try {
       let markKeysCount = 0;
       allKeys.forEach((key) => {

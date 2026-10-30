@@ -339,6 +339,19 @@ function TeacherManagementContent() {
     }
   };
 
+  const handleClearAllTeachers = () => {
+    if (teachers.length === 0) return;
+    if (confirm('আপনি কি নিশ্চিত যে সকল শিক্ষকের তালিকা ও পারমিশন মুছে ফেলতে চান? এটি অপরিবর্তনীয়!')) {
+      const res = teacherRBACService.clearAllTeachers();
+      if (res.success) {
+        showAlert('success', res.message);
+        refreshAllData();
+      } else {
+        showAlert('error', res.message);
+      }
+    }
+  };
+
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return showAlert('error', 'নাম এবং ফোন নম্বর প্রদান করুন!');
@@ -538,7 +551,16 @@ function TeacherManagementContent() {
 
       {/* TOP ACTIONS & STATS ROW (Clean & Compact) */}
       <div className="space-y-4 print:hidden">
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          {teachers.length > 0 && (
+            <button
+              onClick={handleClearAllTeachers}
+              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="সকল শিক্ষক রেকর্ড সম্পূর্ণ মুছে ফেলুন"
+            >
+              <Trash2 size={14} className="text-rose-600" /> সকল শিক্ষক মুছুন
+            </button>
+          )}
           <button
             onClick={() => setShowAddTeacherModal(true)}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95"

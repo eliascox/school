@@ -103,7 +103,11 @@ export const SecurityDeleteModal: React.FC<SecurityDeleteModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/60 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                <span><strong>শিক্ষার্থী স্তর:</strong> সকল শিক্ষার্থী, ছবি ও ভর্তি আবেদন</span>
+                <span><strong>শিক্ষার্থী স্তর:</strong> সকল শিক্ষার্থী, ছবি, উপবৃত্তি ও ভর্তি আবেদন</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                <span><strong>শিক্ষক ও স্টাফ:</strong> সকল শিক্ষক তালিকা, বিষয় বণ্টন ও পারমিশন</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />

@@ -432,6 +432,44 @@ export const studentService = {
     });
   },
 
+  // Delete all students completely from the system & sync
+  clearAllStudents: (performedBy: string = 'অ্যাডমিন'): { success: boolean; message: string; count: number } => {
+    if (typeof window === 'undefined') return { success: false, message: 'Browser missing', count: 0 };
+    const all = studentService.getAllStudents();
+    const count = all.length;
+    localStorage.setItem('sms_students', JSON.stringify([]));
+    localStorage.removeItem('sms_uploaded_students');
+    localStorage.removeItem('students');
+    localStorage.setItem('sms_student_photos', JSON.stringify({}));
+    localStorage.setItem('sms_online_applications', JSON.stringify([]));
+    localStorage.setItem('sms_promotion_history', JSON.stringify([]));
+    localStorage.setItem('sms_stipend_students', JSON.stringify([]));
+    localStorage.setItem('sms_ssc_transcripts', JSON.stringify([]));
+    localStorage.setItem('sms_ssc_testimonials', JSON.stringify([]));
+
+    // Clear marks and attendance for students
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach((key) => {
+      if (key.startsWith('sms_marks_') || key.startsWith('sms_attendance_') || key.startsWith('sms_marksheet_')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    localStorage.setItem('sms_demo_cleared', 'true');
+    window.dispatchEvent(new Event('storage'));
+    listeners.forEach((fn) => fn());
+
+    auditTrailService.addLog({
+      action: 'CLEAR_ALL_STUDENTS',
+      category: 'Student',
+      details: `সকল শিক্ষার্থীর তথ্য (${count} জন) সিস্টেম থেকে সফলভাবে মুছে ফ্রেশ করা হয়েছে`,
+      performedBy: performedBy,
+      status: 'SUCCESS'
+    });
+
+    return { success: true, message: `সকল শিক্ষার্থীর তথ্য (${count} জন) সফলভাবে মুছে ফেলা হয়েছে!`, count };
+  },
+
   // Clear All Demo/Real Data & Reset DB completely (Synchronized across all system layers)
   clearAllDemoData: (comment?: string, performedBy?: string): SystemPurgeReport => {
     const report = systemResetService.purgeAllSystemData(comment, performedBy);

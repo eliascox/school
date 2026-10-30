@@ -56,6 +56,10 @@ describe('systemResetService multi-layer synchronized purge', () => {
     // 1. Student layer verified empty
     expect(studentService.getAllStudents()).toEqual([]);
 
+    // 1.5. Teacher layer verified empty
+    expect(JSON.parse(localStorage.getItem('sms_rbac_teachers') || '[]')).toEqual([]);
+    expect(JSON.parse(localStorage.getItem('sms_teachers_list') || '[]')).toEqual([]);
+
     // 2. Marks verified purged
     expect(localStorage.getItem('sms_marks_half_yearly_6th_A_gen_01')).toBeNull();
     expect(localStorage.getItem('sms_marks_annual_7th_B_sci_02')).toBeNull();

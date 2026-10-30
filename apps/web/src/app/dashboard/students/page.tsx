@@ -640,6 +640,17 @@ export default function StudentListPage() {
     }
   };
 
+  const handleClearAllStudents = () => {
+    if (students.length === 0) return;
+    if (confirm('আপনি কি নিশ্চিত যে সিস্টেম থেকে সকল শিক্ষার্থীর তালিকা মুছে ফ্রেশ করতে চান? এটি অপরিবর্তনীয়!')) {
+      const res = studentService.clearAllStudents();
+      loadStudentsFromStorage();
+      setSelectedStudentIds([]);
+      if (activeView !== 'list') switchView('list');
+      alert(res.message);
+    }
+  };
+
   const handleSaveEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFormData) return;
@@ -2565,7 +2576,17 @@ export default function StudentListPage() {
                 </div>
 
                 {/* Right Side: Print & Add Student Action Buttons */}
-                <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
+                <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center flex-wrap">
+                  {students.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllStudents}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      title="সকল শিক্ষার্থীর রেকর্ড মুছে ফেলুন"
+                    >
+                      <Trash2 size={14} className="text-rose-600" /> সকল শিক্ষার্থী মুছুন
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowBulkPhotoModal(true)}
