@@ -1513,9 +1513,32 @@ function TeacherManagementContent() {
           </div>
 
           {filteredLeaves.length === 0 ? (
-            <div className="text-center py-16 text-xs text-slate-400 font-bold space-y-2">
-              <Send size={32} className="mx-auto text-slate-300 stroke-1" />
-              <p>এই ফিল্টারে বর্তমানে কোনো ছুটির আবেদন নেই।</p>
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-100 flex items-center justify-center shadow-sm">
+                <Send size={36} className="text-amber-400 stroke-1" />
+              </div>
+              {leaveApplications.length === 0 ? (
+                <>
+                  <div>
+                    <p className="text-base font-black text-slate-700">কোনো ছুটির আবেদন নেই</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1 max-w-xs mx-auto">
+                      শিক্ষকরা ছুটির আবেদন জমা দিলে এখানে তালিকা প্রদর্শিত হবে।
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-xs text-slate-500 font-medium max-w-sm">
+                    💡 শিক্ষক তালিকা থেকে যেকোনো শিক্ষকের প্রোফাইলে গিয়ে ছুটির আবেদন করা যাবে।
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-base font-black text-slate-700">এই ফিল্টারে কোনো আবেদন নেই</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">
+                      অন্য ফিল্টার নির্বাচন করুন অথবা &quot;সব আবেদন&quot; দেখুন।
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

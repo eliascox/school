@@ -31,53 +31,30 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   earned: 'অর্জিত ছুটি (Earned Leave)'
 };
 
-const DEFAULT_LEAVES: LeaveApplication[] = [
-  {
-    id: 'LEV-1001',
-    teacherId: 'TCH-101',
-    teacherName: 'মোহাম্মদ আবদুল করিম',
-    designation: 'সহকারী শিক্ষক (গণিত)',
-    leaveType: 'casual',
-    startDate: '2026-09-05',
-    endDate: '2026-09-06',
-    totalDays: 2,
-    reason: 'পারিবারিক জরুরি সামাজিক কাজের জন্য ২ দিনের নৈমিত্তিক ছুটি প্রয়োজন।',
-    appliedAt: '2026-08-30T09:30:00Z',
-    status: 'approved',
-    reviewedBy: 'প্রধান শিক্ষক',
-    reviewedAt: '2026-08-30T11:00:00Z',
-    remarks: 'ছুটি মঞ্জুর করা হলো। পরীক্ষার পূর্বের ক্লাস সম্পন্ন করার অনুরোধ রইলো।'
-  },
-  {
-    id: 'LEV-1002',
-    teacherId: 'TCH-102',
-    teacherName: 'নাসরিন আক্তার',
-    designation: 'সহকারী শিক্ষক (বিজ্ঞান)',
-    leaveType: 'medical',
-    startDate: '2026-09-10',
-    endDate: '2026-09-12',
-    totalDays: 3,
-    reason: 'শারীরিক অসুস্থতার কারণে ডাক্তারের পরামর্শ অনুযায়ী ৩ দিনের বিশ্রাম।',
-    appliedAt: '2026-08-31T08:15:00Z',
-    status: 'pending'
-  }
-];
+const DEFAULT_LEAVES: LeaveApplication[] = [];
 
 class LeaveService {
   private listeners: (() => void)[] = [];
 
   getLeaves(): LeaveApplication[] {
-    if (typeof window === 'undefined') return DEFAULT_LEAVES;
+    if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored) as LeaveApplication[];
+        // Migration: remove any old hardcoded demo leave entries (LEV-1001, LEV-1002)
+        const DEMO_IDS = new Set(['LEV-1001', 'LEV-1002']);
+        const cleaned = parsed.filter(l => !DEMO_IDS.has(l.id));
+        if (cleaned.length !== parsed.length) {
+          // Demo data was present — persist the cleaned list
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        }
+        return cleaned;
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_LEAVES));
-      return DEFAULT_LEAVES;
+      return [];
     } catch (e) {
       console.error(e);
-      return DEFAULT_LEAVES;
+      return [];
     }
   }
 
