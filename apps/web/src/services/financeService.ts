@@ -1089,7 +1089,8 @@ export const financeService = {
       const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
       const totalPayable = items.reduce((s, i) => s + i.netAmount, 0);
 
-      const invNo = `INV-${String(year).slice(-2)}${String(targetMonthIdx + 1).padStart(2, '0')}-${String(st.roll || idx + 1).padStart(4, '0')}`;
+      // ✅ Bug 9 Fix: use sequential idx to avoid roll-number collision across classes
+      const invNo = `INV-${String(year).slice(-2)}${String(targetMonthIdx + 1).padStart(2, '0')}-${String(idx + 1).padStart(4, '0')}`;
       const newInv: FeeInvoice = {
         id: `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
         invoiceNo: invNo,
@@ -2447,9 +2448,13 @@ export const financeService = {
           const totalMonthsPaid = (ledger.months || []).reduce((s: number, m: MonthDue) => s + m.paidAmount, 0);
           const totalOtherPaid = Object.values(ledger.otherFees || {}).reduce((s: number, o: any) => s + o.paidAmount, 0);
 
-          ledger.totalBilled = totalMonthsBilled + totalOtherBilled;
-          ledger.totalPaid = totalMonthsPaid + totalOtherPaid;
-          ledger.totalDue = totalMonthsDue + totalOtherDue;
+          // ✅ Bug 7 Fix: include openingDue in totals for consistency
+          const openBilled = Number(ledger.openingDue) || 0;
+          const openPaid = Number(ledger.openingDuePaid) || 0;
+          const openRemaining = Math.max(0, openBilled - openPaid);
+          ledger.totalBilled = totalMonthsBilled + totalOtherBilled + openBilled;
+          ledger.totalPaid = totalMonthsPaid + totalOtherPaid + openPaid;
+          ledger.totalDue = totalMonthsDue + totalOtherDue + openRemaining;
 
           return ledger;
         }

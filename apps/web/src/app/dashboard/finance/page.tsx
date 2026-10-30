@@ -417,11 +417,13 @@ function FinanceContent() {
       const ledger = allStudentLedgers[st.id] || financeService.getStudentFeeLedger(st.id, gradeKey, stipend);
       const due = ledger ? ledger.totalDue : 0;
       const paid = ledger ? ledger.totalPaid : 0;
+      const billed = ledger ? ledger.totalBilled : 0;
       totalDue += due;
       if (due > 0) {
         studentsWithDue++;
         duesList.push({ student: st, due, paid });
-      } else {
+      } else if (paid > 0 || billed === 0) {
+        // ✅ Bug 11 Fix: paid>0 means genuinely paid; billed===0 means not yet billed (new student)
         studentsPaid++;
       }
     });
@@ -597,6 +599,11 @@ function FinanceContent() {
     const studentStipendStartMonth = (selectedStudent as any).stipendStartMonth || 
       (selectedStudent.isStipend && (selectedStudent as any).stipendMonth) || 'জানুয়ারি';
 
+    // ✅ Bug 6 Fix: Generate trxId ONCE and reuse in both places
+    const finalTrxId = paymentMethod === 'Cash'
+      ? `CASH-${Date.now().toString().slice(-6)}`
+      : trxIdInput || `TRX-${Date.now().toString().slice(-6)}`;
+
     const { updatedLedger, paidFeeItems } = financeService.applyPaymentToStudentLedger({
       studentId: selectedStudent.id,
       studentName: selectedStudent.name,
@@ -609,7 +616,7 @@ function FinanceContent() {
       paymentAmount: actualPaidAmount,
       discountAmount: discountAmount,
       paymentMethod: paymentMethod as any,
-      trxId: paymentMethod === 'Cash' ? `CASH-${Date.now().toString().slice(-6)}` : trxIdInput || `TRX-${Date.now().toString().slice(-6)}`,
+      trxId: finalTrxId,
       receiptId: receiptNum,
       collectedBy,
       date: now.toISOString().split('T')[0],
@@ -631,7 +638,7 @@ function FinanceContent() {
       paidAmount: actualPaidAmount,
       dueRemaining: updatedLedger.totalDue,
       paymentMethod,
-      trxId: paymentMethod === 'Cash' ? `CASH-${Date.now().toString().slice(-6)}` : trxIdInput || `TRX-${Date.now().toString().slice(-6)}`,
+      trxId: finalTrxId,
       date: now.toISOString().split('T')[0],
       collectedBy
     };
@@ -848,18 +855,18 @@ function FinanceContent() {
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [printSalarySlip, setPrintSalarySlip] = useState<PayrollRecord | null>(null);
   const [payrollForm, setPayrollForm] = useState({
-    teacherId: 'TCH-103',
-    teacherName: 'কাজী মিজানুর রহমান',
-    designation: 'সিনিয়র গণিত শিক্ষক',
-    month: 'আগস্ট',
-    year: 2026,
-    baseSalary: 32000,
-    allowances: 5000,
+    teacherId: '',
+    teacherName: '',
+    designation: '',
+    month: BANGLA_MONTHS[new Date().getMonth()],
+    year: new Date().getFullYear(),
+    baseSalary: 0,
+    allowances: 0,
     bonus: 0,
-    deductions: 1000,
+    deductions: 0,
     paymentMethod: 'Bank Transfer' as const,
     trxId: '',
-    note: 'মাসিক বেতন ও ভাতা প্রদান'
+    note: ''
   });
 
   const handleSavePayroll = (e: React.FormEvent) => {
@@ -1043,21 +1050,21 @@ function FinanceContent() {
     reason: string;
     approvedBy: string;
   }>({
-    studentId: 'STU-601',
-    studentName: 'তাহমিদ চৌধুরী',
-    roll: '০১',
-    grade: '৬ষ্ঠ শ্রেণি',
+    studentId: '',
+    studentName: '',
+    roll: '',
+    grade: '',
     type: 'percent',
-    value: 100,
-    reason: 'বীর মুক্তিযোদ্ধা সন্তান কোটা',
+    value: 0,
+    reason: '',
     approvedBy: 'প্রধান শিক্ষক'
   });
   const [refundForm, setRefundForm] = useState({
-    receiptId: 'REC-202608-8819',
-    studentId: 'STU-601',
-    studentName: 'তাহমিদ চৌধুরী',
-    amount: 300,
-    reason: 'পরীক্ষা ফি অতিরিক্ত প্রদান করায় ফেরত',
+    receiptId: '',
+    studentId: '',
+    studentName: '',
+    amount: 0,
+    reason: '',
     processedBy: 'ক্যাশিয়ার'
   });
 
