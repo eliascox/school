@@ -82,6 +82,7 @@ import { ledgerService } from '@/services/ledgerService';
 import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import { SystemPurgeReport } from '@/services/systemResetService';
 import { processPadUpload } from '@/lib/padPdfRenderer';
+import { validateAndSanitizeImage } from '@/lib/securityUtils';
 import StudentBulkImportPanel from '@/components/StudentBulkImportPanel';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
@@ -308,18 +309,20 @@ export default function SettingsPage() {
     setIsCommitteeModalOpen(true);
   };
 
-  const handleMemberPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMemberPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('ছবির আকার সর্বোচ্চ ২ মেগাবাইট (2MB) হতে পারবে।');
-        return;
+      const result = await validateAndSanitizeImage(file, {
+        maxSizeMB: 2,
+        maxWidth: 400,
+        maxHeight: 500,
+        quality: 0.85
+      });
+      if (result.valid && result.sanitizedDataUrl) {
+        setCommitteeForm((prev) => ({ ...prev, photo: result.sanitizedDataUrl }));
+      } else {
+        alert(result.error || 'ছবির ফাইলটি সঠিক নয়।');
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCommitteeForm((prev) => ({ ...prev, photo: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -824,12 +827,21 @@ export default function SettingsPage() {
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => handleChange('schoolLogo', reader.result as string);
-      reader.readAsDataURL(file);
+      const result = await validateAndSanitizeImage(file, {
+        maxSizeMB: 2,
+        maxWidth: 600,
+        maxHeight: 600,
+        quality: 0.9,
+        preserveTransparency: true
+      });
+      if (result.valid && result.sanitizedDataUrl) {
+        handleChange('schoolLogo', result.sanitizedDataUrl);
+      } else {
+        alert(result.error || 'লোগো ফাইলটি সঠিক নয়।');
+      }
     }
   };
 

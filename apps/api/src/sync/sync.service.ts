@@ -50,6 +50,31 @@ export class SyncService {
       };
     }
 
+    // 🛡️ SECURITY: Verify device is not deactivated or revoked
+    if (dto.deviceFingerprint) {
+      const device = await this.prisma.schoolDevice.findFirst({
+        where: {
+          tenantId: tenant.id,
+          fingerprintHash: dto.deviceFingerprint
+        }
+      });
+      if (device && !device.isActive) {
+        this.logger.warn(`Sync push rejected: Device ${dto.deviceFingerprint} is revoked or deactivated`);
+        return {
+          batchId: dto.batchId,
+          processedCount: 0,
+          results: dto.items.map(item => ({
+            queueId: item.id,
+            entityId: item.entityId,
+            success: false,
+            status: 'REJECTED',
+            error: 'This device is deactivated or revoked for this school.'
+          })),
+          serverTimeUtc: nowUtc
+        };
+      }
+    }
+
     // Process each mutation in the batch
     for (const item of dto.items) {
       try {
@@ -173,6 +198,20 @@ export class SyncService {
         serverTimeUtc: nowUtc,
         hasMore: false
       };
+    }
+
+    // 🛡️ SECURITY: Verify device is not deactivated or revoked
+    if (dto.deviceFingerprint) {
+      const device = await this.prisma.schoolDevice.findFirst({
+        where: {
+          tenantId: tenant.id,
+          fingerprintHash: dto.deviceFingerprint
+        }
+      });
+      if (device && !device.isActive) {
+        this.logger.warn(`Sync pull rejected: Device ${dto.deviceFingerprint} is deactivated`);
+        return { changes: [], serverTimeUtc: nowUtc, hasMore: false };
+      }
     }
 
     const whereClause: any = {

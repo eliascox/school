@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -30,6 +30,20 @@ export class BackupService {
   }
 
   /**
+   * 🛡️ Anti-Path-Traversal Sanitizer: strips directory traversal and special chars
+   */
+  private sanitizeIdentifier(input: string, label = 'Identifier'): string {
+    if (!input || typeof input !== 'string') {
+      throw new BadRequestException(`নিরাপত্তা ত্রুটি: ${label} অনুপস্থিত।`);
+    }
+    const sanitized = input.replace(/[/\\?%*:|"<>.]/g, '').replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    if (!sanitized) {
+      throw new BadRequestException(`নিরাপত্তা ত্রুটি: ${label} শুধুমাত্র বর্ণ, সংখ্যা ও হাইফেন হতে পারবে।`);
+    }
+    return sanitized;
+  }
+
+  /**
    * 1. Register or store an encrypted disaster recovery backup
    */
   async registerBackup(
@@ -42,14 +56,28 @@ export class BackupService {
       deviceFingerprint?: string;
     },
   ): Promise<CloudBackupItem> {
+    const safeSchoolCode = this.sanitizeIdentifier(schoolCode, 'School Code');
+    const safeFileName = this.sanitizeIdentifier(meta.fileName.replace(/\.json$/i, ''), 'File Name');
+
+    // 🛡️ SECURITY: Verify tenant exists on server before creating any file
+    const tenant = await this.prisma.tenant.findUnique({ where: { schoolCode: safeSchoolCode } });
+    if (!tenant) {
+      throw new BadRequestException('অননুমোদিত প্রতিষ্ঠান: স্কুল কেন্দ্রীয় ক্লাউডে নিবন্ধিত নয়।');
+    }
+
     const backupId = `CBK-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const schoolVaultDir = path.join(this.backupVaultDir, schoolCode);
+    const schoolVaultDir = path.resolve(this.backupVaultDir, safeSchoolCode);
+    
+    // 🛡️ SECURITY: Strict boundary check to prevent directory escape
+    if (!schoolVaultDir.startsWith(this.backupVaultDir)) {
+      throw new BadRequestException('Security Violation: Path traversal attempt detected.');
+    }
     fs.mkdirSync(schoolVaultDir, { recursive: true });
 
     const item: CloudBackupItem = {
       id: backupId,
-      schoolCode,
-      fileName: meta.fileName,
+      schoolCode: safeSchoolCode,
+      fileName: safeFileName,
       sizeBytes: meta.sizeBytes,
       sha256: meta.sha256,
       recordCounts: meta.recordCounts || { students: 0, feeCollections: 0, examMarks: 0 },
@@ -57,27 +85,27 @@ export class BackupService {
     };
 
     // Store metadata JSON in school's vault
-    const metaPath = path.join(schoolVaultDir, `${meta.fileName}.meta.json`);
+    const metaPath = path.resolve(schoolVaultDir, `${safeFileName}.meta.json`);
+    if (!metaPath.startsWith(schoolVaultDir)) {
+      throw new BadRequestException('Security Violation: Path traversal attempt detected.');
+    }
     fs.writeFileSync(metaPath, JSON.stringify(item, null, 2), 'utf8');
 
     // Record central audit log
     try {
-      const tenant = await this.prisma.tenant.findUnique({ where: { schoolCode } });
-      if (tenant) {
-        await this.prisma.centralAuditLog.create({
-          data: {
-            tenantId: tenant.id,
-            action: 'CLOUD_BACKUP_REGISTERED',
-            details: item as any,
-            deviceFingerprint: meta.deviceFingerprint,
-          },
-        });
-      }
+      await this.prisma.centralAuditLog.create({
+        data: {
+          tenantId: tenant.id,
+          action: 'CLOUD_BACKUP_REGISTERED',
+          details: item as any,
+          deviceFingerprint: meta.deviceFingerprint,
+        },
+      });
     } catch (err: any) {
       this.logger.warn(`Could not log central audit for backup: ${err.message}`);
     }
 
-    this.logger.log(`[BackupVault] Registered cloud backup for ${schoolCode}: ${meta.fileName}`);
+    this.logger.log(`[BackupVault] Registered cloud backup for ${safeSchoolCode}: ${safeFileName}`);
     return item;
   }
 
@@ -85,8 +113,9 @@ export class BackupService {
    * 2. List all backups stored in the cloud vault for a school
    */
   async listBackups(schoolCode: string): Promise<CloudBackupItem[]> {
-    const schoolVaultDir = path.join(this.backupVaultDir, schoolCode);
-    if (!fs.existsSync(schoolVaultDir)) {
+    const safeSchoolCode = this.sanitizeIdentifier(schoolCode, 'School Code');
+    const schoolVaultDir = path.resolve(this.backupVaultDir, safeSchoolCode);
+    if (!schoolVaultDir.startsWith(this.backupVaultDir) || !fs.existsSync(schoolVaultDir)) {
       return [];
     }
 
@@ -95,8 +124,11 @@ export class BackupService {
 
     for (const f of files) {
       try {
-        const raw = fs.readFileSync(path.join(schoolVaultDir, f), 'utf8');
-        list.push(JSON.parse(raw));
+        const filePath = path.resolve(schoolVaultDir, f);
+        if (filePath.startsWith(schoolVaultDir)) {
+          const raw = fs.readFileSync(filePath, 'utf8');
+          list.push(JSON.parse(raw));
+        }
       } catch (err) {}
     }
 
@@ -107,8 +139,10 @@ export class BackupService {
    * 3. Get specific backup info
    */
   async getBackup(schoolCode: string, backupId: string): Promise<CloudBackupItem> {
-    const list = await this.listBackups(schoolCode);
-    const found = list.find((b) => b.id === backupId || b.fileName === backupId);
+    const safeSchoolCode = this.sanitizeIdentifier(schoolCode, 'School Code');
+    const safeBackupId = this.sanitizeIdentifier(backupId, 'Backup ID');
+    const list = await this.listBackups(safeSchoolCode);
+    const found = list.find((b) => b.id === safeBackupId || b.fileName === safeBackupId);
     if (!found) {
       throw new NotFoundException('ব্যাকআপ রেকর্ডটি পাওয়া যায়নি।');
     }

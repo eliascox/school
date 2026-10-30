@@ -36,6 +36,8 @@ export interface BackupRestoreResult {
   error?: string;
 }
 
+import { isSafeRestoreKey } from '@/lib/securityUtils';
+
 export interface BackupValidationResult {
   valid: boolean;
   isValid: boolean;
@@ -455,6 +457,11 @@ class BackupService {
     try {
       let count = 0;
       for (const [key, value] of Object.entries(data)) {
+        // 🛡️ SECURITY: Prevent prototype pollution & unauthorized admin key overwrite
+        if (!isSafeRestoreKey(key)) {
+          continue;
+        }
+
         if (typeof value === 'object' && value !== null) {
           localStorage.setItem(key, JSON.stringify(value));
         } else if (typeof value === 'string') {

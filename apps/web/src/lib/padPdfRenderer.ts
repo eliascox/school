@@ -20,9 +20,34 @@ export interface ProcessedPadResult {
 }
 
 export async function processPadUpload(file: File): Promise<ProcessedPadResult> {
+  // 🛡️ SECURITY CHECK 1: File size limit (max 8MB) to prevent memory & storage exhaustion
+  const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      dataUrl: '',
+      padType: 'image',
+      fileName: file.name,
+      fileSize: file.size,
+      error: 'নিরাপত্তা সতর্কতা: প্যাড ফাইলের আকার সর্বোচ্চ ৮MB হতে পারবে।',
+    };
+  }
+
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
   if (!isPdf) {
+    // 🛡️ SECURITY CHECK 2: Restrict image types (no SVGs, no executables)
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const safeExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+    if (!safeExtensions.includes(ext) || file.type.includes('svg')) {
+      return {
+        dataUrl: '',
+        padType: 'image',
+        fileName: file.name,
+        fileSize: file.size,
+        error: 'নিরাপত্তা সতর্কতা: শুধুমাত্র বৈধ PDF, PNG, JPG বা WebP ফাইল গ্রহণযোগ্য।',
+      };
+    }
+
     // ─── PROCESS IMAGE (PNG / JPG / WEBP) ──────────────────────────────────
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -96,11 +121,13 @@ export async function processPadUpload(file: File): Promise<ProcessedPadResult> 
         };
 
         img.onerror = () => {
+          // 🛡️ SECURITY FIX: Never return raw unverified dataUrl on image load failure!
           resolve({
-            dataUrl: rawUrl,
+            dataUrl: '',
             padType: 'image',
             fileName: file.name,
             fileSize: file.size,
+            error: 'নিরাপত্তা সতর্কতা: ফাইলটি বৈধ ইমেজ নয় বা ক্ষতিগ্রস্ত। এটি কোনো ক্ষতিকর স্ক্রিপ্ট বা ফাইল হতে পারে।',
           });
         };
 

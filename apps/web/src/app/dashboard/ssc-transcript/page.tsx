@@ -20,6 +20,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { validateAndSanitizeImage } from '@/lib/securityUtils';
 import {
   Award,
   FileText,
@@ -531,33 +532,37 @@ function SSCTestimonialsContent() {
     showAlert('success', borderId === 'none' ? 'বর্ডার ছাড়া প্লেইন ফ্রেম নির্বাচিত হয়েছে!' : 'পিএনজি বর্ডার ফ্রেম সক্রিয় করা হয়েছে!');
   };
 
-  const handleDirectBorderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDirectBorderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.includes('png') && !file.type.includes('image')) {
-      return showAlert('error', 'অনুগ্রহ করে পিএনজি (PNG) ফরম্যাটের ট্রান্সপারেন্ট বর্ডার ফাইল নির্বাচন করুন!');
+    // 🛡️ SECURITY: Validate MIME, enforce 2MB limit, re-encode via canvas to strip polyglot payloads
+    const val = await validateAndSanitizeImage(file, {
+      maxSizeMB: 2,
+      maxWidth: 1600,
+      maxHeight: 2200,
+      quality: 0.9,
+      preserveTransparency: true
+    });
+
+    if (!val.valid || !val.sanitizedDataUrl) {
+      e.target.value = '';
+      return showAlert('error', val.error || 'বর্ডার ফাইলটি সঠিক নয়।');
     }
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const base64 = evt.target?.result as string;
-      if (base64) {
-        setDirectBorderUrl(base64);
-        const newBorderObj: CustomPngBorder = {
-          id: `border-custom-${Date.now()}`,
-          name: `বর্ডার (${file.name.replace(/\.[^/.]+$/, '').substring(0, 15)})`,
-          url: base64
-        };
-        const updated = [newBorderObj, ...customBorders.slice(0, 2)];
-        setCustomBorders(updated);
-        setSelectedBorderId(newBorderObj.id);
-        settingsService.updateSettings({ customBorderPng: base64, customBorders: updated, selectedBorderId: newBorderObj.id });
-        setSchoolSettings(settingsService.getSettings());
-        showAlert('success', 'নতুন পিএনজি বর্ডার সফলভাবে যুক্ত হয়েছে!');
-      }
+    const base64 = val.sanitizedDataUrl;
+    setDirectBorderUrl(base64);
+    const newBorderObj: CustomPngBorder = {
+      id: `border-custom-${Date.now()}`,
+      name: `বর্ডার (${file.name.replace(/\.[^/.]+$/, '').substring(0, 15)})`,
+      url: base64
     };
-    reader.readAsDataURL(file);
+    const updated = [newBorderObj, ...customBorders.slice(0, 2)];
+    setCustomBorders(updated);
+    setSelectedBorderId(newBorderObj.id);
+    settingsService.updateSettings({ customBorderPng: base64, customBorders: updated, selectedBorderId: newBorderObj.id });
+    setSchoolSettings(settingsService.getSettings());
+    showAlert('success', 'নতুন পিএনজি বর্ডার সফলভাবে যুক্ত হয়েছে!');
     e.target.value = '';
   };
 
@@ -569,40 +574,44 @@ function SSCTestimonialsContent() {
     showAlert('success', 'পিএনজি বর্ডার সরানো হয়েছে!');
   };
 
-  const handleUploadBorderSlot = (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadBorderSlot = async (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.includes('png') && !file.type.includes('image')) {
-      return showAlert('error', 'অনুগ্রহ করে পিএনজি (PNG) ফরম্যাটের ট্রান্সপারেন্ট বর্ডার ফাইল নির্বাচন করুন!');
+    // 🛡️ SECURITY: Validate MIME, enforce 2MB limit, re-encode via canvas to strip polyglot payloads
+    const val = await validateAndSanitizeImage(file, {
+      maxSizeMB: 2,
+      maxWidth: 1600,
+      maxHeight: 2200,
+      quality: 0.9,
+      preserveTransparency: true
+    });
+
+    if (!val.valid || !val.sanitizedDataUrl) {
+      e.target.value = '';
+      return showAlert('error', val.error || 'বর্ডার ফাইলটি সঠিক নয়।');
     }
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const base64 = evt.target?.result as string;
-      if (base64) {
-        const updated = [...customBorders];
-        const newBorderObj: CustomPngBorder = {
-          id: `border-slot-${slotIndex + 1}-${Date.now()}`,
-          name: `বর্ডার ${slotIndex + 1} (${file.name.replace(/\.[^/.]+$/, '').substring(0, 15)})`,
-          url: base64
-        };
-
-        if (slotIndex < updated.length) {
-          updated[slotIndex] = newBorderObj;
-        } else {
-          updated.push(newBorderObj);
-        }
-
-        setCustomBorders(updated);
-        setSelectedBorderId(newBorderObj.id);
-        setDirectBorderUrl(base64);
-        settingsService.updateSettings({ customBorders: updated, selectedBorderId: newBorderObj.id, customBorderPng: base64 });
-        setSchoolSettings(settingsService.getSettings());
-        showAlert('success', `স্লট ${slotIndex + 1} এ নতুন পিএনজি বর্ডার সফলভাবে সংরক্ষিত হয়েছে!`);
-      }
+    const base64 = val.sanitizedDataUrl;
+    const updated = [...customBorders];
+    const newBorderObj: CustomPngBorder = {
+      id: `border-slot-${slotIndex + 1}-${Date.now()}`,
+      name: `বর্ডার ${slotIndex + 1} (${file.name.replace(/\.[^/.]+$/, '').substring(0, 15)})`,
+      url: base64
     };
-    reader.readAsDataURL(file);
+
+    if (slotIndex < updated.length) {
+      updated[slotIndex] = newBorderObj;
+    } else {
+      updated.push(newBorderObj);
+    }
+
+    setCustomBorders(updated);
+    setSelectedBorderId(newBorderObj.id);
+    setDirectBorderUrl(base64);
+    settingsService.updateSettings({ customBorders: updated, selectedBorderId: newBorderObj.id, customBorderPng: base64 });
+    setSchoolSettings(settingsService.getSettings());
+    showAlert('success', `স্লট ${slotIndex + 1} এ নতুন পিএনজি বর্ডার সফলভাবে সংরক্ষিত হয়েছে!`);
     e.target.value = '';
   };
 

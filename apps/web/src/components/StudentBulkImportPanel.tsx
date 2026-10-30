@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
 import { auditTrailService } from '@/services/auditTrailService';
+import { sanitizeCsvField } from '@/lib/securityUtils';
 
 // ─── 0. DIGIT CONVERTERS (Bilingual Engine) ─────────────────────────────────
 export const bnToEnDigits = (str: string | number = ''): string => {
@@ -640,7 +641,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     Object.keys(rawRow).forEach((k) => {
       const val = rawRow[k];
       const normKey = normalizeKey(k);
-      row[normKey] = val !== null && val !== undefined ? String(val).trim() : '';
+      // 🛡️ SECURITY: Sanitize CSV values against Formula Injection (DDE) and HTML/XSS
+      row[normKey] = val !== null && val !== undefined ? sanitizeCsvField(val) : '';
     });
 
     // 1. Roll: accepts '০১', '০২' (Bengali) OR '01', '1' (English)
