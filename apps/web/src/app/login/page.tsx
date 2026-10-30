@@ -33,6 +33,8 @@ function LoginForm() {
   
   // School Settings
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [topLogoFailed, setTopLogoFailed] = useState(false);
+  const [centerLogoFailed, setCenterLogoFailed] = useState(false);
 
   // Active Role Tab ('admin' | 'teacher')
   const [activeRole, setActiveRole] = useState<'admin' | 'teacher'>('admin');
@@ -58,6 +60,18 @@ function LoginForm() {
     const settings = settingsService.getSettings();
     setSchoolSettings(settings);
 
+    // Subscribe to settings changes for dynamic live sync
+    const unsubscribe = settingsService.subscribe((updated) => {
+      setSchoolSettings(updated);
+    });
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sms_school_settings') {
+        setSchoolSettings(settingsService.getSettings());
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
     // Read initial role from query params if specified (e.g. /login?role=teacher)
     const roleParam = searchParams.get('role');
     if (roleParam === 'teacher') {
@@ -73,6 +87,11 @@ function LoginForm() {
         setIdentifier(savedUser);
       }
     }
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [searchParams]);
 
   // Handle Caps Lock Warning
@@ -127,6 +146,12 @@ function LoginForm() {
   const eiin = schoolSettings?.eiin || '104321';
   const phone = schoolSettings?.phone || '০১৭১১-XXXXXX';
   const email = schoolSettings?.email || 'info@school.edu.bd';
+  const schoolLogo = schoolSettings?.schoolLogo || '/logo.png';
+
+  useEffect(() => {
+    setTopLogoFailed(false);
+    setCenterLogoFailed(false);
+  }, [schoolLogo]);
 
   if (!mounted) {
     return (
@@ -146,8 +171,20 @@ function LoginForm() {
           className="flex items-center gap-2.5 hover:opacity-90 transition-opacity cursor-pointer group"
           title="মূল হোমপেজে ফিরে যান"
         >
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <School className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center p-1 overflow-hidden shrink-0 group-hover:scale-105 group-hover:border-indigo-300 transition-all">
+            {schoolLogo && !topLogoFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img 
+                src={schoolLogo} 
+                alt={schoolName} 
+                className="w-full h-full object-contain" 
+                onError={() => setTopLogoFailed(true)}
+              />
+            ) : (
+              <div className="w-full h-full rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                <School className="w-5 h-5" />
+              </div>
+            )}
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">{schoolName}</h1>
@@ -169,10 +206,32 @@ function LoginForm() {
       <main className="w-full max-w-[400px] my-auto">
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/70 border border-slate-200/80 p-6 sm:p-8 transition-all">
           
-          {/* Card Header */}
+          {/* Card Header with School Logo Badge */}
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 mb-3 shadow-xs">
-              <KeyRound className="w-6 h-6" />
+            <div className="inline-flex items-center justify-center mb-3">
+              <div className="relative group">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200/90 shadow-md shadow-slate-200/60 p-2.5 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-300">
+                  {schoolLogo && !centerLogoFailed ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img 
+                      src={schoolLogo} 
+                      alt={schoolName} 
+                      className="w-full h-full object-contain" 
+                      onError={() => setCenterLogoFailed(true)}
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
+                      <School className="w-7 h-7" />
+                    </div>
+                  )}
+                </div>
+                <span 
+                  className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white shadow-xs border-2 border-white ring-1 ring-slate-100" 
+                  title={activeRole === 'admin' ? 'অ্যাডমিন পোর্টাল' : 'শিক্ষক পোর্টাল'}
+                >
+                  {activeRole === 'admin' ? '👑' : '👨‍🏫'}
+                </span>
+              </div>
             </div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">লগইন করুন</h2>
             <p className="text-xs text-slate-500 mt-1">
