@@ -14,9 +14,13 @@ import {
   School,
   History,
   ShieldCheck,
-  Award
+  Award,
+  Filter,
+  CheckCheck
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
+import { examService, ExamItem } from '@/services/examService';
+import { generateStudentMarksheetData } from '@/components/OfficialMarksheetSheet';
 
 interface StudentPromotionItem {
   id: string;
@@ -26,7 +30,11 @@ interface StudentPromotionItem {
   section: string;
   group: string;
   gpa: string;
-  status: 'Pass' | 'Fail';
+  letterGrade?: string;
+  status: 'Pass' | 'Fail' | 'Pending';
+  hasMarks: boolean;
+  failedCount?: number;
+  totalObtained?: number;
   selected: boolean;
   alreadyPromoted?: boolean;
 }
@@ -49,15 +57,17 @@ export default function StudentPromotionPage() {
   const [targetGradeKey, setTargetGradeKey] = useState<string>('7th');
   const [targetSession, setTargetSession] = useState<string>('২০২৭');
   const [targetGroup, setTargetGroup] = useState<string>('বিজ্ঞান');
+  const [selectedExam, setSelectedExam] = useState<string>('বার্ষিক পরীক্ষা ২০২৬');
+  const [availableExams, setAvailableExams] = useState<ExamItem[]>([]);
 
   const [students, setStudents] = useState<StudentPromotionItem[]>([]);
   const [promotionLogs, setPromotionLogs] = useState<PromotionLog[]>([]);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const loadStudents = (grade: string) => {
+  const loadStudents = (grade: string, examName: string = selectedExam) => {
     const rawStudents = studentService.getStudentsByFilter(grade);
     
-    // C-05 FIX: Load promotion history to prevent double-promotion
+    // Load promotion history to prevent double-promotion
     let promotionHistory: PromotionLog[] = [];
     if (typeof window !== 'undefined') {
       try {
@@ -67,11 +77,72 @@ export default function StudentPromotionPage() {
     }
     
     const mapped: StudentPromotionItem[] = rawStudents.map((st, idx) => {
-      const isFail = (st.gpa && parseFloat(st.gpa) < 1.0);
       // Check if already promoted from this grade in current target session
       const alreadyPromoted = promotionHistory.some(
         (log) => log.promotedIds && log.promotedIds.includes(st.id) && log.fromGradeKey === grade
       );
+
+      // Evaluate true marksheet & GPA for the student in the selected exam
+      const studentProfile = {
+        id: st.id,
+        roll: st.roll || String(idx + 1).padStart(2, '0'),
+        name: st.name,
+        grade: st.grade || grade,
+        gradeBn: grade === '6th' ? '৬ষ্ঠ' : grade === '7th' ? '৭ম' : grade === '8th' ? '৮ম' : grade === '9th' ? '৯ম' : '১০ম',
+        section: st.section || st.branch || 'A',
+        group: st.group || 'সাধারণ',
+        fatherName: st.fatherName || '',
+        motherName: st.motherName || '',
+        session: st.session || '২০২৬',
+        optionalSubject: st.optionalSubject || ''
+      };
+
+      const result = generateStudentMarksheetData(studentProfile, {
+        selectedExam: examName,
+        selectedGrade: st.grade || grade,
+        selectedBranch: st.section || st.branch || 'A'
+      });
+
+      const hasMarks = Boolean(result && result.subjects && result.subjects.some((s: any) => s.hasEnteredMarks));
+      
+      let gpa = '';
+      let letterGrade = '';
+      let status: 'Pass' | 'Fail' | 'Pending' = 'Pending';
+      let failedCount = 0;
+      let totalObtained = 0;
+
+      if (hasMarks && result) {
+        totalObtained = result.totalObtained || 0;
+        failedCount = result.hasFailed ? (result.subjects.filter((s: any) => s.letterGrade === 'F').length || 1) : 0;
+        
+        if (result.hasFailed) {
+          status = 'Fail';
+          gpa = result.finalGPA > 0 ? result.finalGPA.toFixed(2) : '0.00';
+          letterGrade = 'F';
+        } else {
+          status = 'Pass';
+          gpa = result.finalGPA.toFixed(2);
+          letterGrade = result.overallGrade || 'A';
+        }
+      } else if (st.gpa && !isNaN(parseFloat(st.gpa)) && parseFloat(st.gpa) > 0) {
+        // Fallback to student profile GPA only if explicitly entered
+        const pGpa = parseFloat(st.gpa);
+        gpa = pGpa.toFixed(2);
+        status = pGpa >= 1.0 ? 'Pass' : 'Fail';
+        letterGrade = pGpa >= 5.0 ? 'A+' : pGpa >= 4.0 ? 'A' : pGpa >= 3.5 ? 'A-' : pGpa >= 3.0 ? 'B' : pGpa >= 2.0 ? 'C' : pGpa >= 1.0 ? 'D' : 'F';
+      } else {
+        // No exam marks entered and no profile GPA
+        gpa = '--';
+        status = 'Pending';
+        letterGrade = '-';
+      }
+
+      // Default selection:
+      // If student Passed: selected = true (unless already promoted)
+      // If student Failed: selected = false (do not auto-promote failed students)
+      // If Pending (no marks entered yet): selected = true (so teachers can still promote if digital marksheet isn't used)
+      const selected = !alreadyPromoted && status !== 'Fail';
+
       return {
         id: st.id,
         roll: st.roll || String(idx + 1).padStart(2, '0'),
@@ -79,9 +150,13 @@ export default function StudentPromotionPage() {
         grade: st.grade || grade,
         section: st.section || st.branch || 'A',
         group: st.group || 'সাধারণ',
-        gpa: st.gpa || '5.00',
-        status: isFail ? 'Fail' : 'Pass',
-        selected: (!isFail && !alreadyPromoted),
+        gpa,
+        letterGrade,
+        status,
+        hasMarks,
+        failedCount,
+        totalObtained,
+        selected,
         alreadyPromoted,
       };
     });
@@ -99,11 +174,13 @@ export default function StudentPromotionPage() {
 
   useEffect(() => {
     setMounted(true);
-    loadStudents('6th');
+    const exams = examService.getExams();
+    setAvailableExams(exams);
+    loadStudents('6th', selectedExam);
     loadLogs();
 
     const handleStorage = () => {
-      loadStudents(fromGrade);
+      loadStudents(fromGrade, selectedExam);
       loadLogs();
     };
 
@@ -112,6 +189,11 @@ export default function StudentPromotionPage() {
       return () => window.removeEventListener('storage', handleStorage);
     }
   }, []);
+
+  const handleExamChange = (newExam: string) => {
+    setSelectedExam(newExam);
+    loadStudents(fromGrade, newExam);
+  };
 
   const showAlert = (type: 'success' | 'error', text: string) => {
     setAlertMsg({ type, text });
@@ -136,11 +218,18 @@ export default function StudentPromotionPage() {
       setToGrade('এসএসসি পাস আউট (Alumni)');
       setTargetGradeKey('Alumni');
     }
-    loadStudents(grade);
+    loadStudents(grade, selectedExam);
   };
 
   const handleToggleSelectAll = (checked: boolean) => {
     setStudents(prev => prev.map(s => s.alreadyPromoted ? s : { ...s, selected: checked }));
+  };
+
+  const handleToggleSelectPassed = () => {
+    setStudents(prev => prev.map(s => {
+      if (s.alreadyPromoted) return s;
+      return { ...s, selected: s.status === 'Pass' };
+    }));
   };
 
   const handleToggleStudent = (id: string) => {
@@ -215,14 +304,37 @@ export default function StudentPromotionPage() {
             <p className="text-xs text-slate-500 font-semibold">কোন শ্রেণি থেকে কোন শ্রেণিতে প্রমোশন দিবেন তা নির্ধারণ করুন</p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-bold bg-indigo-50 px-3.5 py-1.5 rounded-xl border border-indigo-200">
-            <span className="text-indigo-950">পরবর্তী সেশন:</span>
-            <input
-              type="text"
-              value={targetSession}
-              onChange={(e) => setTargetSession(e.target.value)}
-              className="w-16 px-2 py-0.5 bg-white border border-indigo-300 rounded text-center font-mono font-black text-indigo-900"
-            />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+              <Award size={14} className="text-amber-700" />
+              <span className="text-amber-950 font-extrabold">মূল্যায়ন পরীক্ষা:</span>
+              <select
+                value={selectedExam}
+                onChange={(e) => handleExamChange(e.target.value)}
+                className="px-2 py-0.5 bg-white border border-amber-300 rounded font-bold text-amber-950 text-xs cursor-pointer outline-none"
+              >
+                <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬ (Annual Exam)</option>
+                <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
+                <option value="এসএসসি প্রাক-নির্বাচনী ২০২৬">এসএসসি প্রাক-নির্বাচনী ২০২৬</option>
+                <option value="১ম টিউটোরিয়াল পরীক্ষা ২০২৬">১ম টিউটোরিয়াল পরীক্ষা ২০২৬</option>
+                {availableExams
+                  .filter(e => !['বার্ষিক পরীক্ষা ২০২৬', 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬', 'এসএসসি প্রাক-নির্বাচনী ২০২৬', '১ম টিউটোরিয়াল পরীক্ষা ২০২৬'].includes(e.title))
+                  .map(ex => (
+                    <option key={ex.id} value={ex.title}>{ex.title}</option>
+                  ))
+                }
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-bold bg-indigo-50 px-3.5 py-1.5 rounded-xl border border-indigo-200">
+              <span className="text-indigo-950 font-extrabold">পরবর্তী সেশন:</span>
+              <input
+                type="text"
+                value={targetSession}
+                onChange={(e) => setTargetSession(e.target.value)}
+                className="w-16 px-2 py-0.5 bg-white border border-indigo-300 rounded text-center font-mono font-black text-indigo-900"
+              />
+            </div>
           </div>
         </div>
 
@@ -284,12 +396,22 @@ export default function StudentPromotionPage() {
               <Users className="text-indigo-600" size={18} />
               ২. প্রমোশনযোগ্য শিক্ষার্থীদের তালিকা ({students.length} জন)
             </h3>
-            <p className="text-xs text-slate-500 font-semibold">
-              বর্তমানে: <strong className="text-indigo-700">{fromGrade === '6th' ? '৬ষ্ঠ' : fromGrade === '7th' ? '৭ম' : fromGrade === '8th' ? '৮ম' : fromGrade === '9th' ? '৯ম' : '১০ম'} শ্রেণি</strong> ➔ প্রমোশন টার্গেট: <strong className="text-emerald-700">{toGrade}</strong>
+            <p className="text-xs text-slate-500 font-semibold flex items-center gap-2 flex-wrap mt-0.5">
+              <span>বর্তমানে: <strong className="text-indigo-700">{fromGrade === '6th' ? '৬ষ্ঠ' : fromGrade === '7th' ? '৭ম' : fromGrade === '8th' ? '৮ম' : fromGrade === '9th' ? '৯ম' : '১০ম'} শ্রেণি</strong> ➔ প্রমোশন টার্গেট: <strong className="text-emerald-700">{toGrade}</strong></span>
+              <span className="text-slate-300">|</span>
+              <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">মূল্যায়ন: {selectedExam}</span>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleToggleSelectPassed}
+              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              title="শুধুমাত্র যারা উত্তীর্ণ হয়েছে তাদের সিলেক্ট করুন"
+            >
+              <CheckCheck size={14} className="text-emerald-600" /> উত্তীর্ণদের সিলেক্ট করুন
+            </button>
+
             <button
               onClick={() => handleToggleSelectAll(true)}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
@@ -352,13 +474,21 @@ export default function StudentPromotionPage() {
                         {st.grade} ({st.section})
                       </td>
                       <td className="p-3 text-center">
-                        <span className={`px-2.5 py-0.5 font-mono font-black text-[11px] rounded-full border ${
-                          st.status === 'Fail' 
-                            ? 'bg-rose-50 text-rose-800 border-rose-200' 
-                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        }`}>
-                          GPA: {st.gpa} ({st.status === 'Pass' ? 'উত্তীর্ণ' : 'অনুত্তীর্ণ'})
-                        </span>
+                        {st.status === 'Pass' ? (
+                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 inline-flex items-center gap-1 shadow-xs">
+                            <CheckCircle2 size={12} className="text-emerald-600" />
+                            GPA: {st.gpa} ({st.letterGrade ? `${st.letterGrade} - ` : ''}উত্তীর্ণ)
+                          </span>
+                        ) : st.status === 'Fail' ? (
+                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-rose-50 text-rose-800 border-rose-300 inline-flex items-center gap-1 shadow-xs">
+                            <AlertCircle size={12} className="text-rose-600" />
+                            GPA: {st.gpa} (অনুত্তীর্ণ {st.failedCount ? `- ${st.failedCount} বিষয়ে` : ''})
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 font-mono font-bold text-[11px] rounded-full border bg-slate-100 text-slate-600 border-slate-300 inline-flex items-center gap-1">
+                            ফলাফল এন্ট্রি নেই (N/A)
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-center">
                         {st.alreadyPromoted ? (
@@ -368,6 +498,10 @@ export default function StudentPromotionPage() {
                         ) : st.selected ? (
                           <span className="px-2.5 py-1 bg-emerald-600 text-white font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 shadow-sm">
                             <CheckCircle2 size={13} /> {toGrade} এ প্রমোশন হবে
+                          </span>
+                        ) : st.status === 'Fail' ? (
+                          <span className="px-2.5 py-1 bg-rose-100 text-rose-800 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-rose-200">
+                            <AlertCircle size={13} /> অনুত্তীর্ণ — একই ক্লাসে বহাল
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 bg-slate-200 text-slate-600 font-bold text-[10.5px] rounded-xl inline-flex items-center gap-1">
