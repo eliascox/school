@@ -2,6 +2,7 @@
 import { auditTrailService } from './auditTrailService';
 import { studentService } from './studentService';
 import { syncQueueService } from './syncQueueService';
+import { ledgerService } from './ledgerService';
 
 export interface FeeSector {
   id: string;
@@ -1475,6 +1476,21 @@ export const financeService = {
     };
 
     financeService.addVoucher(voucher);
+    try {
+      ledgerService.addRecord({
+        type: 'Income',
+        category: payment.feeItems.length > 0 ? payment.feeItems[0].name.split(' (')[0] : 'মাসিক বেতন',
+        grade: normalizeGradeKey(payment.grade),
+        studentName: payment.studentName,
+        studentRoll: String(payment.roll),
+        amount: payment.paidAmount,
+        voucherNo: payment.receiptId,
+        date: payment.date || now.toISOString().split('T')[0],
+        paymentMethod: (['Cash', 'bKash', 'Nagad', 'Bank Transfer'].includes(payment.paymentMethod) ? payment.paymentMethod : 'Cash') as any,
+        description: `শিক্ষার্থী ফি আদায় — ${payment.feeItems.map(f => f.name).join(', ')}`,
+        createdByName: payment.collectedBy || 'ক্যাশিয়ার'
+      });
+    } catch (e) {}
     return voucher;
   },
 
@@ -1529,6 +1545,19 @@ export const financeService = {
     };
 
     financeService.addVoucher(voucher);
+    try {
+      ledgerService.addRecord({
+        type: 'Expense',
+        category: 'শিক্ষক বেতন',
+        grade: 'all',
+        amount: payroll.netPayable,
+        voucherNo: payroll.voucherNo,
+        date: payroll.paymentDate,
+        paymentMethod: payroll.paymentMethod,
+        description: `${payroll.teacherName} (${payroll.designation}) - ${payroll.month} ${payroll.year} মাসের বেতন`,
+        createdByName: 'হিসাবরক্ষক'
+      });
+    } catch (e) {}
     return voucher;
   },
 
@@ -1555,6 +1584,19 @@ export const financeService = {
     };
 
     financeService.addVoucher(voucher);
+    try {
+      ledgerService.addRecord({
+        type: 'Expense',
+        category: expense.category,
+        grade: 'all',
+        amount: expense.amount,
+        voucherNo: expense.voucherNo,
+        date: expense.date,
+        paymentMethod: (expense.paymentMethod === 'Bank Check' ? 'Bank Transfer' : expense.paymentMethod) as any,
+        description: `${expense.paidTo} — ${expense.note || expense.category}`,
+        createdByName: expense.recordedBy || 'হিসাবরক্ষক'
+      });
+    } catch (e) {}
     return voucher;
   },
 
@@ -2000,6 +2042,8 @@ export const financeService = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify(list));
+        const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
+        financeService.saveVouchers(vouchers);
       } catch (e) {}
     }
     return list;
@@ -2051,6 +2095,8 @@ export const financeService = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(list));
+        const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
+        financeService.saveVouchers(vouchers);
       } catch (e) {}
     }
     return list;
@@ -2221,6 +2267,40 @@ export const financeService = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(list));
+      } catch (e) {}
+    }
+    // Auto-post double-entry voucher for fee refund
+    if (refund.amount > 0) {
+      const now = new Date();
+      const vNo = `PV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
+      const voucher: VoucherRecord = {
+        id: `VOUCH-${Date.now()}`,
+        voucherNo: vNo,
+        voucherType: 'Payment',
+        date: refund.date || now.toISOString().split('T')[0],
+        reference: `ফি রিফান্ড: ${refund.studentName} | রসিদ: ${refund.receiptId}`,
+        narration: refund.reason || 'অতিরিক্ত আদায়কৃত ফি ফেরত',
+        sourceModule: 'waivers_refunds',
+        sourceId: refund.id,
+        totalAmount: refund.amount,
+        createdBy: refund.processedBy || 'হিসাবরক্ষক',
+        entries: [
+          { accountCode: '5110', accountName: 'Fee Refunds & Adjustment Expense', debit: refund.amount, credit: 0, narration: refund.reason },
+          { accountCode: '1010', accountName: 'Cash in Hand (হাতে নগদ)', debit: 0, credit: refund.amount, narration: 'নগদ ফেরত প্রদান' }
+        ]
+      };
+      financeService.addVoucher(voucher);
+    }
+    return list;
+  },
+
+  deleteRefund: (id: string) => {
+    const list = financeService.getRefunds().filter(r => r.id !== id);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(list));
+        const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
+        financeService.saveVouchers(vouchers);
       } catch (e) {}
     }
     return list;

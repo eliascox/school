@@ -179,6 +179,20 @@ function FinanceContent() {
   const [chartOfAccounts, setChartOfAccounts] = useState<AccountHead[]>([]);
   const [allStudentLedgers, setAllStudentLedgers] = useState<Record<string, StudentFeeLedger>>({});
   const [feeSectors, setFeeSectors] = useState<FeeSector[]>([]);
+  const [teachersList, setTeachersList] = useState<any[]>([]);
+  const [schoolInfo, setSchoolInfo] = useState({
+    nameBn: 'বরইতলী উচ্চ বিদ্যালয়',
+    eiin: '106184',
+    address: 'বরইতলী, চকরিয়া, কক্সবাজার',
+    established: '১৯৬৯',
+    session: '২০২৬'
+  });
+  // Filter states for Payroll & Expenses
+  const [payrollSearch, setPayrollSearch] = useState('');
+  const [payrollMonthFilter, setPayrollMonthFilter] = useState('all');
+  const [expenseSearch, setExpenseSearch] = useState('');
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('all');
+  const [expenseMethodFilter, setExpenseMethodFilter] = useState('all');
   const [feeSetupTab, setFeeSetupTab] = useState<'classes' | 'sectors'>('classes');
   const [feeSetupSubView, setFeeSetupSubView] = useState<'matrix' | 'new_fee' | 'directory'>('matrix');
   const [feeSetupClassFilter, setFeeSetupClassFilter] = useState<string>('all');
@@ -238,6 +252,25 @@ function FinanceContent() {
   const loadAllData = () => {
     const loadedStudents = studentService.getAllStudents();
     setStudents(loadedStudents);
+    try {
+      const loadedTeachers = teacherAuthService.getAllTeachers();
+      setTeachersList(Array.isArray(loadedTeachers) ? loadedTeachers : []);
+    } catch (e) {
+      setTeachersList([]);
+    }
+    try {
+      const rawSettings = localStorage.getItem('sms_school_settings');
+      if (rawSettings) {
+        const parsed = JSON.parse(rawSettings);
+        setSchoolInfo({
+          nameBn: parsed.schoolNameBn || parsed.name || 'বরইতলী উচ্চ বিদ্যালয়',
+          eiin: parsed.eiin || '106184',
+          address: parsed.addressBn || parsed.address || 'বরইতলী, চকরিয়া, কক্সবাজার',
+          established: parsed.establishedYear || '১৯৬৯',
+          session: parsed.academicSession || '২০২৬'
+        });
+      }
+    } catch (e) {}
     const activeClassFees = financeService.getClassFeesConfig();
     setClassFees(activeClassFees);
     setPayrolls(financeService.getPayrollRecords());
@@ -907,7 +940,7 @@ function FinanceContent() {
   const [printExpenseSlip, setPrintExpenseSlip] = useState<ExpenseRecord | null>(null);
   const [expenseForm, setExpenseForm] = useState({
     category: EXPENSE_CATEGORIES[0],
-    amount: 1500,
+    amount: 0,
     paidTo: '',
     paymentMethod: 'Cash' as const,
     note: '',
@@ -942,9 +975,9 @@ function FinanceContent() {
   const [bankTransferForm, setBankTransferForm] = useState({
     from: 'Cash in Hand (হাতে নগদ)',
     to: 'bank-1',
-    amount: 25000,
+    amount: 0,
     refNo: '',
-    note: 'দৈনিক ফি আদায়ের উদ্বৃত্ত অর্থ ব্যাংকে জমা'
+    note: ''
   });
 
   const [showBankEditModal, setShowBankEditModal] = useState(false);
@@ -1099,8 +1132,8 @@ function FinanceContent() {
   const [voucherFormRef, setVoucherFormRef] = useState('');
   const [voucherFormNarration, setVoucherFormNarration] = useState('');
   const [voucherFormRows, setVoucherFormRows] = useState<JournalLine[]>([
-    { accountCode: '5030', accountName: 'Electricity & Utility Bills', debit: 5000, credit: 0, narration: 'বিদ্যুৎ বিল' },
-    { accountCode: '1010', accountName: 'Cash in Hand (হাতে নগদ)', debit: 0, credit: 5000, narration: 'ক্যাশ প্রদান' }
+    { accountCode: '5030', accountName: 'বিদ্যুৎ বিল ও ইউটিলিটি চার্জ', debit: 0, credit: 0, narration: '' },
+    { accountCode: '1010', accountName: 'হাতে নগদ (ক্যাশ ইন হ্যান্ড)', debit: 0, credit: 0, narration: '' }
   ]);
 
   const addVoucherRow = () => {
@@ -1418,8 +1451,159 @@ function FinanceContent() {
         }
       `}</style>
 
-      {/* ─── COMPACT TOP ACTION BAR & DESK HEADERS ─────────────────────── */}
+      {/* ─── EXECUTIVE FINANCE COMMAND CENTER & MODULE NAVIGATION ─────── */}
       <div className={`max-w-7xl mx-auto space-y-4 ${(printReceiptData || printSalarySlip || printExpenseSlip || printVoucherData) ? "print:hidden" : ""}`}>
+
+        {/* ── UNIFIED EXECUTIVE HEADER & FINANCIAL PULSE ─────────────── */}
+        <div className="print:hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-indigo-500/20 space-y-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0 shadow-inner">
+                <Landmark className="w-6 h-6 text-indigo-300" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                    কেন্দ্রীয় ফাইন্যান্স ও ডাবল-এন্ট্রি অ্যাকাউন্টিং হাব
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    অটো-লেজার সিঙ্ক সক্রিয়
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">
+                  {schoolInfo.nameBn} • EIIN: {schoolInfo.eiin} • শিক্ষাবর্ষ: {schoolInfo.session} • স্বয়ংক্রিয় ভাউচার ও অডিট ট্রেইল
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard/ledger')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/15 transition-all cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-amber-300" />
+                <span>শ্রেণিভিত্তিক আয়-ব্যয় খতিয়ান</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setVoucherFormType('Journal');
+                  setShowVoucherModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>নতুন ভাউচার এন্ট্রি</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 5 Executive Financial Pulse KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
+            <div className="bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>মোট রাজস্ব আয়</span>
+                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-base sm:text-lg font-black font-mono text-emerald-400 mt-1">
+                ৳ {incomeStatement.totalIncome.toLocaleString('bn-BD')}
+              </p>
+              <span className="text-[10px] text-slate-400">ফি আদায় ও অনুদান</span>
+            </div>
+
+            <div className="bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>মোট পরিচালন ব্যয়</span>
+                <ArrowDownLeft className="w-4 h-4 text-rose-400" />
+              </div>
+              <p className="text-base sm:text-lg font-black font-mono text-rose-400 mt-1">
+                ৳ {monthlyTotalExpense.toLocaleString('bn-BD')}
+              </p>
+              <span className="text-[10px] text-slate-400">পে-রোল ও দৈনন্দিন খরচ</span>
+            </div>
+
+            <div className="bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>নিট উদ্বৃত্ত (Surplus)</span>
+                <Scale className="w-4 h-4 text-sky-400" />
+              </div>
+              <p className={`text-base sm:text-lg font-black font-mono mt-1 ${incomeStatement.netSurplus >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>
+                ৳ {incomeStatement.netSurplus.toLocaleString('bn-BD')}
+              </p>
+              <span className="text-[10px] text-slate-400">আয় বিয়োগ ব্যয়</span>
+            </div>
+
+            <div className="bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>হাতে নগদ ও ব্যাংক</span>
+                <Wallet className="w-4 h-4 text-amber-400" />
+              </div>
+              <p className="text-base sm:text-lg font-black font-mono text-amber-300 mt-1">
+                ৳ {(cashInHand + totalBankBalance).toLocaleString('bn-BD')}
+              </p>
+              <span className="text-[10px] text-slate-400">ক্যাশ: ৳{cashInHand.toLocaleString('bn-BD')} • ব্যাংক: ৳{totalBankBalance.toLocaleString('bn-BD')}</span>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 bg-white/5 hover:bg-white/10 transition-colors border border-white/10 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>শিক্ষার্থী মোট বকেয়া</span>
+                <AlertCircle className="w-4 h-4 text-rose-300" />
+              </div>
+              <p className="text-base sm:text-lg font-black font-mono text-rose-300 mt-1">
+                ৳ {feeStats.totalDueAll.toLocaleString('bn-BD')}
+              </p>
+              <span className="text-[10px] text-slate-400">{students.length} জন শিক্ষার্থীর লেজার</span>
+            </div>
+          </div>
+
+          {/* ── 6 MAIN FINANCE SECTORS NAVIGATION BAR ──────────────────── */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-white/10">
+            {([
+              { id: 'student_fees', label: '১. শিক্ষার্থী ফি ও বিলিং', sub: 'কালেকশন, ইনভয়েস ও বকেয়া', icon: CreditCard, badge: feeStats.totalDueAll > 0 ? 'বকেয়া' : undefined },
+              { id: 'payroll', label: '২. শিক্ষক ও স্টাফ পে-রোল', sub: 'বেতন, ভাতা ও পিএফ', icon: Banknote, badge: payrolls.length > 0 ? `${payrolls.length}` : undefined },
+              { id: 'expenses', label: '৩. দৈনন্দিন ব্যয় ও ভাউচার', sub: 'বিল ও খরচ রেজিস্টার', icon: Receipt, badge: expenses.length > 0 ? `${expenses.length}` : undefined },
+              { id: 'cash_bank', label: '৪. ক্যাশ ও ব্যাংক ট্রেজারি', sub: 'হিসাব স্থিতি ও ট্রান্সফার', icon: Landmark, badge: `${bankAccounts.length} ব্যাংক` },
+              { id: 'waivers_refunds', label: '৫. বৃত্তি, মওকুফ ও রিফান্ড', sub: 'ছাড় ও ফেরত সমন্বয়', icon: Percent, badge: waivers.length > 0 ? `${waivers.length}` : undefined },
+              { id: 'reports', label: '৬. আর্থিক প্রতিবেদন ও COA', sub: 'রেওয়ামিল, ক্যাশবুক ও খতিয়ান', icon: FileBarChart, badge: '৮ রিপোর্ট' },
+            ] as { id: FinanceTab; label: string; sub: string; icon: any; badge?: string }[]).map(mod => {
+              const Icon = mod.icon;
+              const isAct = activeTab === mod.id;
+              return (
+                <button
+                  key={mod.id}
+                  type="button"
+                  onClick={() => handleTabChange(mod.id)}
+                  className={`text-left p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                    isAct
+                      ? 'bg-white text-slate-900 border-white shadow-lg scale-[1.01]'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                      isAct ? 'bg-indigo-600 text-white' : 'bg-white/10 text-indigo-300'
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    {mod.badge && (
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${
+                        isAct ? 'bg-indigo-100 text-indigo-800' : 'bg-white/10 text-slate-300'
+                      }`}>
+                        {mod.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-xs font-black leading-snug ${isAct ? 'text-slate-900' : 'text-white'}`}>{mod.label}</p>
+                    <p className={`text-[10px] truncate ${isAct ? 'text-slate-500 font-semibold' : 'text-slate-400'}`}>{mod.sub}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* 1. STUDENT FEES: PROFESSIONAL 4-TAB LAYOUT */}
         {activeTab === 'student_fees' && (
@@ -4118,426 +4302,897 @@ function FinanceContent() {
         )}
 
         {/* ═════════════════════════════════════════════════════════════ */}
-        {/* TAB 2: PAYROLL                                                */}
+        {/* TAB 2: PAYROLL (শিক্ষক ও স্টাফ পে-রোল ব্যবস্থাপনা)            */}
         {/* ═════════════════════════════════════════════════════════════ */}
-        {activeTab === 'payroll' && (
-          <div className="space-y-6">
-            {/* Print Header for Payroll */}
-            <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
-              <h1 className="text-xl font-black tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h1>
-              <p className="text-xs text-gray-700 font-medium">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
-              <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
-                শিক্ষক ও কর্মচারী মাসিক বেতন-ভাতা বিবরণী ও পে-রোল রেজিস্টার
-              </div>
-              <div className="flex justify-between items-center text-[10px] text-gray-600 mt-2 px-2">
-                <span>অর্থবছর / সেশন: ২০২৬</span>
-                <span>মুদ্রণ তারিখ: {new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
-            </div>
+        {activeTab === 'payroll' && (() => {
+          const totalNetPayroll = payrolls.reduce((s, p) => s + (Number(p.netPayable) || 0), 0);
+          const totalAllowancesAndBonus = payrolls.reduce((s, p) => s + (Number(p.allowances) || 0) + (Number(p.bonus) || 0), 0);
+          const totalPfDeductions = payrolls.reduce((s, p) => s + (Number(p.deductions) || 0), 0);
+          const filteredPayrolls = payrolls.filter(p => {
+            const matchMonth = payrollMonthFilter === 'all' || p.month === payrollMonthFilter;
+            const q = payrollSearch.toLowerCase();
+            const matchSearch = !q ||
+              (p.teacherName && p.teacherName.toLowerCase().includes(q)) ||
+              (p.designation && p.designation.toLowerCase().includes(q)) ||
+              (p.voucherNo && p.voucherNo.toLowerCase().includes(q)) ||
+              (p.teacherId && p.teacherId.toLowerCase().includes(q));
+            return matchMonth && matchSearch;
+          });
 
-            <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
-              <div>
-                <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Banknote className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  শিক্ষক ও স্টাফ পে-রোল (Payroll Management)
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  মাসিক মূল বেতন, বাড়িভাড়া ভাতা, বোনাস ও প্রভিডেন্ট ফান্ড সমন্বয়
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>পে-রোল প্রিন্ট</span>
-                </button>
-                <button
-                  onClick={() => setShowPayrollModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>নতুন বেতন বিতরণ</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Payroll History Table */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse print:text-black">
-                  <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 print:bg-gray-100 print:border-black">
-                      <th className="p-3">ভাউচার নং</th>
-                      <th className="p-3">শিক্ষক/স্টাফ নাম</th>
-                      <th className="p-3">পদবি</th>
-                      <th className="p-3">মাস ও বছর</th>
-                      <th className="p-3 text-right">মূল বেতন</th>
-                      <th className="p-3 text-right text-emerald-700 dark:text-emerald-400">ভাতা/বোনাস</th>
-                      <th className="p-3 text-right text-rose-700 dark:text-rose-400">কর্তন (PF)</th>
-                      <th className="p-3 text-right font-bold text-slate-900 dark:text-white">নিট পরিশোধ</th>
-                      <th className="p-3">মাধ্যম</th>
-                      <th className="p-3 text-right print:hidden">অ্যাকশন</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 print:divide-gray-300">
-                    {payrolls.map((pay, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <td className="p-3 font-mono font-bold text-sky-700 dark:text-sky-400 print:text-black">{pay.voucherNo}</td>
-                        <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{pay.teacherName}</td>
-                        <td className="p-3 text-slate-600 dark:text-slate-400">{pay.designation}</td>
-                        <td className="p-3">{pay.month} {pay.year}</td>
-                        <td className="p-3 text-right font-mono font-bold">৳ {pay.baseSalary.toLocaleString('bn-BD')}</td>
-                        <td className="p-3 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 print:text-black">+ ৳ {(pay.allowances + pay.bonus).toLocaleString('bn-BD')}</td>
-                        <td className="p-3 text-right font-mono font-bold text-rose-700 dark:text-rose-400 print:text-black">- ৳ {pay.deductions.toLocaleString('bn-BD')}</td>
-                        <td className="p-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-300 print:text-black">৳ {pay.netPayable.toLocaleString('bn-BD')}</td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
-                            {pay.paymentMethod}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right print:hidden">
-                          <button
-                            onClick={() => setPrintSalarySlip(pay)}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-600/20 dark:hover:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-500/30 cursor-pointer"
-                          >
-                            স্যালারি স্লিপ
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Print Signature Block */}
-              <div className="hidden print:flex justify-between items-end pt-12 text-xs text-black border-t border-black mt-8">
-                <div className="text-center">
-                  <p className="border-t border-black px-6 pt-1 font-semibold">হিসাবরক্ষকের স্বাক্ষর</p>
+          return (
+            <div className="space-y-5">
+              {/* Print Header for Payroll */}
+              <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
+                <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+                <p className="text-xs text-gray-700 font-medium">{schoolInfo.address} • EIIN: {schoolInfo.eiin} • স্থাপিত: {schoolInfo.established}</p>
+                <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
+                  শিক্ষক ও কর্মচারী মাসিক বেতন-ভাতা বিবরণী ও পে-রোল রেজিস্টার
                 </div>
-                <div className="text-center">
-                  <p className="border-t border-black px-6 pt-1 font-semibold">অর্থ কমিটি আহ্বায়ক</p>
-                </div>
-                <div className="text-center">
-                  <p className="border-t border-black px-6 pt-1 font-semibold">প্রধান শিক্ষক</p>
+                <div className="flex justify-between items-center text-[10px] text-gray-600 mt-2 px-2">
+                  <span>অর্থবছর / সেশন: {schoolInfo.session}</span>
+                  <span>মুদ্রণ তারিখ: {new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* TAB 3: EXPENSES                                               */}
-        {/* ═════════════════════════════════════════════════════════════ */}
-        {activeTab === 'expenses' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-rose-400" />
-                  দৈনন্দিন ব্যয় রেজিস্টার (Expense Ledger)
-                </h2>
-                <p className="text-xs text-slate-400">
-                  বিদ্যুৎ বিল, স্টেশনারি, ল্যাব সামগ্রী, মেরামত ও বিবিধ ব্যয় এন্ট্রি
-                </p>
-              </div>
-              <button
-                onClick={() => setShowExpenseModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20"
-              >
-                <Plus className="w-4 h-4" />
-                <span>নতুন খরচ এন্ট্রি (Add Expense)</span>
-              </button>
-            </div>
-
-            {/* Expenses Table */}
-            <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                      <th className="p-3">ভাউচার নং</th>
-                      <th className="p-3">ব্যয় খাত (Category)</th>
-                      <th className="p-3">বিবরণ (Note)</th>
-                      <th className="p-3">প্রাপক (Paid To)</th>
-                      <th className="p-3">পরিমাণ (টাকা)</th>
-                      <th className="p-3">মাধ্যম</th>
-                      <th className="p-3">তারিখ</th>
-                      <th className="p-3 text-right">ভাউচার প্রিন্ট</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                    {expenses.map((exp, idx) => (
-                      <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-slate-100 dark:hover:bg-slate-900/40">
-                        <td className="p-3 font-mono font-bold text-sky-400">{exp.voucherNo}</td>
-                        <td className="p-3 font-bold text-white">{exp.category}</td>
-                        <td className="p-3 text-slate-400">{exp.note || 'N/A'}</td>
-                        <td className="p-3">{exp.paidTo}</td>
-                        <td className="p-3 font-black text-rose-400">৳ {exp.amount}</td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
-                            {exp.paymentMethod}
-                          </span>
-                        </td>
-                        <td className="p-3 text-slate-400">{exp.date}</td>
-                        <td className="p-3 text-right">
-                          <button
-                            onClick={() => setPrintExpenseSlip(exp)}
-                            className="px-2.5 py-1 rounded bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 font-semibold text-xs border border-indigo-500/30"
-                          >
-                            ভাউচার স্লিপ
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ═════════════════════════════════════════════════════════════ */}
-        {/* TAB 4: CASH & BANK                                            */}
-        {/* ═════════════════════════════════════════════════════════════ */}
-        {activeTab === 'cash_bank' && (
-          <div className="space-y-6">
-            {/* Print Header for Cash & Bank */}
-            <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
-              <h1 className="text-xl font-black tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h1>
-              <p className="text-xs text-gray-700 font-medium">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
-              <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
-                ক্যাশ ও ব্যাংক হিসাব স্থিতি বিবরণী এবং কন্ট্রা ট্রান্সফার খতিয়ান
-              </div>
-              <div className="flex justify-between items-center text-[10px] text-gray-600 mt-2 px-2">
-                <span>অর্থবছর / সেশন: ২০২৬</span>
-                <span>মুদ্রণ তারিখ: {new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
-            </div>
-
-            <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
-              <div>
-                <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Landmark className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                  ক্যাশ ও ব্যাংক হিসাব ব্যবস্থাপনা (Cash & Bank Management)
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  হাতে নগদ ড্রয়ার, সোনালী, ইসলামী ব্যাংক ও ডাচ্-বাংলা ব্যাংক হিসাব, ব্যালেন্স এডিট ও ফান্ড ট্রান্সফার
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleResetAllBankBalances}
-                  title="সকল ব্যাংকের ডেমো ব্যালেন্স ০ করতে ক্লিক করুন"
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
-                >
-                  <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  <span>ব্যালেন্স রিসেট (৳০)</span>
-                </button>
-                <button
-                  onClick={() => handleOpenBankModal(null)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
-                >
-                  <Plus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                  <span>নতুন ব্যাংক হিসাব</span>
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>স্থিতি প্রিন্ট</span>
-                </button>
-                <button
-                  onClick={() => setShowBankTransferModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 transition-all cursor-pointer active:scale-95"
-                >
-                  <ArrowRightLeft className="w-4 h-4" />
-                  <span>ব্যাংকে অর্থ জমা ও ফান্ড ট্রান্সফার</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Bank Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {bankAccounts.map((b, idx) => (
-                <div key={b.id || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3 print:bg-white print:border-black relative group transition-all hover:border-sky-300 dark:hover:border-sky-700">
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20 font-bold">
-                      <Landmark className="w-5 h-5" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
-                        কোড: {b.accountCode}
-                      </span>
-                      <button
-                        onClick={() => handleOpenBankModal(b)}
-                        className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        title="ব্যাংক হিসাব ও ব্যালেন্স এডিট করুন"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      {bankAccounts.length > 1 && (
-                        <button
-                          onClick={() => handleDeleteBank(b.id, b.bankName)}
-                          className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="হিসাব মুছে ফেলুন"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+              {/* Header Bar */}
+              <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-500/30">
+                    <Banknote className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white print:text-black">{b.bankName}</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{b.accountName}</p>
-                    {b.branch && (
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{b.branch}</p>
-                    )}
-                    <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">হিসাব নং: {b.accountNumber}</p>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">বর্তমান স্থিতি:</span>
-                      <button
-                        onClick={() => handleOpenBankModal(b)}
-                        className="print:hidden text-[11px] text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer"
-                        title="ব্যালেন্স এডিট করতে ক্লিক করুন"
-                      >
-                        (এডিট)
-                      </button>
-                    </div>
-                    <span className="text-lg font-black font-mono text-sky-700 dark:text-sky-400 print:text-black">৳ {b.balance.toLocaleString('bn-BD')}</span>
+                    <h2 className="text-base font-black text-slate-900 dark:text-white">
+                      শিক্ষক ও কর্মচারী পে-রোল ব্যবস্থাপনা (Payroll & Salary Ledger)
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      মাসিক মূল বেতন, বাড়িভাড়া ভাতা, উৎসব বোনাস ও প্রভিডেন্ট ফান্ড (PF) কর্তন ও ডাবল-এন্ট্রি পোস্টিং
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>রেজিস্টার প্রিন্ট</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPayrollModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>নতুন বেতন বিতরণ</span>
+                  </button>
+                </div>
+              </div>
 
-            {/* Contra Transfer Log */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <ArrowRightLeft className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                সাম্প্রতিক কন্ট্রা ভাউচার ও ডিপোজিট খতিয়ান (Contra Transfers)
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse print:text-black">
-                  <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 print:bg-gray-100 print:border-black">
-                      <th className="p-3">ভাউচার নং</th>
-                      <th className="p-3">তারিখ</th>
-                      <th className="p-3">রেফারেন্স ও উদ্দেশ্য</th>
-                      <th className="p-3">বিবরণ</th>
-                      <th className="p-3 text-right text-emerald-700 dark:text-emerald-400">পরিমাণ (টাকা)</th>
-                      <th className="p-3">এন্ট্রি কারক</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 print:divide-gray-300">
-                    {vouchers.filter(v => v.voucherType === 'Contra').map((cv, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <td className="p-3 font-mono font-bold text-amber-700 dark:text-amber-400 print:text-black">{cv.voucherNo}</td>
-                        <td className="p-3 text-slate-500 dark:text-slate-400">{cv.date}</td>
-                        <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{cv.reference}</td>
-                        <td className="p-3 text-slate-600 dark:text-slate-400">{cv.narration}</td>
-                        <td className="p-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-400 print:text-black">৳ {cv.totalAmount.toLocaleString('bn-BD')}</td>
-                        <td className="p-3 text-slate-500 dark:text-slate-400">{cv.createdBy}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* 4 KPI Summary Cards */}
+              <div className="print:hidden grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোট পরিশোধিত নিট বেতন</p>
+                    <h4 className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">৳ {totalNetPayroll.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">COA কোড: 5010</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোট ভাতা ও বোনাস</p>
+                    <h4 className="text-lg font-black font-mono text-sky-600 dark:text-sky-400 mt-1">৳ {totalAllowancesAndBonus.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">বাড়িভাড়া, চিকিৎসা ও উৎসব</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">প্রভিডেন্ট ফান্ড (PF) জমা</p>
+                    <h4 className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-1">৳ {totalPfDeductions.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">COA দায় কোড: 2020</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-500/20">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোট স্যালারি ভাউচার</p>
+                    <h4 className="text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-1">{payrolls.length} টি</h4>
+                    <p className="text-[10px] text-slate-400">নিবন্ধিত শিক্ষক: {teachersList.length} জন</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20">
+                    <Users className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar + Table */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
+                <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="শিক্ষক নাম, পদবি বা ভাউচার নং দিয়ে খুঁজুন..."
+                      value={payrollSearch}
+                      onChange={e => setPayrollSearch(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">মাস ফিল্টার:</span>
+                    <select
+                      value={payrollMonthFilter}
+                      onChange={e => setPayrollMonthFilter(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="all">সকল মাস ({payrolls.length})</option>
+                      {MONTHS_LIST.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {filteredPayrolls.length === 0 ? (
+                  <div className="py-16 text-center space-y-3">
+                    <div className="w-16 h-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center mx-auto text-emerald-500">
+                      <Banknote className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 dark:text-slate-200">কোনো পে-রোল বা বেতন ভাউচার পাওয়া যায়নি</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                        শিক্ষক বা কর্মচারীদের মাসিক বেতন প্রদান করলে তা স্বয়ংক্রিয়ভাবে এখানে এবং ডাবল-এন্ট্রি খতিয়ানে যুক্ত হবে।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPayrollModal(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>প্রথম বেতন ভাউচার এন্ট্রি করুন</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse print:text-black">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 print:bg-gray-100 print:border-black">
+                          <th className="p-3">ভাউচার নং ও তারিখ</th>
+                          <th className="p-3">শিক্ষক/স্টাফ নাম</th>
+                          <th className="p-3">পদবি</th>
+                          <th className="p-3">মাস ও বছর</th>
+                          <th className="p-3 text-right">মূল বেতন</th>
+                          <th className="p-3 text-right text-emerald-700 dark:text-emerald-400">ভাতা/বোনাস</th>
+                          <th className="p-3 text-right text-rose-700 dark:text-rose-400">কর্তন (PF)</th>
+                          <th className="p-3 text-right font-bold text-slate-900 dark:text-white">নিট পরিশোধ</th>
+                          <th className="p-3">মাধ্যম</th>
+                          <th className="p-3 text-right print:hidden">অ্যাকশন</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 print:divide-gray-300">
+                        {filteredPayrolls.map((pay, idx) => (
+                          <tr key={pay.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="p-3">
+                              <span className="font-mono font-bold text-sky-700 dark:text-sky-400 print:text-black block">{pay.voucherNo}</span>
+                              <span className="text-[10px] text-slate-400">{pay.paymentDate}</span>
+                            </td>
+                            <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{pay.teacherName}</td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400">{pay.designation || 'শিক্ষক/স্টাফ'}</td>
+                            <td className="p-3 font-semibold">{pay.month} {pay.year}</td>
+                            <td className="p-3 text-right font-mono font-bold">৳ {pay.baseSalary.toLocaleString('bn-BD')}</td>
+                            <td className="p-3 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 print:text-black">+ ৳ {(pay.allowances + pay.bonus).toLocaleString('bn-BD')}</td>
+                            <td className="p-3 text-right font-mono font-bold text-rose-700 dark:text-rose-400 print:text-black">- ৳ {pay.deductions.toLocaleString('bn-BD')}</td>
+                            <td className="p-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-300 print:text-black">৳ {pay.netPayable.toLocaleString('bn-BD')}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
+                                {pay.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right print:hidden">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setPrintSalarySlip(pay)}
+                                  className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-600/20 dark:hover:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-500/30 cursor-pointer"
+                                >
+                                  স্যালারি স্লিপ
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`'${pay.teacherName}'-এর পে-রোল রেকর্ডটি মুছে ফেলতে চান?`)) {
+                                      financeService.deletePayrollRecord(pay.id);
+                                      loadAllData();
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                  title="পে-রোল রেকর্ড মুছুন"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Print Signature Block */}
+                <div className="hidden print:flex justify-between items-end pt-12 text-xs text-black border-t border-black mt-8">
+                  <div className="text-center">
+                    <p className="border-t border-black px-6 pt-1 font-semibold">হিসাবরক্ষকের স্বাক্ষর</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="border-t border-black px-6 pt-1 font-semibold">অর্থ কমিটি আহ্বায়ক</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="border-t border-black px-6 pt-1 font-semibold">প্রধান শিক্ষক</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
-        {/* TAB 5: WAIVERS & REFUNDS                                      */}
         {/* ═════════════════════════════════════════════════════════════ */}
-        {activeTab === 'waivers_refunds' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Waivers Section */}
-              <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Percent className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    বৃত্তি ও ফি মওকুফ রেজিস্টার (Fee Waivers)
-                  </h3>
-                  <button
-                    onClick={() => setShowWaiverModal(true)}
-                    className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
-                  >
-                    + মওকুফ অনুমোদন
-                  </button>
+        {/* TAB 3: EXPENSES (দৈনন্দিন ব্যয় ও ভাউচার রেজিস্টার)             */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {activeTab === 'expenses' && (() => {
+          const todayIso = new Date().toISOString().split('T')[0];
+          const totalExpenseSum = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+          const todayExpenseSum = expenses.filter(e => e.date === todayIso).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+          const cashExpenseSum = expenses.filter(e => e.paymentMethod === 'Cash').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+          const digitalBankExpenseSum = totalExpenseSum - cashExpenseSum;
+
+          const filteredExpenses = expenses.filter(exp => {
+            const matchCat = expenseCategoryFilter === 'all' || exp.category === expenseCategoryFilter;
+            const matchMethod = expenseMethodFilter === 'all' || exp.paymentMethod === expenseMethodFilter;
+            const q = expenseSearch.toLowerCase();
+            const matchSearch = !q ||
+              (exp.voucherNo && exp.voucherNo.toLowerCase().includes(q)) ||
+              (exp.paidTo && exp.paidTo.toLowerCase().includes(q)) ||
+              (exp.note && exp.note.toLowerCase().includes(q)) ||
+              (exp.category && exp.category.toLowerCase().includes(q));
+            return matchCat && matchMethod && matchSearch;
+          });
+
+          return (
+            <div className="space-y-5">
+              {/* Print Header for Expenses */}
+              <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
+                <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+                <p className="text-xs text-gray-700 font-medium">{schoolInfo.address} • EIIN: {schoolInfo.eiin} • স্থাপিত: {schoolInfo.established}</p>
+                <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
+                  দৈনন্দিন পরিচালন ব্যয় ও ভাউচার খতিয়ান রেজিস্টার
                 </div>
-                <div className="space-y-2.5">
-                  {waivers.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                      কোনো বৃত্তি বা ফি মওকুফ রেকর্ড নথিভুক্ত নেই
-                    </div>
-                  ) : (
-                    waivers.map((w, idx) => (
-                      <div key={idx} className="bg-slate-50 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 transition-colors hover:border-purple-300 dark:hover:border-purple-800/60 shadow-2xs">
-                        <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                            {w.studentName} <span className="text-slate-600 dark:text-slate-400 font-medium">({w.grade})</span>
-                          </h4>
-                          <p className="text-[11px] text-slate-700 dark:text-slate-300">
-                            <span className="font-semibold text-slate-900 dark:text-slate-200">কারণ:</span> {w.reason}
-                          </p>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                            অনুমোদনে: {w.approvedBy} • {w.date}
-                          </p>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 text-xs font-mono font-black border border-purple-200 dark:border-purple-800 shrink-0">
-                          {w.type === 'percent' ? `${w.value}% ছাড়` : `৳ ${w.value.toLocaleString('bn-BD')} ছাড়`}
-                        </span>
-                      </div>
-                    ))
-                  )}
+                <div className="flex justify-between items-center text-[10px] text-gray-600 mt-2 px-2">
+                  <span>অর্থবছর / সেশন: {schoolInfo.session}</span>
+                  <span>মুদ্রণ তারিখ: {new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </div>
               </div>
 
-              {/* Refunds Section */}
-              <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                    ফি রিফান্ড ও সমন্বয় রেজিস্টার (Refunds)
-                  </h3>
+              {/* Header Bar */}
+              <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-500/30">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 dark:text-white">
+                      দৈনন্দিন ব্যয় ও ভাউচার রেজিস্টার (Operating Expense Ledger)
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      বিদ্যুৎ বিল, স্টেশনারি, প্রিন্টিং, ল্যাব সামগ্রী, মেরামত ও বিবিধ খরচের ডাবল-এন্ট্রি ভাউচার
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => setShowRefundModal(true)}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                   >
-                    + রিফান্ড ভাউচার
+                    <Printer className="w-4 h-4" />
+                    <span>ব্যয় খতিয়ান প্রিন্ট</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowExpenseModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>নতুন খরচ এন্ট্রি</span>
                   </button>
                 </div>
-                <div className="space-y-2.5">
-                  {refunds.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                      কোনো ফি রিফান্ড বা সমন্বয় রেকর্ড নেই
+              </div>
+
+              {/* 4 Expense KPI Cards */}
+              <div className="print:hidden grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">সর্বমোট ভাউচার ব্যয়</p>
+                    <h4 className="text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-1">৳ {totalExpenseSum.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">{expenses.length} টি ভাউচার এন্ট্রি</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-rose-500/20">
+                    <TrendingDown className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">আজকের দৈনিক খরচ</p>
+                    <h4 className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-1">৳ {todayExpenseSum.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">তারিখ: {todayIso}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-500/20">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">নগদ ক্যাশ ব্যয়</p>
+                    <h4 className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">৳ {cashExpenseSum.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">ক্যাশ ড্রয়ার (1010)</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">ব্যাংক ও মোবাইল পেমেন্ট</p>
+                    <h4 className="text-lg font-black font-mono text-sky-600 dark:text-sky-400 mt-1">৳ {digitalBankExpenseSum.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">চেক, বিকাশ ও নগদ</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20">
+                    <Landmark className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Expenses Filter & Table */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
+                <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="ভাউচার নং, প্রাপক বা বিবরণ খুঁজুন..."
+                      value={expenseSearch}
+                      onChange={e => setExpenseSearch(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={expenseCategoryFilter}
+                      onChange={e => setExpenseCategoryFilter(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                    >
+                      <option value="all">সকল ব্যয়ের খাত</option>
+                      {EXPENSE_CATEGORIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={expenseMethodFilter}
+                      onChange={e => setExpenseMethodFilter(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer"
+                    >
+                      <option value="all">সকল মাধ্যম</option>
+                      <option value="Cash">নগদ ক্যাশ (Cash)</option>
+                      <option value="Bank Check">ব্যাংক চেক</option>
+                      <option value="bKash">বিকাশ (bKash)</option>
+                      <option value="Nagad">নগদ (Nagad)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredExpenses.length === 0 ? (
+                  <div className="py-16 text-center space-y-3">
+                    <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center mx-auto text-rose-500">
+                      <Receipt className="w-8 h-8" />
                     </div>
-                  ) : (
-                    refunds.map((r, idx) => (
-                      <div key={idx} className="bg-slate-50 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 transition-colors hover:border-rose-300 dark:hover:border-rose-800/60 shadow-2xs">
-                        <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">{r.studentName}</h4>
-                          <p className="text-[11px] text-slate-700 dark:text-slate-300">
-                            <span className="font-semibold text-slate-900 dark:text-slate-200">রসিদ নং:</span> {r.receiptId} • <span className="font-semibold text-slate-900 dark:text-slate-200">কারণ:</span> {r.reason}
-                          </p>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                            প্রক্রিয়াকরণে: {r.processedBy} • {r.date}
-                          </p>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-xl bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 text-xs font-mono font-black border border-rose-200 dark:border-rose-800 shrink-0">
-                          ফেরত ৳ {r.amount.toLocaleString('bn-BD')}
-                        </span>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 dark:text-slate-200">কোনো ব্যয়ের ভাউচার রেকর্ড নেই</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                        বিদ্যালয়ের দৈনন্দিন খরচ এন্ট্রি করলে তা স্বয়ংক্রিয়ভাবে ক্যাশবুক, ব্যয় খতিয়ান ও আয়-ব্যয় বিবরণীতে যুক্ত হবে।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowExpenseModal(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>নতুন খরচ এন্ট্রি করুন</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse print:text-black">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 print:bg-gray-100 print:border-black">
+                          <th className="p-3">ভাউচার নং</th>
+                          <th className="p-3">ব্যয় খাত (Category)</th>
+                          <th className="p-3">বিবরণ (Note)</th>
+                          <th className="p-3">প্রাপক (Paid To)</th>
+                          <th className="p-3 text-right">পরিমাণ (টাকা)</th>
+                          <th className="p-3">মাধ্যম</th>
+                          <th className="p-3">তারিখ</th>
+                          <th className="p-3 text-right print:hidden">অ্যাকশন</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 print:divide-gray-300">
+                        {filteredExpenses.map((exp, idx) => (
+                          <tr key={exp.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="p-3 font-mono font-bold text-sky-700 dark:text-sky-400 print:text-black">{exp.voucherNo}</td>
+                            <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{exp.category}</td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400">{exp.note || 'নিয়মিত ব্যয়'}</td>
+                            <td className="p-3 font-medium text-slate-800 dark:text-slate-200">{exp.paidTo}</td>
+                            <td className="p-3 text-right font-mono font-black text-rose-600 dark:text-rose-400 print:text-black">৳ {Number(exp.amount).toLocaleString('bn-BD')}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
+                                {exp.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-500 dark:text-slate-400">{exp.date}</td>
+                            <td className="p-3 text-right print:hidden">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setPrintExpenseSlip(exp)}
+                                  className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-600/20 dark:hover:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-500/30 cursor-pointer"
+                                >
+                                  ভাউচার স্লিপ
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`ভাউচার #${exp.voucherNo} (৳${exp.amount}) মুছে ফেলতে চান?`)) {
+                                      financeService.deleteExpense(exp.id);
+                                      loadAllData();
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                  title="ব্যয় রেকর্ড মুছুন"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* TAB 4: CASH & BANK TREASURY                                   */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {activeTab === 'cash_bank' && (() => {
+          const contraVouchers = vouchers.filter(v => v.voucherType === 'Contra');
+          const mfsBalance = feeStats.bkashCollected + feeStats.nagadCollected;
+          const totalTreasury = cashInHand + totalBankBalance + mfsBalance;
+
+          return (
+            <div className="space-y-6">
+              {/* Print Header for Cash & Bank */}
+              <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
+                <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+                <p className="text-xs text-gray-700 font-medium">{schoolInfo.address} • EIIN: {schoolInfo.eiin} • স্থাপিত: {schoolInfo.established}</p>
+                <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
+                  ক্যাশ ও ব্যাংক হিসাব স্থিতি বিবরণী এবং কন্ট্রা ট্রান্সফার খতিয়ান
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-gray-600 mt-2 px-2">
+                  <span>অর্থবছর / সেশন: {schoolInfo.session}</span>
+                  <span>মুদ্রণ তারিখ: {new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                </div>
+              </div>
+
+              <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-500/30">
+                    <Landmark className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 dark:text-white">
+                      ক্যাশ, ব্যাংক ও ট্রেজারি ব্যবস্থাপনা (Cash, Bank & MFS Treasury)
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      হাতে নগদ ড্রয়ার, ব্যাংক হিসাবসমূহ, মোবাইল ওয়ালেট এবং অভ্যন্তরীণ ফান্ড ট্রান্সফার
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetAllBankBalances}
+                    title="সকল ব্যাংকের ডেমো ব্যালেন্স ০ করতে ক্লিক করুন"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    <span>ব্যালেন্স রিসেট (৳০)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBankModal(null)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Plus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                    <span>নতুন ব্যাংক হিসাব</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>স্থিতি প্রিন্ট</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBankTransferModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 transition-all cursor-pointer active:scale-95"
+                  >
+                    <ArrowRightLeft className="w-4 h-4" />
+                    <span>ব্যাংকে অর্থ জমা ও ফান্ড ট্রান্সফার</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Treasury Overview Cards */}
+              <div className="print:hidden grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">হাতে নগদ (Cash in Hand)</p>
+                    <h4 className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">৳ {cashInHand.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">ক্যাশবুক সমাপনী জের (1010)</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">ব্যাংক হিসাব স্থিতি</p>
+                    <h4 className="text-lg font-black font-mono text-sky-600 dark:text-sky-400 mt-1">৳ {totalBankBalance.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">{bankAccounts.length} টি সক্রিয় ব্যাংক হিসাব</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20">
+                    <Landmark className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোবাইল ব্যাংকিং (bKash/Nagad)</p>
+                    <h4 className="text-lg font-black font-mono text-pink-600 dark:text-pink-400 mt-1">৳ {mfsBalance.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">বিকাশ: ৳{feeStats.bkashCollected} • নগদ: ৳{feeStats.nagadCollected}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center border border-pink-100 dark:border-pink-500/20">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোট তরল তহবিল (Total Liquid)</p>
+                    <h4 className="text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-1">৳ {totalTreasury.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">ক্যাশ + ব্যাংক + এমএফএস</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {bankAccounts.map((b, idx) => (
+                  <div key={b.id || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3 print:bg-white print:border-black relative group transition-all hover:border-sky-300 dark:hover:border-sky-700">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20 font-bold">
+                        <Landmark className="w-5 h-5" />
                       </div>
-                    ))
-                  )}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
+                          কোড: {b.accountCode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenBankModal(b)}
+                          className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          title="ব্যাংক হিসাব ও ব্যালেন্স এডিট করুন"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        {bankAccounts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBank(b.id, b.bankName)}
+                            className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="হিসাব মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white print:text-black">{b.bankName}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{b.accountName}</p>
+                      {b.branch && (
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{b.branch}</p>
+                      )}
+                      <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">হিসাব নং: {b.accountNumber}</p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">বর্তমান স্থিতি:</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenBankModal(b)}
+                          className="print:hidden text-[11px] text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer"
+                          title="ব্যালেন্স এডিট করতে ক্লিক করুন"
+                        >
+                          (এডিট)
+                        </button>
+                      </div>
+                      <span className="text-lg font-black font-mono text-sky-700 dark:text-sky-400 print:text-black">৳ {b.balance.toLocaleString('bn-BD')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Contra Transfer Log */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <ArrowRightLeft className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    সাম্প্রতিক কন্ট্রা ভাউচার ও ডিপোজিট খতিয়ান (Contra Transfers)
+                  </h3>
+                  <span className="text-xs font-bold text-slate-400">{contraVouchers.length} টি লেনদেন</span>
+                </div>
+                {contraVouchers.length === 0 ? (
+                  <div className="py-12 text-center space-y-2 bg-slate-50/60 dark:bg-slate-950/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <ArrowRightLeft className="w-7 h-7 text-amber-400 mx-auto" />
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">এখনো কোনো কন্ট্রা ট্রান্সফার বা ব্যাংক ডিপোজিট এন্ট্রি হয়নি</p>
+                    <p className="text-[11px] text-slate-400">ক্যাশ থেকে ব্যাংকে টাকা জমা দিলে তা এখানে নথিভুক্ত হবে।</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse print:text-black">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 print:bg-gray-100 print:border-black">
+                          <th className="p-3">ভাউচার নং</th>
+                          <th className="p-3">তারিখ</th>
+                          <th className="p-3">রেফারেন্স ও উদ্দেশ্য</th>
+                          <th className="p-3">বিবরণ</th>
+                          <th className="p-3 text-right text-emerald-700 dark:text-emerald-400">পরিমাণ (টাকা)</th>
+                          <th className="p-3">এন্ট্রি কারক</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200 print:divide-gray-300">
+                        {contraVouchers.map((cv, idx) => (
+                          <tr key={cv.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="p-3 font-mono font-bold text-amber-700 dark:text-amber-400 print:text-black">{cv.voucherNo}</td>
+                            <td className="p-3 text-slate-500 dark:text-slate-400">{cv.date}</td>
+                            <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{cv.reference}</td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400">{cv.narration}</td>
+                            <td className="p-3 text-right font-mono font-black text-emerald-700 dark:text-emerald-400 print:text-black">৳ {cv.totalAmount.toLocaleString('bn-BD')}</td>
+                            <td className="p-3 text-slate-500 dark:text-slate-400">{cv.createdBy}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* TAB 5: WAIVERS & REFUNDS (বৃত্তি, মওকুফ ও রিফান্ড)             */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {activeTab === 'waivers_refunds' && (() => {
+          const totalRefundedAmt = refunds.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+          const stipendStudentsCount = students.filter(s => isStipendStudent(s)).length;
+
+          return (
+            <div className="space-y-6">
+              {/* 3 Summary KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">অনুমোদিত বিশেষ ফি মওকুফ</p>
+                    <h4 className="text-lg font-black font-mono text-purple-600 dark:text-purple-400 mt-1">{waivers.length} জন শিক্ষার্থী</h4>
+                    <p className="text-[10px] text-slate-400">শতকরা ও এককালীন ছাড়</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-500/20">
+                    <BadgePercent className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">সরকারি উপবৃত্তি সুবিধাভোগী</p>
+                    <h4 className="text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-1">{stipendStudentsCount} জন শিক্ষার্থী</h4>
+                    <p className="text-[10px] text-slate-400">১০০% মাসিক বেতন মওকুফ</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20">
+                    <Users className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">সর্বমোট ফি রিফান্ড</p>
+                    <h4 className="text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-1">৳ {totalRefundedAmt.toLocaleString('bn-BD')}</h4>
+                    <p className="text-[10px] text-slate-400">{refunds.length} টি রিফান্ড ভাউচার (COA 5110)</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-rose-500/20">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Waivers Section */}
+                <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <Percent className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        বৃত্তি ও ফি মওকুফ রেজিস্টার (Fee Waivers)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">দরিদ্র, মেধাবী ও বিশেষ কোটায় অনুমোদিত টিউশন ফি ছাড়</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWaiverModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>মওকুফ অনুমোদন</span>
+                    </button>
+                  </div>
+                  <div className="space-y-2.5">
+                    {waivers.length === 0 ? (
+                      <div className="p-10 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                        <Percent className="w-6 h-6 text-purple-400 mx-auto" />
+                        <p className="font-bold text-slate-700 dark:text-slate-300">কোনো বৃত্তি বা ফি মওকুফ রেকর্ড নথিভুক্ত নেই</p>
+                        <p className="text-[11px]">উপরের "+ মওকুফ অনুমোদন" বাটনে ক্লিক করে শিক্ষার্থীর ফি ছাড় যুক্ত করুন।</p>
+                      </div>
+                    ) : (
+                      waivers.map((w, idx) => (
+                        <div key={w.id || idx} className="bg-slate-50 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 transition-colors hover:border-purple-300 dark:hover:border-purple-800/60 shadow-2xs">
+                          <div className="space-y-0.5">
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                              {w.studentName} <span className="text-slate-600 dark:text-slate-400 font-medium">({w.grade} • রোল: {w.roll || '-'})</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-700 dark:text-slate-300">
+                              <span className="font-semibold text-slate-900 dark:text-slate-200">কারণ:</span> {w.reason}
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                              অনুমোদনে: {w.approvedBy} • {w.date}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-2.5 py-1 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 text-xs font-mono font-black border border-purple-200 dark:border-purple-800">
+                              {w.type === 'percent' ? `${w.value}% ছাড়` : `৳ ${w.value.toLocaleString('bn-BD')} ছাড়`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`'${w.studentName}'-এর ফি মওকুফ রেকর্ডটি বাতিল করতে চান?`)) {
+                                  financeService.deleteWaiver(w.id);
+                                  loadAllData();
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title="মওকুফ বাতিল করুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Refunds Section */}
+                <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        ফি রিফান্ড ও সমন্বয় রেজিস্টার (Refunds)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">অতিরিক্ত আদায়কৃত ফি ফেরত ও ডাবল-এন্ট্রি সমন্বয়</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRefundModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>রিফান্ড ভাউচার</span>
+                    </button>
+                  </div>
+                  <div className="space-y-2.5">
+                    {refunds.length === 0 ? (
+                      <div className="p-10 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                        <RotateCcw className="w-6 h-6 text-rose-400 mx-auto" />
+                        <p className="font-bold text-slate-700 dark:text-slate-300">কোনো ফি রিফান্ড বা সমন্বয় রেকর্ড নেই</p>
+                        <p className="text-[11px]">ভুলবশত অতিরিক্ত আদায়কৃত অর্থ ফেরত দিলে এখানে ভাউচার সংরক্ষিত হবে।</p>
+                      </div>
+                    ) : (
+                      refunds.map((r, idx) => (
+                        <div key={r.id || idx} className="bg-slate-50 dark:bg-slate-950/80 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 transition-colors hover:border-rose-300 dark:hover:border-rose-800/60 shadow-2xs">
+                          <div className="space-y-0.5">
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">{r.studentName}</h4>
+                            <p className="text-[11px] text-slate-700 dark:text-slate-300">
+                              <span className="font-semibold text-slate-900 dark:text-slate-200">রসিদ নং:</span> {r.receiptId} • <span className="font-semibold text-slate-900 dark:text-slate-200">কারণ:</span> {r.reason}
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                              প্রক্রিয়াকরণে: {r.processedBy} • {r.date}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-2.5 py-1 rounded-xl bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 text-xs font-mono font-black border border-rose-200 dark:border-rose-800">
+                              ফেরত ৳ {r.amount.toLocaleString('bn-BD')}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`'${r.studentName}'-এর রিফান্ড রেকর্ডটি মুছে ফেলতে চান?`)) {
+                                  if ((financeService as any).deleteRefund) {
+                                    (financeService as any).deleteRefund(r.id);
+                                  }
+                                  loadAllData();
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title="রিফান্ড মুছুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═════════════════════════════════════════════════════════════ */}
         {/* TAB 6: FINANCIAL REPORTS & AUDIT STATEMENTS (8 REPORTS)       */}
@@ -5355,15 +6010,56 @@ function FinanceContent() {
             </div>
 
             <form onSubmit={handleSavePayroll} className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">শিক্ষক / স্টাফ নির্বাচন</label>
-                <input
-                  type="text"
-                  value={payrollForm.teacherName}
-                  onChange={e => setPayrollForm({ ...payrollForm, teacherName: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
+              {teachersList.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 block mb-1">তালিকা থেকে শিক্ষক নির্বাচন করুন (ঐচ্ছিক অটো-ফিল)</label>
+                  <select
+                    value={payrollForm.teacherId}
+                    onChange={e => {
+                      const t = teachersList.find(item => item.id === e.target.value);
+                      if (t) {
+                        setPayrollForm({
+                          ...payrollForm,
+                          teacherId: t.id,
+                          teacherName: t.name,
+                          designation: t.designation || 'সহকারী শিক্ষক'
+                        });
+                      } else {
+                        setPayrollForm({ ...payrollForm, teacherId: '' });
+                      }
+                    }}
+                    className="w-full bg-emerald-50/50 dark:bg-slate-950 border border-emerald-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="">-- শিক্ষক নির্বাচন করুন অথবা নিচে নাম লিখুন --</option>
+                    {teachersList.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.designation || 'শিক্ষক'} • ID: {t.id})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">শিক্ষক / স্টাফ নাম *</label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: মাওলানা আব্দুল করিম"
+                    value={payrollForm.teacherName}
+                    onChange={e => setPayrollForm({ ...payrollForm, teacherName: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">পদবি (Designation)</label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: সহকারী শিক্ষক / অফিস সহকারী"
+                    value={payrollForm.designation}
+                    onChange={e => setPayrollForm({ ...payrollForm, designation: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -5388,33 +6084,50 @@ function FinanceContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div>
                   <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">মূল বেতন (Base)</label>
                   <input
                     type="number"
-                    value={payrollForm.baseSalary}
-                    onChange={e => setPayrollForm({ ...payrollForm, baseSalary: Number(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="0"
+                    value={payrollForm.baseSalary || ''}
+                    placeholder="0"
+                    onChange={e => setPayrollForm({ ...payrollForm, baseSalary: Number(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">ভাতা (Allowances)</label>
+                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">ভাতা (Allowance)</label>
                   <input
                     type="number"
-                    value={payrollForm.allowances}
-                    onChange={e => setPayrollForm({ ...payrollForm, allowances: Number(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="0"
+                    value={payrollForm.allowances || ''}
+                    placeholder="0"
+                    onChange={e => setPayrollForm({ ...payrollForm, allowances: Number(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">কর্তন (PF Deduction)</label>
+                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">বোনাস (Bonus)</label>
                   <input
                     type="number"
-                    value={payrollForm.deductions}
-                    onChange={e => setPayrollForm({ ...payrollForm, deductions: Number(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="0"
+                    value={payrollForm.bonus || ''}
+                    placeholder="0"
+                    onChange={e => setPayrollForm({ ...payrollForm, bonus: Number(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-sky-600 dark:text-sky-400 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">কর্তন (PF)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={payrollForm.deductions || ''}
+                    placeholder="0"
+                    onChange={e => setPayrollForm({ ...payrollForm, deductions: Number(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-rose-600 dark:text-rose-400 outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -6814,194 +7527,285 @@ function FinanceContent() {
         </div>
       )}
 
+      </div>
+
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* PRINT-ONLY AREA: 3-PART LANDSCAPE A4 MONEY RECEIPT           */}
+      {/* INTERACTIVE PRINT PREVIEW MODAL 1: 3-PART MONEY RECEIPT       */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {printReceiptData && (
-        <div id="print-area" className="hidden print:block text-black bg-white">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xs font-bold">বরইতলী উচ্চ বিদ্যালয় — মানি রিসিট (A4 Landscape ৩-কপি)</h2>
-            <button onClick={() => setPrintReceiptData(null)} className="print:hidden text-xs bg-red-500 text-white px-2 py-1 rounded">বন্ধ করুন</button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 border-t-2 border-black pt-2 text-[10px]">
-            {['শিক্ষার্থী কপি (Student Copy)', 'অফিস কপি (Office Copy)', 'হিসাব শাখা কপি (Accounts Copy)'].map((copyName, i) => (
-              <div key={i} className="border border-dashed border-gray-400 p-2.5 relative flex flex-col justify-between min-h-[340px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:static print:p-0 print:bg-white">
+          <div id="print-area" className="bg-white text-black rounded-2xl shadow-2xl border border-slate-300 p-5 w-full max-w-6xl space-y-4 print:shadow-none print:border-none print:p-0 print:rounded-none">
+            <div className="print:hidden flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <div className="text-center border-b border-gray-300 pb-1.5">
-                    <h3 className="font-bold text-[13px] tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h3>
-                    <p className="text-[8.5px] text-gray-700">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
-                    <span className="inline-block bg-gray-200 px-2 py-0.5 rounded text-[8px] font-bold mt-1 uppercase tracking-wider">{copyName}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1 my-1.5 text-[9px] bg-gray-50 p-1.5 rounded border border-gray-200">
-                    <div><strong>রসিদ নং:</strong> <span className="font-mono font-bold">{printReceiptData.receiptId}</span></div>
-                    <div><strong>তারিখ:</strong> {printReceiptData.date}</div>
-                    <div><strong>শিক্ষার্থী:</strong> {printReceiptData.studentName}</div>
-                    <div><strong>রোল:</strong> #{printReceiptData.roll}</div>
-                    <div><strong>শ্রেণি:</strong> {printReceiptData.grade} ({printReceiptData.section})</div>
-                    <div><strong>পদ্ধতি:</strong> {printReceiptData.paymentMethod} {printReceiptData.trxId ? `(${printReceiptData.trxId})` : ''}</div>
-                  </div>
-
-                  <table className="w-full text-left text-[8px] border-collapse border border-gray-300 mt-1">
-                    <thead>
-                      <tr className="bg-gray-100 border-b border-gray-300">
-                        <th className="p-1">ফি খাত ও বিবরণ</th>
-                        <th className="p-1 text-right">আদায়</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {printReceiptData.feeItems.map((item, idx) => (
-                        <tr key={idx} className="border-b border-gray-200">
-                          <td className="p-1">{item.name}</td>
-                          <td className="p-1 text-right font-mono">৳{item.amount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      {printReceiptData.discount > 0 && (
-                        <tr>
-                          <td className="p-1 text-right text-gray-600">বিশেষ মওকুফ/ছাড়:</td>
-                          <td className="p-1 text-right font-mono text-red-600">-৳{printReceiptData.discount}</td>
-                        </tr>
-                      )}
-                      <tr className="font-bold border-t border-gray-400 bg-gray-50">
-                        <td className="p-1 text-right">মোট পরিশোধিত অর্থ:</td>
-                        <td className="p-1 text-right font-mono text-emerald-800">৳{printReceiptData.paidAmount}</td>
-                      </tr>
-                      {printReceiptData.dueRemaining !== undefined && printReceiptData.dueRemaining > 0 && (
-                        <tr className="font-bold text-red-600 border-t border-gray-300">
-                          <td className="p-1 text-right">অবশিষ্ট মোট বকেয়া:</td>
-                          <td className="p-1 text-right font-mono">৳{printReceiptData.dueRemaining}</td>
-                        </tr>
-                      )}
-                    </tfoot>
-                  </table>
-                </div>
-
-                <div className="flex justify-between items-end pt-4 text-[8px] border-t border-gray-300 mt-2">
-                  <div className="text-center">
-                    <p className="text-[7.5px] text-gray-500">{printReceiptData.collectedBy || 'আদায়কারী'}</p>
-                    <p className="border-t border-black px-2 mt-0.5 font-semibold">আদায়কারীর স্বাক্ষর</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="border-t border-black px-2 font-semibold">প্রধান শিক্ষক</p>
-                  </div>
+                  <h2 className="text-sm font-black text-slate-900">{schoolInfo.nameBn} — ৩-কপি মানি রিসিট প্রিভিউ (A4 Landscape)</h2>
+                  <p className="text-xs text-slate-500">রসিদ নং: {printReceiptData.receiptId} • শিক্ষার্থী: {printReceiptData.studentName}</p>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>প্রিন্ট করুন (Print Receipt)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintReceiptData(null)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  বন্ধ করুন
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 print:grid-cols-3 gap-3 border-t-2 border-black pt-2 text-[10px]">
+              {['শিক্ষার্থী কপি (Student Copy)', 'অফিস কপি (Office Copy)', 'হিসাব শাখা কপি (Accounts Copy)'].map((copyName, i) => (
+                <div key={i} className="border border-dashed border-gray-400 p-3 relative flex flex-col justify-between min-h-[340px]">
+                  <div>
+                    <div className="text-center border-b border-gray-300 pb-1.5">
+                      <h3 className="font-bold text-[13px] tracking-tight">{schoolInfo.nameBn}</h3>
+                      <p className="text-[8.5px] text-gray-700">{schoolInfo.address} • EIIN: {schoolInfo.eiin} • স্থাপিত: {schoolInfo.established}</p>
+                      <span className="inline-block bg-gray-200 px-2 py-0.5 rounded text-[8px] font-bold mt-1 uppercase tracking-wider">{copyName}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1 my-1.5 text-[9px] bg-gray-50 p-1.5 rounded border border-gray-200">
+                      <div><strong>রসিদ নং:</strong> <span className="font-mono font-bold">{printReceiptData.receiptId}</span></div>
+                      <div><strong>তারিখ:</strong> {printReceiptData.date}</div>
+                      <div><strong>শিক্ষার্থী:</strong> {printReceiptData.studentName}</div>
+                      <div><strong>রোল:</strong> #{printReceiptData.roll}</div>
+                      <div><strong>শ্রেণি:</strong> {printReceiptData.grade} ({printReceiptData.section})</div>
+                      <div><strong>পদ্ধতি:</strong> {printReceiptData.paymentMethod} {printReceiptData.trxId ? `(${printReceiptData.trxId})` : ''}</div>
+                    </div>
+
+                    <table className="w-full text-left text-[8.5px] border-collapse border border-gray-300 mt-1">
+                      <thead>
+                        <tr className="bg-gray-100 border-b border-gray-300">
+                          <th className="p-1">ফি খাত ও বিবরণ</th>
+                          <th className="p-1 text-right">আদায়</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {printReceiptData.feeItems.map((item, idx) => (
+                          <tr key={idx} className="border-b border-gray-200">
+                            <td className="p-1">{item.name}</td>
+                            <td className="p-1 text-right font-mono">৳{item.amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        {printReceiptData.discount > 0 && (
+                          <tr>
+                            <td className="p-1 text-right text-gray-600">বিশেষ মওকুফ/ছাড়:</td>
+                            <td className="p-1 text-right font-mono text-red-600">-৳{printReceiptData.discount}</td>
+                          </tr>
+                        )}
+                        <tr className="font-bold border-t border-gray-400 bg-gray-50">
+                          <td className="p-1 text-right">মোট পরিশোধিত অর্থ:</td>
+                          <td className="p-1 text-right font-mono text-emerald-800">৳{printReceiptData.paidAmount}</td>
+                        </tr>
+                        {printReceiptData.dueRemaining !== undefined && printReceiptData.dueRemaining > 0 && (
+                          <tr className="font-bold text-red-600 border-t border-gray-300">
+                            <td className="p-1 text-right">অবশিষ্ট মোট বকেয়া:</td>
+                            <td className="p-1 text-right font-mono">৳{printReceiptData.dueRemaining}</td>
+                          </tr>
+                        )}
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-between items-end pt-4 text-[8px] border-t border-gray-300 mt-2">
+                    <div className="text-center">
+                      <p className="text-[7.5px] text-gray-500">{printReceiptData.collectedBy || 'আদায়কারী'}</p>
+                      <p className="border-t border-black px-2 mt-0.5 font-semibold">আদায়কারীর স্বাক্ষর</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="border-t border-black px-2 font-semibold">প্রধান শিক্ষক</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* PRINT-ONLY AREA: EXPENSE VOUCHER SLIP                         */}
+      {/* INTERACTIVE PRINT PREVIEW MODAL 2: EXPENSE VOUCHER SLIP       */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {printExpenseSlip && (
-        <div id="print-area" className="hidden print:block text-black bg-white p-6 max-w-md mx-auto border border-black">
-          <div className="text-center border-b pb-2">
-            <h2 className="text-base font-bold">বরইতলী উচ্চ বিদ্যালয়</h2>
-            <p className="text-xs">চকরিয়া, কক্সবাজার • বিদ্যালয় ব্যয় ভাউচার স্লিপ</p>
-          </div>
-          <div className="my-3 text-xs space-y-1">
-            <p><strong>ভাউচার নং:</strong> {printExpenseSlip.voucherNo}</p>
-            <p><strong>ব্যয় খাত:</strong> {printExpenseSlip.category}</p>
-            <p><strong>প্রাপক / সুবিধাভোগী:</strong> {printExpenseSlip.paidTo}</p>
-            <p><strong>তারিখ:</strong> {printExpenseSlip.date}</p>
-            <p><strong>পরিশোধ মাধ্যম:</strong> {printExpenseSlip.paymentMethod}</p>
-            <p><strong>বিবরণ / নোট:</strong> {printExpenseSlip.note || 'নিয়মিত বিদ্যালয় ব্যয়'}</p>
-          </div>
-          <table className="w-full text-xs border border-collapse mb-4">
-            <tbody>
-              <tr className="border-b"><td className="p-1.5 font-semibold">খরচের খাত:</td><td className="p-1.5">{printExpenseSlip.category}</td></tr>
-              <tr className="border-b"><td className="p-1.5 font-semibold">বিবরণ:</td><td className="p-1.5">{printExpenseSlip.note || 'অনুমোদিত ব্যয়'}</td></tr>
-              <tr className="bg-gray-100 font-bold"><td className="p-1.5">মোট ব্যয়কৃত অর্থ:</td><td className="p-1.5 text-right font-mono">৳ {printExpenseSlip.amount}</td></tr>
-            </tbody>
-          </table>
-          <div className="flex justify-between pt-8 text-xs">
-            <p className="border-t border-black px-4">গ্রহীতার স্বাক্ষর</p>
-            <p className="border-t border-black px-4">হিসাবরক্ষক</p>
-            <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs print:static print:p-0 print:bg-white">
+          <div id="print-area" className="text-black bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full mx-auto border border-black print:rounded-none print:shadow-none">
+            <div className="print:hidden flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <span className="text-xs font-black text-rose-600">ব্যয় ভাউচার প্রিভিউ</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" /> প্রিন্ট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintExpenseSlip(null)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  বন্ধ
+                </button>
+              </div>
+            </div>
+
+            <div className="text-center border-b pb-2">
+              <h2 className="text-base font-bold">{schoolInfo.nameBn}</h2>
+              <p className="text-xs">{schoolInfo.address} • বিদ্যালয় ব্যয় ভাউচার স্লিপ</p>
+            </div>
+            <div className="my-3 text-xs space-y-1">
+              <p><strong>ভাউচার নং:</strong> {printExpenseSlip.voucherNo}</p>
+              <p><strong>ব্যয় খাত:</strong> {printExpenseSlip.category}</p>
+              <p><strong>প্রাপক / সুবিধাভোগী:</strong> {printExpenseSlip.paidTo}</p>
+              <p><strong>তারিখ:</strong> {printExpenseSlip.date}</p>
+              <p><strong>পরিশোধ মাধ্যম:</strong> {printExpenseSlip.paymentMethod}</p>
+              <p><strong>বিবরণ / নোট:</strong> {printExpenseSlip.note || 'নিয়মিত বিদ্যালয় ব্যয়'}</p>
+            </div>
+            <table className="w-full text-xs border border-collapse mb-4">
+              <tbody>
+                <tr className="border-b"><td className="p-1.5 font-semibold">খরচের খাত:</td><td className="p-1.5">{printExpenseSlip.category}</td></tr>
+                <tr className="border-b"><td className="p-1.5 font-semibold">বিবরণ:</td><td className="p-1.5">{printExpenseSlip.note || 'অনুমোদিত ব্যয়'}</td></tr>
+                <tr className="bg-gray-100 font-bold"><td className="p-1.5">মোট ব্যয়কৃত অর্থ:</td><td className="p-1.5 text-right font-mono">৳ {printExpenseSlip.amount}</td></tr>
+              </tbody>
+            </table>
+            <div className="flex justify-between pt-8 text-xs">
+              <p className="border-t border-black px-4">গ্রহীতার স্বাক্ষর</p>
+              <p className="border-t border-black px-4">হিসাবরক্ষক</p>
+              <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* PRINT-ONLY AREA: PAYROLL SALARY VOUCHER                       */}
+      {/* INTERACTIVE PRINT PREVIEW MODAL 3: PAYROLL SALARY SLIP        */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {printSalarySlip && (
-        <div id="print-area" className="hidden print:block text-black bg-white p-6 max-w-md mx-auto border border-black">
-          <div className="text-center border-b pb-2">
-            <h2 className="text-base font-bold">বরইতলী উচ্চ বিদ্যালয়</h2>
-            <p className="text-xs">চকরিয়া, কক্সবাজার • অফিশিয়াল স্যালারি ভাউচার স্লিপ</p>
-          </div>
-          <div className="my-3 text-xs space-y-1">
-            <p><strong>ভাউচার নং:</strong> {printSalarySlip.voucherNo}</p>
-            <p><strong>শিক্ষক/স্টাফ নাম:</strong> {printSalarySlip.teacherName} ({printSalarySlip.designation})</p>
-            <p><strong>মাস ও বছর:</strong> {printSalarySlip.month} {printSalarySlip.year}</p>
-            <p><strong>পরিশোধ মাধ্যম:</strong> {printSalarySlip.paymentMethod} (Trx: {printSalarySlip.trxId || 'N/A'})</p>
-          </div>
-          <table className="w-full text-xs border border-collapse mb-4">
-            <tbody>
-              <tr className="border-b"><td className="p-1.5 font-semibold">মূল বেতন:</td><td className="p-1.5 text-right font-mono">৳ {printSalarySlip.baseSalary}</td></tr>
-              <tr className="border-b"><td className="p-1.5 font-semibold">ভাতা ও বোনাস:</td><td className="p-1.5 text-right font-mono">+ ৳ {printSalarySlip.allowances + printSalarySlip.bonus}</td></tr>
-              <tr className="border-b"><td className="p-1.5 font-semibold">প্রভিডেন্ট ফান্ড কর্তন:</td><td className="p-1.5 text-right font-mono text-red-600">- ৳ {printSalarySlip.deductions}</td></tr>
-              <tr className="bg-gray-100 font-bold"><td className="p-1.5">নিট পরিশোধিত বেতন:</td><td className="p-1.5 text-right font-mono">৳ {printSalarySlip.netPayable}</td></tr>
-            </tbody>
-          </table>
-          <div className="flex justify-between pt-8 text-xs">
-            <p className="border-t border-black px-4">গ্রহণকারীর স্বাক্ষর</p>
-            <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs print:static print:p-0 print:bg-white">
+          <div id="print-area" className="text-black bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full mx-auto border border-black print:rounded-none print:shadow-none">
+            <div className="print:hidden flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <span className="text-xs font-black text-emerald-600">স্যালারি ভাউচার স্লিপ প্রিভিউ</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" /> প্রিন্ট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintSalarySlip(null)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  বন্ধ
+                </button>
+              </div>
+            </div>
+
+            <div className="text-center border-b pb-2">
+              <h2 className="text-base font-bold">{schoolInfo.nameBn}</h2>
+              <p className="text-xs">{schoolInfo.address} • অফিশিয়াল স্যালারি ভাউচার স্লিপ</p>
+            </div>
+            <div className="my-3 text-xs space-y-1">
+              <p><strong>ভাউচার নং:</strong> {printSalarySlip.voucherNo}</p>
+              <p><strong>শিক্ষক/স্টাফ নাম:</strong> {printSalarySlip.teacherName} ({printSalarySlip.designation || 'শিক্ষক/স্টাফ'})</p>
+              <p><strong>মাস ও বছর:</strong> {printSalarySlip.month} {printSalarySlip.year}</p>
+              <p><strong>পরিশোধ মাধ্যম:</strong> {printSalarySlip.paymentMethod} (Trx: {printSalarySlip.trxId || 'N/A'})</p>
+            </div>
+            <table className="w-full text-xs border border-collapse mb-4">
+              <tbody>
+                <tr className="border-b"><td className="p-1.5 font-semibold">মূল বেতন:</td><td className="p-1.5 text-right font-mono">৳ {printSalarySlip.baseSalary}</td></tr>
+                <tr className="border-b"><td className="p-1.5 font-semibold">ভাতা ও বোনাস:</td><td className="p-1.5 text-right font-mono">+ ৳ {printSalarySlip.allowances + printSalarySlip.bonus}</td></tr>
+                <tr className="border-b"><td className="p-1.5 font-semibold">প্রভিডেন্ট ফান্ড কর্তন:</td><td className="p-1.5 text-right font-mono text-red-600">- ৳ {printSalarySlip.deductions}</td></tr>
+                <tr className="bg-gray-100 font-bold"><td className="p-1.5">নিট পরিশোধিত বেতন:</td><td className="p-1.5 text-right font-mono">৳ {printSalarySlip.netPayable}</td></tr>
+              </tbody>
+            </table>
+            <div className="flex justify-between pt-8 text-xs">
+              <p className="border-t border-black px-4">গ্রহণকারীর স্বাক্ষর</p>
+              <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* PRINT-ONLY AREA: MANUAL VOUCHER PRINT SLIP                    */}
+      {/* INTERACTIVE PRINT PREVIEW MODAL 4: ACCOUNTING VOUCHER SLIP    */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {printVoucherData && (
-        <div id="print-area" className="hidden print:block text-black bg-white p-6 max-w-lg mx-auto border border-black">
-          <div className="text-center border-b pb-2">
-            <h2 className="text-base font-bold">বরইতলী উচ্চ বিদ্যালয়</h2>
-            <p className="text-xs">চকরিয়া, কক্সবাজার • হিসাব ভাউচার ({printVoucherData.voucherType} Voucher)</p>
-          </div>
-          <div className="my-3 text-xs space-y-1">
-            <p><strong>ভাউচার নং:</strong> {printVoucherData.voucherNo}</p>
-            <p><strong>তারিখ:</strong> {printVoucherData.date}</p>
-            <p><strong>রেফারেন্স:</strong> {printVoucherData.reference}</p>
-            <p><strong>বিবরণ:</strong> {printVoucherData.narration}</p>
-          </div>
-          <table className="w-full text-xs border border-collapse mb-4">
-            <thead>
-              <tr className="bg-gray-100 border-b">
-                <th className="p-1.5 text-left">কোড ও হিসাবের নাম</th>
-                <th className="p-1.5 text-right">ডেবিট (৳)</th>
-                <th className="p-1.5 text-right">ক্রেডিট (৳)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {printVoucherData.entries.map((e, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="p-1.5">{e.accountCode} - {e.accountName}</td>
-                  <td className="p-1.5 text-right font-mono">{e.debit > 0 ? `৳${e.debit}` : '-'}</td>
-                  <td className="p-1.5 text-right font-mono">{e.credit > 0 ? `৳${e.credit}` : '-'}</td>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs print:static print:p-0 print:bg-white">
+          <div id="print-area" className="text-black bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full mx-auto border border-black print:rounded-none print:shadow-none">
+            <div className="print:hidden flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <span className="text-xs font-black text-indigo-600">ডাবল-এন্ট্রি ভাউচার প্রিভিউ</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" /> প্রিন্ট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintVoucherData(null)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  বন্ধ
+                </button>
+              </div>
+            </div>
+
+            <div className="text-center border-b pb-2">
+              <h2 className="text-base font-bold">{schoolInfo.nameBn}</h2>
+              <p className="text-xs">{schoolInfo.address} • হিসাব ভাউচার ({printVoucherData.voucherType} Voucher)</p>
+            </div>
+            <div className="my-3 text-xs space-y-1">
+              <p><strong>ভাউচার নং:</strong> {printVoucherData.voucherNo}</p>
+              <p><strong>তারিখ:</strong> {printVoucherData.date}</p>
+              <p><strong>রেফারেন্স:</strong> {printVoucherData.reference}</p>
+              <p><strong>বিবরণ:</strong> {printVoucherData.narration}</p>
+            </div>
+            <table className="w-full text-xs border border-collapse mb-4">
+              <thead>
+                <tr className="bg-gray-100 border-b">
+                  <th className="p-1.5 text-left">কোড ও হিসাবের নাম</th>
+                  <th className="p-1.5 text-right">ডেবিট (৳)</th>
+                  <th className="p-1.5 text-right">ক্রেডিট (৳)</th>
                 </tr>
-              ))}
-              <tr className="font-bold bg-gray-100">
-                <td className="p-1.5 text-right">মোট:</td>
-                <td className="p-1.5 text-right font-mono">৳{printVoucherData.totalAmount}</td>
-                <td className="p-1.5 text-right font-mono">৳{printVoucherData.totalAmount}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div className="flex justify-between pt-8 text-xs">
-            <p className="border-t border-black px-4">ক্যাশিয়ার</p>
-            <p className="border-t border-black px-4">হিসাবরক্ষক</p>
-            <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+              </thead>
+              <tbody>
+                {printVoucherData.entries.map((e, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-1.5">{e.accountCode} - {e.accountName}</td>
+                    <td className="p-1.5 text-right font-mono">{e.debit > 0 ? `৳${e.debit}` : '-'}</td>
+                    <td className="p-1.5 text-right font-mono">{e.credit > 0 ? `৳${e.credit}` : '-'}</td>
+                  </tr>
+                ))}
+                <tr className="font-bold bg-gray-100">
+                  <td className="p-1.5 text-right">মোট:</td>
+                  <td className="p-1.5 text-right font-mono">৳{printVoucherData.totalAmount}</td>
+                  <td className="p-1.5 text-right font-mono">৳{printVoucherData.totalAmount}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div className="flex justify-between pt-8 text-xs">
+              <p className="border-t border-black px-4">ক্যাশিয়ার</p>
+              <p className="border-t border-black px-4">হিসাবরক্ষক</p>
+              <p className="border-t border-black px-4">প্রধান শিক্ষক</p>
+            </div>
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
