@@ -28,6 +28,25 @@ import PublicContactSection from '@/components/public/PublicContactSection';
 import PublicFaqSection from '@/components/public/PublicFaqSection';
 import PublicMobileAppSection from '@/components/public/PublicMobileAppSection';
 import PublicFooter from '@/components/public/PublicFooter';
+import { ScrollRevealSection, LandingScrollFeatures, RevealVariant } from '@/components/public/ScrollRevealSection';
+
+const SECTION_REVEAL_VARIANTS: Record<string, RevealVariant> = {
+  stats: 'fade-scale',
+  services: 'fade-up',
+  headmaster_message: 'slide-right',
+  about: 'slide-left',
+  notices: 'fade-up',
+  academic: 'fade-scale',
+  teachers: 'fade-up',
+  committee: 'fade-scale',
+  achievers: 'blur-up',
+  facilities: 'fade-up',
+  gallery: 'fade-scale',
+  blog: 'fade-up',
+  contact: 'slide-right',
+  faq: 'fade-up',
+  mobile_app: 'fade-scale',
+};
 
 export default function PublicSchoolHomePage() {
   const [mounted, setMounted] = useState(false);
@@ -175,7 +194,10 @@ export default function PublicSchoolHomePage() {
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative">
+    <div className="landing-smooth-root min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative overflow-x-hidden">
+      {/* 0. Smooth Scroll Progress Bar & Floating Back-to-Top Orb */}
+      <LandingScrollFeatures />
+
       {/* 1. Main Navigation Bar with Glass Effect directly over Hero Image */}
       <PublicNavbar 
         settings={settings} 
@@ -194,17 +216,33 @@ export default function PublicSchoolHomePage() {
           <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
         )}
 
-        {/* 4. Dynamically Ordered & Enabled Sections */}
-        {activeSections.map((sec) => renderSection(sec.key))}
+        {/* 4. Dynamically Ordered & Enabled Sections with Smooth Scroll Reveal & Staggered Cards */}
+        {activeSections.map((sec) => {
+          const content = renderSection(sec.key);
+          if (!content) return null;
+          return (
+            <ScrollRevealSection
+              key={sec.key}
+              sectionKey={sec.key}
+              variant={SECTION_REVEAL_VARIANTS[sec.key] || 'fade-up'}
+            >
+              {content}
+            </ScrollRevealSection>
+          );
+        })}
 
         {/* 5. Mobile App Download Section Fallback (if not already included in activeSections) */}
         {!activeSections.some((s) => s.key === 'mobile_app') && landingConfig.mobileApp?.enabled !== false && (
-          <PublicMobileAppSection appConfig={landingConfig.mobileApp} settings={settings} />
+          <ScrollRevealSection sectionKey="mobile_app_fallback" variant="fade-scale">
+            <PublicMobileAppSection appConfig={landingConfig.mobileApp} settings={settings} />
+          </ScrollRevealSection>
         )}
       </main>
 
       {/* Institutional Footer */}
-      <PublicFooter settings={settings} footerConfig={landingConfig.footer} />
+      <ScrollRevealSection sectionKey="footer" variant="fade-up">
+        <PublicFooter settings={settings} footerConfig={landingConfig.footer} />
+      </ScrollRevealSection>
     </div>
   );
 }

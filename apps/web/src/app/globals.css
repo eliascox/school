@@ -279,6 +279,130 @@ input[type="number"] {
 .animate-pulse-soft { animation: pulse-soft 2s infinite; }
 
 /* ═══════════════════════════════════════════════════════════ */
+/* ✨ LANDING PAGE SMOOTH SCROLL REVEAL & MICRO-ANIMATIONS     */
+/* ═══════════════════════════════════════════════════════════ */
+@keyframes heroSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes heroTimerBar {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.animate-hero-text-1 {
+  animation: heroSlideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+}
+.animate-hero-text-2 {
+  animation: heroSlideUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+.animate-hero-text-3 {
+  animation: heroSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
+}
+.animate-hero-text-4 {
+  animation: heroSlideUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both;
+}
+.animate-float-slow {
+  animation: floatSlow 4.5s ease-in-out infinite;
+}
+.animate-hero-timer {
+  animation: heroTimerBar 5.5s linear forwards;
+}
+
+/* Scroll-triggered section reveal transitions */
+.scroll-reveal-wrapper {
+  will-change: opacity, transform;
+  transition:
+    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-reveal-wrapper[data-reveal-section="fade-up"][data-revealed="false"] {
+  opacity: 0;
+  transform: translateY(42px);
+}
+.scroll-reveal-wrapper[data-reveal-section="fade-scale"][data-revealed="false"] {
+  opacity: 0;
+  transform: translateY(32px) scale(0.965);
+}
+.scroll-reveal-wrapper[data-reveal-section="slide-left"][data-revealed="false"] {
+  opacity: 0;
+  transform: translateX(-38px) translateY(16px);
+}
+.scroll-reveal-wrapper[data-reveal-section="slide-right"][data-revealed="false"] {
+  opacity: 0;
+  transform: translateX(38px) translateY(16px);
+}
+.scroll-reveal-wrapper[data-reveal-section="blur-up"][data-revealed="false"] {
+  opacity: 0;
+  transform: translateY(36px);
+  filter: blur(6px);
+}
+
+.scroll-reveal-wrapper[data-revealed="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+}
+
+/* Staggered grid children cascade inside revealed sections */
+.scroll-reveal-wrapper [data-stagger-child="true"] {
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+  transition-delay: calc(var(--stagger-index, 0) * 75ms + 90ms);
+}
+
+.scroll-reveal-wrapper[data-revealed="false"] [data-stagger-child="true"] {
+  opacity: 0;
+  transform: translateY(28px) scale(0.97);
+}
+
+.scroll-reveal-wrapper[data-revealed="true"] [data-stagger-child="true"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Smooth hover elevation on landing page cards */
+.landing-smooth-root .grid > div:hover,
+.landing-smooth-root .grid > a:hover,
+.landing-smooth-root .grid > article:hover {
+  transition-delay: 0ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal-wrapper,
+  .scroll-reveal-wrapper [data-stagger-child="true"] {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════ */
 /* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES               */
 /* ═══════════════════════════════════════════════════════════ */
 @media print {

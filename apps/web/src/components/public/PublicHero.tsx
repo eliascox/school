@@ -268,46 +268,56 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
       {/* ── Institutional Overlay Content ── */}
       <div className="relative z-30 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white space-y-4 sm:space-y-6 pt-8 sm:pt-12">
         {/* Sleek Frosted Glassmorphism Card for Crystal-Clear Text & Luxury Feel */}
-        <div className="p-6 sm:p-10 rounded-3xl backdrop-blur-[2px] bg-slate-950/25 border border-white/15 shadow-2xl space-y-4 sm:space-y-6">
+        <div
+          key={`hero-card-${currentIndex}`}
+          className="relative overflow-hidden p-6 sm:p-10 rounded-3xl backdrop-blur-[3px] bg-slate-950/25 border border-white/15 shadow-2xl space-y-4 sm:space-y-6"
+        >
           {/* Eyebrow Badge */}
           {(activeSlide?.badge || heroConfig?.badgeText) && (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/25 backdrop-blur-md border border-indigo-400/30 text-amber-300 text-xs sm:text-sm font-bold shadow-lg">
-              <Award className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="animate-hero-text-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/25 backdrop-blur-md border border-indigo-400/30 text-amber-300 text-xs sm:text-sm font-bold shadow-lg">
+              <Award className="w-4 h-4 text-amber-400 shrink-0 animate-float-slow" />
               <span>{activeSlide?.badge || heroConfig?.badgeText}</span>
             </div>
           )}
 
           {/* Main School Heading */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.7)] text-white font-sans leading-tight">
+          <h1 className="animate-hero-text-2 text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.7)] text-white font-sans leading-tight">
             {activeSlide?.title || heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
           </h1>
 
           {/* Subtitle / Location */}
-          <p className="text-sm sm:text-lg text-slate-100 max-w-2xl mx-auto font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] leading-relaxed">
+          <p className="animate-hero-text-3 text-sm sm:text-lg text-slate-100 max-w-2xl mx-auto font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] leading-relaxed">
             {activeSlide?.subtitle || heroConfig?.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ'}
           </p>
 
           {/* Action Buttons (CTAs) */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <div className="animate-hero-text-4 flex flex-wrap items-center justify-center gap-3 pt-2">
             {heroConfig?.primaryCta?.visible !== false && (
               <Link
                 href={activeSlide?.ctaLink || heroConfig?.primaryCta?.href || '/admission'}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-black text-xs sm:text-sm shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                className="group/btn px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-black text-xs sm:text-sm shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
               >
                 <span>{activeSlide?.ctaText || heroConfig?.primaryCta?.text || 'ভর্তি আবেদন করুন'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
               </Link>
             )}
 
             {heroConfig?.secondaryCta?.visible !== false && (
               <Link
                 href={heroConfig?.secondaryCta?.href || '/result'}
-                className="px-6 py-3.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/30 font-black text-xs sm:text-sm shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                className="px-6 py-3.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/30 font-black text-xs sm:text-sm shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
               >
                 <span>{heroConfig?.secondaryCta?.text || 'ফলাফল অনুসন্ধান'}</span>
               </Link>
             )}
           </div>
+
+          {/* Smooth Auto-Slide Progress Bar at bottom of Glass Card */}
+          {slides.length > 1 && !isPaused && heroConfig?.enableSlider !== false && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-indigo-400 animate-hero-timer" />
+            </div>
+          )}
         </div>
       </div>
 
