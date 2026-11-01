@@ -2587,6 +2587,13 @@ export default function StudentListPage() {
                       <Trash2 size={14} className="text-rose-600" /> সকল শিক্ষার্থী মুছুন
                     </button>
                   )}
+                  <Link
+                    href="/dashboard/settings?tab=bulk-student"
+                    className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    title="এক্সেলে শিক্ষার্থীদের সকল তথ্য এক ক্লিকে বাল্ক আপলোড করুন"
+                  >
+                    <FileSpreadsheet size={15} /> বাল্ক এক্সেল আপলোড
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setShowBulkPhotoModal(true)}

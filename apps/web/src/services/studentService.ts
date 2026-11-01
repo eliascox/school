@@ -47,12 +47,14 @@ const getStudentDedupeKey = (s: Partial<Student>, idx: number): string => {
   const grade = (s.grade || s.gradeBn || '8th').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
   const section = (s.section || s.branch || 'a').toString().toLowerCase().trim();
   const roll = (s.roll || String(idx + 1)).toString().trim().replace(/^0+/, '');
+  const group = (s.group || '').toString().toLowerCase().trim().replace(/[\s_\-]+/g, '');
   const name = (s.name || '').toString().toLowerCase().trim().replace(/\s+/g, '');
 
   if (grade && roll) {
-    return `${grade}_${section}_${roll}`;
+    // 🛡️ CRITICAL FIX: Include group in dedupe key so that identical rolls in different departments (বিজ্ঞান, মানবিক, ব্যবসায় শিক্ষা) never collide!
+    return `${grade}_${group}_${section}_${roll}`;
   }
-  return `${grade}_${name}_${idx}`;
+  return `${grade}_${group}_${name}_${idx}`;
 };
 
 const deduplicateStudentList = (list: Student[]): Student[] => {
@@ -425,7 +427,9 @@ export const studentService = {
     const merged = deduplicateStudentList([...importedList, ...existing]);
 
     localStorage.setItem('sms_students', JSON.stringify(merged));
-    window.dispatchEvent(new Event('storage'));
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try { window.dispatchEvent(new Event('storage')); } catch (e) {}
+    }
     listeners.forEach((fn) => fn());
     importedList.forEach(st => {
       syncQueueService.enqueue('student', st.id, 'CREATE', st).catch(() => {});

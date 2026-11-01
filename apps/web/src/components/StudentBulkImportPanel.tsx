@@ -607,31 +607,88 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   };
 
   // ─── 4. INTELLIGENT BILINGUAL COLUMN HEADER MAPPER ────────────────────────
+  // ─── 4. INTELLIGENT BILINGUAL COLUMN HEADER MAPPER ────────────────────────
+  // 🛡️ CRITICAL ORDER: Specific identifiers (Father, Mother, Guardian, Permanent Address, NID, etc.)
+  // MUST be checked BEFORE generic keywords like 'name' (নাম) or 'address' (ঠিকানা) to prevent
+  // Father/Mother names from overwriting the Student's own Name!
   const normalizeKey = (key: string): string => {
     const k = key.toLowerCase().trim().replace(/[\s_\-.]+/g, '');
-    if (k.includes('roll') || k.includes('রোল') || k.includes('ক্রমিক')) return 'roll';
-    if (k.includes('studentname') || k.includes('name') || k.includes('নাম') || k.includes('শিক্ষার্থী')) return 'name';
-    if (k.includes('grade') || k.includes('class') || k.includes('শ্রেণি') || k.includes('শ্রেণী')) return 'grade';
+
+    // 1. Father details (Check BEFORE student name!)
+    if (k.includes('fathernid') || k.includes('পিতারএনআইডি') || k.includes('বাবারএনআইডি') || k.includes('পিতারজাতীয়')) return 'fatherNid';
+    if (k.includes('fathername') || k.includes('father') || k.includes('পিতারনাম') || k.includes('বাবারনাম') || k.includes('পিতা') || k.includes('বাবা') || k.includes('বাপেরনাম')) return 'fatherName';
+
+    // 2. Mother details (Check BEFORE student name!)
+    if (k.includes('mothernid') || k.includes('মাতারএনআইডি') || k.includes('মায়েরএনআইডি') || k.includes('মাতারজাতীয়')) return 'motherNid';
+    if (k.includes('mothername') || k.includes('mother') || k.includes('মাতারনাম') || k.includes('মায়েরনাম') || k.includes('মাতা') || k.includes('মা')) return 'motherName';
+
+    // 3. Legal Guardian details (Check BEFORE student name!)
+    if (k.includes('legalguardian') || k.includes('guardianname') || k.includes('আইনগতঅভিভাবক') || k.includes('অভিভাবকেরনাম') || k.includes('guardian') || k.includes('অভিভাবক')) return 'guardian';
+
+    // 4. Student Name (Now safe to match 'name' or 'নাম' without catching parents)
+    if (
+      k.includes('studentname') || 
+      k.includes('শিক্ষার্থীরনাম') || 
+      k.includes('ছাত্রেরনাম') || 
+      k.includes('ছাত্রীরনাম') || 
+      k.includes('ছাত্রনাম') || 
+      k.includes('ছাত্রীনাম') || 
+      k.includes('শিক্ষার্থী') || 
+      k.includes('student') || 
+      k.includes('fullname') || 
+      k.includes('name') || 
+      k.includes('নাম')
+    ) return 'name';
+
+    // 5. Roll / Serial Number
+    if (k.includes('rollno') || k.includes('roll') || k.includes('রোলনম্বর') || k.includes('রোলনং') || k.includes('রোল') || k.includes('ক্রমিকনং') || k.includes('ক্রমিক') || k.includes('slno') || k.includes('sl')) return 'roll';
+
+    // 6. Class / Grade
+    if (k.includes('grade') || k.includes('class') || k.includes('শ্রেণি') || k.includes('শ্রেণী') || k.includes('ক্লাস') || k.includes('মান')) return 'grade';
+
+    // 7. Section / Branch
     if (k.includes('section') || k.includes('branch') || k.includes('শাখা') || k.includes('সেকশন')) return 'section';
-    if (k.includes('group') || k.includes('বিভাগ') || k.includes('গ্রুপ') || k.includes('stream')) return 'group';
-    if (k.includes('session') || k.includes('year') || k.includes('শিক্ষাবর্ষ') || k.includes('বছর')) return 'session';
+
+    // 8. Group / Department / Stream
+    if (k.includes('group') || k.includes('বিভাগ') || k.includes('গ্রুপ') || k.includes('শাখা/বিভাগ') || k.includes('শাখা-বিভাগ') || k.includes('বিভাগ/গ্রুপ') || k.includes('stream') || k.includes('dept') || k.includes('department')) return 'group';
+
+    // 9. Session / Academic Year
+    if (k.includes('session') || k.includes('year') || k.includes('শিক্ষাবর্ষ') || k.includes('সেশন') || k.includes('বছর') || k.includes('সাল')) return 'session';
+
+    // 10. Gender
     if (k.includes('gender') || k.includes('sex') || k.includes('লিঙ্গ') || k.includes('ছাত্রছাত্রী')) return 'gender';
-    if (k.includes('dob') || k.includes('birthdate') || k.includes('জন্মতারিখ') || k.includes('তারিখ')) return 'dob';
-    if (k.includes('birthreg') || k.includes('brn') || k.includes('জন্মনিবন্ধন') || k.includes('সনদ')) return 'birthRegNo';
-    if (k.includes('blood') || k.includes('রক্ত')) return 'bloodGroup';
+
+    // 11. Date of Birth
+    if (k.includes('dateofbirth') || k.includes('birthdate') || k.includes('dob') || k.includes('জন্মতারিখ') || k.includes('জন্মদিন') || k.includes('তারিখ')) return 'dob';
+
+    // 12. Birth Registration Number (BRN)
+    if (k.includes('birthreg') || k.includes('brn') || k.includes('জন্মনিবন্ধন') || k.includes('নিবন্ধননম্বর') || k.includes('সনদ')) return 'birthRegNo';
+
+    // 13. Blood Group
+    if (k.includes('bloodgroup') || k.includes('blood') || k.includes('রক্তেরগ্রুপ') || k.includes('রক্ত') || k.includes('ব্লাড')) return 'bloodGroup';
+
+    // 14. Religion
     if (k.includes('religion') || k.includes('ধর্ম')) return 'religion';
-    if (k.includes('mobile') || k.includes('phone') || k.includes('মোবাইল') || k.includes('ফোন')) return 'mobile';
-    if (k.includes('fathernid') || k.includes('পিতারএনআইডি') || k.includes('পিতারজাতীয়')) return 'fatherNid';
-    if (k.includes('father') || k.includes('পিতা') || k.includes('বাবারনাম')) return 'fatherName';
-    if (k.includes('mothernid') || k.includes('মাতারএনআইডি') || k.includes('মাতারজাতীয়')) return 'motherNid';
-    if (k.includes('mother') || k.includes('মাতা') || k.includes('মায়েরনাম')) return 'motherName';
-    if (k.includes('guardian') || k.includes('অভিভাবক')) return 'guardian';
+
+    // 15. Mobile Number
+    if (k.includes('mobile') || k.includes('phone') || k.includes('contact') || k.includes('মোবাইল') || k.includes('ফোন') || k.includes('যোগাযোগ')) return 'mobile';
+
+    // 16. Permanent Address (Check BEFORE current address!)
     if (k.includes('permanentaddress') || k.includes('স্থায়ীঠিকানা') || k.includes('স্থায়িঠিকানা')) return 'permanentAddress';
-    if (k.includes('currentaddress') || k.includes('address') || k.includes('ঠিকানা') || k.includes('বর্তমানঠিকানা')) return 'currentAddress';
-    if (k.includes('optional') || k.includes('ঐচ্ছিক') || k.includes('৪র্থ') || k.includes('চতুর্থ')) return 'optionalSubject';
-    if (k.includes('isstipend') || k.includes('stipendstatus') || k.includes('উপবৃত্তিপ্রাপ্ত') || k.includes('উপবৃত্তি')) return 'isStipend';
-    if (k.includes('stipendcat') || k.includes('উপবৃত্তিক্যাটাগরি') || k.includes('উপবৃত্তিধরন')) return 'stipendCategory';
-    if (k.includes('remark') || k.includes('note') || k.includes('মন্তব্য') || k.includes('বিশেষ')) return 'remarks';
+
+    // 17. Current Address
+    if (k.includes('currentaddress') || k.includes('presentaddress') || k.includes('বর্তমানঠিকানা') || k.includes('ঠিকানা') || k.includes('address')) return 'currentAddress';
+
+    // 18. Optional / 4th Subject
+    if (k.includes('optionalsubject') || k.includes('optional') || k.includes('৪র্থবিষয়') || k.includes('৪র্থ') || k.includes('চতুর্থবিষয়') || k.includes('ঐচ্ছিকবিষয়') || k.includes('ঐচ্ছিক')) return 'optionalSubject';
+
+    // 19. Stipend Status & Category
+    if (k.includes('stipendcat') || k.includes('উপবৃত্তিক্যাটাগরি') || k.includes('উপবৃত্তিধরন') || k.includes('উপবৃত্তিপ্রকার')) return 'stipendCategory';
+    if (k.includes('isstipend') || k.includes('stipendstatus') || k.includes('উপবৃত্তিপ্রাপ্ত') || k.includes('উপবৃত্তি') || k.includes('stipend')) return 'isStipend';
+
+    // 20. Remarks / Notes
+    if (k.includes('remark') || k.includes('note') || k.includes('মন্তব্য') || k.includes('বিশেষনোট') || k.includes('মন্তব্যসমূহ')) return 'remarks';
+
     return k;
   };
 
@@ -639,6 +696,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   const normalizeStudentRow = (rawRow: Record<string, any>, idx: number): Student => {
     const row: Record<string, string> = {};
     Object.keys(rawRow).forEach((k) => {
+      if (k.startsWith('_')) return; // skip internal metadata (like _sheetGroup, _sheetGrade)
       const val = rawRow[k];
       const normKey = normalizeKey(k);
       // 🛡️ SECURITY: Sanitize CSV values against Formula Injection (DDE) and HTML/XSS
@@ -650,30 +708,30 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     const rollDigits = bnToEnDigits(rawRoll).replace(/[^0-9]/g, '');
     const rollVal = rollDigits ? rollDigits.padStart(2, '0') : String(idx + 1).padStart(2, '0');
 
-    // 2. Name: accepts English or Bengali name
-    const nameVal = row['name'] || `শিক্ষার্থী ${idx + 1}`;
+    // 2. Student Name: accepts English or Bengali name
+    const nameVal = (row['name'] || '').trim() || `শিক্ষার্থী ${idx + 1}`;
 
     // 3. Class / Grade: accepts '6th', 'Class 6', '৬ষ্ঠ', 'ষষ্ঠ', '6', '৬' etc.
-    const rawGrade = (row['grade'] || '6th').toLowerCase();
+    const rawGrade = (row['grade'] || rawRow['_sheetGrade'] || '9th').toLowerCase();
     const gradeClean = bnToEnDigits(rawGrade);
-    let gradeVal = '6th';
-    let gradeBn = '৬ষ্ঠ শ্রেণি';
+    let gradeVal = '9th';
+    let gradeBn = '৯ম শ্রেণি';
 
-    if (gradeClean.includes('7') || rawGrade.includes('৭') || rawGrade.includes('seven') || rawGrade.includes('সপ্তম')) {
+    if (gradeClean.includes('6') || rawGrade.includes('৬') || rawGrade.includes('six') || rawGrade.includes('ষষ্ঠ')) {
+      gradeVal = '6th';
+      gradeBn = '৬ষ্ঠ শ্রেণি';
+    } else if (gradeClean.includes('7') || rawGrade.includes('৭') || rawGrade.includes('seven') || rawGrade.includes('সপ্তম')) {
       gradeVal = '7th';
       gradeBn = '৭ম শ্রেণি';
     } else if (gradeClean.includes('8') || rawGrade.includes('৮') || rawGrade.includes('eight') || rawGrade.includes('অষ্টম')) {
       gradeVal = '8th';
       gradeBn = '৮ম শ্রেণি';
-    } else if (gradeClean.includes('9') || rawGrade.includes('৯') || rawGrade.includes('nine') || rawGrade.includes('নবম')) {
-      gradeVal = '9th';
-      gradeBn = '৯ম শ্রেণি';
     } else if (gradeClean.includes('10') || rawGrade.includes('১০') || rawGrade.includes('ten') || rawGrade.includes('দশম')) {
       gradeVal = '10th';
       gradeBn = '১০ম শ্রেণি';
-    } else {
-      gradeVal = '6th';
-      gradeBn = '৬ষ্ঠ শ্রেণি';
+    } else if (gradeClean.includes('9') || rawGrade.includes('৯') || rawGrade.includes('nine') || rawGrade.includes('নবম')) {
+      gradeVal = '9th';
+      gradeBn = '৯ম শ্রেণি';
     }
 
     // 4. Section: accepts 'A', 'B', 'C', 'D' OR 'ক', 'খ', 'গ', 'ঘ', 'পদ্মা', 'মেঘনা', 'যমুনা'
@@ -684,20 +742,48 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     else if (rawSec === 'ঘ' || rawSec.includes('কর্ণফুলী') || rawSec.includes('KARNAFULI')) rawSec = 'D';
     else if (!['A', 'B', 'C', 'D'].includes(rawSec)) rawSec = rawSec.slice(0, 1) || 'A';
 
-    // 5. Group: accepts 'Science' / 'বিজ্ঞান', 'Humanities' / 'মানবিক', 'Commerce' / 'ব্যবসায় শিক্ষা', 'General' / 'সাধারণ'
-    let rawGroup = (row['group'] || '').trim();
-    let groupVal = ['9th', '10th'].includes(gradeVal) ? 'বিজ্ঞান' : 'সাধারণ';
+    // 5. Group: Robust matching for all Bangladeshi group variations (Science, Humanities, Business Studies)
+    let rawGroup = (row['group'] || rawRow['_sheetGroup'] || '').trim();
     const gLower = rawGroup.toLowerCase();
+    let groupVal = 'সাধারণ';
 
-    if (rawGroup.includes('বিজ্ঞান') || gLower.includes('science')) {
+    if (
+      rawGroup.includes('বিজ্ঞান') || 
+      gLower.includes('science') || 
+      gLower.includes('sci') || 
+      rawGroup.includes('সাইন্স')
+    ) {
       groupVal = 'বিজ্ঞান';
-    } else if (rawGroup.includes('মানবিক') || gLower.includes('humanities') || gLower.includes('arts')) {
+    } else if (
+      rawGroup.includes('মানবিক') || 
+      gLower.includes('humanities') || 
+      gLower.includes('arts') || 
+      rawGroup.includes('আর্টস') || 
+      rawGroup.includes('কলা') || 
+      rawGroup.includes('আর্ট')
+    ) {
       groupVal = 'মানবিক';
-    } else if (rawGroup.includes('ব্যবসায়') || gLower.includes('commerce') || gLower.includes('business')) {
+    } else if (
+      rawGroup.includes('ব্যবসায়') || 
+      rawGroup.includes('ব্যবসায়') || 
+      rawGroup.includes('বাণিজ্য') || 
+      rawGroup.includes('কমার্স') || 
+      gLower.includes('commerce') || 
+      gLower.includes('business') || 
+      rawGroup.includes('বিজনেস') || 
+      gLower.includes('b.studies')
+    ) {
       groupVal = 'ব্যবসায় শিক্ষা';
-    } else if (rawGroup.includes('সাধারণ') || gLower.includes('general')) {
+    } else if (
+      rawGroup.includes('সাধারণ') || 
+      gLower.includes('general') || 
+      gLower.includes('gen')
+    ) {
       groupVal = 'সাধারণ';
-    } else if (!['9th', '10th'].includes(gradeVal)) {
+    } else if (['9th', '10th'].includes(gradeVal)) {
+      // Default for 9th and 10th only when not explicitly set
+      groupVal = 'বিজ্ঞান';
+    } else {
       groupVal = 'সাধারণ';
     }
 
@@ -759,12 +845,22 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     else if (optLower.includes('computer') || optSub.includes('কম্পিউটার')) optSub = 'কম্পিউটার শিক্ষা';
     else if (!optSub) optSub = ['9th', '10th'].includes(gradeVal) ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা';
 
-    const fatherVal = row['fatherName'] || row['guardian'] || '';
-    const motherVal = row['motherName'] || '';
-    const guardianVal = row['guardian'] || fatherVal || '';
+    // 🛡️ CRITICAL FIX: Father and Mother names are separate and distinct!
+    const fatherVal = (row['fatherName'] || '').trim();
+    const motherVal = (row['motherName'] || '').trim();
+    const guardianVal = (row['guardian'] || '').trim() || fatherVal || motherVal || '';
+
+    // 🛡️ CRITICAL FIX: Unique Student ID incorporates Group Code to prevent collisions
+    // across different groups (Science, Humanities, Business) sharing identical roll numbers (1-37, 1-30, etc.)
+    const groupCode = groupVal === 'বিজ্ঞান' ? 'SCI'
+      : groupVal === 'মানবিক' ? 'HUM'
+      : groupVal === 'ব্যবসায় শিক্ষা' ? 'BUS'
+      : 'GEN';
+
+    const generatedId = `STD-${gradeVal}-${groupCode}-${rawSec}-${rollVal}`;
 
     return {
-      id: `STD-${gradeVal}-${rawSec}-${rollVal}`,
+      id: row['id'] || generatedId,
       roll: rollVal,
       name: nameVal,
       grade: gradeVal,
@@ -809,19 +905,62 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
         const buffer = await selectedFile.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
-        // Find students sheet: 'শিক্ষার্থী_তালিকা', 'Students', or first sheet
-        let sheetName = workbook.SheetNames[0];
-        if (workbook.SheetNames.includes('শিক্ষার্থী_তালিকা')) sheetName = 'শিক্ষার্থী_তালিকা';
-        else if (workbook.SheetNames.includes('Students')) sheetName = 'Students';
+        
+        // 🌟 MULTI-SHEET ENGINE:
+        // Identify non-guide sheets (ignore instructions/guides) and read ALL student sheets!
+        const ignoredSheets = ['field_guide', 'fieldguide', 'guide', 'instructions', 'instruction', 'নিয়মাবলী', 'সহায়িকা', 'নির্দেশিকা'];
+        const studentSheets = workbook.SheetNames.filter(sn => {
+          const lower = sn.toLowerCase().trim().replace(/[\s_\-]+/g, '');
+          return !ignoredSheets.some(ign => lower.includes(ign));
+        });
 
-        const worksheet = workbook.Sheets[sheetName];
-        rawJsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        const sheetsToRead = studentSheets.length > 0 ? studentSheets : [workbook.SheetNames[0]];
+
+        for (const sheetName of sheetsToRead) {
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) continue;
+          const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          if (!rows || rows.length === 0) continue;
+
+          // Detect implied Group or Grade from Sheet Name (e.g., 'বিজ্ঞান', 'মানবিক', 'ব্যবসায় শিক্ষা', 'Class 9')
+          const sLower = sheetName.toLowerCase().trim();
+          let sheetGroup = '';
+          if (sLower.includes('বিজ্ঞান') || sLower.includes('science') || sLower.includes('sci')) {
+            sheetGroup = 'বিজ্ঞান';
+          } else if (sLower.includes('মানবিক') || sLower.includes('humanities') || sLower.includes('arts') || sLower.includes('আর্টস')) {
+            sheetGroup = 'মানবিক';
+          } else if (sLower.includes('ব্যবসায়') || sLower.includes('ব্যবসায়') || sLower.includes('বাণিজ্য') || sLower.includes('commerce') || sLower.includes('business')) {
+            sheetGroup = 'ব্যবসায় শিক্ষা';
+          }
+
+          let sheetGrade = '';
+          if (sLower.includes('৬') || sLower.includes('6th') || sLower.includes('six')) sheetGrade = '6th';
+          else if (sLower.includes('৭') || sLower.includes('7th') || sLower.includes('seven')) sheetGrade = '7th';
+          else if (sLower.includes('৮') || sLower.includes('8th') || sLower.includes('eight')) sheetGrade = '8th';
+          else if (sLower.includes('৯') || sLower.includes('9th') || sLower.includes('nine')) sheetGrade = '9th';
+          else if (sLower.includes('১০') || sLower.includes('10th') || sLower.includes('ten')) sheetGrade = '10th';
+
+          rows.forEach((r) => {
+            const hasData = Object.values(r).some(v => v !== null && v !== undefined && String(v).trim().length > 0);
+            if (hasData) {
+              rawJsonRows.push({
+                ...r,
+                _sheetGroup: sheetGroup,
+                _sheetGrade: sheetGrade
+              });
+            }
+          });
+        }
       } else {
         // CSV or TXT
         const text = await selectedFile.text();
         const workbook = XLSX.read(text, { type: 'string' });
         const firstSheet = workbook.SheetNames[0];
-        rawJsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+        const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+        rows.forEach((r) => {
+          const hasData = Object.values(r).some(v => v !== null && v !== undefined && String(v).trim().length > 0);
+          if (hasData) rawJsonRows.push(r);
+        });
       }
 
       if (!rawJsonRows || rawJsonRows.length === 0) {
@@ -858,7 +997,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   const duplicatesMap = useMemo(() => {
     const map = new Map<string, number>();
     parsedStudents.forEach((st) => {
-      const key = `${st.grade}_${st.section}_${st.roll.replace(/^0+/, '')}`;
+      // 🛡️ CRITICAL FIX: Include group in duplicate check so same roll in different groups (Science, Humanities, Business) is valid!
+      const key = `${st.grade}_${st.group || ''}_${st.section}_${st.roll.replace(/^0+/, '')}`;
       map.set(key, (map.get(key) || 0) + 1);
     });
     return map;
@@ -1163,9 +1303,42 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                 </h3>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                মোট প্রাপ্ত: <span className="text-violet-700 dark:text-violet-400 font-black font-mono">{parsedStudents.length} জন</span> শিক্ষার্থী।
+                মোট প্রাপ্ত: <span className="text-violet-700 dark:text-violet-400 font-black font-mono text-sm">{parsedStudents.length} জন</span> শিক্ষার্থী।
                 নিচে ফিল্টার ও সার্চ করে তথ্য দেখে নিন।
               </p>
+              {/* 🌟 GROUP BREAKDOWN PILLS */}
+              <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                {(() => {
+                  const sciCount = parsedStudents.filter(s => s.group === 'বিজ্ঞান').length;
+                  const humCount = parsedStudents.filter(s => s.group === 'মানবিক').length;
+                  const busCount = parsedStudents.filter(s => s.group === 'ব্যবসায় শিক্ষা').length;
+                  const genCount = parsedStudents.filter(s => s.group === 'সাধারণ').length;
+                  return (
+                    <>
+                      {sciCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          🔬 বিজ্ঞান: {sciCount} জন
+                        </span>
+                      )}
+                      {humCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          📚 মানবিক: {humCount} জন
+                        </span>
+                      )}
+                      {busCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                          💼 ব্যবসায় শিক্ষা: {busCount} জন
+                        </span>
+                      )}
+                      {genCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          📖 সাধারণ: {genCount} জন
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Save Mode Selector & Action Button */}
@@ -1250,7 +1423,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                   <th className="p-2.5 border-b">শিক্ষার্থীর নাম</th>
                   <th className="p-2.5 border-b">শ্রেণি ও শাখা</th>
                   <th className="p-2.5 border-b">বিভাগ</th>
-                  <th className="p-2.5 border-b">পিতা / অভিভাবক</th>
+                  <th className="p-2.5 border-b">পিতার নাম</th>
+                  <th className="p-2.5 border-b">মাতার নাম</th>
                   <th className="p-2.5 border-b">মোবাইল নম্বর</th>
                   <th className="p-2.5 border-b">ধর্ম / লিঙ্গ</th>
                   <th className="p-2.5 border-b">জন্ম নিবন্ধন (BRN)</th>
@@ -1260,7 +1434,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                 {filteredPreview.map((st, i) => {
-                  const dupKey = `${st.grade}_${st.section}_${st.roll.replace(/^0+/, '')}`;
+                  const dupKey = `${st.grade}_${st.group || ''}_${st.section}_${st.roll.replace(/^0+/, '')}`;
                   const isDup = (duplicatesMap.get(dupKey) || 0) > 1;
 
                   return (
@@ -1284,8 +1458,11 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                       <td className="p-2.5 text-slate-600 dark:text-slate-400">
                         {st.group || 'সাধারণ'}
                       </td>
-                      <td className="p-2.5 text-slate-700 dark:text-slate-300">
-                        {st.fatherName || st.guardian || '-'}
+                      <td className="p-2.5 text-slate-800 dark:text-slate-200 font-medium">
+                        {st.fatherName || '-'}
+                      </td>
+                      <td className="p-2.5 text-slate-700 dark:text-slate-300 font-medium">
+                        {st.motherName || '-'}
                       </td>
                       <td className="p-2.5 font-mono text-slate-600 dark:text-slate-400">
                         {st.mobile || '-'}
