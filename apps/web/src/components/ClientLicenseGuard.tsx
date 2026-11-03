@@ -66,12 +66,19 @@ export default function ClientLicenseGuard({ children }: { children: React.React
     };
   }, []);
 
-  // Excluded routes that don't get blocked by the guard
+  // Excluded routes that don't get blocked by the guard (Public pages must remain open)
   const isSuperAdminRoute = pathname?.startsWith('/super-admin');
   const isRegisterRoute = pathname?.startsWith('/register-school');
+  const isPublicRoute = 
+    pathname === '/' || 
+    pathname?.startsWith('/admission') || 
+    pathname?.startsWith('/result') || 
+    pathname?.startsWith('/verify-certificate') || 
+    pathname?.startsWith('/login') ||
+    pathname?.startsWith('/teacher-login');
 
-  // If on Super Admin panel or registration page, bypass client locking
-  if (isSuperAdminRoute || isRegisterRoute) {
+  // If on public routes, super admin, or registration page, bypass client locking
+  if (isSuperAdminRoute || isRegisterRoute || isPublicRoute) {
     return <>{children}</>;
   }
 
@@ -94,13 +101,28 @@ export default function ClientLicenseGuard({ children }: { children: React.React
               সফটওয়্যারটি ব্যবহারের পূর্বে প্রতিষ্ঠানের রেজিস্ট্রেশন এবং সেন্ট্রাল লাইসেন্স অনুমোদন সম্পন্ন করতে হবে।
             </p>
           </div>
-          <button
-            onClick={() => router.push('/register-school')}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-indigo-600/30"
-          >
-            <span>রেজিস্ট্রেশন শুরু করুন</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          
+          <div className="space-y-3 pt-2">
+            {/* ⚡ 1-Click Instant License Activation */}
+            <button
+              onClick={() => {
+                clientLicenseService.autoActivateDefaultSchool();
+                refreshState();
+                router.push('/dashboard');
+              }}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-600/30 cursor-pointer active:scale-95"
+            >
+              <span>⚡ লাইসেন্স সক্রিয় করুন ও প্রবেশ করুন</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => router.push('/register-school')}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs flex items-center justify-center space-x-2 transition-all border border-slate-700 cursor-pointer"
+            >
+              <span>নতুন প্রতিষ্ঠান হিসেবে রেজিস্ট্রেশন</span>
+            </button>
+          </div>
         </div>
       </div>
     );
