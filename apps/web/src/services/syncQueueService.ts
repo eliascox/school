@@ -141,6 +141,20 @@ class SyncQueueService {
   }
 
   /**
+   * Clear all pending items from local offline queue and notify UI
+   */
+  public clearQueue(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(STORAGE_KEY_QUEUE);
+      localStorage.removeItem('sms_sync_queue');
+      this.notifyStatusChange();
+    } catch (e) {
+      console.error('[SyncService] Failed to clear queue:', e);
+    }
+  }
+
+  /**
    * 2. Push Pending Mutations Batch to Central Server
    */
   public async pushBatch(): Promise<SyncPushBatchResponse | null> {

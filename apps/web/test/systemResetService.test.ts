@@ -22,6 +22,7 @@ import { systemResetService } from '../src/services/systemResetService';
 import { studentService } from '../src/services/studentService';
 import { financeService } from '../src/services/financeService';
 import { ledgerService } from '../src/services/ledgerService';
+import { syncQueueService } from '../src/services/syncQueueService';
 
 describe('systemResetService multi-layer synchronized purge', () => {
   beforeEach(() => {
@@ -44,6 +45,7 @@ describe('systemResetService multi-layer synchronized purge', () => {
     ]));
     localStorage.setItem('school_notices_v1', JSON.stringify([{ id: 'N-1' }]));
     localStorage.setItem('sms_certificate_101', JSON.stringify({ certNo: 'CERT-001' }));
+    localStorage.setItem('sms_offline_sync_queue_v2', JSON.stringify([{ id: 'sync-1' }, { id: 'sync-2' }]));
 
     const comment = 'বার্ষিক পরীক্ষা শেষে সম্পূর্ণ ডাটা ক্লিন রিসেট';
     const report = systemResetService.purgeAllSystemData(comment, 'অধ্যক্ষ মহোদয়');
@@ -79,6 +81,10 @@ describe('systemResetService multi-layer synchronized purge', () => {
 
     // 6. Notices verified empty
     expect(JSON.parse(localStorage.getItem('sms_notices') || '[]')).toEqual([]);
+
+    // 6.5. Offline Sync Queue verified empty (0 pending)
+    expect(localStorage.getItem('sms_offline_sync_queue_v2')).toBeNull();
+    expect(syncQueueService.getSyncStatus().pendingCount).toBe(0);
 
     // 7. Flags set
     expect(localStorage.getItem('sms_demo_cleared')).toBe('true');

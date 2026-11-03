@@ -2,6 +2,7 @@
 
 import { auditTrailService } from './auditTrailService';
 import { financeService } from './financeService';
+import { syncQueueService } from './syncQueueService';
 
 export interface SystemPurgeLayer {
   layer: string;
@@ -225,7 +226,9 @@ export const systemResetService = {
 
     // ─── ৭. সিংক কিউ ও অডিট লগ (Sync Queue & Audit Trail) ───
     try {
-      localStorage.setItem('sms_sync_queue', JSON.stringify([]));
+      syncQueueService.clearQueue();
+      localStorage.removeItem('sms_offline_sync_queue_v2');
+      localStorage.removeItem('sms_sync_queue');
       auditTrailService.addLog({
         action: 'MASTER_SYSTEM_DATA_PURGE',
         category: 'System Clean',
@@ -235,8 +238,8 @@ export const systemResetService = {
         timestamp: new Date().toISOString()
       });
       layers.push({
-        layer: 'অডিট ট্রেইল স্তর',
-        description: `সিস্টেম ওয়াইপ অডিট লগে স্থায়ীভাবে সংরক্ষিত (কমেন্ট: "${trimmedComment}")`,
+        layer: 'সিঙ্ক কিউ ও অডিট ট্রেইল স্তর',
+        description: `অফলাইন সিঙ্ক কিউ খালি করা হয়েছে এবং সিস্টেম ওয়াইপ অডিট লগে স্থায়ীভাবে সংরক্ষিত (কমেন্ট: "${trimmedComment}")`,
         status: 'cleared'
       });
     } catch (e) {

@@ -51,6 +51,13 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(normalizeHeaderKey('Address')).toBe('currentAddress');
     expect(normalizeHeaderKey('Previous Roll')).toBe('prevRoll');
     expect(normalizeHeaderKey('Roll')).toBe('roll');
+    // Critical: Blood Group must NEVER collide with Academic Group
+    expect(normalizeHeaderKey('Blood Group')).toBe('bloodGroup');
+    expect(normalizeHeaderKey('Blood')).toBe('bloodGroup');
+    expect(normalizeHeaderKey('রক্তের গ্রুপ')).toBe('bloodGroup');
+    expect(normalizeHeaderKey('Group')).toBe('group');
+    expect(normalizeHeaderKey('বিভাগ')).toBe('group');
+    expect(normalizeHeaderKey('গ্রুপ')).toBe('group');
   });
 
   it('correctly categorizes all academic group variations for Class 9', () => {
@@ -59,18 +66,24 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(detectAcademicGroup('science', '9th').group).toBe('বিজ্ঞান');
     expect(detectAcademicGroup('বিজ্ঞান', '9th').group).toBe('বিজ্ঞান');
     expect(detectAcademicGroup('Sci', '9th').group).toBe('বিজ্ঞান');
+    expect(detectAcademicGroup('সায়েন্স', '9th').group).toBe('বিজ্ঞান');
 
     // Humanities / Arts variants
     expect(detectAcademicGroup('Humanities', '9th').group).toBe('মানবিক');
     expect(detectAcademicGroup('Arts', '9th').group).toBe('মানবিক');
     expect(detectAcademicGroup('Humanities (Arts)', '9th').group).toBe('মানবিক');
     expect(detectAcademicGroup('মানবিক', '9th').group).toBe('মানবিক');
+    expect(detectAcademicGroup('হিউম্যানিটিজ', '9th').group).toBe('মানবিক');
 
     // Business Studies / Commerce variants
     expect(detectAcademicGroup('Business Studies', '9th').group).toBe('ব্যবসায় শিক্ষা');
     expect(detectAcademicGroup('Commerce', '9th').group).toBe('ব্যবসায় শিক্ষা');
     expect(detectAcademicGroup('Business', '9th').group).toBe('ব্যবসায় শিক্ষা');
     expect(detectAcademicGroup('ব্যবসায় শিক্ষা', '9th').group).toBe('ব্যবসায় শিক্ষা');
+    expect(detectAcademicGroup('ব্যবসা', '9th').group).toBe('ব্যবসায় শিক্ষা');
+    expect(detectAcademicGroup('ব্যবসা শিক্ষা', '9th').group).toBe('ব্যবসায় শিক্ষা');
+    expect(detectAcademicGroup('বাণিজ্য', '9th').group).toBe('ব্যবসায় শিক্ষা');
+    expect(detectAcademicGroup('কমার্স', '9th').group).toBe('ব্যবসায় শিক্ষা');
   });
 
   it('processes 90 Class 9 students (Science: 35, Humanities: 30, Business Studies: 25) with unordered rolls and generates independent sequential rolls 1..N', () => {
@@ -335,5 +348,90 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     // Roll ranges capture min and max correctly
     expect(result.rollRanges['বিজ্ঞান'].startRoll).toBe('04');
     expect(result.rollRanges['বিজ্ঞান'].endRoll).toBe('28');
+  });
+
+  it('correctly keeps all 3 groups (Science, Humanities, Business Studies) intact even when Blood Group / রক্তের গ্রুপ column is present', () => {
+    // Exact sample structure with Blood Group / রক্তের গ্রুপ
+    const rawEnglishRows = [
+      {
+        'Student Name': 'Sadia Binte Sultan',
+        'Class': '9th',
+        'Group': 'Science',
+        'Blood Group': 'O+',
+        'Gender': 'Female',
+        'Roll': '01'
+      },
+      {
+        'Student Name': 'Farhana Akhter Mili',
+        'Class': '9th',
+        'Group': 'Humanities',
+        'Blood Group': 'AB-',
+        'Gender': 'Female',
+        'Roll': '02'
+      },
+      {
+        'Student Name': 'Tanvir Ahmed Rifat',
+        'Class': '9th',
+        'Group': 'Business Studies',
+        'Blood Group': 'A+',
+        'Gender': 'Male',
+        'Roll': '03'
+      }
+    ];
+
+    const parsedEn = rawEnglishRows.map((r, i) => normalizeStudentRow(r, i));
+    expect(parsedEn[0].group).toBe('বিজ্ঞান');
+    expect(parsedEn[0].bloodGroup).toBe('O+');
+
+    expect(parsedEn[1].group).toBe('মানবিক');
+    expect(parsedEn[1].bloodGroup).toBe('AB-');
+
+    expect(parsedEn[2].group).toBe('ব্যবসায় শিক্ষা');
+    expect(parsedEn[2].bloodGroup).toBe('A+');
+
+    const resultEn = generateGroupWiseRolls(parsedEn, 'name_asc', '9th', true);
+    expect(resultEn.groupStats.science).toBe(1);
+    expect(resultEn.groupStats.humanities).toBe(1);
+    expect(resultEn.groupStats.business).toBe(1);
+
+    // Exact Bengali sample structure
+    const rawBengaliRows = [
+      {
+        'শিক্ষার্থীর নাম': 'সাদিয়া সুলতানা',
+        'শ্রেণি': '৯ম',
+        'বিভাগ': 'বিজ্ঞান',
+        'রক্তের গ্রুপ': 'O+',
+        'রোল': '০১'
+      },
+      {
+        'শিক্ষার্থীর নাম': 'ফারহানা আক্তার',
+        'শ্রেণি': '৯ম',
+        'বিভাগ': 'মানবিক',
+        'রক্তের গ্রুপ': 'AB-',
+        'রোল': '০২'
+      },
+      {
+        'শিক্ষার্থীর নাম': 'তানভীর আহমেদ',
+        'শ্রেণি': '৯ম',
+        'বিভাগ': 'ব্যবসায় শিক্ষা',
+        'রক্তের গ্রুপ': 'A+',
+        'রোল': '০৩'
+      }
+    ];
+
+    const parsedBn = rawBengaliRows.map((r, i) => normalizeStudentRow(r, i));
+    expect(parsedBn[0].group).toBe('বিজ্ঞান');
+    expect(parsedBn[0].bloodGroup).toBe('O+');
+
+    expect(parsedBn[1].group).toBe('মানবিক');
+    expect(parsedBn[1].bloodGroup).toBe('AB-');
+
+    expect(parsedBn[2].group).toBe('ব্যবসায় শিক্ষা');
+    expect(parsedBn[2].bloodGroup).toBe('A+');
+
+    const resultBn = generateGroupWiseRolls(parsedBn, 'name_asc', '9th', true);
+    expect(resultBn.groupStats.science).toBe(1);
+    expect(resultBn.groupStats.humanities).toBe(1);
+    expect(resultBn.groupStats.business).toBe(1);
   });
 });

@@ -350,6 +350,27 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
     settingsService.updateSettings({ theme: newTheme });
   };
 
+  const handleSyncClick = async () => {
+    if (syncStatus.isSyncing) return;
+    if (syncStatus.pendingCount > 0) {
+      const choice = window.confirm(
+        `সেন্ট্রাল সিঙ্ক স্ট্যাটাস:\nবর্তমানে ${syncStatus.pendingCount}টি পরিবর্তন অফলাইনে পেন্ডিং রয়েছে।\n\n- সেন্ট্রাল সার্ভারে সিঙ্ক করার চেষ্টা করতে "OK" চাপুন।\n- যদি সেন্ট্রাল সার্ভার অফলাইনে থাকে এবং আপনি পেন্ডিং তালিকা সম্পূর্ণ খালি করতে চান, তবে "Cancel" চাপুন।`
+      );
+      if (choice) {
+        await syncQueueService.syncAll();
+      } else {
+        const confirmClear = window.confirm(
+          `⚠️ আপনি কি অফলাইন সিঙ্ক কিউয়ের সকল পেন্ডিং রেকর্ড (${syncStatus.pendingCount}টি) খালি করে স্ট্যাটাস 'সিঙ্ক সচল' করতে চান?`
+        );
+        if (confirmClear) {
+          syncQueueService.clearQueue();
+        }
+      }
+    } else {
+      await syncQueueService.syncAll();
+    }
+  };
+
   if (isLoading)
     return (
       <header className="h-14 lg:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center sticky top-0 z-40 shadow-sm print:hidden">
@@ -432,7 +453,7 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
         {/* 🔄 Two-Way Central Sync Status Badge */}
         <button
           type="button"
-          onClick={() => syncQueueService.syncAll()}
+          onClick={handleSyncClick}
           disabled={syncStatus.isSyncing}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none active:scale-95 ${
             !syncStatus.isOnline

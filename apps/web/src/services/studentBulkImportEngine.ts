@@ -209,22 +209,40 @@ export function normalizeHeaderKey(rawKey: string): string {
     return 'section';
   }
 
-  // 9. Academic Group / Department / Stream
+  // 9. Blood Group (MUST CHECK BEFORE Academic Group to prevent 'bloodgroup' or 'রক্তেরগ্রুপ' matching generic 'group')
   if (
-    k.includes('group') ||
-    k.includes('বিভাগ') ||
-    k.includes('গ্রুপ') ||
-    k.includes('শাখা/বিভাগ') ||
-    k.includes('শাখা-বিভাগ') ||
-    k.includes('stream') ||
-    k.includes('dept') ||
-    k.includes('department') ||
-    k.includes('faculty')
+    k.includes('bloodgroup') ||
+    k.includes('blood') ||
+    k.includes('রক্তেরগ্রুপ') ||
+    k.includes('রক্তের') ||
+    k.includes('রক্ত') ||
+    k.includes('ব্লাডগ্রুপ') ||
+    k.includes('ব্লাড')
+  ) {
+    return 'bloodGroup';
+  }
+
+  // 10. Academic Group / Department / Stream (Explicitly excludes 'blood' and 'রক্ত')
+  if (
+    !k.includes('blood') &&
+    !k.includes('রক্ত') &&
+    !k.includes('ব্লাড') &&
+    (
+      k.includes('group') ||
+      k.includes('বিভাগ') ||
+      k.includes('গ্রুপ') ||
+      k.includes('শাখা/বিভাগ') ||
+      k.includes('শাখা-বিভাগ') ||
+      k.includes('stream') ||
+      k.includes('dept') ||
+      k.includes('department') ||
+      k.includes('faculty')
+    )
   ) {
     return 'group';
   }
 
-  // 10. Gender
+  // 11. Gender
   if (
     k.includes('gender') ||
     k.includes('sex') ||
@@ -291,18 +309,7 @@ export function normalizeHeaderKey(rawKey: string): string {
     return 'currentAddress';
   }
 
-  // 16. Blood Group
-  if (
-    k.includes('bloodgroup') ||
-    k.includes('blood') ||
-    k.includes('রক্তেরগ্রুপ') ||
-    k.includes('রক্ত') ||
-    k.includes('ব্লাড')
-  ) {
-    return 'bloodGroup';
-  }
-
-  // 17. Religion
+  // 16. Religion (Blood Group already handled above)
   if (k.includes('religion') || k.includes('faith') || k.includes('ধর্ম')) {
     return 'religion';
   }
@@ -373,6 +380,7 @@ export function detectAcademicGroup(
   if (
     clean.includes('বিজ্ঞান') ||
     clean.includes('সাইন্স') ||
+    clean.includes('সায়েন্স') ||
     clean.includes('science') ||
     clean === 'sci' ||
     clean.startsWith('sci')
@@ -384,6 +392,9 @@ export function detectAcademicGroup(
   if (
     clean.includes('মানবিক') ||
     clean.includes('আর্টস') ||
+    clean.includes('আর্ট') ||
+    clean.includes('হিউম্যানিটিজ') ||
+    clean.includes('হিউম্যানিটি') ||
     clean.includes('humanities') ||
     clean.includes('humanity') ||
     clean.includes('arts') ||
@@ -395,15 +406,20 @@ export function detectAcademicGroup(
 
   // Business Studies / Commerce
   if (
+    clean.includes('ব্যবসা') ||
     clean.includes('ব্যবসায়') ||
     clean.includes('ব্যবসায়') ||
     clean.includes('বাণিজ্য') ||
+    clean.includes('বানিজ্য') ||
     clean.includes('কমার্স') ||
     clean.includes('বিজনেস') ||
     clean.includes('business') ||
     clean.includes('commerce') ||
     clean.includes('bstudies') ||
-    clean.includes('bstudy')
+    clean.includes('bstudy') ||
+    clean === 'bba' ||
+    clean === 'bus' ||
+    clean === 'com'
   ) {
     return { group: 'ব্যবসায় শিক্ষা', groupEn: 'Business Studies', groupCode: 'BUS', isValid: true };
   }
