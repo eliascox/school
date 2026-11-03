@@ -101,9 +101,27 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
   const isAdmin = session?.role === 'admin';
   const currentTab = searchParams ? searchParams.get('tab') : null;
 
-  // Real-time metric counters
-  const [studentCount, setStudentCount] = useState<number>(840);
-  const [teacherCount, setTeacherCount] = useState<number>(28);
+  // Real-time metric counters (Dynamically synced from actual database counts, zero demo defaults)
+  const [studentCount, setStudentCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return studentService.getAllStudents().length;
+      } catch (e) {}
+    }
+    return 0;
+  });
+
+  const [teacherCount, setTeacherCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const t1 = teacherRBACService.getTeachers()?.length || 0;
+        const t2 = teacherAuthService.getAllTeachers()?.length || 0;
+        return Math.max(t1, t2);
+      } catch (e) {}
+    }
+    return 0;
+  });
+
   const [pendingLeavesCount, setPendingLeavesCount] = useState<number>(0);
 
   useEffect(() => {
@@ -114,25 +132,29 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
     const updateMetrics = () => {
       try {
         const students = studentService.getAllStudents();
-        if (students && students.length > 0) {
-          setStudentCount(students.length);
-        }
-      } catch (e) {}
+        setStudentCount(Array.isArray(students) ? students.length : 0);
+      } catch (e) {
+        setStudentCount(0);
+      }
 
       try {
-        const teachers = teacherRBACService.getTeachers();
-        if (teachers && teachers.length > 0) {
-          setTeacherCount(teachers.length);
-        }
-      } catch (e) {}
+        const t1 = teacherRBACService.getTeachers()?.length || 0;
+        const t2 = teacherAuthService.getAllTeachers()?.length || 0;
+        setTeacherCount(Math.max(t1, t2));
+      } catch (e) {
+        setTeacherCount(0);
+      }
 
       try {
         const leaves = leaveService.getLeaves();
         setPendingLeavesCount(leaves.filter((l) => l.status === 'pending').length);
-      } catch (e) {}
+      } catch (e) {
+        setPendingLeavesCount(0);
+      }
     };
 
     updateMetrics();
+    const unsubStudents = studentService.subscribe(updateMetrics);
     const unsubLeaves = leaveService.subscribe(updateMetrics);
     const unsubSettings = settingsService.subscribe((s) => setSchoolSettings(s));
 
@@ -142,6 +164,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
 
     return () => {
       unsubLang();
+      unsubStudents();
       unsubLeaves();
       unsubSettings();
       if (typeof window !== 'undefined') {
