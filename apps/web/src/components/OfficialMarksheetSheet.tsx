@@ -534,6 +534,22 @@ export function MarksheetSheetCard({
     return addr;
   };
 
+  // Dynamic institutional abbreviation for crest/watermark fallback (Never hardcoded to BHS)
+  const schoolInitials = (() => {
+    const raw = settings?.schoolName ? getEnglishSchoolName(settings.schoolName) : '';
+    if (!raw || raw === 'BARAITOLI HIGH SCHOOL') {
+      if (settings?.schoolName && !settings.schoolName.includes('বরইতলী')) {
+        return settings.schoolName.slice(0, 3).toUpperCase();
+      }
+      return 'BHS';
+    }
+    const words = raw.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return words.map((w: string) => w[0]).join('').slice(0, 4).toUpperCase();
+    }
+    return raw.slice(0, 3).toUpperCase();
+  })();
+
   // ── Format Class / Grade ──
   const formatGrade = (grade: string, gradeBn: string): string => {
     const raw = `${grade || ''} ${gradeBn || ''}`;
@@ -685,7 +701,7 @@ export function MarksheetSheetCard({
             ) : (
               <div className="w-[320px] h-[320px] flex flex-col items-center justify-center text-slate-950">
                 <span className="text-amber-500 text-6xl font-bold">★</span>
-                <span className="text-5xl font-black tracking-tighter">BHS</span>
+                <span className="text-5xl font-black tracking-tighter">{schoolInitials}</span>
                 <span className="text-2xl font-bold text-slate-700">{isEn ? toEnNumber(settings?.estdYear || '1969') : (settings?.estdYear || '১৯৬৯')}</span>
               </div>
             )}
@@ -709,7 +725,7 @@ export function MarksheetSheetCard({
                   ) : (
                     <div className="w-12 h-12 rounded-full border border-slate-950 flex flex-col items-center justify-center p-1">
                       <span className="text-amber-600 text-[10px] font-bold">★</span>
-                      <span className="text-[9px] font-black tracking-tighter text-slate-950">BHS</span>
+                      <span className="text-[9px] font-black tracking-tighter text-slate-950">{schoolInitials}</span>
                     </div>
                   )}
                 </div>

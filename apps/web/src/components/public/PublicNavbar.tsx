@@ -39,7 +39,7 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
   }, [settings]);
 
   // Primary source of truth is School Settings (`settingsService`)
-  const schoolLogo = activeSettings?.schoolLogo || settings?.schoolLogo || headerConfig?.logoUrl || '/logo.png';
+  const schoolLogo = activeSettings?.schoolLogo || settings?.schoolLogo || headerConfig?.logoUrl || '';
   const schoolName = activeSettings?.schoolName || headerConfig?.schoolName || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
 
   // Reset image error state whenever logo URL changes

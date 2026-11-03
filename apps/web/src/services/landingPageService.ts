@@ -6,6 +6,8 @@
  * and rollback functionality for the public landing page.
  */
 
+import { settingsService } from './settingsService';
+
 export interface NavMenuItem {
   id: string;
   label: string;
@@ -1192,6 +1194,18 @@ class LandingPageService {
 
   private normalizeLoadedConfig(parsed: any): LandingPageConfig {
     if (!parsed) return DEFAULT_LANDING_CONFIG;
+
+    // ⚡ Auto-sync with official school logo from settingsService if available
+    try {
+      const activeSchoolLogo = settingsService.getSettings()?.schoolLogo;
+      if (activeSchoolLogo && parsed.header && parsed.header.logoUrl !== activeSchoolLogo) {
+        parsed.header.logoUrl = activeSchoolLogo;
+        if (parsed.seo) {
+          parsed.seo.favicon = activeSchoolLogo;
+        }
+      }
+    } catch {}
+
     if (!parsed.gallery) {
       parsed.gallery = DEFAULT_GALLERY_CONFIG;
     }
@@ -1333,6 +1347,14 @@ class LandingPageService {
       },
     };
     this.saveDraftConfig(updated, user);
+
+    // ⚡ Auto-sync with School Settings service
+    try {
+      settingsService.updateSettings({ schoolLogo: logoUrl });
+    } catch (e) {
+      console.warn('Failed to sync logo to settingsService', e);
+    }
+
     if (autoPublish) {
       return this.publish(user, 'বিদ্যালয়ের লোগো পরিবর্তন ও লাইভ প্রকাশ');
     }

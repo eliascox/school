@@ -848,6 +848,17 @@ export default function SettingsPage() {
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     settingsService.updateSettings(formData);
+
+    // ⚡ Auto-sync updated school settings & logo to landing page immediately
+    try {
+      landingPageService.syncWithSchoolSettings(formData, true);
+      if (formData.schoolLogo) {
+        landingPageService.updateLogo(formData.schoolLogo, 'অ্যাডমিন', true);
+      }
+    } catch (err) {
+      console.warn('Failed to sync settings with landing page service', err);
+    }
+
     if (typeof window !== 'undefined') {
       localStorage.setItem('sms_admin_phone', adminPhoneInput.trim());
       if (adminPassInput.trim() && !adminPassInput.trim().startsWith('pbkdf2:')) {
@@ -863,11 +874,11 @@ export default function SettingsPage() {
   const handleResetDefaults = () => {
     if (confirm('আপনি কি নিশ্চিত যে সকল সেটিংস ডিফল্ট মানে রিসেট করতে চান?')) {
       const defaults: SchoolSettings = {
-        schoolName: 'বরইতলী উচ্চ বিদ্যালয়',
+        schoolName: '',
         schoolLogo: '',
-        address: 'পেকুয়া, কক্সবাজার।',
-        eiin: '104231',
-        estdYear: '1968',
+        address: '',
+        eiin: '',
+        estdYear: '1969',
         principalName: 'মোহাম্মদ রফিকুল ইসলাম',
         principalTitle: 'প্রধান শিক্ষক',
         classTeacherTitle: 'শ্রেণি শিক্ষকের স্বাক্ষর',
@@ -2583,11 +2594,10 @@ export default function SettingsPage() {
                     {formData.schoolLogo ? (
                       <img src={formData.schoolLogo} alt="School Logo" className="w-full h-full object-contain p-1.5" />
                     ) : (
-                      <>
-                        <span className="text-amber-500 text-sm font-bold">★</span>
-                        <span className="text-[10px] font-black tracking-tighter">BHS</span>
-                        <span className="text-[8px] font-bold text-slate-600">{formData.estdYear}</span>
-                      </>
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50/60 text-indigo-700 p-2 text-center">
+                        <GraduationCap className="w-7 h-7 text-indigo-600 mb-0.5" />
+                        <span className="text-[8.5px] font-extrabold tracking-tight">লোগো দিন</span>
+                      </div>
                     )}
                   </div>
 
@@ -2599,17 +2609,33 @@ export default function SettingsPage() {
                       className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
                     />
                     <p className="text-[11px] text-slate-500 leading-snug">
-                      PNG/JPG ফরম্যাট, সর্বোচ্চ 2MB সাইজ। খালি রাখলে ক্রাস্ট লোগো দেখাবে।
+                      PNG/JPG/SVG ফরম্যাট, সর্বোচ্চ 2MB সাইজ। আপলোড করলে এটি স্বয়ংক্রিয়ভাবে লোকাল স্টোরেজ, ইনডেক্সডডিবি এবং ল্যান্ডিং পেইজে সিঙ্ক ও স্থায়ী থাকবে।
                     </p>
-                    {formData.schoolLogo && (
-                      <button
-                        type="button"
-                        onClick={() => handleChange('schoolLogo', '')}
-                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" /> লোগো মুছে ফেলুন
-                      </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      {formData.schoolLogo && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const a = document.createElement('a');
+                              a.href = formData.schoolLogo;
+                              a.download = 'logo.png';
+                              a.click();
+                            }}
+                            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" /> লোগো ডাউনলোড করুন (logo.png)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleChange('schoolLogo', '')}
+                            className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> লোগো মুছে ফেলুন
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </SettingsCard>
@@ -3712,10 +3738,9 @@ export default function SettingsPage() {
                     {formData.schoolLogo ? (
                       <img src={formData.schoolLogo} alt="Watermark" className="w-[140px] h-[140px] object-contain grayscale" />
                     ) : (
-                      <div className="w-[120px] h-[120px] flex flex-col items-center justify-center text-slate-950">
-                        <span className="text-amber-500 text-2xl font-bold">★</span>
-                        <span className="text-xl font-black tracking-tighter">BHS</span>
-                        <span className="text-[10px] font-bold text-slate-700">{formData.estdYear}</span>
+                      <div className="w-[120px] h-[120px] flex flex-col items-center justify-center text-slate-400">
+                        <GraduationCap className="w-14 h-14 text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-500 mt-1">{formData.estdYear}</span>
                       </div>
                     )}
                   </div>
@@ -3728,9 +3753,8 @@ export default function SettingsPage() {
                       {formData.schoolLogo ? (
                         <img src={formData.schoolLogo} alt="Logo" className="w-full h-full object-contain" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full border border-slate-950 flex flex-col items-center justify-center">
-                          <span className="text-amber-500 text-[7px] font-bold">★</span>
-                          <span className="text-[6px] font-black tracking-tighter text-slate-950">BHS</span>
+                        <div className="w-8 h-8 rounded-full border border-slate-950 flex flex-col items-center justify-center bg-slate-50">
+                          <GraduationCap className="w-4 h-4 text-slate-700" />
                         </div>
                       )}
                     </div>

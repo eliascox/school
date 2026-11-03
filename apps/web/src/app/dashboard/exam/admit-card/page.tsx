@@ -464,7 +464,7 @@ export default function ProfessionalAdmitCardPage() {
                                 <span className="text-[7.5px] font-black text-slate-950 uppercase tracking-tighter">ভেরিফিকেশন QR</span>
                               </div>
                               <RealQRCode
-                                text={`বরইতলী উচ্চ বিদ্যালয় - প্রবেশপত্র
+                                text={`${schoolSettings.schoolName || 'বিদ্যালয়'} - প্রবেশপত্র
 নাম: ${st.name}
 রোল: ${st.roll}
 শ্রেণি: ${st.grade}

@@ -2767,9 +2767,8 @@ function SSCTestimonialSheetCard({
               {schoolSettings?.schoolLogo ? (
                 <img src={schoolSettings.schoolLogo} alt="Logo" className="w-14 h-14 object-contain shrink-0" />
               ) : (
-                <div className="w-12 h-12 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center">
-                  <span className="text-amber-600 text-xs font-black">★</span>
-                  <span className="text-[9.5px] font-black tracking-tighter">BHS</span>
+                <div className="w-12 h-12 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center bg-slate-50">
+                  <GraduationCap className="w-7 h-7 text-slate-800" />
                 </div>
               )}
               <div className="text-center">

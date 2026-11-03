@@ -2127,9 +2127,7 @@ export default function StudentListPage() {
                           />
                         ) : (
                           <div className="w-16 h-16 rounded-full bg-emerald-800 text-white border-2 border-emerald-600 shadow-xs flex flex-col items-center justify-center">
-                            <span className="text-amber-300 text-xs font-bold">★</span>
-                            <span className="text-[9px] font-black tracking-tighter">BHS</span>
-                            <span className="text-[7px] font-bold text-amber-200">১৯৬৯</span>
+                            <GraduationCap className="w-8 h-8 text-amber-200" />
                           </div>
                         )}
                       </div>

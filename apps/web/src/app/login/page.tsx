@@ -146,7 +146,7 @@ function LoginForm() {
   const eiin = schoolSettings?.eiin || '104321';
   const phone = schoolSettings?.phone || '০১৭১১-XXXXXX';
   const email = schoolSettings?.email || 'info@school.edu.bd';
-  const schoolLogo = schoolSettings?.schoolLogo || '/logo.png';
+  const schoolLogo = schoolSettings?.schoolLogo || '';
 
   useEffect(() => {
     setTopLogoFailed(false);

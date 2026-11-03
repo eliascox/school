@@ -1,4 +1,4 @@
-﻿export type CustomPngBorder = {
+export type CustomPngBorder = {
   id: string;
   name: string;
   url: string;
@@ -85,7 +85,7 @@ export const DEFAULT_PAD_MARGINS: PadMargins = {
 
 const DEFAULT_SETTINGS: SchoolSettings = {
   schoolName: '',  // ← Set in Settings → এখানে প্রতিষ্ঠানের নাম দিন
-  schoolLogo: '/logo.png',
+  schoolLogo: '',  // ← Empty by default; dynamically falls back to institutional crest or uploaded logo
   schoolPhoto: '/school-campus.jpg',
   customBorderPng: '',
   customBorders: [],
@@ -124,18 +124,70 @@ const DEFAULT_SETTINGS: SchoolSettings = {
 };
 
 const STORAGE_KEY = 'sms_school_settings';
+const STORAGE_KEY_LOGO = 'sms_school_logo_master';
+const IDB_NAME = 'sms_persistent_vault';
+const IDB_STORE = 'app_state';
+
+// ─── INDEXEDDB PERSISTENCE VAULT (SURVIVES BROWSER CACHE CLEAR) ───
+const openIdb = (): Promise<IDBDatabase | null> => {
+  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(IDB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+};
+
+const idbGet = async (key: string): Promise<any> => {
+  const db = await openIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+};
+
+const idbSet = async (key: string, val: any): Promise<void> => {
+  const db = await openIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    store.put(val, key);
+  } catch {}
+};
 
 const getInitialSettings = (): SchoolSettings => {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
+    const storedMasterLogo = localStorage.getItem(STORAGE_KEY_LOGO);
     if (stored) {
       const parsed = JSON.parse(stored);
       const margins = parsed.padMargins || {};
       const isLegacy = !margins.top || margins.top < 3.0 || (margins.top === 1.2 && margins.left === 1.4) || margins.top === 2.0;
+      const effectiveLogo = parsed.schoolLogo || storedMasterLogo || '';
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        schoolLogo: effectiveLogo,
         committeeMembers: parsed.committeeMembers && parsed.committeeMembers.length > 0
           ? parsed.committeeMembers
           : DEFAULT_COMMITTEE_MEMBERS,
@@ -146,6 +198,11 @@ const getInitialSettings = (): SchoolSettings => {
               ...margins
             }
       };
+    } else if (storedMasterLogo) {
+      return {
+        ...DEFAULT_SETTINGS,
+        schoolLogo: storedMasterLogo,
+      };
     }
   } catch (e) {
     console.error('Failed to load settings from localStorage', e);
@@ -155,6 +212,34 @@ const getInitialSettings = (): SchoolSettings => {
 
 let currentSettings: SchoolSettings = getInitialSettings();
 const listeners: ((settings: SchoolSettings) => void)[] = [];
+
+// Re-hydrate from persistent IndexedDB vault if localStorage was wiped or missing
+if (typeof window !== 'undefined') {
+  Promise.all([idbGet(STORAGE_KEY), idbGet(STORAGE_KEY_LOGO)]).then(([idbSettings, idbLogo]) => {
+    let changed = false;
+    if (idbSettings && (!currentSettings.schoolName || !currentSettings.schoolLogo)) {
+      currentSettings = {
+        ...DEFAULT_SETTINGS,
+        ...currentSettings,
+        ...idbSettings,
+      };
+      changed = true;
+    }
+    if (idbLogo && !currentSettings.schoolLogo) {
+      currentSettings.schoolLogo = idbLogo;
+      changed = true;
+    }
+    if (changed) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
+        if (currentSettings.schoolLogo) {
+          localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+        }
+      } catch {}
+      listeners.forEach((fn) => fn(currentSettings));
+    }
+  }).catch(() => {});
+}
 
 export const settingsService = {
   getSettings: (): SchoolSettings => {
@@ -176,8 +261,13 @@ export const settingsService = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
+        if (currentSettings.schoolLogo) {
+          localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+          idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+        }
+        idbSet(STORAGE_KEY, currentSettings);
       } catch (e) {
-        console.error('Failed to save settings to localStorage', e);
+        console.error('Failed to save settings to localStorage/IndexedDB vault', e);
       }
     }
     listeners.forEach((fn) => fn(currentSettings));
