@@ -274,6 +274,10 @@ export const studentService = {
       localStorage.setItem('sms_students', JSON.stringify(updated));
       window.dispatchEvent(new Event('storage'));
       syncQueueService.enqueue('student', newStudent.id, 'CREATE', newStudent).catch(() => {});
+      // ☁️ Auto-sync to Firebase Cloud Firestore
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncStudent(newStudent).catch(() => {});
+      }).catch(() => {});
     }
     listeners.forEach((fn) => fn());
     return newStudent;
@@ -317,6 +321,10 @@ export const studentService = {
         localStorage.setItem('sms_student_photos', JSON.stringify(pMap));
       }
       syncQueueService.enqueue('student', student.id, 'UPDATE', student).catch(() => {});
+      // ☁️ Auto-sync to Firebase Cloud Firestore
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncStudent(student).catch(() => {});
+      }).catch(() => {});
     } catch (e) {
       console.error('Storage error in updateStudent:', e);
     }
@@ -435,6 +443,10 @@ export const studentService = {
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
     syncQueueService.enqueue('student', studentId, 'DELETE', { id: studentId }).catch(() => {});
+    // ☁️ Auto-delete from Firebase Cloud Firestore
+    import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+      firebaseSyncService.deleteStudent(studentId).catch(() => {});
+    }).catch(() => {});
     return true;
   },
 

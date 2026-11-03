@@ -84,6 +84,7 @@ import { SystemPurgeReport } from '@/services/systemResetService';
 import { processPadUpload } from '@/lib/padPdfRenderer';
 import { validateAndSanitizeImage } from '@/lib/securityUtils';
 import StudentBulkImportPanel from '@/components/StudentBulkImportPanel';
+import FirebaseCloudSyncPanel from '@/components/dashboard/FirebaseCloudSyncPanel';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
 type SettingsTab = 'identity' | 'committee' | 'facilities' | 'pad' | 'bulk-student' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
@@ -3364,6 +3365,9 @@ export default function SettingsPage() {
                   <button onClick={() => setBackupAlert(null)} className="text-slate-400 hover:text-slate-700 font-black cursor-pointer ml-4">✕</button>
                 </div>
               )}
+
+              {/* ☁️ Google Firebase Cloud Database & Live Sync */}
+              <FirebaseCloudSyncPanel />
 
               {/* 🛡️ Native Disaster Recovery & Encrypted Backup Engine */}
               <DisasterRecoveryPanel />
