@@ -25,456 +25,210 @@ import {
   ChevronDown,
   ChevronUp,
   FileCheck,
-  Languages
+  Languages,
+  Hash,
+  ArrowUpDown,
+  GraduationCap
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
-import { auditTrailService } from '@/services/auditTrailService';
-import { sanitizeCsvField } from '@/lib/securityUtils';
-
-// ─── 0. DIGIT CONVERTERS (Bilingual Engine) ─────────────────────────────────
-export const bnToEnDigits = (str: string | number = ''): string => {
-  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return String(str ?? '').replace(/[০-৯]/g, (d) => String(bn.indexOf(d)));
-};
-
-export const enToBnDigits = (str: string | number = ''): string => {
-  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return String(str ?? '').replace(/[0-9]/g, (d) => bn[parseInt(d, 10)]);
-};
+import { 
+  bnToEnDigits, 
+  enToBnDigits, 
+  normalizeStudentRow, 
+  generateGroupWiseRolls, 
+  validateBulkImportBatch, 
+  executeBulkImport,
+  RollSortStrategy,
+  GroupWiseRollResult,
+  BatchValidationReport
+} from '@/services/studentBulkImportEngine';
 
 // ─── 1. BENGALI SAMPLE DATA (Pure Bengali Headers & Data) ───────────────────
 export const SAMPLE_STUDENTS_BN = [
   {
-    'রোল': '০১',
-    'শিক্ষার্থীর নাম': 'তাহমিদ ইসলাম চৌধুরী',
-    'শ্রেণি': '৬ষ্ঠ',
-    'শাখা': 'ক',
-    'বিভাগ': 'সাধারণ',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'পুরুষ',
-    'জন্ম তারিখ': '১৫/০৩/২০১৩',
-    'জন্ম নিবন্ধন নম্বর': '২০১৩১৫৯২৬১২৩৪৫৬০১',
-    'রক্তের গ্রুপ': 'B+',
-    'ধর্ম': 'ইসলাম',
+    'শিক্ষার্থীর নাম': 'সাদিয়া বিনতে সুলতান',
+    'শ্রেণি': '৯ম',
+    ' শাখা': 'ক',
+    'বিভাগ': 'বিজ্ঞান',
+    'লিঙ্গ': 'মহিলা',
+    'জন্ম তারিখ': '১৮/০৯/২০১০',
+    'পিতার নাম': 'সুলতান মাহমুদ',
+    'মাতার নাম': 'নাছিমা আক্তার',
     'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০১',
-    'পিতার নাম': 'নুরুল ইসলাম চৌধুরী',
-    'পিতার এনআইডি': '১৯৮০১৫৯২৬১২৩৪৫৬০১',
-    'মাতার নাম': 'আমেনা বেগম',
-    'মাতার এনআইডি': '১৯৮৪১৫৯২৬১২৩৪৫৬০১',
-    'আইনগত অভিভাবক': 'নুরুল ইসলাম চৌধুরী',
-    'বর্তমান ঠিকানা': 'গ্রাম: দক্ষিণ বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: দক্ষিণ বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'কৃষি শিক্ষা',
+    'বর্তমান ঠিকানা': 'গ্রাম: পূর্ব বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
+    'পূর্বের রোল': '১৫',
+    'রোল': '০১',
+    'শিক্ষাবর্ষ': '২০২৬',
+    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০১',
+    'রক্তের গ্রুপ': 'O+',
+    'ধর্ম': 'ইসলাম',
+    '৪র্থ বিষয়': 'উচ্চতর গণিত',
     'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'সাধারণ উপবৃত্তি',
     'মন্তব্য': 'নিয়মিত ও মনোযোগী শিক্ষার্থী'
   },
   {
-    'রোল': '০২',
-    'শিক্ষার্থীর নাম': 'আফরিন জাহান সুমাইয়া',
-    'শ্রেণি': '৬ষ্ঠ',
+    'শিক্ষার্থীর নাম': 'ফারহানা আক্তার মিলি',
+    'শ্রেণি': '৯ম',
     'শাখা': 'ক',
-    'বিভাগ': 'সাধারণ',
-    'শিক্ষাবর্ষ': '২০২৬',
+    'বিভাগ': 'মানবিক',
     'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '২২/০৭/২০১৩',
-    'জন্ম নিবন্ধন নম্বর': '২০১৩১৫৯২৬১২৩৪৫৬০২',
-    'রক্তের গ্রুপ': 'O+',
-    'ধর্ম': 'ইসলাম',
+    'জন্ম তারিখ': '০৩/১২/২০১০',
+    'পিতার নাম': 'মফিজুর রহমান',
+    'মাতার নাম': 'হাসিনা বেগম',
     'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০২',
-    'পিতার নাম': 'আনোয়ার হোসেন',
-    'পিতার এনআইডি': '১৯৭৯১৫৯২৬১২৩৪৫৬০২',
-    'মাতার নাম': 'জাহানারা পারভীন',
-    'মাতার এনআইডি': '১৯৮৩১৫৯২৬১২৩৪৫৬০২',
-    'আইনগত অভিভাবক': 'আনোয়ার হোসেন',
-    'বর্তমান ঠিকানা': 'গ্রাম: মধ্য বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: মধ্য বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'গার্হস্থ্য বিজ্ঞান',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'মেধাভিত্তিক উপবৃত্তি',
-    'মন্তব্য': 'ক্লাস ক্যাপ্টেন'
-  },
-  {
-    'রোল': '০১',
-    'শিক্ষার্থীর নাম': 'অনিন্দ্য পাল দ্বীপ',
-    'শ্রেণি': '৭ম',
-    'শাখা': 'ক',
-    'বিভাগ': 'সাধারণ',
+    'বর্তমান ঠিকানা': 'গ্রাম: গোয়াবাগান, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
+    'পূর্বের রোল': '২৮',
+    'রোল': '০২',
     'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'পুরুষ',
-    'জন্ম তারিখ': '১০/০৫/২০১২',
-    'জন্ম নিবন্ধন নম্বর': '২০১২১৫৯২৬১২৩৪৫৬০৩',
-    'রক্তের গ্রুপ': 'A+',
-    'ধর্ম': 'হিন্দু',
-    'অভিভাবকের মোবাইল': '০১৭১২৩৪৫৬০৩',
-    'পিতার নাম': 'সুনীল কুমার পাল',
-    'পিতার এনআইডি': '১৯৭৮১৫৯২৬১২৩৪৫৬০৩',
-    'মাতার নাম': 'সুচিত্রা সেন পাল',
-    'মাতার এনআইডি': '১৯৮২১৫৯২৬১২৩৪৫৬০৩',
-    'আইনগত অভিভাবক': 'সুনীল কুমার পাল',
-    'বর্তমান ঠিকানা': 'গ্রাম: শান্তিবাজার, ডাকঘর: হারবাং, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: শান্তিবাজার, ডাকঘর: হারবাং, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'কৃষি শিক্ষা',
-    'উপবৃত্তি প্রাপ্ত': 'না',
-    'উপবৃত্তি ক্যাটাগরি': '',
-    'মন্তব্য': 'বিজ্ঞান মেলায় ১ম স্থান'
-  },
-  {
-    'রোল': '০১',
-    'শিক্ষার্থীর নাম': 'মাহমুদুল হাসান সিফাত',
-    'শ্রেণি': '৮ম',
-    'শাখা': 'ক',
-    'বিভাগ': 'সাধারণ',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'পুরুষ',
-    'জন্ম তারিখ': '০৫/১১/২০১১',
-    'জন্ম নিবন্ধন নম্বর': '২০১১১৫৯২৬১২৩৪৫৬০৪',
-    'রক্তের গ্রুপ': 'AB+',
+    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০২',
+    'রক্তের গ্রুপ': 'AB-',
     'ধর্ম': 'ইসলাম',
-    'অভিভাবকের মোবাইল': '০১৯১২৩৪৫৬০৪',
-    'পিতার নাম': 'মোবারক আলী',
-    'পিতার এনআইডি': '১৯৭৭১৫৯২৬১২৩৪৫৬০৪',
-    'মাতার নাম': 'রোকেয়া বেগম',
-    'মাতার এনআইডি': '১৯৮১১৫৯২৬১২৩৪৫৬০৪',
-    'আইনগত অভিভাবক': 'মোবারক আলী',
-    'বর্তমান ঠিকানা': 'গ্রাম: বানিয়ারছড়া, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: বানিয়ারছড়া, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
     '৪র্থ বিষয়': 'কৃষি শিক্ষা',
     'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'সাধারণ উপবৃত্তি',
     'মন্তব্য': 'বিতর্ক ক্লাবের সদস্য'
   },
   {
-    'রোল': '০১',
-    'শিক্ষার্থীর নাম': 'সাদিয়া বিনতে সুলতান',
-    'শ্রেণি': '৯ম',
-    'শাখা': 'ক',
-    'বিভাগ': 'বিজ্ঞান',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '১৮/০৯/২০১০',
-    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০৫',
-    'রক্তের গ্রুপ': 'O+',
-    'ধর্ম': 'ইসলাম',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০৫',
-    'পিতার নাম': 'সুলতান মাহমুদ',
-    'পিতার এনআইডি': '১৯৭৬১৫৯২৬১২৩৪৫৬০৫',
-    'মাতার নাম': 'নাছিমা আক্তার',
-    'মাতার এনআইডি': '১৯৮০১৫৯২৬১২৩৪৫৬০৫',
-    'আইনগত অভিভাবক': 'সুলতান মাহমুদ',
-    'বর্তমান ঠিকানা': 'গ্রাম: পূর্ব বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: পূর্ব বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'উচ্চতর গণিত',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'মেধাভিত্তিক উপবৃত্তি',
-    'মন্তব্য': 'গণিত অলিম্পিয়াড অংশগ্রহণকারী'
-  },
-  {
-    'রোল': '০২',
     'শিক্ষার্থীর নাম': 'তানভীর আহমেদ রিফাত',
     'শ্রেণি': '৯ম',
-    'শাখা': 'খ',
+    'শাখা': 'ক',
     'বিভাগ': 'ব্যবসায় শিক্ষা',
-    'শিক্ষাবর্ষ': '২০২৬',
     'লিঙ্গ': 'পুরুষ',
     'জন্ম তারিখ': '২৫/০১/২০১০',
-    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০৬',
+    'পিতার নাম': 'কামরুল আহসান',
+    'মাতার নাম': 'শাহিনুর বেগম',
+    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০৩',
+    'বর্তমান ঠিকানা': 'গ্রাম: কলেজ রোড, ডাকঘর: চকরিয়া, উপজেলা: চকরিয়া, কক্সবাজার',
+    'পূর্বের রোল': '৪২',
+    'রোল': '০৩',
+    'শিক্ষাবর্ষ': '২০২৬',
+    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০৩',
     'রক্তের গ্রুপ': 'A+',
     'ধর্ম': 'ইসলাম',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০৬',
-    'পিতার নাম': 'কামরুল আহসান',
-    'পিতার এনআইডি': '১৯৭৫১৫৯২৬১২৩৪৫৬০৬',
-    'মাতার নাম': 'শাহিনুর বেগম',
-    'মাতার এনআইডি': '১৯৭৯১৫৯২৬১২৩৪৫৬০৬',
-    'আইনগত অভিভাবক': 'কামরুল আহসান',
-    'বর্তমান ঠিকানা': 'গ্রাম: কলেজ রোড, ডাকঘর: চকরিয়া, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: কলেজ রোড, ডাকঘর: চকরিয়া, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
     '৪র্থ বিষয়': 'কম্পিউটার শিক্ষা',
     'উপবৃত্তি প্রাপ্ত': 'না',
-    'উপবৃত্তি ক্যাটাগরি': '',
-    'মন্তব্য': ''
-  },
-  {
-    'রোল': '০১',
-    'শিক্ষার্থীর নাম': 'শ্রাবন্তী দাশ তিথি',
-    'শ্রেণি': '১০ম',
-    'শাখা': 'ক',
-    'বিভাগ': 'বিজ্ঞান',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '১৪/০৮/২০০৯',
-    'জন্ম নিবন্ধন নম্বর': '২০০৯১৫৯২৬১২৩৪৫৬০৭',
-    'রক্তের গ্রুপ': 'B+',
-    'ধর্ম': 'হিন্দু',
-    'অভিভাবকের মোবাইল': '০১৭১২৩৪৫৬০৭',
-    'পিতার নাম': 'সুধীর চন্দ্র দাশ',
-    'পিতার এনআইডি': '১৯৭৪১৫৯২৬১২৩৪৫৬০৭',
-    'মাতার নাম': 'সন্ধ্যা রানী দাশ',
-    'মাতার এনআইডি': '১৯৭৮১৫৯২৬১২৩৪৫৬০৭',
-    'আইনগত অভিভাবক': 'সুধীর চন্দ্র দাশ',
-    'বর্তমান ঠিকানা': 'গ্রাম: মাস্টারপাড়া, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: মাস্টারপাড়া, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'উচ্চতর গণিত',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'মেধাভিত্তিক উপবৃত্তি',
-    'মন্তব্য': 'এসএসসি পরীক্ষার্থী ২০২৬'
-  },
-  {
-    'রোল': '০২',
-    'শিক্ষার্থীর নাম': 'ফারহানা আক্তার মিলি',
-    'শ্রেণি': '১০ম',
-    'শাখা': 'খ',
-    'বিভাগ': 'মানবিক',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '০৩/১২/২০০৯',
-    'জন্ম নিবন্ধন নম্বর': '২০০৯১৫৯২৬১২৩৪৫৬০৮',
-    'রক্তের গ্রুপ': 'AB-',
-    'ধর্ম': 'ইসলাম',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০৮',
-    'পিতার নাম': 'মফিজুর রহমান',
-    'পিতার এনআইডি': '১৯৭৩১৫৯২৬১২৩৪৫৬০৮',
-    'মাতার নাম': 'হাসিনা বেগম',
-    'মাতার এনআইডি': '১৯৭৭১৫৯২৬১২৩৪৫৬০৮',
-    'আইনগত অভিভাবক': 'মফিজুর রহমান',
-    'বর্তমান ঠিকানা': 'গ্রাম: গোয়াবাগান, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    'স্থায়ী ঠিকানা': 'গ্রাম: গোয়াবাগান, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার',
-    '৪র্থ বিষয়': 'কৃষি শিক্ষা',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'উপবৃত্তি ক্যাটাগরি': 'সাধারণ উপবৃত্তি',
-    'মন্তব্য': 'সাংস্কৃতিক প্রতিযোগিতায় পুরস্কৃত'
+    'মন্তব্য': 'ক্রীড়া প্রতিযোগিতায় ১ম স্থান'
   }
 ];
 
-// ─── 2. ENGLISH SAMPLE DATA (Pure English Headers & Data) ───────────────────
+// ─── 2. ENGLISH SAMPLE DATA (Exact English Headers per Specification) ──────
 export const SAMPLE_STUDENTS_EN = [
   {
-    Roll: '01',
-    Name: 'Tahmid Islam Chowdhury',
-    Class: '6th',
-    Section: 'A',
-    Group: 'General',
-    Session: '2026',
-    Gender: 'Male',
-    DOB: '2013-03-15',
-    BirthRegNo: '20131592612345601',
-    BloodGroup: 'B+',
-    Religion: 'Islam',
-    Mobile: '01812345601',
-    FatherName: 'Nurul Islam Chowdhury',
-    FatherNID: '19801592612345601',
-    MotherName: 'Amena Begum',
-    MotherNID: '19841592612345601',
-    Guardian: 'Nurul Islam Chowdhury',
-    CurrentAddress: 'South Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'South Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Agriculture',
-    IsStipend: 'Yes',
-    StipendCategory: 'General Stipend',
-    Remarks: 'Regular Student'
+    'Student Name': 'Sadia Binte Sultan',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Science',
+    'Gender': 'Female',
+    'Date of Birth': '2010-09-18',
+    "Father's Name": 'Sultan Mahmud',
+    "Mother's Name": 'Nasima Akhter',
+    'Contact Number': '01812345601',
+    'Address': 'East Baraitali, Chakaria, Coxs Bazar',
+    'Previous Roll': '15',
+    'Religion': 'Islam',
+    'Blood Group': 'O+',
+    'Birth Reg No': '20101592612345601',
+    'Remarks': 'Math Olympiad'
   },
   {
-    Roll: '02',
-    Name: 'Afrin Jahan Sumaiya',
-    Class: '6th',
-    Section: 'A',
-    Group: 'General',
-    Session: '2026',
-    Gender: 'Female',
-    DOB: '2013-07-22',
-    BirthRegNo: '20131592612345602',
-    BloodGroup: 'O+',
-    Religion: 'Islam',
-    Mobile: '01812345602',
-    FatherName: 'Anwar Hossain',
-    FatherNID: '19791592612345602',
-    MotherName: 'Jahanara Parvin',
-    MotherNID: '19831592612345602',
-    Guardian: 'Anwar Hossain',
-    CurrentAddress: 'Middle Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'Middle Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Home Science',
-    IsStipend: 'Yes',
-    StipendCategory: 'Merit Stipend',
-    Remarks: 'Class Captain'
+    'Student Name': 'Tahmid Islam Chowdhury',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Science',
+    'Gender': 'Male',
+    'Date of Birth': '2010-03-15',
+    "Father's Name": 'Nurul Islam Chowdhury',
+    "Mother's Name": 'Amena Begum',
+    'Contact Number': '01812345602',
+    'Address': 'South Baraitali, Chakaria, Coxs Bazar',
+    'Previous Roll': '04',
+    'Religion': 'Islam',
+    'Blood Group': 'B+',
+    'Birth Reg No': '20101592612345602',
+    'Remarks': 'Regular Student'
   },
   {
-    Roll: '01',
-    Name: 'Anindya Paul Dip',
-    Class: '7th',
-    Section: 'A',
-    Group: 'General',
-    Session: '2026',
-    Gender: 'Male',
-    DOB: '2012-05-10',
-    BirthRegNo: '20121592612345603',
-    BloodGroup: 'A+',
-    Religion: 'Hindu',
-    Mobile: '01712345603',
-    FatherName: 'Sunil Kumar Paul',
-    FatherNID: '19781592612345603',
-    MotherName: 'Suchitra Sen Paul',
-    MotherNID: '19821592612345603',
-    Guardian: 'Sunil Kumar Paul',
-    CurrentAddress: 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
-    PermanentAddress: 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Agriculture',
-    IsStipend: 'No',
-    StipendCategory: '',
-    Remarks: 'Science Fair 1st Prize'
+    'Student Name': 'Farhana Akhter Mili',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Humanities',
+    'Gender': 'Female',
+    'Date of Birth': '2010-12-03',
+    "Father's Name": 'Mofizur Rahman',
+    "Mother's Name": 'Hasina Begum',
+    'Contact Number': '01812345603',
+    'Address': 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
+    'Previous Roll': '28',
+    'Religion': 'Islam',
+    'Blood Group': 'AB-',
+    'Birth Reg No': '20101592612345603',
+    'Remarks': 'Cultural Prize Winner'
   },
   {
-    Roll: '01',
-    Name: 'Mahmudul Hasan Sifat',
-    Class: '8th',
-    Section: 'A',
-    Group: 'General',
-    Session: '2026',
-    Gender: 'Male',
-    DOB: '2011-11-05',
-    BirthRegNo: '20111592612345604',
-    BloodGroup: 'AB+',
-    Religion: 'Islam',
-    Mobile: '01912345604',
-    FatherName: 'Mobarak Ali',
-    FatherNID: '19771592612345604',
-    MotherName: 'Rokeya Begum',
-    MotherNID: '19811592612345604',
-    Guardian: 'Mobarak Ali',
-    CurrentAddress: 'Baniarchara, Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'Baniarchara, Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Agriculture',
-    IsStipend: 'Yes',
-    StipendCategory: 'General Stipend',
-    Remarks: 'Debate Club Member'
+    'Student Name': 'Anindya Paul Dip',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Humanities',
+    'Gender': 'Male',
+    'Date of Birth': '2010-05-10',
+    "Father's Name": 'Sunil Kumar Paul',
+    "Mother's Name": 'Suchitra Sen Paul',
+    'Contact Number': '01712345604',
+    'Address': 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
+    'Previous Roll': '09',
+    'Religion': 'Hindu',
+    'Blood Group': 'A+',
+    'Birth Reg No': '20101592612345604',
+    'Remarks': 'Debate Club'
   },
   {
-    Roll: '01',
-    Name: 'Sadia Binte Sultan',
-    Class: '9th',
-    Section: 'A',
-    Group: 'Science',
-    Session: '2026',
-    Gender: 'Female',
-    DOB: '2010-09-18',
-    BirthRegNo: '20101592612345605',
-    BloodGroup: 'O+',
-    Religion: 'Islam',
-    Mobile: '01812345605',
-    FatherName: 'Sultan Mahmud',
-    FatherNID: '19761592612345605',
-    MotherName: 'Nasima Akhter',
-    MotherNID: '19801592612345605',
-    Guardian: 'Sultan Mahmud',
-    CurrentAddress: 'East Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'East Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Higher Math',
-    IsStipend: 'Yes',
-    StipendCategory: 'Merit Stipend',
-    Remarks: 'Math Olympiad'
+    'Student Name': 'Tanvir Ahmed Rifat',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Business Studies',
+    'Gender': 'Male',
+    'Date of Birth': '2010-01-25',
+    "Father's Name": 'Kamrul Ahsan',
+    "Mother's Name": 'Shahinur Begum',
+    'Contact Number': '01812345605',
+    'Address': 'College Road, Chakaria, Coxs Bazar',
+    'Previous Roll': '42',
+    'Religion': 'Islam',
+    'Blood Group': 'A+',
+    'Birth Reg No': '20101592612345605',
+    'Remarks': 'Sports Captain'
   },
   {
-    Roll: '02',
-    Name: 'Tanvir Ahmed Rifat',
-    Class: '9th',
-    Section: 'B',
-    Group: 'Business Studies',
-    Session: '2026',
-    Gender: 'Male',
-    DOB: '2010-01-25',
-    BirthRegNo: '20101592612345606',
-    BloodGroup: 'A+',
-    Religion: 'Islam',
-    Mobile: '01812345606',
-    FatherName: 'Kamrul Ahsan',
-    FatherNID: '19751592612345606',
-    MotherName: 'Shahinur Begum',
-    MotherNID: '19791592612345606',
-    Guardian: 'Kamrul Ahsan',
-    CurrentAddress: 'College Road, Chakaria, Coxs Bazar',
-    PermanentAddress: 'College Road, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Computer',
-    IsStipend: 'No',
-    StipendCategory: '',
-    Remarks: ''
-  },
-  {
-    Roll: '01',
-    Name: 'Srabanti Das Tithi',
-    Class: '10th',
-    Section: 'A',
-    Group: 'Science',
-    Session: '2026',
-    Gender: 'Female',
-    DOB: '2009-08-14',
-    BirthRegNo: '20091592612345607',
-    BloodGroup: 'B+',
-    Religion: 'Hindu',
-    Mobile: '01712345607',
-    FatherName: 'Sudhir Chandra Das',
-    FatherNID: '19741592612345607',
-    MotherName: 'Sandhya Rani Das',
-    MotherNID: '19781592612345607',
-    Guardian: 'Sudhir Chandra Das',
-    CurrentAddress: 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Higher Math',
-    IsStipend: 'Yes',
-    StipendCategory: 'Merit Stipend',
-    Remarks: 'SSC Candidate 2026'
-  },
-  {
-    Roll: '02',
-    Name: 'Farhana Akhter Mili',
-    Class: '10th',
-    Section: 'B',
-    Group: 'Humanities',
-    Session: '2026',
-    Gender: 'Female',
-    DOB: '2009-12-03',
-    BirthRegNo: '20091592612345608',
-    BloodGroup: 'AB-',
-    Religion: 'Islam',
-    Mobile: '01812345608',
-    FatherName: 'Mofizur Rahman',
-    FatherNID: '19731592612345608',
-    MotherName: 'Hasina Begum',
-    MotherNID: '19771592612345608',
-    Guardian: 'Mofizur Rahman',
-    CurrentAddress: 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
-    PermanentAddress: 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
-    OptionalSubject: 'Agriculture',
-    IsStipend: 'Yes',
-    StipendCategory: 'General Stipend',
-    Remarks: 'Cultural Prize Winner'
+    'Student Name': 'Srabanti Das Tithi',
+    'Class': '9th',
+    'Section': 'A',
+    'Group': 'Business Studies',
+    'Gender': 'Female',
+    'Date of Birth': '2010-08-14',
+    "Father's Name": 'Sudhir Chandra Das',
+    "Mother's Name": 'Sandhya Rani Das',
+    'Contact Number': '01712345606',
+    'Address': 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
+    'Previous Roll': '11',
+    'Religion': 'Hindu',
+    'Blood Group': 'B+',
+    'Birth Reg No': '20101592612345606',
+    'Remarks': 'Class Representative'
   }
 ];
 
 // ─── 3. FIELD SPECIFICATION GUIDE ──────────────────────────────────────────
 export const FIELD_GUIDE_ROWS = [
-  { field: 'Roll', bnName: 'রোল নম্বর', required: 'আবশ্যক', sampleEn: '01', sampleBn: '০১', desc: 'ইংরেজি (01, 02) বা বাংলা (০১, ০২) যেকোনো সংখ্যা' },
-  { field: 'Name', bnName: 'শিক্ষার্থীর নাম', required: 'আবশ্যক', sampleEn: 'Tahmid Islam', sampleBn: 'তাহমিদ ইসলাম', desc: 'ইংরেজি বা বাংলা পূর্ণাঙ্গ নাম' },
-  { field: 'Class', bnName: 'শ্রেণি', required: 'আবশ্যক', sampleEn: '8th / Class 8', sampleBn: '৮ম / অষ্টম', desc: '6th, 7th, 8th, 9th, 10th বা ৬ষ্ঠ, ৭ম, ৮ম, ৯ম, ১০ম' },
-  { field: 'Section', bnName: 'শাখা', required: 'ঐচ্ছিক', sampleEn: 'A / B / C', sampleBn: 'ক / খ / পদ্মা', desc: 'A, B, C বা ক, খ, গ, পদ্মা, মেঘনা (ডিফল্ট: A)' },
-  { field: 'Group', bnName: 'বিভাগ / গ্রুপ', required: 'ঐচ্ছিক', sampleEn: 'Science / Arts', sampleBn: 'বিজ্ঞান / মানবিক', desc: 'সাধারণ (General), বিজ্ঞান (Science), মানবিক (Humanities), ব্যবসায় শিক্ষা (Commerce)' },
-  { field: 'Session', bnName: 'শিক্ষাবর্ষ', required: 'ঐচ্ছিক', sampleEn: '2026', sampleBn: '২০২৬', desc: 'শিক্ষাবর্ষ বছর (2026 বা ২০২৬)' },
-  { field: 'Gender', bnName: 'লিঙ্গ', required: 'ঐচ্ছিক', sampleEn: 'Male / Female', sampleBn: 'পুরুষ / মহিলা', desc: 'পুরুষ / মহিলা / অন্যান্য বা Male / Female / Boy / Girl' },
-  { field: 'DOB', bnName: 'জন্ম তারিখ', required: 'ঐচ্ছিক', sampleEn: '2011-04-12', sampleBn: '১২/০৪/২০১১', desc: 'YYYY-MM-DD অথবা DD/MM/YYYY (বাংলা বা ইংরেজি সংখ্যায়)' },
-  { field: 'BirthRegNo', bnName: 'জন্ম নিবন্ধন (BRN)', required: 'ঐচ্ছিক', sampleEn: '20111592612345601', sampleBn: '২০১১১৫৯২৬১২৩৪৫৬০১', desc: '১৭ ডিজিটের অনলাইন জন্ম নিবন্ধন নম্বর' },
-  { field: 'BloodGroup', bnName: 'রক্তের গ্রুপ', required: 'ঐচ্ছিক', sampleEn: 'B+ / O+', sampleBn: 'বি+ / ও+', desc: 'A+, B+, O+, AB+, A-, B-, O-, AB- (বা এ+, বি+, ও+)' },
-  { field: 'Religion', bnName: 'ধর্ম', required: 'ঐচ্ছিক', sampleEn: 'Islam / Hindu', sampleBn: 'ইসলাম / হিন্দু', desc: 'ইসলাম (Islam), হিন্দু (Hindu), বৌদ্ধ (Buddhist), খ্রিস্টান (Christian)' },
-  { field: 'Mobile', bnName: 'অভিভাবকের মোবাইল', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর (বাংলা বা ইংরেজিতে)' },
-  { field: 'FatherName', bnName: 'পিতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Nurul Islam', sampleBn: 'নুরুল ইসলাম', desc: 'পিতার পূর্ণাঙ্গ নাম (ইংরেজি বা বাংলায়)' },
-  { field: 'FatherNID', bnName: 'পিতার এনআইডি', required: 'ঐচ্ছিক', sampleEn: '19801592612345601', sampleBn: '১৯৮০১৫৯২৬১২৩৪৫৬০১', desc: 'পিতার জাতীয় পরিচয়পত্র নম্বর' },
-  { field: 'MotherName', bnName: 'মাতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Amena Begum', sampleBn: 'আমেনা বেগম', desc: 'মাতার পূর্ণাঙ্গ নাম (ইংরেজি বা বাংলায়)' },
-  { field: 'MotherNID', bnName: 'মাতার এনআইডি', required: 'ঐচ্ছিক', sampleEn: '19841592612345601', sampleBn: '১৯৮৪১৫৯২৬১২৩৪৫৬০১', desc: 'মাতার জাতীয় পরিচয়পত্র নম্বর' },
-  { field: 'Guardian', bnName: 'আইনগত অভিভাবক', required: 'ঐচ্ছিক', sampleEn: 'Nurul Islam', sampleBn: 'নুরুল ইসলাম', desc: 'আইনগত অভিভাবকের নাম (ইংরেজি বা বাংলায়)' },
-  { field: 'CurrentAddress', bnName: 'বর্তমান ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'Baraitali, Chakaria', sampleBn: 'বরইতলী, চকরিয়া', desc: 'বর্তমান যোগাযোগের পূর্ণাঙ্গ ঠিকানা' },
-  { field: 'PermanentAddress', bnName: 'স্থায়ী ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'Baraitali, Chakaria', sampleBn: 'বরইতলী, চকরিয়া', desc: 'স্থায়ী বাসস্থানের পূর্ণাঙ্গ ঠিকানা' },
-  { field: 'OptionalSubject', bnName: '৪র্থ / ঐচ্ছিক বিষয়', required: 'ঐচ্ছিক', sampleEn: 'Higher Math / Agri', sampleBn: 'উচ্চতর গণিত / কৃষি', desc: 'উচ্চতর গণিত, কৃষি শিক্ষা, গার্হস্থ্য বিজ্ঞান ইত্যাদি' },
-  { field: 'IsStipend', bnName: 'উপবৃত্তি সুবিধাভোগী', required: 'ঐচ্ছিক', sampleEn: 'Yes / No', sampleBn: 'হ্যাঁ / না', desc: 'হ্যাঁ / না অথবা Yes / No / 1 / 0' },
-  { field: 'StipendCategory', bnName: 'উপবৃত্তি ক্যাটাগরি', required: 'ঐচ্ছিক', sampleEn: 'General / Merit', sampleBn: 'সাধারণ / মেধাভিত্তিক', desc: 'সাধারণ উপবৃত্তি, মেধাভিত্তিক উপবৃত্তি ইত্যাদি' },
-  { field: 'Remarks', bnName: 'মন্তব্য', required: 'ঐচ্ছিক', sampleEn: 'Regular', sampleBn: 'নিয়মিত শিক্ষার্থী', desc: 'বিশেষ কোনো অর্জন, নোট বা মন্তব্য' }
+  { field: 'Student Name', bnName: 'শিক্ষার্থীর নাম', required: 'আবশ্যক', sampleEn: 'Sadia Sultana', sampleBn: 'সাদিয়া সুলতানা', desc: 'ইংরেজি বা বাংলা পূর্ণাঙ্গ নাম' },
+  { field: 'Class', bnName: 'শ্রেণি', required: 'আবশ্যক', sampleEn: '9th / Class 9', sampleBn: '৯ম / নবম', desc: '9th বা ৯ম শ্রেণি (৬ষ্ঠ থেকে ১০ম সমর্থিত)' },
+  { field: 'Group', bnName: 'বিভাগ / গ্রুপ', required: 'আবশ্যক (৯ম/১০ম)', sampleEn: 'Science / Humanities / Business Studies', sampleBn: 'বিজ্ঞান / মানবিক / ব্যবসায় শিক্ষা', desc: 'বিজ্ঞান (Science), মানবিক (Humanities/Arts), ব্যবসায় শিক্ষা (Commerce/Business)' },
+  { field: 'Section', bnName: 'শাখা', required: 'ঐচ্ছিক', sampleEn: 'A / B', sampleBn: 'ক / খ', desc: 'A, B বা ক, খ (ডিফল্ট: A)' },
+  { field: 'Gender', bnName: 'লিঙ্গ', required: 'ঐচ্ছিক', sampleEn: 'Male / Female', sampleBn: 'পুরুষ / মহিলা', desc: 'পুরুষ / মহিলা বা Male / Female' },
+  { field: 'Date of Birth', bnName: 'জন্ম তারিখ', required: 'ঐচ্ছিক', sampleEn: '2010-09-18', sampleBn: '১৮/০৯/২০১০', desc: 'YYYY-MM-DD অথবা DD/MM/YYYY' },
+  { field: "Father's Name", bnName: 'পিতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Sultan Mahmud', sampleBn: 'সুলতান মাহমুদ', desc: 'পিতার নাম (শিক্ষার্থীর নামের সাথে পৃথকভাবে সংরক্ষিত)' },
+  { field: "Mother's Name", bnName: 'মাতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Nasima Begum', sampleBn: 'নাছিমা বেগম', desc: 'মাতার নাম (স্বতন্ত্রভাবে সংরক্ষিত)' },
+  { field: 'Contact Number', bnName: 'অভিভাবকের মোবাইল', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' },
+  { field: 'Address', bnName: 'বর্তমান ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'Baraitali, Chakaria', sampleBn: 'বরইতলী, চকরিয়া', desc: 'পূর্ণাঙ্গ যোগাযোগের ঠিকানা' },
+  { field: 'Previous Roll', bnName: 'পূর্ববর্তী রোল', required: 'ঐচ্ছিক', sampleEn: '15', sampleBn: '১৫', desc: 'ফাইলে থাকা আগের রোল (সিস্টেম গ্রুপ অনুযায়ী ১ থেকে নতুন ক্রমিক রোল তৈরি করবে)' }
 ];
 
 interface StudentBulkImportPanelProps {
@@ -485,13 +239,16 @@ interface StudentBulkImportPanelProps {
 export default function StudentBulkImportPanel({ onSuccess, compactMode = false }: StudentBulkImportPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [parsedStudents, setParsedStudents] = useState<Student[]>([]);
-  const [selectedSaveMode, setSelectedSaveMode] = useState<'merge' | 'replace'>('merge');
-  const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
+  const [rawParsedStudents, setRawParsedStudents] = useState<Student[]>([]);
+  const [rollSortStrategy, setRollSortStrategy] = useState<RollSortStrategy>('name_asc');
+  const [autoAssignRolls, setAutoAssignRolls] = useState<boolean>(true);
+  const [selectedSaveMode, setSelectedSaveMode] = useState<'merge' | 'replace_grade' | 'replace'>('merge');
+  const [groupTabFilter, setGroupTabFilter] = useState<'all' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা'>('all');
   const [searchPreview, setSearchPreview] = useState('');
-  const [gradePreviewFilter, setGradePreviewFilter] = useState('all');
   const [showGuide, setShowGuide] = useState(false);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<Student | null>(null);
+  const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
+  const [validationReport, setValidationReport] = useState<BatchValidationReport | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Stats of current DB
@@ -513,6 +270,46 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     loadDbStats();
   }, []);
 
+  // ─── REACTIVE GROUP-WISE ROLL GENERATION ENGINE (CORE REQUIREMENT 3) ────────
+  const rolledResult: GroupWiseRollResult = useMemo(() => {
+    if (rawParsedStudents.length === 0) {
+      return {
+        students: [],
+        groupStats: { science: 0, humanities: 0, business: 0, general: 0, total: 0 },
+        rollRanges: {},
+      };
+    }
+
+    if (!autoAssignRolls) {
+      const sci = rawParsedStudents.filter((s) => s.group === 'বিজ্ঞান').length;
+      const hum = rawParsedStudents.filter((s) => s.group === 'মানবিক').length;
+      const bus = rawParsedStudents.filter((s) => s.group === 'ব্যবসায় শিক্ষা').length;
+      return {
+        students: rawParsedStudents,
+        groupStats: {
+          science: sci,
+          humanities: hum,
+          business: bus,
+          general: rawParsedStudents.length - (sci + hum + bus),
+          total: rawParsedStudents.length,
+        },
+        rollRanges: {},
+      };
+    }
+
+    return generateGroupWiseRolls(rawParsedStudents, rollSortStrategy, '9th');
+  }, [rawParsedStudents, rollSortStrategy, autoAssignRolls]);
+
+  // Run validation whenever rolled results change
+  useEffect(() => {
+    if (rolledResult.students.length > 0) {
+      const report = validateBulkImportBatch(rolledResult.students);
+      setValidationReport(report);
+    } else {
+      setValidationReport(null);
+    }
+  }, [rolledResult.students]);
+
   // ─── DOWNLOAD EXCEL (BENGALI OR ENGLISH FORMAT) ──────────────────────────
   const downloadExcelTemplate = (lang: 'bn' | 'en') => {
     try {
@@ -520,29 +317,21 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       const wsStudents = XLSX.utils.json_to_sheet(data);
 
       wsStudents['!cols'] = [
-        { wch: 10 }, // Roll
         { wch: 28 }, // Name
         { wch: 12 }, // Class
         { wch: 10 }, // Section
-        { wch: 18 }, // Group
-        { wch: 14 }, // Session
+        { wch: 20 }, // Group
         { wch: 12 }, // Gender
         { wch: 16 }, // DOB
-        { wch: 24 }, // BirthRegNo
-        { wch: 14 }, // BloodGroup
-        { wch: 14 }, // Religion
-        { wch: 18 }, // Mobile
         { wch: 26 }, // FatherName
-        { wch: 22 }, // FatherNID
-        { wch: 24 }, // MotherName
-        { wch: 22 }, // MotherNID
-        { wch: 26 }, // Guardian
-        { wch: 38 }, // CurrentAddress
-        { wch: 38 }, // PermanentAddress
-        { wch: 20 }, // OptionalSubject
-        { wch: 16 }, // IsStipend
-        { wch: 22 }, // StipendCategory
-        { wch: 28 }, // Remarks
+        { wch: 26 }, // MotherName
+        { wch: 18 }, // Contact
+        { wch: 38 }, // Address
+        { wch: 14 }, // PrevRoll
+        { wch: 14 }, // Religion
+        { wch: 14 }, // BloodGroup
+        { wch: 22 }, // BRN
+        { wch: 24 }  // Remarks
       ];
 
       const wsGuide = XLSX.utils.json_to_sheet(
@@ -550,20 +339,20 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
           'কলাম (English)': g.field,
           'বাংলা শিরোনাম (Bengali)': g.bnName,
           'স্ট্যাটাস (Status)': g.required,
-          'নমুনা মান (বাংলা)': g.sampleBn,
           'নমুনা মান (English)': g.sampleEn,
+          'নমুনা মান (বাংলা)': g.sampleBn,
           'নিয়মাবলী (Instructions)': g.desc
         }))
       );
-      wsGuide['!cols'] = [{ wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 55 }];
+      wsGuide['!cols'] = [{ wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 24 }, { wch: 24 }, { wch: 60 }];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, wsStudents, lang === 'bn' ? 'শিক্ষার্থী_তালিকা' : 'Students');
+      XLSX.utils.book_append_sheet(wb, wsStudents, lang === 'bn' ? 'শিক্ষার্থী_তালিকা' : 'Class_9_Students');
       XLSX.utils.book_append_sheet(wb, wsGuide, 'Field_Guide');
 
       const fileName = lang === 'bn' 
-        ? `Student_Bulk_Import_Template_Bengali_২০২৬.xlsx`
-        : `Student_Bulk_Import_Template_English_2026.xlsx`;
+        ? `Class_9_Student_Bulk_Import_Bengali_২০২৬.xlsx`
+        : `Class_9_Student_Bulk_Import_English_2026.xlsx`;
 
       XLSX.writeFile(wb, fileName);
       setAlertInfo({
@@ -589,8 +378,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       const link = document.createElement('a');
       link.href = url;
       link.download = lang === 'bn'
-        ? `Student_Bulk_Import_Template_Bengali_২০২৬.csv`
-        : `Student_Bulk_Import_Template_English_2026.csv`;
+        ? `Class_9_Student_Bulk_Import_Bengali_২০২৬.csv`
+        : `Class_9_Student_Bulk_Import_English_2026.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -606,291 +395,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     }
   };
 
-  // ─── 4. INTELLIGENT BILINGUAL COLUMN HEADER MAPPER ────────────────────────
-  // ─── 4. INTELLIGENT BILINGUAL COLUMN HEADER MAPPER ────────────────────────
-  // 🛡️ CRITICAL ORDER: Specific identifiers (Father, Mother, Guardian, Permanent Address, NID, etc.)
-  // MUST be checked BEFORE generic keywords like 'name' (নাম) or 'address' (ঠিকানা) to prevent
-  // Father/Mother names from overwriting the Student's own Name!
-  const normalizeKey = (key: string): string => {
-    const k = key.toLowerCase().trim().replace(/[\s_\-.]+/g, '');
-
-    // 1. Father details (Check BEFORE student name!)
-    if (k.includes('fathernid') || k.includes('পিতারএনআইডি') || k.includes('বাবারএনআইডি') || k.includes('পিতারজাতীয়')) return 'fatherNid';
-    if (k.includes('fathername') || k.includes('father') || k.includes('পিতারনাম') || k.includes('বাবারনাম') || k.includes('পিতা') || k.includes('বাবা') || k.includes('বাপেরনাম')) return 'fatherName';
-
-    // 2. Mother details (Check BEFORE student name!)
-    if (k.includes('mothernid') || k.includes('মাতারএনআইডি') || k.includes('মায়েরএনআইডি') || k.includes('মাতারজাতীয়')) return 'motherNid';
-    if (k.includes('mothername') || k.includes('mother') || k.includes('মাতারনাম') || k.includes('মায়েরনাম') || k.includes('মাতা') || k.includes('মা')) return 'motherName';
-
-    // 3. Legal Guardian details (Check BEFORE student name!)
-    if (k.includes('legalguardian') || k.includes('guardianname') || k.includes('আইনগতঅভিভাবক') || k.includes('অভিভাবকেরনাম') || k.includes('guardian') || k.includes('অভিভাবক')) return 'guardian';
-
-    // 4. Student Name (Now safe to match 'name' or 'নাম' without catching parents)
-    if (
-      k.includes('studentname') || 
-      k.includes('শিক্ষার্থীরনাম') || 
-      k.includes('ছাত্রেরনাম') || 
-      k.includes('ছাত্রীরনাম') || 
-      k.includes('ছাত্রনাম') || 
-      k.includes('ছাত্রীনাম') || 
-      k.includes('শিক্ষার্থী') || 
-      k.includes('student') || 
-      k.includes('fullname') || 
-      k.includes('name') || 
-      k.includes('নাম')
-    ) return 'name';
-
-    // 5. Roll / Serial Number
-    if (k.includes('rollno') || k.includes('roll') || k.includes('রোলনম্বর') || k.includes('রোলনং') || k.includes('রোল') || k.includes('ক্রমিকনং') || k.includes('ক্রমিক') || k.includes('slno') || k.includes('sl')) return 'roll';
-
-    // 6. Class / Grade
-    if (k.includes('grade') || k.includes('class') || k.includes('শ্রেণি') || k.includes('শ্রেণী') || k.includes('ক্লাস') || k.includes('মান')) return 'grade';
-
-    // 7. Section / Branch
-    if (k.includes('section') || k.includes('branch') || k.includes('শাখা') || k.includes('সেকশন')) return 'section';
-
-    // 8. Group / Department / Stream
-    if (k.includes('group') || k.includes('বিভাগ') || k.includes('গ্রুপ') || k.includes('শাখা/বিভাগ') || k.includes('শাখা-বিভাগ') || k.includes('বিভাগ/গ্রুপ') || k.includes('stream') || k.includes('dept') || k.includes('department')) return 'group';
-
-    // 9. Session / Academic Year
-    if (k.includes('session') || k.includes('year') || k.includes('শিক্ষাবর্ষ') || k.includes('সেশন') || k.includes('বছর') || k.includes('সাল')) return 'session';
-
-    // 10. Gender
-    if (k.includes('gender') || k.includes('sex') || k.includes('লিঙ্গ') || k.includes('ছাত্রছাত্রী')) return 'gender';
-
-    // 11. Date of Birth
-    if (k.includes('dateofbirth') || k.includes('birthdate') || k.includes('dob') || k.includes('জন্মতারিখ') || k.includes('জন্মদিন') || k.includes('তারিখ')) return 'dob';
-
-    // 12. Birth Registration Number (BRN)
-    if (k.includes('birthreg') || k.includes('brn') || k.includes('জন্মনিবন্ধন') || k.includes('নিবন্ধননম্বর') || k.includes('সনদ')) return 'birthRegNo';
-
-    // 13. Blood Group
-    if (k.includes('bloodgroup') || k.includes('blood') || k.includes('রক্তেরগ্রুপ') || k.includes('রক্ত') || k.includes('ব্লাড')) return 'bloodGroup';
-
-    // 14. Religion
-    if (k.includes('religion') || k.includes('ধর্ম')) return 'religion';
-
-    // 15. Mobile Number
-    if (k.includes('mobile') || k.includes('phone') || k.includes('contact') || k.includes('মোবাইল') || k.includes('ফোন') || k.includes('যোগাযোগ')) return 'mobile';
-
-    // 16. Permanent Address (Check BEFORE current address!)
-    if (k.includes('permanentaddress') || k.includes('স্থায়ীঠিকানা') || k.includes('স্থায়িঠিকানা')) return 'permanentAddress';
-
-    // 17. Current Address
-    if (k.includes('currentaddress') || k.includes('presentaddress') || k.includes('বর্তমানঠিকানা') || k.includes('ঠিকানা') || k.includes('address')) return 'currentAddress';
-
-    // 18. Optional / 4th Subject
-    if (k.includes('optionalsubject') || k.includes('optional') || k.includes('৪র্থবিষয়') || k.includes('৪র্থ') || k.includes('চতুর্থবিষয়') || k.includes('ঐচ্ছিকবিষয়') || k.includes('ঐচ্ছিক')) return 'optionalSubject';
-
-    // 19. Stipend Status & Category
-    if (k.includes('stipendcat') || k.includes('উপবৃত্তিক্যাটাগরি') || k.includes('উপবৃত্তিধরন') || k.includes('উপবৃত্তিপ্রকার')) return 'stipendCategory';
-    if (k.includes('isstipend') || k.includes('stipendstatus') || k.includes('উপবৃত্তিপ্রাপ্ত') || k.includes('উপবৃত্তি') || k.includes('stipend')) return 'isStipend';
-
-    // 20. Remarks / Notes
-    if (k.includes('remark') || k.includes('note') || k.includes('মন্তব্য') || k.includes('বিশেষনোট') || k.includes('মন্তব্যসমূহ')) return 'remarks';
-
-    return k;
-  };
-
-  // ─── 5. ROBUST BILINGUAL VALUE NORMALIZER ──────────────────────────────────
-  const normalizeStudentRow = (rawRow: Record<string, any>, idx: number): Student => {
-    const row: Record<string, string> = {};
-    Object.keys(rawRow).forEach((k) => {
-      if (k.startsWith('_')) return; // skip internal metadata (like _sheetGroup, _sheetGrade)
-      const val = rawRow[k];
-      const normKey = normalizeKey(k);
-      // 🛡️ SECURITY: Sanitize CSV values against Formula Injection (DDE) and HTML/XSS
-      row[normKey] = val !== null && val !== undefined ? sanitizeCsvField(val) : '';
-    });
-
-    // 1. Roll: accepts '০১', '০২' (Bengali) OR '01', '1' (English)
-    const rawRoll = row['roll'] || String(idx + 1);
-    const rollDigits = bnToEnDigits(rawRoll).replace(/[^0-9]/g, '');
-    const rollVal = rollDigits ? rollDigits.padStart(2, '0') : String(idx + 1).padStart(2, '0');
-
-    // 2. Student Name: accepts English or Bengali name
-    const nameVal = (row['name'] || '').trim() || `শিক্ষার্থী ${idx + 1}`;
-
-    // 3. Class / Grade: accepts '6th', 'Class 6', '৬ষ্ঠ', 'ষষ্ঠ', '6', '৬' etc.
-    const rawGrade = (row['grade'] || rawRow['_sheetGrade'] || '9th').toLowerCase();
-    const gradeClean = bnToEnDigits(rawGrade);
-    let gradeVal = '9th';
-    let gradeBn = '৯ম শ্রেণি';
-
-    if (gradeClean.includes('6') || rawGrade.includes('৬') || rawGrade.includes('six') || rawGrade.includes('ষষ্ঠ')) {
-      gradeVal = '6th';
-      gradeBn = '৬ষ্ঠ শ্রেণি';
-    } else if (gradeClean.includes('7') || rawGrade.includes('৭') || rawGrade.includes('seven') || rawGrade.includes('সপ্তম')) {
-      gradeVal = '7th';
-      gradeBn = '৭ম শ্রেণি';
-    } else if (gradeClean.includes('8') || rawGrade.includes('৮') || rawGrade.includes('eight') || rawGrade.includes('অষ্টম')) {
-      gradeVal = '8th';
-      gradeBn = '৮ম শ্রেণি';
-    } else if (gradeClean.includes('10') || rawGrade.includes('১০') || rawGrade.includes('ten') || rawGrade.includes('দশম')) {
-      gradeVal = '10th';
-      gradeBn = '১০ম শ্রেণি';
-    } else if (gradeClean.includes('9') || rawGrade.includes('৯') || rawGrade.includes('nine') || rawGrade.includes('নবম')) {
-      gradeVal = '9th';
-      gradeBn = '৯ম শ্রেণি';
-    }
-
-    // 4. Section: accepts 'A', 'B', 'C', 'D' OR 'ক', 'খ', 'গ', 'ঘ', 'পদ্মা', 'মেঘনা', 'যমুনা'
-    let rawSec = (row['section'] || 'A').toUpperCase().trim();
-    if (rawSec === 'ক' || rawSec.includes('পদ্মা') || rawSec.includes('PADMA')) rawSec = 'A';
-    else if (rawSec === 'খ' || rawSec.includes('মেঘনা') || rawSec.includes('MEGHNA')) rawSec = 'B';
-    else if (rawSec === 'গ' || rawSec.includes('যমুনা') || rawSec.includes('JAMUNA')) rawSec = 'C';
-    else if (rawSec === 'ঘ' || rawSec.includes('কর্ণফুলী') || rawSec.includes('KARNAFULI')) rawSec = 'D';
-    else if (!['A', 'B', 'C', 'D'].includes(rawSec)) rawSec = rawSec.slice(0, 1) || 'A';
-
-    // 5. Group: Robust matching for all Bangladeshi group variations (Science, Humanities, Business Studies)
-    let rawGroup = (row['group'] || rawRow['_sheetGroup'] || '').trim();
-    const gLower = rawGroup.toLowerCase();
-    let groupVal = 'সাধারণ';
-
-    if (
-      rawGroup.includes('বিজ্ঞান') || 
-      gLower.includes('science') || 
-      gLower.includes('sci') || 
-      rawGroup.includes('সাইন্স')
-    ) {
-      groupVal = 'বিজ্ঞান';
-    } else if (
-      rawGroup.includes('মানবিক') || 
-      gLower.includes('humanities') || 
-      gLower.includes('arts') || 
-      rawGroup.includes('আর্টস') || 
-      rawGroup.includes('কলা') || 
-      rawGroup.includes('আর্ট')
-    ) {
-      groupVal = 'মানবিক';
-    } else if (
-      rawGroup.includes('ব্যবসায়') || 
-      rawGroup.includes('ব্যবসায়') || 
-      rawGroup.includes('বাণিজ্য') || 
-      rawGroup.includes('কমার্স') || 
-      gLower.includes('commerce') || 
-      gLower.includes('business') || 
-      rawGroup.includes('বিজনেস') || 
-      gLower.includes('b.studies')
-    ) {
-      groupVal = 'ব্যবসায় শিক্ষা';
-    } else if (
-      rawGroup.includes('সাধারণ') || 
-      gLower.includes('general') || 
-      gLower.includes('gen')
-    ) {
-      groupVal = 'সাধারণ';
-    } else if (['9th', '10th'].includes(gradeVal)) {
-      // Default for 9th and 10th only when not explicitly set
-      groupVal = 'বিজ্ঞান';
-    } else {
-      groupVal = 'সাধারণ';
-    }
-
-    // 6. Gender: accepts 'পুরুষ', 'মহিলা', 'ছেলে', 'মেয়ে', 'ছাত্র', 'ছাত্রী', 'Male', 'Female', 'Boy', 'Girl'
-    let rawGender = (row['gender'] || 'পুরুষ').toLowerCase().trim();
-    let genderVal = 'পুরুষ';
-    if (rawGender.includes('মহিলা') || rawGender.includes('মেয়ে') || rawGender.includes('ছাত্রী') || rawGender.includes('female') || rawGender === 'f' || rawGender.includes('girl')) {
-      genderVal = 'মহিলা';
-    } else if (rawGender.includes('অন্যান্য') || rawGender.includes('other')) {
-      genderVal = 'অন্যান্য';
-    }
-
-    // 7. Religion: accepts 'ইসলাম', 'হিন্দু', 'বৌদ্ধ', 'খ্রিস্টান', 'Islam', 'Muslim', 'Hindu', 'Buddhist', 'Christian'
-    let rawRel = (row['religion'] || 'ইসলাম').toLowerCase().trim();
-    let religionVal = 'ইসলাম';
-    if (rawRel.includes('হিন্দু') || rawRel.includes('সনাতন') || rawRel.includes('hindu')) {
-      religionVal = 'হিন্দু';
-    } else if (rawRel.includes('বৌদ্ধ') || rawRel.includes('buddhist')) {
-      religionVal = 'বৌদ্ধ';
-    } else if (rawRel.includes('খ্রিস্টান') || rawRel.includes('christian')) {
-      religionVal = 'খ্রিস্টান';
-    }
-
-    // 8. Blood Group: accepts 'A+', 'B+', 'O+', 'AB+' OR 'এ+', 'বি+', 'ও+', 'এবি+'
-    let rawBg = (row['bloodGroup'] || '').toUpperCase().trim();
-    rawBg = rawBg.replace(/এবি/g, 'AB').replace(/এ/g, 'A').replace(/বি/g, 'B').replace(/ও/g, 'O').replace(/পজিটিভ/g, '+').replace(/নেগেটিভ/g, '-');
-    let bloodGroupVal = '';
-    if (rawBg.includes('A+') || rawBg.includes('AB+') || rawBg.includes('B+') || rawBg.includes('O+') ||
-        rawBg.includes('A-') || rawBg.includes('AB-') || rawBg.includes('B-') || rawBg.includes('O-')) {
-      bloodGroupVal = rawBg;
-    }
-
-    // 9. Stipend: accepts 'হ্যাঁ', 'না', 'Yes', 'No', 'True', 'False', '1', '0'
-    let rawStipend = (row['isStipend'] || '').toLowerCase().trim();
-    const isStipendVal = rawStipend === 'হ্যাঁ' || rawStipend === 'yes' || rawStipend === 'true' || rawStipend === '1' || rawStipend === 'প্রাপ্ত' || rawStipend === 'উপবৃত্তি';
-
-    // 10. Mobile Number: converts Bengali digits to English digits
-    let rawMobile = bnToEnDigits(row['mobile'] || '').replace(/[^0-9]/g, '');
-    if (rawMobile.startsWith('880')) rawMobile = rawMobile.slice(2);
-    if (rawMobile.length > 11) rawMobile = rawMobile.slice(-11);
-
-    // 11. Birth Reg No & NIDs: convert Bengali digits to English digits
-    const brnVal = bnToEnDigits(row['birthRegNo'] || '').replace(/[^0-9]/g, '');
-    const fatherNidVal = bnToEnDigits(row['fatherNid'] || '').replace(/[^0-9]/g, '');
-    const motherNidVal = bnToEnDigits(row['motherNid'] || '').replace(/[^0-9]/g, '');
-
-    // 12. DOB: converts Bengali date digits to standard format
-    const rawDob = bnToEnDigits(row['dob'] || '').trim();
-
-    // 13. Session: converts to Bengali session
-    const rawSession = row['session'] ? enToBnDigits(bnToEnDigits(row['session'])) : '২০২৬';
-
-    // 14. Optional Subject: accepts English or Bengali
-    let optSub = row['optionalSubject'] || '';
-    const optLower = optSub.toLowerCase();
-    if (optLower.includes('higher math') || optSub.includes('উচ্চতর গণিত')) optSub = 'উচ্চতর গণিত';
-    else if (optLower.includes('agri') || optSub.includes('কৃষি')) optSub = 'কৃষি শিক্ষা';
-    else if (optLower.includes('home science') || optSub.includes('গার্হস্থ্য')) optSub = 'গার্হস্থ্য বিজ্ঞান';
-    else if (optLower.includes('computer') || optSub.includes('কম্পিউটার')) optSub = 'কম্পিউটার শিক্ষা';
-    else if (!optSub) optSub = ['9th', '10th'].includes(gradeVal) ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা';
-
-    // 🛡️ CRITICAL FIX: Father and Mother names are separate and distinct!
-    const fatherVal = (row['fatherName'] || '').trim();
-    const motherVal = (row['motherName'] || '').trim();
-    const guardianVal = (row['guardian'] || '').trim() || fatherVal || motherVal || '';
-
-    // 🛡️ CRITICAL FIX: Unique Student ID incorporates Group Code to prevent collisions
-    // across different groups (Science, Humanities, Business) sharing identical roll numbers (1-37, 1-30, etc.)
-    const groupCode = groupVal === 'বিজ্ঞান' ? 'SCI'
-      : groupVal === 'মানবিক' ? 'HUM'
-      : groupVal === 'ব্যবসায় শিক্ষা' ? 'BUS'
-      : 'GEN';
-
-    const generatedId = `STD-${gradeVal}-${groupCode}-${rawSec}-${rollVal}`;
-
-    return {
-      id: row['id'] || generatedId,
-      roll: rollVal,
-      name: nameVal,
-      grade: gradeVal,
-      gradeBn,
-      section: rawSec,
-      branch: rawSec,
-      group: groupVal,
-      session: rawSession,
-      gender: genderVal,
-      dob: rawDob,
-      birthRegNo: brnVal,
-      bloodGroup: bloodGroupVal,
-      religion: religionVal,
-      mobile: rawMobile,
-      fatherName: fatherVal,
-      fatherNid: fatherNidVal,
-      motherName: motherVal,
-      motherNid: motherNidVal,
-      guardian: guardianVal,
-      currentAddress: row['currentAddress'] || '',
-      permanentAddress: row['permanentAddress'] || row['currentAddress'] || '',
-      optionalSubject: optSub,
-      isStipend: isStipendVal,
-      stipendCategory: isStipendVal ? (row['stipendCategory'] || 'সাধারণ উপবৃত্তি') : '',
-      stipendStatus: isStipendVal ? 'Active' : undefined,
-      remarks: row['remarks'] || ''
-    };
-  };
-
-  // ─── 6. FILE UPLOAD & PARSER (XLSX / XLS / CSV) ──────────────────────────
+  // ─── 4. FILE UPLOAD & PARSER (XLSX / XLS / CSV) ──────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -906,12 +411,11 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         const buffer = await selectedFile.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         
-        // 🌟 MULTI-SHEET ENGINE:
-        // Identify non-guide sheets (ignore instructions/guides) and read ALL student sheets!
+        // Multi-Sheet Engine: filter out guide sheets and parse student sheets
         const ignoredSheets = ['field_guide', 'fieldguide', 'guide', 'instructions', 'instruction', 'নিয়মাবলী', 'সহায়িকা', 'নির্দেশিকা'];
-        const studentSheets = workbook.SheetNames.filter(sn => {
+        const studentSheets = workbook.SheetNames.filter((sn) => {
           const lower = sn.toLowerCase().trim().replace(/[\s_\-]+/g, '');
-          return !ignoredSheets.some(ign => lower.includes(ign));
+          return !ignoredSheets.some((ign) => lower.includes(ign));
         });
 
         const sheetsToRead = studentSheets.length > 0 ? studentSheets : [workbook.SheetNames[0]];
@@ -922,26 +426,26 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
           const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
           if (!rows || rows.length === 0) continue;
 
-          // Detect implied Group or Grade from Sheet Name (e.g., 'বিজ্ঞান', 'মানবিক', 'ব্যবসায় শিক্ষা', 'Class 9')
+          // Detect implied Group from Sheet Name (e.g. 'Science', 'Humanities', 'Commerce', 'বিজ্ঞান')
           const sLower = sheetName.toLowerCase().trim();
           let sheetGroup = '';
           if (sLower.includes('বিজ্ঞান') || sLower.includes('science') || sLower.includes('sci')) {
             sheetGroup = 'বিজ্ঞান';
-          } else if (sLower.includes('মানবিক') || sLower.includes('humanities') || sLower.includes('arts') || sLower.includes('আর্টস')) {
+          } else if (sLower.includes('মানবিক') || sLower.includes('humanities') || sLower.includes('arts')) {
             sheetGroup = 'মানবিক';
           } else if (sLower.includes('ব্যবসায়') || sLower.includes('ব্যবসায়') || sLower.includes('বাণিজ্য') || sLower.includes('commerce') || sLower.includes('business')) {
             sheetGroup = 'ব্যবসায় শিক্ষা';
           }
 
           let sheetGrade = '';
-          if (sLower.includes('৬') || sLower.includes('6th') || sLower.includes('six')) sheetGrade = '6th';
-          else if (sLower.includes('৭') || sLower.includes('7th') || sLower.includes('seven')) sheetGrade = '7th';
-          else if (sLower.includes('৮') || sLower.includes('8th') || sLower.includes('eight')) sheetGrade = '8th';
-          else if (sLower.includes('৯') || sLower.includes('9th') || sLower.includes('nine')) sheetGrade = '9th';
+          if (sLower.includes('৯') || sLower.includes('9th') || sLower.includes('nine')) sheetGrade = '9th';
           else if (sLower.includes('১০') || sLower.includes('10th') || sLower.includes('ten')) sheetGrade = '10th';
+          else if (sLower.includes('৮') || sLower.includes('8th')) sheetGrade = '8th';
+          else if (sLower.includes('৭') || sLower.includes('7th')) sheetGrade = '7th';
+          else if (sLower.includes('৬') || sLower.includes('6th')) sheetGrade = '6th';
 
           rows.forEach((r) => {
-            const hasData = Object.values(r).some(v => v !== null && v !== undefined && String(v).trim().length > 0);
+            const hasData = Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim().length > 0);
             if (hasData) {
               rawJsonRows.push({
                 ...r,
@@ -958,7 +462,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         const firstSheet = workbook.SheetNames[0];
         const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
         rows.forEach((r) => {
-          const hasData = Object.values(r).some(v => v !== null && v !== undefined && String(v).trim().length > 0);
+          const hasData = Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim().length > 0);
           if (hasData) rawJsonRows.push(r);
         });
       }
@@ -972,15 +476,15 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       );
 
       const parsed = validRows.map((row, idx) => normalizeStudentRow(row, idx));
+      setRawParsedStudents(parsed);
 
-      setParsedStudents(parsed);
       setAlertInfo({
         type: 'success',
-        message: `ফাইল সফলভাবে পার্স হয়েছে! মোট ${parsed.length} জন শিক্ষার্থীর তথ্য পাওয়া গেছে (ইংরেজি ও বাংলা উভয়েই সমর্থিত)। নিচের প্রিভিউ যাচাই করে "ডাটাবেজে সংরক্ষণ করুন" বাটনে ক্লিক করুন।`
+        message: `ফাইল সফলভাবে পার্স হয়েছে! মোট ${parsed.length} জন শিক্ষার্থীর তথ্য সনাক্ত হয়েছে। স্বয়ংক্রিয় গ্রুপভিত্তিক রোল জেনারেশন সক্রিয় রয়েছে। নিচের প্রিভিউ পর্যালোচনা করুন।`
       });
     } catch (err: any) {
       console.error(err);
-      setParsedStudents([]);
+      setRawParsedStudents([]);
       setAlertInfo({
         type: 'error',
         message: 'ফাইল পার্স করতে ব্যর্থ: ' + (err.message || 'অনুগ্রহ করে সঠিক এক্সেল বা সিএসভি ফরম্যাট আপলোড করুন।')
@@ -993,69 +497,67 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     }
   };
 
-  // ─── 7. DUPLICATE ROLL DETECTION ─────────────────────────────────────────
-  const duplicatesMap = useMemo(() => {
-    const map = new Map<string, number>();
-    parsedStudents.forEach((st) => {
-      // 🛡️ CRITICAL FIX: Include group in duplicate check so same roll in different groups (Science, Humanities, Business) is valid!
-      const key = `${st.grade}_${st.group || ''}_${st.section}_${st.roll.replace(/^0+/, '')}`;
-      map.set(key, (map.get(key) || 0) + 1);
-    });
-    return map;
-  }, [parsedStudents]);
-
-  // ─── 8. FILTERED PREVIEW STUDENTS ────────────────────────────────────────
+  // ─── 5. FILTERED PREVIEW STUDENTS ────────────────────────────────────────
   const filteredPreview = useMemo(() => {
-    return parsedStudents.filter((st) => {
-      const matchGrade = gradePreviewFilter === 'all' || st.grade === gradePreviewFilter;
+    return rolledResult.students.filter((st) => {
+      const matchGroup = groupTabFilter === 'all' || st.group === groupTabFilter;
       const q = searchPreview.toLowerCase();
       const matchSearch =
         !q ||
         st.name.toLowerCase().includes(q) ||
         st.roll.includes(q) ||
+        (st.prevRoll && st.prevRoll.includes(q)) ||
         (st.mobile && st.mobile.includes(q)) ||
         (st.fatherName && st.fatherName.toLowerCase().includes(q)) ||
-        (st.birthRegNo && st.birthRegNo.includes(q));
-      return matchGrade && matchSearch;
+        (st.motherName && st.motherName.toLowerCase().includes(q)) ||
+        (st.currentAddress && st.currentAddress.toLowerCase().includes(q));
+      return matchGroup && matchSearch;
     });
-  }, [parsedStudents, gradePreviewFilter, searchPreview]);
+  }, [rolledResult.students, groupTabFilter, searchPreview]);
 
-  // ─── 9. SAVE PARSED STUDENTS TO SYSTEM DATABASE ─────────────────────────
+  // ─── 6. SAVE TO DATABASE HANDLER (REQUIREMENT 6) ──────────────────────────
   const handleSaveToDatabase = () => {
-    if (parsedStudents.length === 0) return;
+    if (rolledResult.students.length === 0) return;
+
+    if (validationReport && !validationReport.canProceed) {
+      alert(`সতর্কতা: ফাইলে ${validationReport.errorCount} টি গুরুতর ত্রুটি রয়েছে। অনুগ্রহ করে ত্রুটিযুক্ত রো-গুলো সংশোধন করুন।`);
+      return;
+    }
 
     if (selectedSaveMode === 'replace') {
       const confirmed = window.confirm(
-        `সতর্কতা: আপনি "সম্পূর্ণ প্রতিস্থাপন (Replace All)" নির্বাচন করেছেন!\nবিদ্যমান ${currentDbStats.total} জন শিক্ষার্থীর রেকর্ড মুছে নতুন ${parsedStudents.length} জন শিক্ষার্থী প্রতিস্থাপন করা হবে।\nআপনি কি নিশ্চিত?`
+        `⚠️ চূড়ান্ত সতর্কতা: আপনি "সম্পূর্ণ ডাটাবেজ প্রতিস্থাপন (Replace All)" নির্বাচন করেছেন!\nবিদ্যমান ${currentDbStats.total} জন শিক্ষার্থীর রেকর্ড মুছে নতুন ${rolledResult.students.length} জন শিক্ষার্থী প্রতিস্থাপন করা হবে।\nআপনি কি নিশ্চিত?`
+      );
+      if (!confirmed) return;
+    } else if (selectedSaveMode === 'replace_grade') {
+      const confirmed = window.confirm(
+        `সতর্কতা: শুধুমাত্র ৯ম শ্রেণির বিদ্যমান শিক্ষার্থীদের মুছে নতুন তালিকা দিয়ে প্রতিস্থাপন করা হবে। অন্য শ্রেণির রেকর্ড অপরিবর্তিত থাকবে। এগিয়ে যেতে চান?`
       );
       if (!confirmed) return;
     }
 
-    try {
-      studentService.saveBulkStudents(parsedStudents, selectedSaveMode === 'replace');
+    const execResult = executeBulkImport(rolledResult.students, {
+      mode: selectedSaveMode,
+      sortStrategy: rollSortStrategy,
+      targetGrade: '9th',
+      autoAssignRolls,
+      performedBy: 'অ্যাডমিন / প্রধান শিক্ষক',
+      abortOnError: true
+    });
 
-      auditTrailService.addLog({
-        action: selectedSaveMode === 'replace' ? 'BULK_IMPORT_REPLACE' : 'BULK_IMPORT_MERGE',
-        category: 'STUDENT',
-        details: `বাল্ক এক্সেল/সিএসভি থেকে ${parsedStudents.length} জন শিক্ষার্থীর সম্পূর্ণ তথ্য ডাটাবেজে সংরক্ষণ করা হয়েছে (${selectedSaveMode === 'replace' ? 'সম্পূর্ণ প্রতিস্থাপন' : 'মার্জ ও আপডেট'})`,
-        performedBy: 'অ্যাডমিন / প্রধান শিক্ষক',
-        status: 'SUCCESS'
-      });
-
+    if (execResult.success) {
       setAlertInfo({
         type: 'success',
-        message: `অভিনন্দন! সফলভাবে ${parsedStudents.length} জন শিক্ষার্থীর সম্পূর্ণ তথ্য কেন্দ্রীয় ডাটাবেজে সংরক্ষিত ও হালনাগাদ হয়েছে!`
+        message: `🎉 অভিনন্দন! সফলভাবে মোট ${execResult.importedCount} জন শিক্ষার্থীর তথ্য ডাটাবেজে সংরক্ষিত ও হালনাগাদ হয়েছে! (বিজ্ঞান: ${execResult.groupStats.science} জন, মানবিক: ${execResult.groupStats.humanities} জন, ব্যবসায় শিক্ষা: ${execResult.groupStats.business} জন)`
       });
-
       loadDbStats();
       if (onSuccess) {
-        onSuccess(parsedStudents.length);
+        onSuccess(execResult.importedCount);
       }
-    } catch (err: any) {
-      console.error(err);
+    } else {
       setAlertInfo({
         type: 'error',
-        message: 'ডাটাবেজে সংরক্ষণে সমস্যা হয়েছে: ' + (err.message || 'অজানা ত্রুটি')
+        message: execResult.message
       });
     }
   };
@@ -1063,41 +565,41 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   return (
     <div className="space-y-5">
       {/* 🌟 1. BANNER & STATS CARD */}
-      <div className="bg-gradient-to-r from-violet-700 via-purple-700 to-indigo-800 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-violet-700 via-indigo-700 to-purple-800 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-bold tracking-wide text-violet-100 border border-white/20">
-              <Languages className="w-3.5 h-3.5 text-amber-300" />
-              <span>বাংলা ও ইংরেজি উভয় ভাষায় ইনপুট সমর্থিত (Bilingual Engine)</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>৯ম শ্রেণি: গ্রুপভিত্তিক স্বয়ংক্রিয় রোল জেনারেশন ইঞ্জিন (Group-wise Auto Roll)</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              বাল্ক শিক্ষার্থী তথ্য আপলোড (ইংরেজি বা বাংলায়)
+              বাল্ক শিক্ষার্থী আপলোড (বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা)
             </h2>
             <p className="text-xs sm:text-sm text-violet-100/90 max-w-2xl leading-relaxed">
-              আপনি এক্সেলে সম্পূর্ণ <strong>বাংলায়</strong> (রোল, নাম, শ্রেণি, শাখা, মোবাইল...) অথবা সম্পূর্ণ <strong>ইংরেজিতে</strong> (Roll, Name, Class, Section, Mobile...) বা মিশ্রভাবে শিক্ষার্থীদের সকল তথ্য বাল্ক ইনপুট ও আপলোড করতে পারবেন।
+              এক্সেলে এলোমেলো বা ডুপ্লিকেট রোল থাকলেও সিস্টেম স্বয়ংক্রিয়ভাবে <strong>বিজ্ঞান (Science)</strong>, <strong>মানবিক (Humanities)</strong> ও <strong>ব্যবসায় শিক্ষা (Business Studies)</strong> গ্রুপ আলাদা করে প্রতিটি গ্রুপের জন্য ১ থেকে ক্রমানুসারে নতুন রোল তৈরি করবে।
             </p>
           </div>
 
-          {/* Quick Counter */}
+          {/* Database Counter */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3.5 text-center min-w-[140px] shrink-0">
             <span className="text-[11px] font-bold text-violet-200 block">বর্তমান শিক্ষার্থী সংখ্যা</span>
             <span className="text-2xl font-black text-white font-mono">{currentDbStats.total} জন</span>
-            <span className="text-[10px] text-emerald-300 font-semibold block mt-0.5">দ্বিভাষিক সিস্টেম সক্রিয়</span>
+            <span className="text-[10px] text-emerald-300 font-semibold block mt-0.5">অটো-রোল ইঞ্জিন সক্রিয়</span>
           </div>
         </div>
       </div>
 
-      {/* 🌟 2. DOWNLOAD TEMPLATES (BILINGUAL OPTIONS) */}
+      {/* 🌟 2. DOWNLOAD TEMPLATES */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Download className="w-4 h-4 text-violet-600" />
-              ধাপ ১: পছন্দের ভাষায় নমুনা ফরম্যাট ডাউনলোড করুন
+              ধাপ ১: পছন্দের ভাষায় নমুনা ফরম্যাট ডাউনলোড করুন
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              বাংলা বা ইংরেজি যেকোনো একটি ফরম্যাট ডাউনলোড করে শিক্ষার্থীদের তথ্য পূরণ করুন
+              ইংরেজি (English) বা বাংলা (Bengali) যেকোনো একটি ফরম্যাটে শিক্ষার্থীদের তথ্য পূরণ করুন
             </p>
           </div>
 
@@ -1107,42 +609,12 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-center"
           >
             <Info className="w-4 h-4 text-violet-600" />
-            <span>ফিল্ড নির্দেশিকা {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}</span>
+            <span>কলাম নির্দেশিকা {showGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}</span>
           </button>
         </div>
 
-        {/* 2 Language Cards (Bengali & English) */}
+        {/* 2 Format Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Bengali Format Card */}
-          <div className="p-4 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md">বাংলা ফরম্যাট</span>
-                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">খাঁটি বাংলা হেডার ও ডাটা</span>
-              </div>
-              <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">প্রস্তাবিত</span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">রোল, শিক্ষার্থীর নাম, শ্রেণি, শাখা, বিভাগ, মোবাইল, জন্ম নিবন্ধন...</span>
-            </p>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => downloadExcelTemplate('bn')}
-                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> বাংলা Excel (.xlsx)
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadCsvTemplate('bn')}
-                className="py-2 px-3 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" /> CSV
-              </button>
-            </div>
-          </div>
-
           {/* English Format Card */}
           <div className="p-4 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
             <div className="flex items-center justify-between">
@@ -1150,10 +622,10 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                 <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-md">English Format</span>
                 <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">Standard English Headers</span>
               </div>
-              <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">Global</span>
+              <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">প্রস্তাবিত</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Columns: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Name, Class, Section, Group, Mobile, BirthRegNo...</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Student Name, Class, Section, Group, Gender, Date of Birth, Father's Name, Mother's Name, Contact Number, Address, Previous Roll</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -1172,6 +644,36 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               </button>
             </div>
           </div>
+
+          {/* Bengali Format Card */}
+          <div className="p-4 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md">বাংলা ফরম্যাট</span>
+                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">খাঁটি বাংলা হেডার ও ডাটা</span>
+              </div>
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">সহজ</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">শিক্ষার্থীর নাম, শ্রেণি, শাখা, বিভাগ, লিঙ্গ, জন্ম তারিখ, পিতার নাম, মাতার নাম, মোবাইল, ঠিকানা, পূর্বের রোল...</span>
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => downloadExcelTemplate('bn')}
+                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> বাংলা Excel (.xlsx)
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadCsvTemplate('bn')}
+                className="py-2 px-3 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Expandable Field Reference Table */}
@@ -1180,41 +682,41 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <BookOpen className="w-4 h-4 text-violet-600" />
-                সম্পূর্ণ কলাম ও ফিল্ড নির্দেশিকা (মোট {FIELD_GUIDE_ROWS.length} টি কলাম)
+                কলাম ও ফিল্ড নির্দেশিকা (মোট {FIELD_GUIDE_ROWS.length} টি কলাম)
               </span>
               <span className="text-[11px] text-slate-500 font-medium">
-                ইংরেজি বা বাংলা যেকোনো কলাম হেডার ও মান স্বয়ংক্রিয়ভাবে শনাক্ত হবে
+                ইংরেজি বা বাংলা যেকোনো কলাম হেডার স্বয়ংক্রিয়ভাবে শনাক্ত হবে
               </span>
             </div>
 
-            <div className="max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div className="max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold sticky top-0">
                   <tr>
                     <th className="p-2 border-b">কলামের নাম (English)</th>
                     <th className="p-2 border-b">বাংলা শিরোনাম</th>
                     <th className="p-2 border-b">আবশ্যিকতা</th>
-                    <th className="p-2 border-b">নমুনা মান (বাংলা)</th>
                     <th className="p-2 border-b">নমুনা মান (English)</th>
+                    <th className="p-2 border-b">নমুনা মান (বাংলা)</th>
                     <th className="p-2 border-b">নিয়মাবলী</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300">
                   {FIELD_GUIDE_ROWS.map((g, i) => (
                     <tr key={i} className="hover:bg-violet-50/40 dark:hover:bg-slate-800">
-                      <td className="p-2 font-mono font-bold text-violet-700 dark:text-violet-400">{g.field}</td>
+                      <td className="p-2 font-mono font-bold text-indigo-700 dark:text-indigo-400">{g.field}</td>
                       <td className="p-2 font-bold">{g.bnName}</td>
                       <td className="p-2">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          g.required === 'আবশ্যক'
+                          g.required.includes('আবশ্যক')
                             ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                             : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                         }`}>
                           {g.required}
                         </span>
                       </td>
-                      <td className="p-2 font-mono text-emerald-700 dark:text-emerald-400 font-bold">{g.sampleBn}</td>
                       <td className="p-2 font-mono text-indigo-700 dark:text-indigo-400 font-bold">{g.sampleEn}</td>
+                      <td className="p-2 font-mono text-emerald-700 dark:text-emerald-400 font-bold">{g.sampleBn}</td>
                       <td className="p-2 text-[11px] text-slate-500 dark:text-slate-400">{g.desc}</td>
                     </tr>
                   ))}
@@ -1230,10 +732,10 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         <div>
           <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Upload className="w-4 h-4 text-violet-600" />
-            ধাপ ২: পূরণকৃত ফাইল আপলোড ও প্রিভিউ যাচাই করুন
+            ধাপ ২: পূরণকৃত ফাইল আপলোড করুন
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            সাপোর্টেড ফরম্যাট: .xlsx, .xls, .csv, .txt (ফাইলে বাংলা বা ইংরেজি যেকোনো ভাষায় লেখা গ্রহণযোগ্য)
+            সাপোর্টেড ফরম্যাট: .xlsx, .xls, .csv, .txt (৯ম শ্রেণির ৯০ জন শিক্ষার্থীর তথ্য একসাথে আপলোডযোগ্য)
           </p>
         </div>
 
@@ -1289,59 +791,45 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             </button>
           </div>
         )}
+
+        {/* Validation Issues Alert Box (Requirement 5) */}
+        {validationReport && validationReport.errors.length > 0 && (
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/60 rounded-xl space-y-2">
+            <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold text-xs">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>ফাইলে {validationReport.errorCount} টি গুরুতর ত্রুটি এবং {validationReport.warningCount} টি সতর্কতা পাওয়া গেছে:</span>
+            </div>
+            <div className="max-h-36 overflow-y-auto space-y-1 text-[11px] text-amber-800 dark:text-amber-300 pl-6">
+              {validationReport.errors.map((err, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span className="font-mono font-bold">•</span>
+                  <span>{err.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 🌟 4. PARSED STUDENTS PREVIEW & BULK SAVE ACTION */}
-      {parsedStudents.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+      {/* 🌟 4. PREVIEW & ROLL GENERATION DASHBOARD (REQUIREMENTS 3 & 4) */}
+      {rolledResult.students.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-5">
+          {/* Header & Main Controls */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <div className="flex items-center gap-2">
                 <FileCheck className="w-5 h-5 text-emerald-600" />
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  ধাপ ৩: প্রাপ্ত শিক্ষার্থীদের প্রিভিউ ও ডেটাবেজে সংরক্ষণ
+                  ধাপ ৩: শিক্ষার্থী প্রিভিউ ও গ্রুপভিত্তিক স্বয়ংক্রিয় রোল
                 </h3>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                মোট প্রাপ্ত: <span className="text-violet-700 dark:text-violet-400 font-black font-mono text-sm">{parsedStudents.length} জন</span> শিক্ষার্থী।
-                নিচে ফিল্টার ও সার্চ করে তথ্য দেখে নিন।
+                মোট প্রাপ্ত: <span className="text-violet-700 dark:text-violet-400 font-black font-mono text-sm">{rolledResult.students.length} জন</span> শিক্ষার্থী।
+                সিস্টেম প্রতিটি গ্রুপের জন্য স্বাধীনভাবে ১ থেকে নতুন রোল তৈরি করেছে।
               </p>
-              {/* 🌟 GROUP BREAKDOWN PILLS */}
-              <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                {(() => {
-                  const sciCount = parsedStudents.filter(s => s.group === 'বিজ্ঞান').length;
-                  const humCount = parsedStudents.filter(s => s.group === 'মানবিক').length;
-                  const busCount = parsedStudents.filter(s => s.group === 'ব্যবসায় শিক্ষা').length;
-                  const genCount = parsedStudents.filter(s => s.group === 'সাধারণ').length;
-                  return (
-                    <>
-                      {sciCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                          🔬 বিজ্ঞান: {sciCount} জন
-                        </span>
-                      )}
-                      {humCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                          📚 মানবিক: {humCount} জন
-                        </span>
-                      )}
-                      {busCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                          💼 ব্যবসায় শিক্ষা: {busCount} জন
-                        </span>
-                      )}
-                      {genCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                          📖 সাধারণ: {genCount} জন
-                        </span>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
             </div>
 
-            {/* Save Mode Selector & Action Button */}
+            {/* Save Mode Selector & Commit Button */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700">
                 <button
@@ -1352,9 +840,21 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                       ? 'bg-white dark:bg-slate-900 text-violet-700 dark:text-violet-300 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
-                  title="বিদ্যমান শিক্ষার্থীদের সাথে নতুন শিক্ষার্থী যুক্ত করবে এবং একই রোল/শ্রেণি হলে আপডেট করবে"
+                  title="বিদ্যমান শিক্ষার্থীদের সাথে নতুন শিক্ষার্থী মার্জ করবে"
                 >
-                  মার্জ ও আপডেট (Merge)
+                  মার্জ ও আপডেট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSaveMode('replace_grade')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    selectedSaveMode === 'replace_grade'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                  title="শুধুমাত্র ৯ম শ্রেণির পূর্ববর্তী শিক্ষার্থী প্রতিস্থাপন করবে"
+                >
+                  ৯ম শ্রেণি প্রতিস্থাপন
                 </button>
                 <button
                   type="button"
@@ -1364,124 +864,273 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                       ? 'bg-rose-600 text-white shadow-xs'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
-                  title="পূর্ববর্তী সমস্ত শিক্ষার্থী মুছে নতুন তালিকা দিয়ে সম্পূর্ণ প্রতিস্থাপন করবে"
+                  title="সম্পূর্ণ স্কুল ডাটাবেজ প্রতিস্থাপন করবে"
                 >
-                  সম্পূর্ণ প্রতিস্থাপন (Replace)
+                  সকল প্রতিস্থাপন
                 </button>
               </div>
 
               <button
                 type="button"
                 onClick={handleSaveToDatabase}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                disabled={validationReport ? !validationReport.canProceed : false}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
               >
                 <Check className="w-4 h-4" />
-                <span>ডাটাবেজে সংরক্ষণ করুন ({parsedStudents.length})</span>
+                <span>ডাটাবেজে সংরক্ষণ করুন ({rolledResult.students.length})</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Filter Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchPreview}
-                  onChange={(e) => setSearchPreview(e.target.value)}
-                  placeholder="নাম, রোল, মোবাইল বা এনআইডি দিয়ে খুঁজুন..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
-                />
+          {/* 🌟 4.1 GROUP BREAKDOWN PREVIEW CARDS (CORE REQUIREMENT 4) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Total Detected Card */}
+            <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-violet-600" />
+                মোট সনাক্তকৃত
+              </span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">
+                  {rolledResult.groupStats.total} জন
+                </span>
+                <span className="text-xs text-slate-500 font-medium">৯ম শ্রেণি</span>
               </div>
-
-              <select
-                value={gradePreviewFilter}
-                onChange={(e) => setGradePreviewFilter(e.target.value)}
-                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
-              >
-                <option value="all">সকল শ্রেণি (All Classes)</option>
-                <option value="6th">৬ষ্ঠ শ্রেণি (6th)</option>
-                <option value="7th">৭ম শ্রেণি (7th)</option>
-                <option value="8th">৮ম শ্রেণি (8th)</option>
-                <option value="9th">৯ম শ্রেণি (9th)</option>
-                <option value="10th">১০ম শ্রেণি (10th)</option>
-              </select>
             </div>
 
-            <span className="text-[11px] font-bold text-slate-500 text-right">
-              প্রদর্শিত: {filteredPreview.length} / {parsedStudents.length} জন
-            </span>
+            {/* Science Card */}
+            <div className="p-3.5 rounded-2xl border-2 border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 space-y-1">
+              <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase flex items-center gap-1">
+                🔬 বিজ্ঞান (Science)
+              </span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-blue-950 dark:text-blue-200 font-mono">
+                  {rolledResult.groupStats.science} জন
+                </span>
+                <span className="text-xs font-black text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-md">
+                  রোল: {rolledResult.rollRanges['বিজ্ঞান']?.rangeBn || '০১–' + enToBnDigits(rolledResult.groupStats.science)}
+                </span>
+              </div>
+            </div>
+
+            {/* Humanities Card */}
+            <div className="p-3.5 rounded-2xl border-2 border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-1">
+              <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase flex items-center gap-1">
+                📚 মানবিক (Humanities)
+              </span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-purple-950 dark:text-purple-200 font-mono">
+                  {rolledResult.groupStats.humanities} জন
+                </span>
+                <span className="text-xs font-black text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900 px-2 py-0.5 rounded-md">
+                  রোল: {rolledResult.rollRanges['মানবিক']?.rangeBn || '০১–' + enToBnDigits(rolledResult.groupStats.humanities)}
+                </span>
+              </div>
+            </div>
+
+            {/* Business Studies Card */}
+            <div className="p-3.5 rounded-2xl border-2 border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 space-y-1">
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 uppercase flex items-center gap-1">
+                💼 ব্যবসায় শিক্ষা (Business)
+              </span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-black text-amber-950 dark:text-amber-200 font-mono">
+                  {rolledResult.groupStats.business} জন
+                </span>
+                <span className="text-xs font-black text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900 px-2 py-0.5 rounded-md">
+                  রোল: {rolledResult.rollRanges['ব্যবসায় শিক্ষা']?.rangeBn || '০১–' + enToBnDigits(rolledResult.groupStats.business)}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Data Table */}
+          {/* 🌟 4.2 ROLL GENERATION STRATEGY BAR */}
+          <div className="p-4 bg-gradient-to-r from-slate-50 to-violet-50/40 dark:from-slate-800/60 dark:to-violet-950/20 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0">
+                <Hash className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-black text-slate-900 dark:text-white block">
+                  স্বয়ংক্রিয় গ্রুপভিত্তিক ক্রমিক রোল নির্ধারণ পদ্ধতি
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                  প্রতিটি গ্রুপের জন্য ১ থেকে ক্রমানুসারে রোল তৈরি হবে (যেমন: বিজ্ঞান ১-৩৫, মানবিক ১-৩০, ব্যবসায় শিক্ষা ১-২৫)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-stretch md:self-auto">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                সাজানোর নিয়ম:
+              </span>
+              <select
+                value={rollSortStrategy}
+                onChange={(e) => setRollSortStrategy(e.target.value as RollSortStrategy)}
+                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-violet-300 dark:border-violet-700 rounded-xl text-xs font-black text-violet-700 dark:text-violet-300 outline-none cursor-pointer focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="name_asc">🔤 নামের বর্ণানুক্রমিক (A–Z) [প্রস্তাবিত]</option>
+                <option value="file_order">📑 এক্সেল ফাইলের ক্রমানুসারে (File Order)</option>
+                <option value="prev_roll">🔢 পূর্ববর্তী রোল অনুযায়ী (Previous Roll)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 🌟 4.3 GROUP TABS & SEARCH BAR */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
+            {/* Group Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <button
+                type="button"
+                onClick={() => setGroupTabFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
+                  groupTabFilter === 'all'
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                সব বিভাগ ({rolledResult.students.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupTabFilter('বিজ্ঞান')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
+                  groupTabFilter === 'বিজ্ঞান'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-50'
+                }`}
+              >
+                🔬 বিজ্ঞান ({rolledResult.groupStats.science})
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupTabFilter('মানবিক')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
+                  groupTabFilter === 'মানবিক'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                📚 মানবিক ({rolledResult.groupStats.humanities})
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupTabFilter('ব্যবসায় শিক্ষা')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
+                  groupTabFilter === 'ব্যবসায় শিক্ষা'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-300 hover:bg-amber-50'
+                }`}
+              >
+                💼 ব্যবসায় শিক্ষা ({rolledResult.groupStats.business})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchPreview}
+                onChange={(e) => setSearchPreview(e.target.value)}
+                placeholder="নাম, রোল, মোবাইল বা পিতা..."
+                className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+          </div>
+
+          {/* 🌟 4.4 PREVIEW TABLE WITH SEPARATED FATHER/MOTHER & ROLL BADGES */}
           <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl max-h-96">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold sticky top-0 z-10">
                 <tr>
-                  <th className="p-2.5 border-b w-14 text-center">রোল</th>
+                  <th className="p-2.5 border-b w-16 text-center">নতুন রোল</th>
+                  <th className="p-2.5 border-b w-14 text-center">পূর্বের রোল</th>
                   <th className="p-2.5 border-b">শিক্ষার্থীর নাম</th>
                   <th className="p-2.5 border-b">শ্রেণি ও শাখা</th>
                   <th className="p-2.5 border-b">বিভাগ</th>
                   <th className="p-2.5 border-b">পিতার নাম</th>
                   <th className="p-2.5 border-b">মাতার নাম</th>
                   <th className="p-2.5 border-b">মোবাইল নম্বর</th>
-                  <th className="p-2.5 border-b">ধর্ম / লিঙ্গ</th>
-                  <th className="p-2.5 border-b">জন্ম নিবন্ধন (BRN)</th>
-                  <th className="p-2.5 border-b text-center">উপবৃত্তি</th>
+                  <th className="p-2.5 border-b">বর্তমান ঠিকানা</th>
                   <th className="p-2.5 border-b text-center">পূর্ণাঙ্গ তথ্য</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                 {filteredPreview.map((st, i) => {
-                  const dupKey = `${st.grade}_${st.group || ''}_${st.section}_${st.roll.replace(/^0+/, '')}`;
-                  const isDup = (duplicatesMap.get(dupKey) || 0) > 1;
+                  const isSci = st.group === 'বিজ্ঞান';
+                  const isHum = st.group === 'মানবিক';
+                  const isBus = st.group === 'ব্যবসায় শিক্ষা';
 
                   return (
                     <tr key={i} className="hover:bg-violet-50/30 dark:hover:bg-slate-800/50">
+                      {/* Generated Roll */}
                       <td className="p-2.5 text-center font-mono font-bold">
-                        {isDup ? (
-                          <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded font-black" title="একই শ্রেণি ও শাখায় ডুপ্লিকেট রোল">
-                            {st.roll} ⚠️
-                          </span>
-                        ) : (
-                          <span className="text-violet-700 dark:text-violet-400">{st.roll}</span>
-                        )}
+                        <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-black shadow-xs ${
+                          isSci
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200'
+                            : isHum
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200'
+                            : isBus
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {st.roll}
+                        </span>
                       </td>
+
+                      {/* Previous Roll */}
+                      <td className="p-2.5 text-center font-mono text-slate-400">
+                        {st.prevRoll || '-'}
+                      </td>
+
+                      {/* Student Name */}
                       <td className="p-2.5 font-bold text-slate-900 dark:text-white">
                         {st.name}
                       </td>
+
+                      {/* Grade & Section */}
                       <td className="p-2.5">
                         <span className="font-semibold">{st.gradeBn || st.grade}</span>{' '}
                         <span className="text-slate-500 font-bold">({st.section})</span>
                       </td>
-                      <td className="p-2.5 text-slate-600 dark:text-slate-400">
-                        {st.group || 'সাধারণ'}
+
+                      {/* Group */}
+                      <td className="p-2.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                          isSci
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            : isHum
+                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                            : isBus
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {st.group || 'সাধারণ'}
+                        </span>
                       </td>
+
+                      {/* Father Name (Distinct) */}
                       <td className="p-2.5 text-slate-800 dark:text-slate-200 font-medium">
                         {st.fatherName || '-'}
                       </td>
+
+                      {/* Mother Name (Distinct) */}
                       <td className="p-2.5 text-slate-700 dark:text-slate-300 font-medium">
                         {st.motherName || '-'}
                       </td>
+
+                      {/* Mobile */}
                       <td className="p-2.5 font-mono text-slate-600 dark:text-slate-400">
                         {st.mobile || '-'}
                       </td>
-                      <td className="p-2.5 text-[11px]">
-                        <span>{st.religion}</span> • <span className="text-slate-500">{st.gender}</span>
+
+                      {/* Address */}
+                      <td className="p-2.5 text-slate-500 text-[11px] max-w-[160px] truncate" title={st.currentAddress}>
+                        {st.currentAddress || '-'}
                       </td>
-                      <td className="p-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
-                        {st.birthRegNo || '-'}
-                      </td>
-                      <td className="p-2.5 text-center">
-                        {st.isStipend ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                            উপবৃত্তি
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">-</span>
-                        )}
-                      </td>
+
+                      {/* Detail View Button */}
                       <td className="p-2.5 text-center">
                         <button
                           type="button"
@@ -1509,18 +1158,18 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         </div>
       )}
 
-      {/* 🌟 5. DETAIL MODAL (Displays ALL 20+ fields of any student) */}
+      {/* 🌟 5. DETAIL MODAL */}
       {selectedStudentDetail && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-violet-600" />
-                  {selectedStudentDetail.name} (রোল: {selectedStudentDetail.roll})
+                  <GraduationCap className="w-5 h-5 text-violet-600" />
+                  {selectedStudentDetail.name} (নতুন রোল: {selectedStudentDetail.roll})
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {selectedStudentDetail.gradeBn || selectedStudentDetail.grade} | শাখা: {selectedStudentDetail.section} | বিভাগ: {selectedStudentDetail.group}
+                  {selectedStudentDetail.gradeBn || selectedStudentDetail.grade} | শাখা: {selectedStudentDetail.section} | বিভাগ: {selectedStudentDetail.group} {selectedStudentDetail.prevRoll ? `| পূর্বের রোল: ${selectedStudentDetail.prevRoll}` : ''}
                 </p>
               </div>
               <button
@@ -1532,7 +1181,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               </button>
             </div>
 
-            {/* Complete Profile Grid */}
+            {/* Profile Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">ব্যক্তিগত ও জন্ম সংক্রান্ত</span>
@@ -1545,9 +1194,9 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
 
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">পিতা ও মাতার বিবরণ</span>
-                <p><strong>পিতার নাম:</strong> {selectedStudentDetail.fatherName || 'দেওয়া হয়নি'}</p>
+                <p><strong>পিতার নাম:</strong> <span className="font-semibold text-slate-900 dark:text-white">{selectedStudentDetail.fatherName || 'দেওয়া হয়নি'}</span></p>
                 <p><strong>পিতার এনআইডি:</strong> {selectedStudentDetail.fatherNid || 'দেওয়া হয়নি'}</p>
-                <p><strong>মাতার নাম:</strong> {selectedStudentDetail.motherName || 'দেওয়া হয়নি'}</p>
+                <p><strong>মাতার নাম:</strong> <span className="font-semibold text-slate-900 dark:text-white">{selectedStudentDetail.motherName || 'দেওয়া হয়নি'}</span></p>
                 <p><strong>মাতার এনআইডি:</strong> {selectedStudentDetail.motherNid || 'দেওয়া হয়নি'}</p>
                 <p><strong>আইনগত অভিভাবক:</strong> {selectedStudentDetail.guardian || 'দেওয়া হয়নি'}</p>
               </div>
@@ -1560,10 +1209,10 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1 sm:col-span-2">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">একাডেমিক ও উপবৃত্তি তথ্য</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">একাডেমিক তথ্য</span>
+                <p><strong>স্বয়ংক্রিয়ভাবে জেনারেটকৃত আইডি:</strong> <span className="font-mono text-violet-600 font-bold">{selectedStudentDetail.id}</span></p>
                 <p><strong>শিক্ষাবর্ষ:</strong> {selectedStudentDetail.session || '২০২৬'}</p>
                 <p><strong>৪র্থ / ঐচ্ছিক বিষয়:</strong> {selectedStudentDetail.optionalSubject || 'দেওয়া হয়নি'}</p>
-                <p><strong>উপবৃত্তি সুবিধাভোগী:</strong> {selectedStudentDetail.isStipend ? `হ্যাঁ (${selectedStudentDetail.stipendCategory || 'সাধারণ উপবৃত্তি'})` : 'না'}</p>
                 {selectedStudentDetail.remarks && <p><strong>মন্তব্য:</strong> {selectedStudentDetail.remarks}</p>}
               </div>
             </div>

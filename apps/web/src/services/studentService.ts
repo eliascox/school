@@ -34,6 +34,7 @@ export interface Student {
   stipendCategory?: string;     // উপবৃত্তি ক্যাটাগরি ('সাধারণ উপবৃত্তি', 'মেধাভিত্তিক')
   stipendStatus?: 'Active' | 'Suspended' | 'Revoked'; // উপবৃত্তি স্থিতি
   examMarkAvg?: number;         // ৬ মাসিক/বার্ষিক অর্জিত নম্বর (%)
+  prevRoll?: string;            // পূর্ববর্তী বা ফাইলে প্রাপ্ত রোল নম্বর (Uploaded original / previous roll)
 }
 
 // ─── NO DEMO / HARDCODED STUDENTS HERE ───
@@ -202,19 +203,28 @@ export const studentService = {
     const section = (student.section || student.branch || 'a').toString().toLowerCase().trim();
 
     const all = studentService.getAllStudents();
+    const isClass9or10 = grade.includes('9') || grade.includes('10') || grade.includes('nine') || grade.includes('ten');
+    const checkGroup = (student.group || '').toString().toLowerCase().trim();
+
     const duplicate = all.find(s => {
       if (excludeId && s.id === excludeId) return false;
       const sGrade = (s.grade || s.gradeBn || '6th').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
       const sSection = (s.section || s.branch || 'a').toString().toLowerCase().trim();
+      const sGroup = (s.group || '').toString().toLowerCase().trim();
       const sRoll = (s.roll || '').trim().replace(/^0+/, '');
       const checkRoll = roll.replace(/^0+/, '');
+
+      if (isClass9or10) {
+        // For Class 9 and 10, identical rolls in different groups (Science, Humanities, Business) are valid!
+        return sGrade === grade && sSection === section && sGroup === checkGroup && sRoll === checkRoll;
+      }
       return sGrade === grade && sSection === section && sRoll === checkRoll;
     });
 
     if (duplicate) {
       return {
         isValid: false,
-        error: `শ্রেণি ${student.grade || '৬ষ্ঠ'}, শাখা ${student.section || 'A'} এ ইতিমধ্যে রোল ${roll} বিশিষ্ট শিক্ষার্থী (${duplicate.name}) বিদ্যমান!`
+        error: `শ্রেণি ${student.grade || '৬ষ্ঠ'}, শাখা ${student.section || 'A'} ${isClass9or10 ? `(${student.group || 'সাধারণ'})` : ''} এ ইতিমধ্যে রোল ${roll} বিশিষ্ট শিক্ষার্থী (${duplicate.name}) বিদ্যমান!`
       };
     }
 
@@ -271,7 +281,15 @@ export const studentService = {
   updateStudent: (student: Student): boolean => {
     if (typeof window === 'undefined') return false;
     const all = studentService.getAllStudents();
-    const index = all.findIndex((s) => s.id === student.id || (student.roll && s.roll === student.roll && s.grade === student.grade));
+    const index = all.findIndex(
+      (s) =>
+        s.id === student.id ||
+        (student.roll &&
+          s.roll === student.roll &&
+          s.grade === student.grade &&
+          (s.group || '') === (student.group || '') &&
+          (s.section || '') === (student.section || ''))
+    );
     let updated: Student[];
     if (index !== -1) {
       updated = [...all];
