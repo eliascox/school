@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">স্মার্ট ক্যাম্পাস</string>
+    <string name="school_name">বিদ্যালয় ম্যানেজমেন্ট সিস্টেম</string>
+    <string name="loading_text">লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</string>
+    <string name="offline_title">ইন্টারনেট সংযোগ নেই</string>
+    <string name="offline_msg">সার্ভারের সাথে সংযোগ স্থাপন করা সম্ভব হচ্ছে না। আপনার ওয়াইফাই বা মোবাইল ডাটা পরীক্ষা করুন।</string>
+    <string name="btn_retry">পুনরায় চেষ্টা করুন</string>
+    <string name="btn_settings">সার্ভার সেটিংস</string>
+</resources>

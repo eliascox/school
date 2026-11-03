@@ -1,0 +1,7 @@
+bin/
+gen/
+compiled_res.zip
+initial.apk
+aligned.apk
+final-signed.apk
+final-signed.apk.idsig

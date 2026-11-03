@@ -49,7 +49,7 @@ export default function PublicMobileAppSection({
   }
 
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const apkUrl = cfg.apkDownloadUrl || '/downloads/baraitoli-school.apk';
+  const apkUrl = cfg.apkDownloadUrl || '/downloads/school-app.apk';
   const playStoreUrl = cfg.playStoreUrl || 'https://play.google.com/store';
   const appStoreUrl = cfg.appStoreUrl || 'https://www.apple.com/app-store/';
 
@@ -166,7 +166,7 @@ export default function PublicMobileAppSection({
                 {/* 1. Direct APK Download (Primary) */}
                 <a
                   href={apkUrl}
-                  download="baraitoli-school.apk"
+                  download="school-app.apk"
                   onClick={() => setShowInstallModal(true)}
                   className="group relative inline-flex items-center gap-3.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold shadow-lg shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] border border-emerald-400/30"
                 >
@@ -503,7 +503,7 @@ export default function PublicMobileAppSection({
                 <div>
                   <h5 className="font-bold text-slate-900 dark:text-white">ফাইল ডাউনলোড সম্পন্ন করুন</h5>
                   <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                    ডাউনলোড সম্পন্ন হলে ব্রাউজারের নোটিফিকেশন বার অথবা ফোনের &apos;Downloads&apos; ফোল্ডার থেকে <strong>baraitoli-school.apk</strong> ফাইলে ট্যাপ করুন।
+                    ডাউনলোড সম্পন্ন হলে ব্রাউজারের নোটিফিকেশন বার অথবা ফোনের &apos;Downloads&apos; ফোল্ডার থেকে <strong>school-app.apk</strong> ফাইলে ট্যাপ করুন।
                   </p>
                 </div>
               </div>
@@ -550,7 +550,7 @@ export default function PublicMobileAppSection({
             <div className="pt-2 flex items-center justify-end gap-3">
               <a
                 href={apkUrl}
-                download="baraitoli-school.apk"
+                download="school-app.apk"
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition"
               >
                 <Download className="w-4 h-4" />

@@ -315,7 +315,7 @@ export const DEFAULT_MOBILE_APP_CONFIG: MobileAppConfig = {
   title: 'আমাদের স্কুলের মোবাইল অ্যাপ ডাউনলোড করুন',
   subtitle: 'শিক্ষার্থী, অভিভাবক ও শিক্ষকদের জন্য স্মার্ট হাজিরা, নোটিফিকেশন, পরীক্ষার ফলাফল ও ফি পরিশোধের সমন্বিত প্ল্যাটফর্ম।',
   description: 'স্মার্টফোন থেকেই পেয়ে যান সন্তানের প্রতিদিনের উপস্থিতি, পরীক্ষার গ্রেডশিট, ক্লাস রুটিন, ডায়েরি এবং জরুরি নোটিশ। এছাড়াও ঘরে বসেই বিকাশ বা নগদের মাধ্যমে স্কুলের যাবতীয় ফি নিরাপদে পরিশোধ করুন।',
-  apkDownloadUrl: '/downloads/baraitoli-school.apk',
+  apkDownloadUrl: '/downloads/school-app.apk',
   playStoreUrl: 'https://play.google.com/store',
   appStoreUrl: 'https://www.apple.com/app-store/',
   version: '১.২.০ (v1.2.0)',
