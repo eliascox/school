@@ -64,6 +64,7 @@ export interface BulkImportOptions {
   sortStrategy?: RollSortStrategy;
   targetGrade?: string;
   autoAssignRolls?: boolean;
+  keepUploadedRoll?: boolean; // Default true: retains uploaded roll from file while sorting A-Z
   performedBy?: string;
   abortOnError?: boolean;
 }
@@ -621,7 +622,8 @@ export function normalizeStudentRow(
 export function generateGroupWiseRolls(
   students: Student[],
   strategy: RollSortStrategy = 'name_asc',
-  targetGrade: string = '9th'
+  targetGrade: string = '9th',
+  keepUploadedRoll: boolean = true
 ): GroupWiseRollResult {
   const isClass9or10 =
     targetGrade === '9th' ||
@@ -674,16 +676,22 @@ export function generateGroupWiseRolls(
     return copy;
   };
 
-  // Re-number each group starting sequentially from 1
+  // Assign rolls: If keepUploadedRoll is true, retain uploaded roll from Excel; otherwise reassign 1..N
   const assignRolls = (list: Student[], groupCode: string, groupName: string): Student[] => {
     const sorted = sortGroup(list);
     return sorted.map((st, idx) => {
-      const newRoll = String(idx + 1).padStart(2, '0');
-      const uniqueId = `STD-${st.grade}-${groupCode}-${st.section || 'A'}-${newRoll}`;
+      // 🛡️ USER REQUIREMENT:
+      // "বালক্ আপলোডে শিক্ষার্থীর যে রোল আপলোড হবে সেটি ঠিক থাকবে , শুধু এ-ঝেড আকারে সাজাবে ।"
+      const hasUploadedRoll = st.roll && String(st.roll).trim().length > 0;
+      const finalRoll = keepUploadedRoll && hasUploadedRoll
+        ? String(st.roll).trim()
+        : String(idx + 1).padStart(2, '0');
+
+      const uniqueId = `STD-${st.grade}-${groupCode}-${st.section || 'A'}-${finalRoll}`;
       return {
         ...st,
         id: uniqueId,
-        roll: newRoll,
+        roll: finalRoll,
         group: groupName,
         prevRoll: st.prevRoll || st.roll,
       };
@@ -694,44 +702,58 @@ export function generateGroupWiseRolls(
   const processedHum = assignRolls(humBucket, 'HUM', 'মানবিক');
   const processedBus = assignRolls(busBucket, 'BUS', 'ব্যবসায় শিক্ষা');
 
-  // For other classes/groups, also ensure unique sequential rolls if needed
+  // For other classes/groups, also preserve uploaded roll and sort A-Z
   let processedOther: Student[] = otherBucket;
   if (otherBucket.length > 0) {
     const sortedOther = sortGroup(otherBucket);
-    processedOther = sortedOther.map((st, idx) => ({
-      ...st,
-      roll: st.roll || String(idx + 1).padStart(2, '0'),
-      prevRoll: st.prevRoll || st.roll,
-    }));
+    processedOther = sortedOther.map((st, idx) => {
+      const hasUploadedRoll = st.roll && String(st.roll).trim().length > 0;
+      const finalRoll = keepUploadedRoll && hasUploadedRoll
+        ? String(st.roll).trim()
+        : (st.roll || String(idx + 1).padStart(2, '0'));
+      return {
+        ...st,
+        roll: finalRoll,
+        prevRoll: st.prevRoll || st.roll,
+      };
+    });
   }
 
   const allProcessed = [...processedSci, ...processedHum, ...processedBus, ...processedOther];
 
   const rollRanges: Record<string, RollRangeInfo> = {};
-  if (processedSci.length > 0) {
-    rollRanges['বিজ্ঞান'] = {
-      count: processedSci.length,
-      startRoll: '01',
-      endRoll: String(processedSci.length).padStart(2, '0'),
-      rangeBn: `০১ – ${enToBnDigits(processedSci.length)}`,
+
+  const buildRange = (list: Student[], groupName: string) => {
+    if (list.length === 0) return;
+    const numericRolls = list
+      .map((s) => parseInt(bnToEnDigits(s.roll).replace(/[^0-9]/g, ''), 10))
+      .filter((n) => !isNaN(n));
+
+    let rangeBn = '';
+    let startRoll = '01';
+    let endRoll = String(list.length).padStart(2, '0');
+
+    if (numericRolls.length > 0) {
+      const min = Math.min(...numericRolls);
+      const max = Math.max(...numericRolls);
+      startRoll = String(min).padStart(2, '0');
+      endRoll = String(max).padStart(2, '0');
+      rangeBn = `${enToBnDigits(startRoll)} – ${enToBnDigits(endRoll)}`;
+    } else {
+      rangeBn = `০১ – ${enToBnDigits(list.length)}`;
+    }
+
+    rollRanges[groupName] = {
+      count: list.length,
+      startRoll,
+      endRoll,
+      rangeBn,
     };
-  }
-  if (processedHum.length > 0) {
-    rollRanges['মানবিক'] = {
-      count: processedHum.length,
-      startRoll: '01',
-      endRoll: String(processedHum.length).padStart(2, '0'),
-      rangeBn: `০১ – ${enToBnDigits(processedHum.length)}`,
-    };
-  }
-  if (processedBus.length > 0) {
-    rollRanges['ব্যবসায় শিক্ষা'] = {
-      count: processedBus.length,
-      startRoll: '01',
-      endRoll: String(processedBus.length).padStart(2, '0'),
-      rangeBn: `০১ – ${enToBnDigits(processedBus.length)}`,
-    };
-  }
+  };
+
+  buildRange(processedSci, 'বিজ্ঞান');
+  buildRange(processedHum, 'মানবিক');
+  buildRange(processedBus, 'ব্যবসায় শিক্ষা');
 
   const groupStats: GroupStats = {
     science: processedSci.length,
@@ -876,13 +898,14 @@ export function executeBulkImport(
     sortStrategy = 'name_asc',
     targetGrade = '9th',
     autoAssignRolls = true,
+    keepUploadedRoll = true, // Default true: retains uploaded roll from file while sorting A-Z
     performedBy = 'অ্যাডমিন / প্রধান শিক্ষক',
     abortOnError = true,
   } = options;
 
-  // 1. Automatic Roll Generation (Group-wise)
+  // 1. Automatic Roll & Sort Processing (Group-wise)
   const rollGenResult = autoAssignRolls
-    ? generateGroupWiseRolls(rawStudents, sortStrategy, targetGrade)
+    ? generateGroupWiseRolls(rawStudents, sortStrategy, targetGrade, keepUploadedRoll)
     : {
         students: rawStudents,
         groupStats: {

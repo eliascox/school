@@ -241,6 +241,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   const [parsing, setParsing] = useState(false);
   const [rawParsedStudents, setRawParsedStudents] = useState<Student[]>([]);
   const [rollSortStrategy, setRollSortStrategy] = useState<RollSortStrategy>('name_asc');
+  const [keepUploadedRoll, setKeepUploadedRoll] = useState<boolean>(true); // 🛡️ Default true: "শিক্ষার্থীর যে রোল আপলোড হবে সেটি ঠিক থাকবে , শুধু এ-ঝেড আকারে সাজাবে"
   const [autoAssignRolls, setAutoAssignRolls] = useState<boolean>(true);
   const [selectedSaveMode, setSelectedSaveMode] = useState<'merge' | 'replace_grade' | 'replace'>('merge');
   const [groupTabFilter, setGroupTabFilter] = useState<'all' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা'>('all');
@@ -270,7 +271,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     loadDbStats();
   }, []);
 
-  // ─── REACTIVE GROUP-WISE ROLL GENERATION ENGINE (CORE REQUIREMENT 3) ────────
+  // ─── REACTIVE GROUP-WISE ROLL & SORT ENGINE ────────────────────────────────
   const rolledResult: GroupWiseRollResult = useMemo(() => {
     if (rawParsedStudents.length === 0) {
       return {
@@ -297,8 +298,9 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       };
     }
 
-    return generateGroupWiseRolls(rawParsedStudents, rollSortStrategy, '9th');
-  }, [rawParsedStudents, rollSortStrategy, autoAssignRolls]);
+    // 🛡️ Passes keepUploadedRoll to keep uploaded roll while sorting A-Z
+    return generateGroupWiseRolls(rawParsedStudents, rollSortStrategy, '9th', keepUploadedRoll);
+  }, [rawParsedStudents, rollSortStrategy, autoAssignRolls, keepUploadedRoll]);
 
   // Run validation whenever rolled results change
   useEffect(() => {
@@ -541,6 +543,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       sortStrategy: rollSortStrategy,
       targetGrade: '9th',
       autoAssignRolls,
+      keepUploadedRoll,
       performedBy: 'অ্যাডমিন / প্রধান শিক্ষক',
       abortOnError: true
     });
@@ -944,7 +947,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             </div>
           </div>
 
-          {/* 🌟 4.2 ROLL GENERATION STRATEGY BAR */}
+          {/* 🌟 4.2 ROLL & SORT STRATEGY BAR */}
           <div className="p-4 bg-gradient-to-r from-slate-50 to-violet-50/40 dark:from-slate-800/60 dark:to-violet-950/20 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0">
@@ -952,26 +955,46 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               </div>
               <div>
                 <span className="text-xs font-black text-slate-900 dark:text-white block">
-                  স্বয়ংক্রিয় গ্রুপভিত্তিক ক্রমিক রোল নির্ধারণ পদ্ধতি
+                  রোল নম্বর ও নামানুসারে (A–Z) সাজানোর পদ্ধতি
                 </span>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                  প্রতিটি গ্রুপের জন্য ১ থেকে ক্রমানুসারে রোল তৈরি হবে (যেমন: বিজ্ঞান ১-৩৫, মানবিক ১-৩০, ব্যবসায় শিক্ষা ১-২৫)
+                  {keepUploadedRoll
+                    ? 'আপলোডকৃত ফাইলের রোল নম্বর অক্ষুণ্ণ রেখে শিক্ষার্থীদের নামানুসারে (A–Z) সাজানো হচ্ছে।'
+                    : 'প্রতিটি গ্রুপের জন্য ১ থেকে ক্রমানুসারে নতুন ক্রমিক রোল তৈরি হচ্ছে (১, ২, ৩...)।'}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 self-stretch md:self-auto">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
-                সাজানোর নিয়ম:
+                রোল ও সর্টিং মোড:
               </span>
               <select
-                value={rollSortStrategy}
-                onChange={(e) => setRollSortStrategy(e.target.value as RollSortStrategy)}
+                value={
+                  keepUploadedRoll
+                    ? rollSortStrategy === 'name_asc'
+                      ? 'keep_name_asc'
+                      : 'keep_file_order'
+                    : 'reassign_1_to_n'
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'keep_name_asc') {
+                    setKeepUploadedRoll(true);
+                    setRollSortStrategy('name_asc');
+                  } else if (val === 'keep_file_order') {
+                    setKeepUploadedRoll(true);
+                    setRollSortStrategy('file_order');
+                  } else if (val === 'reassign_1_to_n') {
+                    setKeepUploadedRoll(false);
+                    setRollSortStrategy('name_asc');
+                  }
+                }}
                 className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-violet-300 dark:border-violet-700 rounded-xl text-xs font-black text-violet-700 dark:text-violet-300 outline-none cursor-pointer focus:ring-2 focus:ring-violet-500"
               >
-                <option value="name_asc">🔤 নামের বর্ণানুক্রমিক (A–Z) [প্রস্তাবিত]</option>
-                <option value="file_order">📑 এক্সেল ফাইলের ক্রমানুসারে (File Order)</option>
-                <option value="prev_roll">🔢 পূর্ববর্তী রোল অনুযায়ী (Previous Roll)</option>
+                <option value="keep_name_asc">✅ আপলোডকৃত রোল ঠিক থাকবে (A–Z সাজানো) [ডিফল্ট]</option>
+                <option value="keep_file_order">📑 আপলোডকৃত রোল ও ফাইলের ক্রম অপরিবর্তিত</option>
+                <option value="reassign_1_to_n">🔢 ১ থেকে নতুন ক্রমিক রোল তৈরি (A–Z)</option>
               </select>
             </div>
           </div>
@@ -1044,7 +1067,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold sticky top-0 z-10">
                 <tr>
-                  <th className="p-2.5 border-b w-16 text-center">নতুন রোল</th>
+                  <th className="p-2.5 border-b w-16 text-center">রোল নম্বর</th>
                   <th className="p-2.5 border-b w-14 text-center">পূর্বের রোল</th>
                   <th className="p-2.5 border-b">শিক্ষার্থীর নাম</th>
                   <th className="p-2.5 border-b">শ্রেণি ও শাখা</th>

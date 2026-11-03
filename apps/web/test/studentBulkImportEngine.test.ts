@@ -163,8 +163,8 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(normalizedStudents[0].fatherName).toBe('Father of Zubair Ahmed');
     expect(normalizedStudents[0].motherName).toBe('Mother of Zubair Ahmed');
 
-    // 2. Run Group-wise Roll Generation Engine (alphabetical sort A-Z)
-    const rollResult = generateGroupWiseRolls(normalizedStudents, 'name_asc', '9th');
+    // 2. Run Group-wise Roll Generation Engine (sequential 1..N with keepUploadedRoll: false)
+    const rollResult = generateGroupWiseRolls(normalizedStudents, 'name_asc', '9th', false);
 
     // Group Statistics Verification
     expect(rollResult.groupStats.total).toBe(90);
@@ -275,5 +275,65 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(report.isValid).toBe(false);
     expect(report.canProceed).toBe(false);
     expect(report.errorCount).toBe(2);
+  });
+
+  it('preserves uploaded student roll numbers as-is while sorting alphabetically (A-Z) by name [User Requirement]', () => {
+    // 3 students with custom uploaded rolls in mixed order:
+    // Student 1: "Zahid Hasan", roll 15
+    // Student 2: "Anisur Rahman", roll 04
+    // Student 3: "Kabir Hossain", roll 28
+    const rawRows = [
+      {
+        'Student Name': 'Zahid Hasan',
+        'Class': '9th',
+        'Group': 'Science',
+        'Roll': '15',
+        "Father's Name": 'Father 1',
+        "Mother's Name": 'Mother 1',
+      },
+      {
+        'Student Name': 'Anisur Rahman',
+        'Class': '9th',
+        'Group': 'Science',
+        'Roll': '04',
+        "Father's Name": 'Father 2',
+        "Mother's Name": 'Mother 2',
+      },
+      {
+        'Student Name': 'Kabir Hossain',
+        'Class': '9th',
+        'Group': 'Science',
+        'Roll': '28',
+        "Father's Name": 'Father 3',
+        "Mother's Name": 'Mother 3',
+      },
+    ];
+
+    const normalized = rawRows.map((r, i) => normalizeStudentRow(r, i));
+
+    // Run with default keepUploadedRoll = true and strategy = 'name_asc' (A-Z)
+    const result = generateGroupWiseRolls(normalized, 'name_asc', '9th', true);
+
+    // Should be sorted alphabetically (A-Z):
+    // 1st: Anisur Rahman (keeps roll 04)
+    // 2nd: Kabir Hossain (keeps roll 28)
+    // 3rd: Zahid Hasan (keeps roll 15)
+    expect(result.students.map((s) => s.name)).toEqual([
+      'Anisur Rahman',
+      'Kabir Hossain',
+      'Zahid Hasan',
+    ]);
+
+    // Rolls are PRESERVED as uploaded, NOT reassigned to 01, 02, 03
+    expect(result.students.map((s) => s.roll)).toEqual(['04', '28', '15']);
+
+    // Unique IDs reflect preserved rolls
+    expect(result.students[0].id).toBe('STD-9th-SCI-A-04');
+    expect(result.students[1].id).toBe('STD-9th-SCI-A-28');
+    expect(result.students[2].id).toBe('STD-9th-SCI-A-15');
+
+    // Roll ranges capture min and max correctly
+    expect(result.rollRanges['বিজ্ঞান'].startRoll).toBe('04');
+    expect(result.rollRanges['বিজ্ঞান'].endRoll).toBe('28');
   });
 });
