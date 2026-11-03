@@ -80,6 +80,7 @@ interface StudentItem {
   attendance: number;
   gpa: string;
   birthRegNo?: string;
+  registrationNo?: string;
   dob?: string;
   gender?: string;
   religion?: string;
@@ -1017,6 +1018,14 @@ export default function StudentListPage() {
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">বিভাগ/গ্রুপ</span>
                         <span className="text-emerald-700">{selectedStudent.group || 'সাধারণ'}</span>
                       </div>
+                      {['9th', '10th'].includes(selectedStudent.grade) && (
+                        <div>
+                          <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">বোর্ড রেজিস্ট্রেশন নম্বর</span>
+                          <span className="px-2.5 py-1 bg-violet-100 text-violet-800 rounded-lg text-xs font-mono font-bold inline-block">
+                            {selectedStudent.registrationNo || 'দেওয়া হয়নি'}
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">ঐচ্ছিক বিষয়</span>
                         <span className="text-slate-900">{selectedStudent.optionalSubject || 'প্রযোজ্য নয়'}</span>
@@ -1477,6 +1486,19 @@ export default function StudentListPage() {
                           <option value="ব্যবসায় শিক্ষা">{currentLang === 'en' ? 'Business Studies' : 'ব্যবসায় শিক্ষা'}</option>
                         </select>
                       </div>
+
+                      {['9th', '10th'].includes(editFormData.grade) && (
+                        <div>
+                          <label className="block text-[10px] text-indigo-700 uppercase mb-1">বোর্ড রেজিস্ট্রেশন নম্বর (৯ম-১০ম)</label>
+                          <input
+                            type="text"
+                            placeholder="১০ ডিজিটের নম্বর..."
+                            value={editFormData.registrationNo || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, registrationNo: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-white border border-indigo-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                          />
+                        </div>
+                      )}
 
                       <div className="sm:col-span-2">
                         <label className="block text-[10px] text-slate-500 uppercase mb-1">ঐচ্ছিক বিষয়</label>

@@ -275,7 +275,27 @@ export function normalizeHeaderKey(rawKey: string): string {
     return 'birthRegNo';
   }
 
-  // 13. Mobile / Phone Number
+  // 13. Board Registration Number (for Class 9-10)
+  if (
+    !k.includes('birth') &&
+    !k.includes('জন্ম') &&
+    (
+      k.includes('boardreg') ||
+      k.includes('registrationno') ||
+      k.includes('regno') ||
+      k.includes('regnumber') ||
+      k.includes('registrationnumber') ||
+      k.includes('registration') ||
+      k.includes('রেজিস্ট্রেশননম্বর') ||
+      k.includes('রেজিস্ট্রেশননং') ||
+      k.includes('রেজিস্ট্রেশন') ||
+      k.includes('বোর্ডরেজিস্ট্রেশন')
+    )
+  ) {
+    return 'registrationNo';
+  }
+
+  // 14. Mobile / Phone Number
   if (
     k.includes('mobile') ||
     k.includes('phone') ||
@@ -553,8 +573,9 @@ export function normalizeStudentRow(
   if (rawMobile.startsWith('880')) rawMobile = rawMobile.slice(2);
   if (rawMobile.length > 11) rawMobile = rawMobile.slice(-11);
 
-  // 10. Birth Reg No & NIDs
+  // 10. Birth Reg No, Board Reg No & NIDs
   const brnVal = bnToEnDigits(row['birthRegNo'] || '').replace(/[^0-9]/g, '');
+  const regNoVal = bnToEnDigits(row['registrationNo'] || '').replace(/[^0-9]/g, '');
   const fatherNidVal = bnToEnDigits(row['fatherNid'] || '').replace(/[^0-9]/g, '');
   const motherNidVal = bnToEnDigits(row['motherNid'] || '').replace(/[^0-9]/g, '');
   const dobVal = bnToEnDigits(row['dob'] || '').trim();
@@ -608,6 +629,7 @@ export function normalizeStudentRow(
     gender: genderVal,
     dob: dobVal,
     birthRegNo: brnVal,
+    registrationNo: regNoVal,
     bloodGroup: bloodGroupVal,
     religion: religionVal,
     mobile: rawMobile,

@@ -58,6 +58,14 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(normalizeHeaderKey('Group')).toBe('group');
     expect(normalizeHeaderKey('বিভাগ')).toBe('group');
     expect(normalizeHeaderKey('গ্রুপ')).toBe('group');
+    // Class 9-10 Board Registration Number
+    expect(normalizeHeaderKey('Registration Number')).toBe('registrationNo');
+    expect(normalizeHeaderKey('Registration No')).toBe('registrationNo');
+    expect(normalizeHeaderKey('Reg No')).toBe('registrationNo');
+    expect(normalizeHeaderKey('রেজিস্ট্রেশন নম্বর')).toBe('registrationNo');
+    expect(normalizeHeaderKey('রেজিস্ট্রেশন নং')).toBe('registrationNo');
+    expect(normalizeHeaderKey('বোর্ড রেজিস্ট্রেশন')).toBe('registrationNo');
+    expect(normalizeHeaderKey('জন্ম নিবন্ধন')).toBe('birthRegNo');
   });
 
   it('correctly categorizes all academic group variations for Class 9', () => {
@@ -433,5 +441,42 @@ describe('Student Bulk Import & Group-wise Roll Generation Engine', () => {
     expect(resultBn.groupStats.science).toBe(1);
     expect(resultBn.groupStats.humanities).toBe(1);
     expect(resultBn.groupStats.business).toBe(1);
+  });
+
+  it('correctly maps and preserves Class 9-10 Education Board Registration Numbers', () => {
+    const rawClass9Rows = [
+      {
+        'Student Name': 'Tamim Iqbal',
+        'Class': '9th',
+        'Group': 'Science',
+        'Roll': '01',
+        'Registration Number': '2115684301',
+        'Birth Reg No': '20101592612345601',
+      },
+      {
+        'Student Name': 'Mushfiqur Rahim',
+        'Class': '9th',
+        'Group': 'Humanities',
+        'Roll': '02',
+        'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০২',
+        'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০২',
+      }
+    ];
+
+    const parsed = rawClass9Rows.map((r, i) => normalizeStudentRow(r, i));
+
+    // English headers check
+    expect(parsed[0].registrationNo).toBe('2115684301');
+    expect(parsed[0].birthRegNo).toBe('20101592612345601');
+    expect(parsed[0].registrationNo).not.toBe(parsed[0].birthRegNo);
+
+    // Bengali headers check
+    expect(parsed[1].registrationNo).toBe('2115684302');
+    expect(parsed[1].birthRegNo).toBe('20101592612345602');
+
+    // Preserved in rolled results
+    const rollResult = generateGroupWiseRolls(parsed, 'name_asc', '9th', true);
+    expect(rollResult.students[0].registrationNo).toBeDefined();
+    expect(rollResult.students[1].registrationNo).toBeDefined();
   });
 });

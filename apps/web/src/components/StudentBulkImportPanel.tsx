@@ -58,6 +58,7 @@ export const SAMPLE_STUDENTS_BN = [
     'বর্তমান ঠিকানা': 'গ্রাম: পূর্ব বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
     'পূর্বের রোল': '১৫',
     'রোল': '০১',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০১',
     'শিক্ষাবর্ষ': '২০২৬',
     'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০১',
     'রক্তের গ্রুপ': 'O+',
@@ -79,6 +80,7 @@ export const SAMPLE_STUDENTS_BN = [
     'বর্তমান ঠিকানা': 'গ্রাম: গোয়াবাগান, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
     'পূর্বের রোল': '২৮',
     'রোল': '০২',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০২',
     'শিক্ষাবর্ষ': '২০২৬',
     'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০২',
     'রক্তের গ্রুপ': 'AB-',
@@ -100,6 +102,7 @@ export const SAMPLE_STUDENTS_BN = [
     'বর্তমান ঠিকানা': 'গ্রাম: কলেজ রোড, ডাকঘর: চকরিয়া, উপজেলা: চকরিয়া, কক্সবাজার',
     'পূর্বের রোল': '৪২',
     'রোল': '০৩',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৩',
     'শিক্ষাবর্ষ': '২০২৬',
     'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০৩',
     'রক্তের গ্রুপ': 'A+',
@@ -124,6 +127,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01812345601',
     'Address': 'East Baraitali, Chakaria, Coxs Bazar',
     'Previous Roll': '15',
+    'Registration Number': '2115684301',
     'Religion': 'Islam',
     'Blood Group': 'O+',
     'Birth Reg No': '20101592612345601',
@@ -141,6 +145,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01812345602',
     'Address': 'South Baraitali, Chakaria, Coxs Bazar',
     'Previous Roll': '04',
+    'Registration Number': '2115684302',
     'Religion': 'Islam',
     'Blood Group': 'B+',
     'Birth Reg No': '20101592612345602',
@@ -158,6 +163,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01812345603',
     'Address': 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
     'Previous Roll': '28',
+    'Registration Number': '2115684303',
     'Religion': 'Islam',
     'Blood Group': 'AB-',
     'Birth Reg No': '20101592612345603',
@@ -175,6 +181,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01712345604',
     'Address': 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
     'Previous Roll': '09',
+    'Registration Number': '2115684304',
     'Religion': 'Hindu',
     'Blood Group': 'A+',
     'Birth Reg No': '20101592612345604',
@@ -192,6 +199,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01812345605',
     'Address': 'College Road, Chakaria, Coxs Bazar',
     'Previous Roll': '42',
+    'Registration Number': '2115684305',
     'Religion': 'Islam',
     'Blood Group': 'A+',
     'Birth Reg No': '20101592612345605',
@@ -209,6 +217,7 @@ export const SAMPLE_STUDENTS_EN = [
     'Contact Number': '01712345606',
     'Address': 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
     'Previous Roll': '11',
+    'Registration Number': '2115684306',
     'Religion': 'Hindu',
     'Blood Group': 'B+',
     'Birth Reg No': '20101592612345606',
@@ -228,7 +237,8 @@ export const FIELD_GUIDE_ROWS = [
   { field: "Mother's Name", bnName: 'মাতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Nasima Begum', sampleBn: 'নাছিমা বেগম', desc: 'মাতার নাম (স্বতন্ত্রভাবে সংরক্ষিত)' },
   { field: 'Contact Number', bnName: 'অভিভাবকের মোবাইল', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' },
   { field: 'Address', bnName: 'বর্তমান ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'Baraitali, Chakaria', sampleBn: 'বরইতলী, চকরিয়া', desc: 'পূর্ণাঙ্গ যোগাযোগের ঠিকানা' },
-  { field: 'Previous Roll', bnName: 'পূর্ববর্তী রোল', required: 'ঐচ্ছিক', sampleEn: '15', sampleBn: '১৫', desc: 'ফাইলে থাকা আগের রোল (সিস্টেম গ্রুপ অনুযায়ী ১ থেকে নতুন ক্রমিক রোল তৈরি করবে)' }
+  { field: 'Previous Roll', bnName: 'পূর্ববর্তী রোল', required: 'ঐচ্ছিক', sampleEn: '15', sampleBn: '১৫', desc: 'ফাইলে থাকা আগের রোল' },
+  { field: 'Registration Number', bnName: 'রেজিস্ট্রেশন নম্বর', required: 'ঐচ্ছিক (৯ম-১০ম শ্রেণি)', sampleEn: '2115684301', sampleBn: '২১১৫৬৮৪৩০১', desc: 'শিক্ষা বোর্ড কর্তৃক প্রদত্ত ১০ ডিজিটের রেজিস্ট্রেশন নম্বর (৯ম ও ১০ম শ্রেণির জন্য প্রযোজ্য)' }
 ];
 
 interface StudentBulkImportPanelProps {
@@ -330,6 +340,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         { wch: 18 }, // Contact
         { wch: 38 }, // Address
         { wch: 14 }, // PrevRoll
+        { wch: 20 }, // RegistrationNo
         { wch: 14 }, // Religion
         { wch: 14 }, // BloodGroup
         { wch: 22 }, // BRN
@@ -1072,6 +1083,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                   <th className="p-2.5 border-b">শিক্ষার্থীর নাম</th>
                   <th className="p-2.5 border-b">শ্রেণি ও শাখা</th>
                   <th className="p-2.5 border-b">বিভাগ</th>
+                  <th className="p-2.5 border-b text-center">রেজিস্ট্রেশন নং (৯ম-১০ম)</th>
                   <th className="p-2.5 border-b">পিতার নাম</th>
                   <th className="p-2.5 border-b">মাতার নাম</th>
                   <th className="p-2.5 border-b">মোবাইল নম্বর</th>
@@ -1131,6 +1143,17 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                         }`}>
                           {st.group || 'সাধারণ'}
                         </span>
+                      </td>
+
+                      {/* Registration Number (9th-10th) */}
+                      <td className="p-2.5 text-center font-mono">
+                        {st.registrationNo ? (
+                          <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            {st.registrationNo}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">-</span>
+                        )}
                       </td>
 
                       {/* Father Name (Distinct) */}
@@ -1234,6 +1257,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1 sm:col-span-2">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">একাডেমিক তথ্য</span>
                 <p><strong>স্বয়ংক্রিয়ভাবে জেনারেটকৃত আইডি:</strong> <span className="font-mono text-violet-600 font-bold">{selectedStudentDetail.id}</span></p>
+                <p><strong>বোর্ড রেজিস্ট্রেশন নম্বর (৯ম-১০ম):</strong> <span className="font-mono text-indigo-700 dark:text-indigo-400 font-bold">{selectedStudentDetail.registrationNo || 'দেওয়া হয়নি'}</span></p>
                 <p><strong>শিক্ষাবর্ষ:</strong> {selectedStudentDetail.session || '২০২৬'}</p>
                 <p><strong>৪র্থ / ঐচ্ছিক বিষয়:</strong> {selectedStudentDetail.optionalSubject || 'দেওয়া হয়নি'}</p>
                 {selectedStudentDetail.remarks && <p><strong>মন্তব্য:</strong> {selectedStudentDetail.remarks}</p>}

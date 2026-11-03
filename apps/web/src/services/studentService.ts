@@ -22,6 +22,7 @@ export interface Student {
   attendance?: number;
   gpa?: string;
   birthRegNo?: string;
+  registrationNo?: string;      // ৯-১০ম শ্রেণির শিক্ষা বোর্ড রেজিস্ট্রেশন নম্বর (Board Registration No)
   dob?: string;
   gender?: string;
   religion?: string;
@@ -253,6 +254,7 @@ export const studentService = {
       attendance: data.attendance || 0,
       gpa: data.gpa || '',
       birthRegNo: data.birthRegNo || '',
+      registrationNo: data.registrationNo || '',
       dob: data.dob || '',
       gender: data.gender || 'পুরুষ',
       religion: data.religion || 'ইসলাম',
