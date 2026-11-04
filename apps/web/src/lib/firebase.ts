@@ -18,6 +18,10 @@ export const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-B7FRH0HWQG"
 };
 
+export const FIREBASE_VAPID_KEY = 
+  process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || 
+  "BAYtfWauVBDI_va8v9cRCFnXLIO4eKRBlCEEeBUUt1GdMoEanmOfLKnUsD80tMm8yhymeNbiA7cgcHkgnLYzUh0";
+
 // Safe Singleton Firebase Initialization
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;

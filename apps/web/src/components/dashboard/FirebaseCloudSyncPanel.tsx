@@ -12,10 +12,13 @@ import {
   ShieldCheck,
   Server,
   Zap,
-  HardDrive
+  HardDrive,
+  Bell,
+  Send
 } from 'lucide-react';
 import { firebaseSyncService, CloudSyncProgress, CloudSyncStatus } from '@/services/firebaseSyncService';
 import { studentService } from '@/services/studentService';
+import { pushNotificationService } from '@/services/pushNotificationService';
 
 export default function FirebaseCloudSyncPanel() {
   const [status, setStatus] = useState<CloudSyncStatus>(firebaseSyncService.getStatus());
@@ -29,11 +32,35 @@ export default function FirebaseCloudSyncPanel() {
   const [pullProgress, setPullProgress] = useState<CloudSyncProgress | null>(null);
 
   const [localStudentCount, setLocalStudentCount] = useState<number>(0);
+  const [pushSubscribing, setPushSubscribing] = useState(false);
+  const [pushStatus, setPushStatus] = useState<{ active: boolean; message?: string }>({
+    active: false
+  });
 
   useEffect(() => {
     setLocalStudentCount(studentService.getAllStudents().length);
     setStatus(firebaseSyncService.getStatus());
+    if (typeof window !== 'undefined') {
+      const token = pushNotificationService.getCurrentToken();
+      if (token) {
+        setPushStatus({ active: true, message: 'এই ডিভাইসে পুশ নোটিফিকেশন সক্রিয় আছে।' });
+      }
+    }
   }, []);
+
+  const handleSubscribePush = async () => {
+    setPushSubscribing(true);
+    try {
+      const res = await pushNotificationService.subscribeToPush('admin');
+      if (res.success) {
+        setPushStatus({ active: true, message: res.message });
+      } else {
+        alert(res.message);
+      }
+    } finally {
+      setPushSubscribing(false);
+    }
+  };
 
   const handleTestConnection = async () => {
     setTestingConnection(true);
@@ -313,6 +340,53 @@ export default function FirebaseCloudSyncPanel() {
           </button>
         </div>
 
+      </div>
+
+      {/* Web Push Notification Card */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-200/80 dark:border-amber-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+            <Bell className="w-5 h-5 animate-bounce" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                Web Push নোটিফিকেশন (FCM VAPID Certificate সক্রিয়)
+              </h4>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                ক্লাউড ব্রডকাস্ট
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-xl">
+              জরুরি নোটিশ, পরীক্ষার ফলাফল প্রকাশ ও হাজিরা সতর্কবার্তা শিক্ষক ও অভিভাবকদের মোবাইল ফোনে লাইভ পৌঁছে দিতে এই ডিভাইসে নোটিফিকেশন চালু করুন।
+            </p>
+            {pushStatus.active && (
+              <p className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{pushStatus.message || 'এই ডিভাইসে নোটিফিকেশন চালু রয়েছে'}</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSubscribePush}
+          disabled={pushSubscribing}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-[0.98] text-white font-extrabold text-xs shadow-md shadow-amber-500/20 transition flex items-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+        >
+          {pushSubscribing ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>অনুমোদন যাচাই হচ্ছে...</span>
+            </>
+          ) : (
+            <>
+              <Bell className="w-3.5 h-3.5" />
+              <span>{pushStatus.active ? 'পুনরায় সক্রিয় করুন' : 'ডিভাইসে নোটিফিকেশন চালু করুন'}</span>
+            </>
+          )}
+        </button>
       </div>
 
     </div>
