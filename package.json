@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "serve": "node apps/web/server.js",
+    "deploy:hosting": "npm run build --workspace=web && npx firebase-tools deploy --only hosting"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
