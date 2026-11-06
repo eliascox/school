@@ -14,6 +14,7 @@ import {
   writeBatch,
   onSnapshot,
   serverTimestamp,
+  getCountFromServer,
   Unsubscribe,
   Firestore
 } from 'firebase/firestore';
@@ -22,6 +23,17 @@ import { studentService, Student } from './studentService';
 import { settingsService, SchoolSettings } from './settingsService';
 import { classSectionService } from './classSectionService';
 import { auditTrailService } from './auditTrailService';
+import { landingPageService, LandingPageConfig } from './landingPageService';
+import { noticeService, Notice } from './noticeService';
+import { teacherAuthService, TeacherAccount } from './teacherAuthService';
+
+export interface LandingPageCloudData {
+  settings?: SchoolSettings;
+  landingConfig?: LandingPageConfig;
+  notices?: Notice[];
+  teachers?: TeacherAccount[];
+  totalStudents?: number;
+}
 
 export interface CloudSyncProgress {
   step: string;
@@ -133,9 +145,55 @@ class FirebaseSyncService {
         schoolId: firebaseConfig.projectId
       }, { merge: true });
 
-      reportProgress('ক্লাস ও সেকশন ক্লাউডে পাঠানো হচ্ছে...', 10, 100);
+      reportProgress('ল্যান্ডিং পেইজ ও নোটিশ ক্লাউডে পাঠানো হচ্ছে...', 10, 100);
 
-      // 2. Classes & Sections Collection
+      // 2. Landing Page Published Config
+      try {
+        const publishedLanding = landingPageService.getPublishedConfig();
+        const landingRef = doc(firestore, 'landing_page', 'published');
+        await setDoc(landingRef, {
+          ...publishedLanding,
+          updatedAt: serverTimestamp(),
+          schoolId: firebaseConfig.projectId
+        }, { merge: true });
+      } catch (err) {
+        console.warn('[FirebaseSync] Landing page config upload warning:', err);
+      }
+
+      // 3. Notices Collection
+      try {
+        const notices = noticeService.getNotices();
+        if (notices.length > 0) {
+          const noticeBatch = writeBatch(firestore);
+          notices.forEach((n) => {
+            const nRef = doc(firestore, 'notices', n.id);
+            noticeBatch.set(nRef, { ...n, updatedAt: serverTimestamp(), schoolId: firebaseConfig.projectId }, { merge: true });
+          });
+          await noticeBatch.commit();
+        }
+      } catch (err) {
+        console.warn('[FirebaseSync] Notices upload warning:', err);
+      }
+
+      // 4. Teachers Collection (Public Directory)
+      try {
+        const teachers = teacherAuthService.getAllTeachers();
+        if (teachers.length > 0) {
+          const teacherBatch = writeBatch(firestore);
+          teachers.forEach((t) => {
+            const tRef = doc(firestore, 'teachers', t.id);
+            const { password, passwordHash, ...safeTeacher } = t;
+            teacherBatch.set(tRef, { ...safeTeacher, updatedAt: serverTimestamp(), schoolId: firebaseConfig.projectId }, { merge: true });
+          });
+          await teacherBatch.commit();
+        }
+      } catch (err) {
+        console.warn('[FirebaseSync] Teachers upload warning:', err);
+      }
+
+      reportProgress('ক্লাস ও সেকশন ক্লাউডে পাঠানো হচ্ছে...', 20, 100);
+
+      // 5. Classes & Sections Collection
       const classes = classSectionService.getClasses();
       if (classes.length > 0) {
         const classBatch = writeBatch(firestore);
@@ -146,7 +204,7 @@ class FirebaseSyncService {
         await classBatch.commit();
       }
 
-      reportProgress('শিক্ষার্থীদের ডাটা প্রস্তুত করা হচ্ছে...', 25, 100);
+      reportProgress('শিক্ষার্থীদের ডাটা প্রস্তুত করা হচ্ছে...', 30, 100);
 
       // 3. Students Collection
       const students = studentService.getAllStudents();
@@ -259,6 +317,52 @@ class FirebaseSyncService {
         settingsService.updateSettings(cloudSettings);
       }
 
+      // 2. Pull Landing Page Published Config
+      try {
+        const landingRef = doc(firestore, 'landing_page', 'published');
+        const landingSnap = await getDoc(landingRef);
+        if (landingSnap.exists()) {
+          const cloudLanding = landingSnap.data() as LandingPageConfig;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('sms_landing_published', JSON.stringify(cloudLanding));
+            localStorage.setItem('sms_landing_draft', JSON.stringify(cloudLanding));
+          }
+        }
+      } catch (err) {
+        console.warn('[FirebaseSync] Pull landing page config skipped:', err);
+      }
+
+      // 3. Pull Notices
+      try {
+        const noticesRef = collection(firestore, 'notices');
+        const noticesSnap = await getDocs(noticesRef);
+        const cloudNotices: Notice[] = [];
+        noticesSnap.forEach((docSnap) => {
+          cloudNotices.push({ ...docSnap.data(), id: docSnap.id } as Notice);
+        });
+        if (cloudNotices.length > 0 && typeof window !== 'undefined') {
+          localStorage.setItem('sms_notices', JSON.stringify(cloudNotices));
+        }
+      } catch (err) {
+        console.warn('[FirebaseSync] Pull notices skipped:', err);
+      }
+
+      // 4. Pull Teachers
+      try {
+        const teachersRef = collection(firestore, 'teachers');
+        const teachersSnap = await getDocs(teachersRef);
+        const cloudTeachers: any[] = [];
+        teachersSnap.forEach((docSnap) => {
+          cloudTeachers.push({ ...docSnap.data(), id: docSnap.id });
+        });
+        if (cloudTeachers.length > 0 && typeof window !== 'undefined') {
+          localStorage.setItem('sms_rbac_teachers', JSON.stringify(cloudTeachers));
+          localStorage.setItem('sms_teachers_list', JSON.stringify(cloudTeachers));
+        }
+      } catch (err) {
+        console.warn('[FirebaseSync] Pull teachers skipped:', err);
+      }
+
       if (onProgress) {
         onProgress({
           step: 'শিক্ষার্থীদের তালিকা সংগ্রহ করা হচ্ছে...',
@@ -269,7 +373,7 @@ class FirebaseSyncService {
         });
       }
 
-      // 2. Pull Students
+      // 5. Pull Students
       const studentsRef = collection(firestore, 'students');
       const querySnap = await getDocs(studentsRef);
       const cloudStudents: Student[] = [];
@@ -387,6 +491,204 @@ class FirebaseSyncService {
       return this.activeStudentsUnsub;
     } catch (err) {
       return null;
+    }
+  }
+
+  /**
+   * Instant settings auto-sync to Firestore doc 'settings/general'
+   */
+  public async syncSettingsToCloud(settings: Partial<SchoolSettings>): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const settingsRef = doc(firestore, 'settings', 'general');
+      await setDoc(settingsRef, {
+        ...settings,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Cloud settings sync warning:', err);
+    }
+  }
+
+  /**
+   * Instant landing page published config auto-sync to Firestore doc 'landing_page/published'
+   */
+  public async syncLandingConfigToCloud(config: LandingPageConfig): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const landingRef = doc(firestore, 'landing_page', 'published');
+      await setDoc(landingRef, {
+        ...config,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Cloud landing page sync warning:', err);
+    }
+  }
+
+  /**
+   * Instant notice auto-sync to Firestore collection 'notices'
+   */
+  public async syncNoticeToCloud(notice: Notice): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const noticeRef = doc(firestore, 'notices', notice.id);
+      await setDoc(noticeRef, {
+        ...notice,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Cloud notice sync warning:', err);
+    }
+  }
+
+  /**
+   * Instant notice deletion from Firestore collection 'notices'
+   */
+  public async deleteNoticeFromCloud(noticeId: string): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const noticeRef = doc(firestore, 'notices', noticeId);
+      await deleteDoc(noticeRef);
+    } catch (err) {
+      console.warn('[FirebaseSync] Cloud notice deletion warning:', err);
+    }
+  }
+
+  /**
+   * 🌐 Fetch complete public landing page data directly from Google Cloud Firestore
+   * Enables anonymous visitors on any browser or mobile device to load real school data
+   */
+  public async fetchLandingPageCloudData(): Promise<LandingPageCloudData> {
+    if (!db || !isFirebaseConfigured()) return {};
+    try {
+      const firestore = db as Firestore;
+      const result: LandingPageCloudData = {};
+
+      // 1. School Settings
+      try {
+        const settingsSnap = await getDoc(doc(firestore, 'settings', 'general'));
+        if (settingsSnap.exists()) {
+          result.settings = settingsSnap.data() as SchoolSettings;
+        }
+      } catch (e) {
+        console.warn('[FirebaseSync] Failed to fetch cloud settings:', e);
+      }
+
+      // 2. Landing Page Published CMS Config
+      try {
+        const landingSnap = await getDoc(doc(firestore, 'landing_page', 'published'));
+        if (landingSnap.exists()) {
+          result.landingConfig = landingSnap.data() as LandingPageConfig;
+        }
+      } catch (e) {
+        console.warn('[FirebaseSync] Failed to fetch cloud landing page config:', e);
+      }
+
+      // 3. Published Notices
+      try {
+        const noticesSnap = await getDocs(collection(firestore, 'notices'));
+        const noticesList: Notice[] = [];
+        noticesSnap.forEach((docSnap) => {
+          noticesList.push({ ...docSnap.data(), id: docSnap.id } as Notice);
+        });
+        if (noticesList.length > 0) {
+          noticesList.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+          });
+          result.notices = noticesList;
+        }
+      } catch (e) {
+        console.warn('[FirebaseSync] Failed to fetch cloud notices:', e);
+      }
+
+      // 4. Real Students Count from Cloud
+      try {
+        const studentsColl = collection(firestore, 'students');
+        const countSnap = await getCountFromServer(studentsColl);
+        result.totalStudents = countSnap.data().count;
+      } catch (e) {
+        try {
+          const snap = await getDocs(collection(firestore, 'students'));
+          result.totalStudents = snap.size;
+        } catch (err) {}
+      }
+
+      return result;
+    } catch (err) {
+      console.warn('[FirebaseSync] fetchLandingPageCloudData error:', err);
+      return {};
+    }
+  }
+
+  /**
+   * 📡 Subscribe to real-time changes on Landing Page documents (Settings, CMS, Notices)
+   * Updates public visitor views immediately when the admin makes changes
+   */
+  public subscribeLandingPageCloud(
+    callback: (data: LandingPageCloudData) => void
+  ): () => void {
+    if (!db || typeof window === 'undefined') return () => {};
+    try {
+      const firestore = db as Firestore;
+      const unsubList: Unsubscribe[] = [];
+
+      // Real-time Settings Listener
+      const unsubSettings = onSnapshot(
+        doc(firestore, 'settings', 'general'),
+        (snap) => {
+          if (snap.exists()) {
+            callback({ settings: snap.data() as SchoolSettings });
+          }
+        },
+        (err) => console.warn('[FirebaseSync] Cloud settings snapshot warning:', err)
+      );
+      unsubList.push(unsubSettings);
+
+      // Real-time Landing Page Config Listener
+      const unsubLanding = onSnapshot(
+        doc(firestore, 'landing_page', 'published'),
+        (snap) => {
+          if (snap.exists()) {
+            callback({ landingConfig: snap.data() as LandingPageConfig });
+          }
+        },
+        (err) => console.warn('[FirebaseSync] Cloud landing snapshot warning:', err)
+      );
+      unsubList.push(unsubLanding);
+
+      // Real-time Notices Listener
+      const unsubNotices = onSnapshot(
+        collection(firestore, 'notices'),
+        (snap) => {
+          const notices: Notice[] = [];
+          snap.forEach((d) => notices.push({ ...d.data(), id: d.id } as Notice));
+          notices.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+          });
+          callback({ notices });
+        },
+        (err) => console.warn('[FirebaseSync] Cloud notices snapshot warning:', err)
+      );
+      unsubList.push(unsubNotices);
+
+      return () => {
+        unsubList.forEach((fn) => fn());
+      };
+    } catch (err) {
+      console.warn('[FirebaseSync] subscribeLandingPageCloud warning:', err);
+      return () => {};
     }
   }
 }

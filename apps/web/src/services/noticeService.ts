@@ -62,6 +62,14 @@ class NoticeService {
         notices[index] = updatedNotice;
         localStorage.setItem('sms_notices', JSON.stringify(notices));
         this.notify();
+
+        // ⚡ Auto-sync with Google Cloud Firestore
+        try {
+          import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+            firebaseSyncService.syncNoticeToCloud(updatedNotice).catch(() => {});
+          }).catch(() => {});
+        } catch (e) {}
+
         return { success: true, message: 'নোটিশ সফলভাবে আপডেট করা হয়েছে!', notice: updatedNotice };
       }
     }
@@ -87,6 +95,14 @@ class NoticeService {
     const updatedList = [newNotice, ...notices];
     localStorage.setItem('sms_notices', JSON.stringify(updatedList));
     this.notify();
+
+    // ⚡ Auto-sync with Google Cloud Firestore
+    try {
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncNoticeToCloud(newNotice).catch(() => {});
+      }).catch(() => {});
+    } catch (e) {}
+
     return { success: true, message: 'প্রধান শিক্ষকের নোটিশ সফলভাবে প্রকাশ করা হয়েছে!', notice: newNotice };
   }
 
@@ -97,6 +113,14 @@ class NoticeService {
       notices[index].isPinned = !notices[index].isPinned;
       localStorage.setItem('sms_notices', JSON.stringify(notices));
       this.notify();
+
+      // ⚡ Auto-sync with Google Cloud Firestore
+      try {
+        import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+          firebaseSyncService.syncNoticeToCloud(notices[index]).catch(() => {});
+        }).catch(() => {});
+      } catch (e) {}
+
       return { success: true, message: notices[index].isPinned ? 'নোটিশ পিন করা হয়েছে' : 'নোটিশ আনপিন করা হয়েছে' };
     }
     return { success: false, message: 'নোটিশ পাওয়া যায়নি' };
@@ -110,6 +134,14 @@ class NoticeService {
       localStorage.setItem('sms_notices_cleared', 'true');
     }
     this.notify();
+
+    // ⚡ Auto-sync deletion with Google Cloud Firestore
+    try {
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.deleteNoticeFromCloud(id).catch(() => {});
+      }).catch(() => {});
+    } catch (e) {}
+
     return { success: true, message: 'নোটিশ সফলভাবে মুছে ফেলা হয়েছে' };
   }
 

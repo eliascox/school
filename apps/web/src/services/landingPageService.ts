@@ -1401,6 +1401,16 @@ class LandingPageService {
       this.publishedListeners.forEach(fn => fn(publishedConfig));
       this.draftListeners.forEach(fn => fn(publishedConfig));
       window.dispatchEvent(new Event('storage'));
+
+      // 6. Auto-sync to Google Cloud Firestore
+      try {
+        import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+          firebaseSyncService.syncLandingConfigToCloud(publishedConfig).catch(() => {});
+        }).catch(() => {});
+      } catch (cloudErr) {
+        // non-fatal offline queue
+      }
+
       return true;
     } catch (e) {
       console.error('[LandingPageService] Error publishing:', e);

@@ -69,4 +69,33 @@ describe('firebaseSyncService Unit Tests', () => {
     expect(delRes).toBe(true);
     expect(studentService.getAllStudents().length).toBe(0);
   });
+
+  it('safely handles fetchLandingPageCloudData and subscribeLandingPageCloud without throwing', async () => {
+    const cloudData = await firebaseSyncService.fetchLandingPageCloudData();
+    expect(cloudData).toBeDefined();
+
+    let receivedUpdate = false;
+    const unsub = firebaseSyncService.subscribeLandingPageCloud((data) => {
+      receivedUpdate = true;
+    });
+
+    expect(typeof unsub).toBe('function');
+    unsub();
+
+    // Verify settings and landing config cloud sync signatures
+    await expect(firebaseSyncService.syncSettingsToCloud({ schoolName: 'বাঘমারা উচ্চ বিদ্যালয়' })).resolves.not.toThrow();
+    await expect(firebaseSyncService.syncNoticeToCloud({
+      id: 'NOT-1',
+      title: 'টেস্ট নোটিশ',
+      content: 'টেস্ট বিবরণ',
+      category: 'general',
+      targetAudience: 'all',
+      priority: 'normal',
+      publisherName: 'প্রধান শিক্ষক',
+      publisherRole: 'প্রধান শিক্ষক',
+      publishedAt: new Date().toISOString(),
+      isPinned: false
+    })).resolves.not.toThrow();
+    await expect(firebaseSyncService.deleteNoticeFromCloud('NOT-1')).resolves.not.toThrow();
+  });
 });

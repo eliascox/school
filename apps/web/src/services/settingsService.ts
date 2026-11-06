@@ -269,6 +269,13 @@ export const settingsService = {
       } catch (e) {
         console.error('Failed to save settings to localStorage/IndexedDB vault', e);
       }
+
+      // ⚡ Auto-sync with Google Cloud Firestore
+      try {
+        import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+          firebaseSyncService.syncSettingsToCloud(currentSettings).catch(() => {});
+        }).catch(() => {});
+      } catch (e) {}
     }
     listeners.forEach((fn) => fn(currentSettings));
   },

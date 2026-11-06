@@ -6,6 +6,7 @@ import { noticeService, Notice } from '@/services/noticeService';
 import { teacherAuthService, TeacherAccount } from '@/services/teacherAuthService';
 import { studentService } from '@/services/studentService';
 import { landingPageService, LandingPageConfig, DEFAULT_LANDING_CONFIG } from '@/services/landingPageService';
+import { firebaseSyncService, LandingPageCloudData } from '@/services/firebaseSyncService';
 
 // Public Landing Page Components
 import PublicTopBar from '@/components/public/PublicTopBar';
@@ -101,6 +102,52 @@ export default function PublicSchoolHomePage() {
 
     loadData();
 
+    // ⚡ Real-Time Google Cloud Firestore Sync
+    // Allows visitors on any browser, mobile phone, or incognito mode
+    // to instantly receive live school name, logo, hero banners, notices, and stats from the database
+    const applyCloudData = (cloudData: LandingPageCloudData) => {
+      if (cloudData.settings) {
+        setSettings((prev) => ({ ...(prev || {}), ...cloudData.settings } as SchoolSettings));
+        try {
+          settingsService.updateSettings(cloudData.settings);
+        } catch (e) {}
+      }
+      if (cloudData.landingConfig) {
+        setLandingConfig(cloudData.landingConfig);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('sms_landing_published', JSON.stringify(cloudData.landingConfig));
+          }
+        } catch (e) {}
+      }
+      if (cloudData.notices && cloudData.notices.length > 0) {
+        setNotices(cloudData.notices);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('sms_notices', JSON.stringify(cloudData.notices));
+          }
+        } catch (e) {}
+      }
+      if (cloudData.teachers && cloudData.teachers.length > 0) {
+        setTeachers(cloudData.teachers);
+      }
+      if (typeof cloudData.totalStudents === 'number' && cloudData.totalStudents > 0) {
+        setTotalStudents(cloudData.totalStudents);
+      }
+    };
+
+    // 1. Asynchronously fetch latest data from Cloud Firestore
+    firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
+      applyCloudData(cloudData);
+    }).catch((err) => {
+      console.warn('[LandingPage] Cloud sync fetch fallback to local:', err);
+    });
+
+    // 2. Subscribe to live Firestore changes (Real-time updates without page refresh)
+    const unsubCloud = firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
+      applyCloudData(cloudUpdate);
+    });
+
     // Re-sync on service updates
     const unsubSettings = settingsService.subscribe((s) => {
       setSettings(s);
@@ -119,6 +166,7 @@ export default function PublicSchoolHomePage() {
     }
 
     return () => {
+      unsubCloud();
       unsubSettings();
       unsubLanding();
       unsubNotices();
