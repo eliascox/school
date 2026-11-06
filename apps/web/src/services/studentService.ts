@@ -466,6 +466,13 @@ export const studentService = {
     importedList.forEach(st => {
       syncQueueService.enqueue('student', st.id, 'CREATE', st).catch(() => {});
     });
+
+    // ☁️ CRITICAL: Automatically upload entire student list to Google Cloud Firestore
+    import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+      firebaseSyncService.uploadAllToCloud().catch((err) => {
+        console.warn('[studentService.saveBulkStudents] Firebase auto-sync deferred:', err);
+      });
+    }).catch(() => {});
   },
 
   // Delete all students completely from the system & sync

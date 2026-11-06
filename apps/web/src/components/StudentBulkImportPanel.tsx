@@ -562,7 +562,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     if (execResult.success) {
       setAlertInfo({
         type: 'success',
-        message: `🎉 অভিনন্দন! সফলভাবে মোট ${execResult.importedCount} জন শিক্ষার্থীর তথ্য ডাটাবেজে সংরক্ষিত ও হালনাগাদ হয়েছে! (বিজ্ঞান: ${execResult.groupStats.science} জন, মানবিক: ${execResult.groupStats.humanities} জন, ব্যবসায় শিক্ষা: ${execResult.groupStats.business} জন)`
+        message: `🎉 অভিনন্দন! সফলভাবে মোট ${execResult.importedCount} জন শিক্ষার্থীর তথ্য লোকাল ডাটাবেজে সংরক্ষিত হয়েছে এবং গুগল ক্লাউড সার্ভারে (Firebase) স্বয়ংক্রিয়ভাবে সিঙ্ক হচ্ছে! (বিজ্ঞান: ${execResult.groupStats.science} জন, মানবিক: ${execResult.groupStats.humanities} জন, ব্যবসায় শিক্ষা: ${execResult.groupStats.business} জন)`
       });
       loadDbStats();
       if (onSuccess) {

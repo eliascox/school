@@ -42,7 +42,8 @@ import {
   Camera,
   Upload,
   Image as ImageIcon,
-  AlertCircle
+  AlertCircle,
+  Cloud
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -108,6 +109,7 @@ export default function StudentListPage() {
   const [mounted, setMounted] = useState(false);
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [students, setStudents] = useState<StudentItem[]>([]);
+  const [syncingCloud, setSyncingCloud] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
@@ -473,6 +475,20 @@ export default function StudentListPage() {
     const unsubLang = languageService.subscribe(l => setCurrentLang(l));
     loadStudentsFromStorage();
     loadSchoolSettings();
+
+    // ☁️ Auto-sync from Google Firebase Cloud if local device storage is empty
+    if (typeof window !== 'undefined' && navigator.onLine) {
+      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+        const localCount = studentService.getAllStudents().length;
+        if (localCount === 0) {
+          firebaseSyncService.pullAllFromCloud().then((res) => {
+            if (res.studentCount > 0) {
+              loadStudentsFromStorage();
+            }
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
 
     if (typeof window !== 'undefined') {
       const handleStorage = () => {
@@ -2621,6 +2637,34 @@ export default function StudentListPage() {
                     title="একসাথে একাধিক শিক্ষার্থীর ছবি ড্রাগ ও ড্রপ করে আপলোড করুন"
                   >
                     <Camera size={15} /> বাল্ক ছবি ড্রপ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setSyncingCloud(true);
+                      try {
+                        const { firebaseSyncService } = await import('@/services/firebaseSyncService');
+                        const localCount = studentService.getAllStudents().length;
+                        if (localCount > 0) {
+                          const res = await firebaseSyncService.uploadAllToCloud();
+                          showToast(`☁️ ${res.uploadedCount} জন শিক্ষার্থীর তথ্য ক্লাউড সার্ভারে সিঙ্ক হয়েছে!`, 'success');
+                        } else {
+                          const res = await firebaseSyncService.pullAllFromCloud();
+                          loadStudentsFromStorage();
+                          showToast(`☁️ ক্লাউড থেকে ${res.studentCount} জন শিক্ষার্থীর তথ্য সফলভাবে ডাউনলোড হয়েছে!`, 'success');
+                        }
+                      } catch (e: any) {
+                        showToast('ক্লাউড সিঙ্ক ত্রুটি: ' + (e?.message || 'ইন্টারনেট চেক করুন'), 'error');
+                      } finally {
+                        setSyncingCloud(false);
+                      }
+                    }}
+                    disabled={syncingCloud}
+                    className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                    title="গুগল ফায়ারবেস ক্লাউডের সাথে তাৎক্ষণিক সিঙ্ক বা ব্যাকআপ করুন"
+                  >
+                    <Cloud size={15} className={syncingCloud ? 'animate-spin' : ''} />
+                    <span>{syncingCloud ? 'সিঙ্ক হচ্ছে...' : 'ক্লাউড সিঙ্ক'}</span>
                   </button>
                   <button
                     onClick={() => switchView('print_list')}

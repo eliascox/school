@@ -1021,6 +1021,13 @@ export function executeBulkImport(
       localStorage.removeItem('sms_uploaded_students');
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new CustomEvent('sms:students-updated'));
+
+      // ☁️ CRITICAL: Automatically push bulk imported students to Google Cloud Firestore (Project: bhsedu-e0906)
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.uploadAllToCloud().catch((err) => {
+          console.warn('[BulkImport] Background Firebase cloud sync deferred:', err);
+        });
+      }).catch(() => {});
     }
 
     // Enqueue for central server sync
