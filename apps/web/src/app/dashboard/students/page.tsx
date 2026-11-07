@@ -1840,6 +1840,11 @@ export default function StudentListPage() {
                     <button
                       onClick={() => {
                         const params = new URLSearchParams();
+                        if (printReportTab === 'summary') {
+                          params.set('tab', 'summary');
+                        } else {
+                          params.set('tab', 'detailed');
+                        }
                         if (printGradeFilter !== 'all') params.set('grade', printGradeFilter);
                         if (printBranchFilter !== 'all') params.set('branch', printBranchFilter);
                         if (printGroupFilter !== 'all') params.set('group', printGroupFilter);
