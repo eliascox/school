@@ -476,7 +476,7 @@ export default function StudentListPage() {
     loadStudentsFromStorage();
     loadSchoolSettings();
 
-    // ☁️ Auto-sync from Google Firebase Cloud if local device storage is empty
+    // ☁️ Bidirectional Auto-sync with Google Firebase Cloud
     if (typeof window !== 'undefined' && navigator.onLine) {
       import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
         const localCount = studentService.getAllStudents().length;
@@ -486,6 +486,11 @@ export default function StudentListPage() {
               loadStudentsFromStorage();
             }
           }).catch(() => {});
+        } else {
+          // Auto-sync local students to Cloud Firestore
+          firebaseSyncService.uploadAllToCloud().catch((err) => {
+            console.warn('[AutoSync] Cloud sync deferred:', err);
+          });
         }
       }).catch(() => {});
     }
