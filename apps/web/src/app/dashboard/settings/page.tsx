@@ -214,11 +214,15 @@ export default function SettingsPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
+      if (tabParam === 'bulk-student') {
+        router.replace('/dashboard/students/bulk-import');
+        return;
+      }
       if (tabParam && ['identity', 'committee', 'facilities', 'pad', 'bulk-student', 'security', 'appearance', 'academic', 'sms', 'data', 'system'].includes(tabParam)) {
         setActiveTab(tabParam as SettingsTab);
       }
     }
-  }, []);
+  }, [router]);
 
   const handleSaveTeacherPassword = (tId: string, tName: string) => {
     const newPass = teacherPasswords[tId]?.trim();
@@ -623,11 +627,15 @@ export default function SettingsPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as SettingsTab;
+      if (tab === 'bulk-student') {
+        router.replace('/dashboard/students/bulk-import');
+        return;
+      }
       if (tab && TABS.some(t => t.id === tab)) {
         setActiveTab(tab);
       }
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const currSession = teacherAuthService.getSession();

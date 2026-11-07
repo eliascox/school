@@ -2639,7 +2639,7 @@ export default function StudentListPage() {
                     </button>
                   )}
                   <Link
-                    href="/dashboard/settings?tab=bulk-student"
+                    href="/dashboard/students/bulk-import"
                     className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                     title="এক্সেলে শিক্ষার্থীদের সকল তথ্য এক ক্লিকে বাল্ক আপলোড করুন"
                   >

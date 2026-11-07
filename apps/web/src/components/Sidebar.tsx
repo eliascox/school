@@ -265,7 +265,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
             {
               label: 'Bulk Student Upload',
               labelBn: 'বাল্ক শিক্ষার্থী আপলোড',
-              href: '/dashboard/settings?tab=bulk-student',
+              href: '/dashboard/students/bulk-import',
               icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
             },
             {
@@ -618,7 +618,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
             {
               label: 'Bulk Student Upload',
               labelBn: 'বাল্ক শিক্ষার্থী তথ্য আপলোড',
-              href: '/dashboard/settings?tab=bulk-student',
+              href: '/dashboard/students/bulk-import',
               icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
             },
             {
