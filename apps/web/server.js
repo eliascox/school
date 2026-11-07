@@ -272,7 +272,14 @@ function startServers() {
       sendResponse(res, 200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Access-Control-Allow-Origin': '*'
-      }, JSON.stringify({ success: true, status: 'active', clientMode: 'standalone', timestamp: new Date().toISOString() }));
+      }, JSON.stringify({
+        success: true,
+        status: 'ACTIVE',
+        isAllowed: true,
+        isApproved: true,
+        clientMode: 'standalone',
+        timestamp: new Date().toISOString()
+      }));
       return;
     }
 

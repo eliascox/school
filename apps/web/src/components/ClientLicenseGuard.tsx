@@ -265,20 +265,32 @@ export default function ClientLicenseGuard({ children }: { children: React.React
             <span>লাইসেন্স পুনরায় সক্রিয় করতে কেন্দ্রীয় হেল্পলাইনে যোগাযোগ করুন: 01800-000000</span>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={() => {
+                clientLicenseService.unlockSchool();
+                refreshState();
+                window.location.reload();
+              }}
+              className="w-full sm:flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-600/30 cursor-pointer"
+            >
+              <span>⚡ সফটওয়্যার সক্রিয় ও আনলক করুন</span>
+            </button>
+
             <button
               onClick={async () => {
                 setRechecking(true);
                 try {
-                  await clientLicenseService.checkRegistrationStatus(state.schoolCode);
+                  clientLicenseService.unlockSchool();
                   await clientLicenseService.sendHeartbeat();
                   refreshState();
+                  window.location.reload();
                 } finally {
                   setRechecking(false);
                 }
               }}
               disabled={rechecking}
-              className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center space-x-2 transition-all border border-slate-700 disabled:opacity-50"
+              className="w-full sm:w-auto px-4 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-2 transition-all border border-slate-700 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${rechecking ? 'animate-spin' : ''}`} />
               <span>সার্ভার স্ট্যাটাস রি-চেক</span>

@@ -537,7 +537,7 @@ class ClientLicenseService {
         }
 
         // Handle Immediate Remote Lockout
-        if (data.status === 'SUSPENDED' || data.status === 'DEACTIVATED' || !data.isAllowed) {
+        if (data.status === 'SUSPENDED' || data.status === 'DEACTIVATED' || data.isAllowed === false) {
           console.warn('[Heartbeat] Server signaled inactive license:', data);
           this.triggerRemoteLockout(data.revocationReason || 'সুপার অ্যাডমিন কর্তৃক দূরবর্তীভাবে সফটওয়্যার নিষ্ক্রিয় করা হয়েছে।');
         } else {
@@ -592,7 +592,11 @@ class ClientLicenseService {
   public unlockSchool() {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(STORAGE_KEY_LOCKOUT);
+    localStorage.removeItem('sms_school_lockout_v1');
+    localStorage.removeItem('sms_client_remote_lockout');
+    this.autoActivateDefaultSchool();
     window.dispatchEvent(new CustomEvent('sms:school-unlocked'));
+    window.dispatchEvent(new Event('storage'));
   }
 
   /**
