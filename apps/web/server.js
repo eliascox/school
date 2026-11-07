@@ -413,12 +413,8 @@ function startServers() {
       }
     } catch (e) {}
 
-    // 2. Directory handling: redirect to trailing slash or serve index.html
+    // 2. Directory handling: serve index.html directly for both /route and /route/
     if (isDir) {
-      if (!rawPath.endsWith('/')) {
-        sendResponse(res, 301, { 'Location': rawPath + '/' + (queryString ? '?' + queryString : '') });
-        return;
-      }
       const dirIndex = path.join(filePath, 'index.html');
       if (fs.existsSync(dirIndex)) {
         filePath = dirIndex;
@@ -435,12 +431,8 @@ function startServers() {
       filePath = filePath + '.html';
     }
 
-    // 5. Subdirectory index.html fallback (if rawPath didn't have trailing slash but dir exists)
+    // 5. Subdirectory index.html fallback
     if (!fs.existsSync(filePath) && fs.existsSync(path.join(filePath, 'index.html'))) {
-      if (!rawPath.endsWith('/')) {
-        sendResponse(res, 301, { 'Location': rawPath + '/' + (queryString ? '?' + queryString : '') });
-        return;
-      }
       filePath = path.join(filePath, 'index.html');
     }
 
