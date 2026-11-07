@@ -239,6 +239,55 @@ if (typeof window !== 'undefined') {
       listeners.forEach((fn) => fn(currentSettings));
     }
   }).catch(() => {});
+
+  // ☁️ Auto-hydrate and Real-Time Listen from Google Cloud Firestore (Cross-PC Instant Sync)
+  import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+    // 1. Fetch latest settings from Cloud Firestore on startup
+    firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
+      if (cloudData.settings && (cloudData.settings.schoolLogo || cloudData.settings.schoolName)) {
+        currentSettings = {
+          ...DEFAULT_SETTINGS,
+          ...currentSettings,
+          ...cloudData.settings,
+        };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
+          if (currentSettings.schoolLogo) {
+            localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+            idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+          }
+          idbSet(STORAGE_KEY, currentSettings);
+        } catch {}
+        listeners.forEach((fn) => fn(currentSettings));
+      } else if (currentSettings.schoolLogo) {
+        // 🚀 Local browser has the updated logo but Cloud Firestore doesn't have it yet!
+        // Auto-upload local logo to Cloud Firestore so all other PCs receive it immediately!
+        firebaseSyncService.syncSettingsToCloud(currentSettings).catch((err) => {
+          console.warn('[SettingsService] Cloud logo seed warning:', err);
+        });
+      }
+    }).catch(() => {});
+
+    // 2. Real-time onSnapshot subscription for live multi-PC syncing
+    firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
+      if (cloudUpdate.settings && (cloudUpdate.settings.schoolLogo || cloudUpdate.settings.schoolName)) {
+        currentSettings = {
+          ...DEFAULT_SETTINGS,
+          ...currentSettings,
+          ...cloudUpdate.settings,
+        };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
+          if (currentSettings.schoolLogo) {
+            localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+            idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
+          }
+          idbSet(STORAGE_KEY, currentSettings);
+        } catch {}
+        listeners.forEach((fn) => fn(currentSettings));
+      }
+    });
+  }).catch(() => {});
 }
 
 export const settingsService = {

@@ -26,6 +26,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('storage', sync);
   }, []);
 
+  // ☁️ Cross-PC Real-Time Cloud Firestore Sync on Dashboard Mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.onLine) {
+      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
+          if (cloudData.settings) {
+            import('@/services/settingsService').then(({ settingsService }) => {
+              settingsService.updateSettings(cloudData.settings!);
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, []);
+
   // Central route guard — evaluated synchronously on every render/navigation so a
   // forbidden page is never painted, and allowed navigation never flashes a loader.
   const redirectTo = session === undefined ? null : getDashboardRedirect(session, pathname);

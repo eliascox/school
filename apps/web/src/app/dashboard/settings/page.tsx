@@ -209,6 +209,21 @@ export default function SettingsPage() {
     loadTeachers();
   }, [loadTeachers, activeTab]);
 
+  // Subscribe to real-time settings and cloud sync updates
+  useEffect(() => {
+    const unsub = settingsService.subscribe((latestSettings) => {
+      if (latestSettings && (latestSettings.schoolLogo || latestSettings.schoolName)) {
+        setFormData((prev) => ({
+          ...latestSettings,
+          ...prev,
+          schoolLogo: latestSettings.schoolLogo || prev.schoolLogo,
+          schoolName: latestSettings.schoolName || prev.schoolName,
+        }));
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Sync activeTab with URL query parameter (e.g. ?tab=bulk-student)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -848,6 +863,14 @@ export default function SettingsPage() {
       });
       if (result.valid && result.sanitizedDataUrl) {
         handleChange('schoolLogo', result.sanitizedDataUrl);
+        // ⚡ Immediate save & Cloud Push across all devices
+        settingsService.updateSettings({ schoolLogo: result.sanitizedDataUrl });
+        try {
+          const { firebaseSyncService } = await import('@/services/firebaseSyncService');
+          await firebaseSyncService.syncSettingsToCloud({ schoolLogo: result.sanitizedDataUrl });
+        } catch (err) {
+          console.warn('[LogoUpload] Cloud auto-sync deferred:', err);
+        }
       } else {
         alert(result.error || 'লোগো ফাইলটি সঠিক নয়।');
       }
@@ -866,6 +889,14 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.warn('Failed to sync settings with landing page service', err);
+    }
+
+    // ☁️ Direct Cloud Firestore Sync for Cross-Device Persistence
+    try {
+      const { firebaseSyncService } = await import('@/services/firebaseSyncService');
+      await firebaseSyncService.syncSettingsToCloud(formData);
+    } catch (err) {
+      console.warn('[SettingsSubmit] Cloud settings sync error:', err);
     }
 
     if (typeof window !== 'undefined') {
