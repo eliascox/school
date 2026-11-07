@@ -1836,9 +1836,19 @@ export default function StudentListPage() {
                       <Printer size={15} /> ফাঁকা স্কুল প্যাড
                     </button>
 
-                    {/* Print / PDF Button */}
+                    {/* Print / PDF Button — opens dedicated print page in new tab (no hang!) */}
                     <button
-                      onClick={() => window.print()}
+                      onClick={() => {
+                        const params = new URLSearchParams();
+                        if (printGradeFilter !== 'all') params.set('grade', printGradeFilter);
+                        if (printBranchFilter !== 'all') params.set('branch', printBranchFilter);
+                        if (printGroupFilter !== 'all') params.set('group', printGroupFilter);
+                        if (printReligionFilter !== 'all') params.set('religion', printReligionFilter);
+                        if (printGenderFilter !== 'all') params.set('gender', printGenderFilter);
+                        params.set('year', new Date().getFullYear().toString());
+                        const url = `/dashboard/students/print?${params.toString()}`;
+                        window.open(url, '_blank');
+                      }}
                       className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-xl transition transform active:scale-95 cursor-pointer"
                     >
                       <Printer size={16} /> প্রিন্ট / PDF সংরক্ষণ
