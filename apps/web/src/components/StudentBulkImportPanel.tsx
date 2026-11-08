@@ -57,7 +57,8 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮১',
     'জন্ম তারিখ': '১৮/০৯/২০১০',
     'ঠিকানা': 'পূর্ব বরইতলী, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৮১২৩৪৫৬০১'
+    'মোবাইল': '০১৮১২৩৪৫৬০১',
+    'ঐচ্ছিক বিষয়': 'উচ্চতর গণিত'
   },
   {
     'রোল': '০২',
@@ -71,7 +72,8 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮২',
     'জন্ম তারিখ': '১৫/০৩/২০১০',
     'ঠিকানা': 'দক্ষিণ বরইতলী, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৮১২৩৪৫৬০২'
+    'মোবাইল': '০১৮১২৩৪৫৬০২',
+    'ঐচ্ছিক বিষয়': 'জীববিজ্ঞান'
   },
   {
     'রোল': '০১',
@@ -85,7 +87,8 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮৩',
     'জন্ম তারিখ': '০৩/১২/২০১০',
     'ঠিকানা': 'গোয়াবাগান, বরইতলী, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৮১২৩৪৫৬০৩'
+    'মোবাইল': '০১৮১২৩৪৫৬০৩',
+    'ঐচ্ছিক বিষয়': 'কৃষি শিক্ষা'
   },
   {
     'রোল': '০২',
@@ -99,7 +102,8 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮৪',
     'জন্ম তারিখ': '১০/০৫/২০১০',
     'ঠিকানা': 'শান্তিবাজার, হারবাং, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৭১২৩৪৫৬০৪'
+    'মোবাইল': '০১৭১২৩৪৫৬০৪',
+    'ঐচ্ছিক বিষয়': 'পৌরনীতি ও নাগরিকতা'
   },
   {
     'রোল': '০১',
@@ -113,7 +117,8 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮৫',
     'জন্ম তারিখ': '২৫/০১/২০১০',
     'ঠিকানা': 'কলেজ রোড, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৮১২৩৪৫৬০৫'
+    'মোবাইল': '০১৮১২৩৪৫৬০৫',
+    'ঐচ্ছিক বিষয়': 'কৃষি শিক্ষা'
   },
   {
     'রোল': '০২',
@@ -127,12 +132,13 @@ export const SAMPLE_STUDENTS_BN = [
     'এসএসসি রোল': '১০৬১৮৬',
     'জন্ম তারিখ': '১৪/০৮/২০১০',
     'ঠিকানা': 'মাস্টারপাড়া, বরইতলী, চকরিয়া, কক্সবাজার',
-    'মোবাইল': '০১৭১২৩৪৫৬০৬'
+    'মোবাইল': '০১৭১২৩৪৫৬০৬',
+    'ঐচ্ছিক বিষয়': 'গার্হস্থ্য বিজ্ঞান'
   }
 ];
 
 // ─── 2. ENGLISH SAMPLE DATA (Exact English Headers per User Specification) ─
-// Order: Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile
+// Order: Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile, Optional Subject
 export const SAMPLE_STUDENTS_EN = [
   {
     'Roll': '01',
@@ -146,7 +152,8 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106181',
     'Date of Birth': '2010-09-18',
     'Address': 'East Baraitali, Chakaria, Coxs Bazar',
-    'Mobile': '01812345601'
+    'Mobile': '01812345601',
+    'Optional Subject': 'Higher Mathematics'
   },
   {
     'Roll': '02',
@@ -160,7 +167,8 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106182',
     'Date of Birth': '2010-03-15',
     'Address': 'South Baraitali, Chakaria, Coxs Bazar',
-    'Mobile': '01812345602'
+    'Mobile': '01812345602',
+    'Optional Subject': 'Biology'
   },
   {
     'Roll': '01',
@@ -174,7 +182,8 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106183',
     'Date of Birth': '2010-12-03',
     'Address': 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
-    'Mobile': '01812345603'
+    'Mobile': '01812345603',
+    'Optional Subject': 'Agriculture Studies'
   },
   {
     'Roll': '02',
@@ -188,7 +197,8 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106184',
     'Date of Birth': '2010-05-10',
     'Address': 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
-    'Mobile': '01712345604'
+    'Mobile': '01712345604',
+    'Optional Subject': 'Civics'
   },
   {
     'Roll': '01',
@@ -202,7 +212,8 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106185',
     'Date of Birth': '2010-01-25',
     'Address': 'College Road, Chakaria, Coxs Bazar',
-    'Mobile': '01812345605'
+    'Mobile': '01812345605',
+    'Optional Subject': 'Agriculture Studies'
   },
   {
     'Roll': '02',
@@ -216,11 +227,12 @@ export const SAMPLE_STUDENTS_EN = [
     'SSC Roll': '106186',
     'Date of Birth': '2010-08-14',
     'Address': 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
-    'Mobile': '01712345606'
+    'Mobile': '01712345606',
+    'Optional Subject': 'Home Science'
   }
 ];
 
-// ─── 3. FIELD SPECIFICATION GUIDE (Exact 12 Specified Columns) ──────────────
+// ─── 3. FIELD SPECIFICATION GUIDE (Exact 13 Specified Columns) ──────────────
 export const FIELD_GUIDE_ROWS = [
   { field: 'Roll', bnName: 'রোল', required: 'আবশ্যক', sampleEn: '01', sampleBn: '০১', desc: 'শিক্ষার্থীর রোল নম্বর (বিজ্ঞান, মানবিক বা ব্যবসায় শিক্ষা অনুসারে)' },
   { field: 'Group', bnName: 'বিভাগ / গ্রুপ', required: 'আবশ্যক', sampleEn: 'Science / Humanities / Business Studies', sampleBn: 'বিজ্ঞান / মানবিক / ব্যবসায় শিক্ষা', desc: 'বিজ্ঞান (Science), মানবিক (Humanities), ব্যবসায় শিক্ষা (Business Studies)' },
@@ -233,7 +245,8 @@ export const FIELD_GUIDE_ROWS = [
   { field: 'SSC Roll', bnName: 'এসএসসি রোল', required: 'ঐচ্ছিক', sampleEn: '106184', sampleBn: '১০৬১৮৪', desc: 'শিক্ষা বোর্ড প্রদত্ত এসএসসি রোল নম্বর (৬ ডিজিট)' },
   { field: 'Date of Birth', bnName: 'জন্ম তারিখ', required: 'ঐচ্ছিক', sampleEn: '2010-09-18', sampleBn: '১৮/০৯/২০১০', desc: 'YYYY-MM-DD অথবা DD/MM/YYYY' },
   { field: 'Address', bnName: 'ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'East Baraitali, Chakaria', sampleBn: 'পূর্ব বরইতলী, চকরিয়া', desc: 'বর্তমান বা স্থায়ী ঠিকানা' },
-  { field: 'Mobile', bnName: 'মোবাইল নম্বর', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' }
+  { field: 'Mobile', bnName: 'মোবাইল নম্বর', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' },
+  { field: 'Optional Subject', bnName: 'ঐচ্ছিক বিষয় / ৪র্থ বিষয়', required: 'ঐচ্ছিক', sampleEn: 'Higher Mathematics / Agriculture Studies', sampleBn: 'উচ্চতর গণিত / কৃষি শিক্ষা', desc: 'শিক্ষার্থীর ৪র্থ বা ঐচ্ছিক বিষয়' }
 ];
 
 interface StudentBulkImportPanelProps {
@@ -335,7 +348,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
         { wch: 16 }, // SSC Roll
         { wch: 16 }, // Date of Birth
         { wch: 38 }, // Address
-        { wch: 18 }  // Mobile
+        { wch: 18 }, // Mobile
+        { wch: 22 }  // Optional Subject
       ];
 
       const wsGuide = XLSX.utils.json_to_sheet(
@@ -630,7 +644,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">প্রস্তাবিত</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile, Optional Subject</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -660,7 +674,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">সহজ</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">রোল, বিভাগ, শিক্ষার্থীর নাম, লিঙ্গ, পিতার নাম, মাতার নাম, ধর্ম, রেজিস্ট্রেশন নম্বর, এসএসসি রোল, জন্ম তারিখ, ঠিকানা, মোবাইল</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">রোল, বিভাগ, শিক্ষার্থীর নাম, লিঙ্গ, পিতার নাম, মাতার নাম, ধর্ম, রেজিস্ট্রেশন নম্বর, এসএসসি রোল, জন্ম তারিখ, ঠিকানা, মোবাইল, ঐচ্ছিক বিষয়</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -1118,6 +1132,10 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                     <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">MOBILE</span>
                     <span className="text-[10px] text-slate-500 font-normal">মোবাইল</span>
                   </th>
+                  <th className="p-3 w-36 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">OPTIONAL SUBJECT</span>
+                    <span className="text-[10px] text-slate-500 font-normal">ঐচ্ছিক বিষয়</span>
+                  </th>
                   <th className="p-3 w-16 text-center">
                     <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Action</span>
                     <span className="text-[10px] text-slate-500 font-normal">পূর্ণাঙ্গ</span>
@@ -1256,6 +1274,17 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                         {st.mobile || <span className="text-slate-300 dark:text-slate-600">-</span>}
                       </td>
 
+                      {/* 13. OPTIONAL SUBJECT */}
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {st.optionalSubject ? (
+                          <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                            {st.optionalSubject}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 font-mono">-</span>
+                        )}
+                      </td>
+
                       {/* Action */}
                       <td className="p-3 text-center">
                         <button
@@ -1273,7 +1302,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
 
                 {filteredPreview.length === 0 && (
                   <tr>
-                    <td colSpan={14} className="p-8 text-center text-slate-400 font-bold">
+                    <td colSpan={15} className="p-8 text-center text-slate-400 font-bold">
                       কোনো শিক্ষার্থী পাওয়া যায়নি।
                     </td>
                   </tr>

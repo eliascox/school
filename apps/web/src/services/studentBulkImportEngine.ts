@@ -364,8 +364,10 @@ export function normalizeHeaderKey(rawKey: string): string {
     k.includes('optional') ||
     k.includes('4thsubject') ||
     k.includes('৪র্থবিষয়') ||
+    k.includes('৪র্থবিষয়') ||
     k.includes('৪র্থ') ||
     k.includes('ঐচ্ছিকবিষয়') ||
+    k.includes('ঐচ্ছিকবিষয়') ||
     k.includes('ঐচ্ছিক')
   ) {
     return 'optionalSubject';
