@@ -43,202 +43,197 @@ import {
   BatchValidationReport
 } from '@/services/studentBulkImportEngine';
 
-// ─── 1. BENGALI SAMPLE DATA (Pure Bengali Headers & Data) ───────────────────
+// ─── 1. BENGALI SAMPLE DATA (Pure Bengali Headers & Data per Specification) ─
 export const SAMPLE_STUDENTS_BN = [
   {
-    'শিক্ষার্থীর নাম': 'সাদিয়া বিনতে সুলতান',
-    'শ্রেণি': '৯ম',
-    'শাখা': 'ক',
+    'রোল': '০১',
     'বিভাগ': 'বিজ্ঞান',
+    'শিক্ষার্থীর নাম': 'সাদিয়া বিনতে সুলতান',
     'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '১৮/০৯/২০১০',
     'পিতার নাম': 'সুলতান মাহমুদ',
     'মাতার নাম': 'নাছিমা আক্তার',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০১',
-    'বর্তমান ঠিকানা': 'গ্রাম: পূর্ব বরইতলী, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
-    'পূর্বের রোল': '১৫',
-    'রোল': '০১',
-    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০১',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০১',
-    'রক্তের গ্রুপ': 'O+',
     'ধর্ম': 'ইসলাম',
-    '৪র্থ বিষয়': 'উচ্চতর গণিত',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'মন্তব্য': 'নিয়মিত ও মনোযোগী শিক্ষার্থী'
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০১',
+    'এসএসসি রোল': '১০৬১৮১',
+    'জন্ম তারিখ': '১৮/০৯/২০১০',
+    'ঠিকানা': 'পূর্ব বরইতলী, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৮১২৩৪৫৬০১'
   },
   {
-    'শিক্ষার্থীর নাম': 'ফারহানা আক্তার মিলি',
-    'শ্রেণি': '৯ম',
-    'শাখা': 'ক',
+    'রোল': '০২',
+    'বিভাগ': 'বিজ্ঞান',
+    'শিক্ষার্থীর নাম': 'তাহমিদ ইসলাম চৌধুরী',
+    'লিঙ্গ': 'পুরুষ',
+    'পিতার নাম': 'নুরুল ইসলাম চৌধুরী',
+    'মাতার নাম': 'আমেনা বেগম',
+    'ধর্ম': 'ইসলাম',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০২',
+    'এসএসসি রোল': '১০৬১৮২',
+    'জন্ম তারিখ': '১৫/০৩/২০১০',
+    'ঠিকানা': 'দক্ষিণ বরইতলী, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৮১২৩৪৫৬০২'
+  },
+  {
+    'রোল': '০১',
     'বিভাগ': 'মানবিক',
+    'শিক্ষার্থীর নাম': 'ফারহানা আক্তার মিলি',
     'লিঙ্গ': 'মহিলা',
-    'জন্ম তারিখ': '০৩/১২/২০১০',
     'পিতার নাম': 'মফিজুর রহমান',
     'মাতার নাম': 'হাসিনা বেগম',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০২',
-    'বর্তমান ঠিকানা': 'গ্রাম: গোয়াবাগান, ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, কক্সবাজার',
-    'পূর্বের রোল': '২৮',
-    'রোল': '০২',
-    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০২',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০২',
-    'রক্তের গ্রুপ': 'AB-',
     'ধর্ম': 'ইসলাম',
-    '৪র্থ বিষয়': 'কৃষি শিক্ষা',
-    'উপবৃত্তি প্রাপ্ত': 'হ্যাঁ',
-    'মন্তব্য': 'বিতর্ক ক্লাবের সদস্য'
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৩',
+    'এসএসসি রোল': '১০৬১৮৩',
+    'জন্ম তারিখ': '০৩/১২/২০১০',
+    'ঠিকানা': 'গোয়াবাগান, বরইতলী, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৮১২৩৪৫৬০৩'
   },
   {
-    'শিক্ষার্থীর নাম': 'তানভীর আহমেদ রিফাত',
-    'শ্রেণি': '৯ম',
-    'শাখা': 'ক',
-    'বিভাগ': 'ব্যবসায় শিক্ষা',
+    'রোল': '০২',
+    'বিভাগ': 'মানবিক',
+    'শিক্ষার্থীর নাম': 'অনিন্দ্য পাল দীপ',
     'লিঙ্গ': 'পুরুষ',
-    'জন্ম তারিখ': '২৫/০১/২০১০',
+    'পিতার নাম': 'সুনীল কুমার পাল',
+    'মাতার নাম': 'সুচিত্রা সেন পাল',
+    'ধর্ম': 'হিন্দু',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৪',
+    'এসএসসি রোল': '১০৬১৮৪',
+    'জন্ম তারিখ': '১০/০৫/২০১০',
+    'ঠিকানা': 'শান্তিবাজার, হারবাং, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৭১২৩৪৫৬০৪'
+  },
+  {
+    'রোল': '০১',
+    'বিভাগ': 'ব্যবসায় শিক্ষা',
+    'শিক্ষার্থীর নাম': 'তানভীর আহমেদ রিফাত',
+    'লিঙ্গ': 'পুরুষ',
     'পিতার নাম': 'কামরুল আহসান',
     'মাতার নাম': 'শাহিনুর বেগম',
-    'অভিভাবকের মোবাইল': '০১৮১২৩৪৫৬০৩',
-    'বর্তমান ঠিকানা': 'গ্রাম: কলেজ রোড, ডাকঘর: চকরিয়া, উপজেলা: চকরিয়া, কক্সবাজার',
-    'পূর্বের রোল': '৪২',
-    'রোল': '০৩',
-    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৩',
-    'শিক্ষাবর্ষ': '২০২৬',
-    'জন্ম নিবন্ধন নম্বর': '২০১০১৫৯২৬১২৩৪৫৬০৩',
-    'রক্তের গ্রুপ': 'A+',
     'ধর্ম': 'ইসলাম',
-    '৪র্থ বিষয়': 'কম্পিউটার শিক্ষা',
-    'উপবৃত্তি প্রাপ্ত': 'না',
-    'মন্তব্য': 'ক্রীড়া প্রতিযোগিতায় ১ম স্থান'
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৫',
+    'এসএসসি রোল': '১০৬১৮৫',
+    'জন্ম তারিখ': '২৫/০১/২০১০',
+    'ঠিকানা': 'কলেজ রোড, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৮১২৩৪৫৬০৫'
+  },
+  {
+    'রোল': '০২',
+    'বিভাগ': 'ব্যবসায় শিক্ষা',
+    'শিক্ষার্থীর নাম': 'শ্রাবন্তী দাশ তিথী',
+    'লিঙ্গ': 'মহিলা',
+    'পিতার নাম': 'সুধীর চন্দ্র দাশ',
+    'মাতার নাম': 'সন্ধ্যা রানী দাশ',
+    'ধর্ম': 'হিন্দু',
+    'রেজিস্ট্রেশন নম্বর': '২১১৫৬৮৪৩০৬',
+    'এসএসসি রোল': '১০৬১৮৬',
+    'জন্ম তারিখ': '১৪/০৮/২০১০',
+    'ঠিকানা': 'মাস্টারপাড়া, বরইতলী, চকরিয়া, কক্সবাজার',
+    'মোবাইল': '০১৭১২৩৪৫৬০৬'
   }
 ];
 
-// ─── 2. ENGLISH SAMPLE DATA (Exact English Headers per Specification) ──────
+// ─── 2. ENGLISH SAMPLE DATA (Exact English Headers per User Specification) ─
+// Order: Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile
 export const SAMPLE_STUDENTS_EN = [
   {
-    'Student Name': 'Sadia Binte Sultan',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '01',
     'Group': 'Science',
+    'Student Name': 'Sadia Binte Sultan',
     'Gender': 'Female',
-    'Date of Birth': '2010-09-18',
     "Father's Name": 'Sultan Mahmud',
     "Mother's Name": 'Nasima Akhter',
-    'Contact Number': '01812345601',
-    'Address': 'East Baraitali, Chakaria, Coxs Bazar',
-    'Previous Roll': '15',
-    'Registration Number': '2115684301',
     'Religion': 'Islam',
-    'Blood Group': 'O+',
-    'Birth Reg No': '20101592612345601',
-    'Remarks': 'Math Olympiad'
+    'Registration Number': '2115684301',
+    'SSC Roll': '106181',
+    'Date of Birth': '2010-09-18',
+    'Address': 'East Baraitali, Chakaria, Coxs Bazar',
+    'Mobile': '01812345601'
   },
   {
-    'Student Name': 'Tahmid Islam Chowdhury',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '02',
     'Group': 'Science',
+    'Student Name': 'Tahmid Islam Chowdhury',
     'Gender': 'Male',
-    'Date of Birth': '2010-03-15',
     "Father's Name": 'Nurul Islam Chowdhury',
     "Mother's Name": 'Amena Begum',
-    'Contact Number': '01812345602',
-    'Address': 'South Baraitali, Chakaria, Coxs Bazar',
-    'Previous Roll': '04',
-    'Registration Number': '2115684302',
     'Religion': 'Islam',
-    'Blood Group': 'B+',
-    'Birth Reg No': '20101592612345602',
-    'Remarks': 'Regular Student'
+    'Registration Number': '2115684302',
+    'SSC Roll': '106182',
+    'Date of Birth': '2010-03-15',
+    'Address': 'South Baraitali, Chakaria, Coxs Bazar',
+    'Mobile': '01812345602'
   },
   {
-    'Student Name': 'Farhana Akhter Mili',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '01',
     'Group': 'Humanities',
+    'Student Name': 'Farhana Akhter Mili',
     'Gender': 'Female',
-    'Date of Birth': '2010-12-03',
     "Father's Name": 'Mofizur Rahman',
     "Mother's Name": 'Hasina Begum',
-    'Contact Number': '01812345603',
-    'Address': 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
-    'Previous Roll': '28',
-    'Registration Number': '2115684303',
     'Religion': 'Islam',
-    'Blood Group': 'AB-',
-    'Birth Reg No': '20101592612345603',
-    'Remarks': 'Cultural Prize Winner'
+    'Registration Number': '2115684303',
+    'SSC Roll': '106183',
+    'Date of Birth': '2010-12-03',
+    'Address': 'Goabagan, Baraitali, Chakaria, Coxs Bazar',
+    'Mobile': '01812345603'
   },
   {
-    'Student Name': 'Anindya Paul Dip',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '02',
     'Group': 'Humanities',
+    'Student Name': 'Anindya Paul Dip',
     'Gender': 'Male',
-    'Date of Birth': '2010-05-10',
     "Father's Name": 'Sunil Kumar Paul',
     "Mother's Name": 'Suchitra Sen Paul',
-    'Contact Number': '01712345604',
-    'Address': 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
-    'Previous Roll': '09',
-    'Registration Number': '2115684304',
     'Religion': 'Hindu',
-    'Blood Group': 'A+',
-    'Birth Reg No': '20101592612345604',
-    'Remarks': 'Debate Club'
+    'Registration Number': '2115684304',
+    'SSC Roll': '106184',
+    'Date of Birth': '2010-05-10',
+    'Address': 'Shantibazar, Harbang, Chakaria, Coxs Bazar',
+    'Mobile': '01712345604'
   },
   {
-    'Student Name': 'Tanvir Ahmed Rifat',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '01',
     'Group': 'Business Studies',
+    'Student Name': 'Tanvir Ahmed Rifat',
     'Gender': 'Male',
-    'Date of Birth': '2010-01-25',
     "Father's Name": 'Kamrul Ahsan',
     "Mother's Name": 'Shahinur Begum',
-    'Contact Number': '01812345605',
-    'Address': 'College Road, Chakaria, Coxs Bazar',
-    'Previous Roll': '42',
-    'Registration Number': '2115684305',
     'Religion': 'Islam',
-    'Blood Group': 'A+',
-    'Birth Reg No': '20101592612345605',
-    'Remarks': 'Sports Captain'
+    'Registration Number': '2115684305',
+    'SSC Roll': '106185',
+    'Date of Birth': '2010-01-25',
+    'Address': 'College Road, Chakaria, Coxs Bazar',
+    'Mobile': '01812345605'
   },
   {
-    'Student Name': 'Srabanti Das Tithi',
-    'Class': '9th',
-    'Section': 'A',
+    'Roll': '02',
     'Group': 'Business Studies',
+    'Student Name': 'Srabanti Das Tithi',
     'Gender': 'Female',
-    'Date of Birth': '2010-08-14',
     "Father's Name": 'Sudhir Chandra Das',
     "Mother's Name": 'Sandhya Rani Das',
-    'Contact Number': '01712345606',
-    'Address': 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
-    'Previous Roll': '11',
-    'Registration Number': '2115684306',
     'Religion': 'Hindu',
-    'Blood Group': 'B+',
-    'Birth Reg No': '20101592612345606',
-    'Remarks': 'Class Representative'
+    'Registration Number': '2115684306',
+    'SSC Roll': '106186',
+    'Date of Birth': '2010-08-14',
+    'Address': 'Masterpara, Baraitali, Chakaria, Coxs Bazar',
+    'Mobile': '01712345606'
   }
 ];
 
-// ─── 3. FIELD SPECIFICATION GUIDE ──────────────────────────────────────────
+// ─── 3. FIELD SPECIFICATION GUIDE (Exact 12 Specified Columns) ──────────────
 export const FIELD_GUIDE_ROWS = [
-  { field: 'Student Name', bnName: 'শিক্ষার্থীর নাম', required: 'আবশ্যক', sampleEn: 'Sadia Sultana', sampleBn: 'সাদিয়া সুলতানা', desc: 'ইংরেজি বা বাংলা পূর্ণাঙ্গ নাম' },
-  { field: 'Class', bnName: 'শ্রেণি', required: 'আবশ্যক', sampleEn: '9th / Class 9', sampleBn: '৯ম / নবম', desc: '9th বা ৯ম শ্রেণি (৬ষ্ঠ থেকে ১০ম সমর্থিত)' },
-  { field: 'Group', bnName: 'বিভাগ / গ্রুপ', required: 'আবশ্যক (৯ম/১০ম)', sampleEn: 'Science / Humanities / Business Studies', sampleBn: 'বিজ্ঞান / মানবিক / ব্যবসায় শিক্ষা', desc: 'বিজ্ঞান (Science), মানবিক (Humanities/Arts), ব্যবসায় শিক্ষা (Commerce/Business)' },
-  { field: 'Section', bnName: 'শাখা', required: 'ঐচ্ছিক', sampleEn: 'A / B', sampleBn: 'ক / খ', desc: 'A, B বা ক, খ (ডিফল্ট: A)' },
-  { field: 'Gender', bnName: 'লিঙ্গ', required: 'ঐচ্ছিক', sampleEn: 'Male / Female', sampleBn: 'পুরুষ / মহিলা', desc: 'পুরুষ / মহিলা বা Male / Female' },
+  { field: 'Roll', bnName: 'রোল', required: 'আবশ্যক', sampleEn: '01', sampleBn: '০১', desc: 'শিক্ষার্থীর রোল নম্বর (বিজ্ঞান, মানবিক বা ব্যবসায় শিক্ষা অনুসারে)' },
+  { field: 'Group', bnName: 'বিভাগ / গ্রুপ', required: 'আবশ্যক', sampleEn: 'Science / Humanities / Business Studies', sampleBn: 'বিজ্ঞান / মানবিক / ব্যবসায় শিক্ষা', desc: 'বিজ্ঞান (Science), মানবিক (Humanities), ব্যবসায় শিক্ষা (Business Studies)' },
+  { field: 'Student Name', bnName: 'শিক্ষার্থীর নাম', required: 'আবশ্যক', sampleEn: 'Sadia Binte Sultan', sampleBn: 'সাদিয়া বিনতে সুলতান', desc: 'ইংরেজি বা বাংলা পূর্ণাঙ্গ নাম' },
+  { field: 'Gender', bnName: 'লিঙ্গ', required: 'ঐচ্ছিক', sampleEn: 'Male / Female', sampleBn: 'পুরুষ / মহিলা', desc: 'পুরুষ (Male) বা মহিলা (Female)' },
+  { field: "Father's Name", bnName: 'পিতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Sultan Mahmud', sampleBn: 'সুলতান মাহমুদ', desc: 'পিতার পূর্ণ নাম' },
+  { field: "Mother's Name", bnName: 'মাতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Nasima Akhter', sampleBn: 'নাছিমা আক্তার', desc: 'মাতার পূর্ণ নাম' },
+  { field: 'Religion', bnName: 'ধর্ম', required: 'ঐচ্ছিক', sampleEn: 'Islam / Hindu / Buddhist / Christian', sampleBn: 'ইসলাম / হিন্দু / বৌদ্ধ / খ্রিস্টান', desc: 'ধর্মবিশ্বাস' },
+  { field: 'Registration Number', bnName: 'রেজিস্ট্রেশন নম্বর', required: 'ঐচ্ছিক (৯ম-১০ম)', sampleEn: '2115684301', sampleBn: '২১১৫৬৮৪৩০১', desc: 'শিক্ষা বোর্ড প্রদত্ত রেজিস্ট্রেশন নম্বর (১০ ডিজিট)' },
+  { field: 'SSC Roll', bnName: 'এসএসসি রোল', required: 'ঐচ্ছিক', sampleEn: '106184', sampleBn: '১০৬১৮৪', desc: 'শিক্ষা বোর্ড প্রদত্ত এসএসসি রোল নম্বর (৬ ডিজিট)' },
   { field: 'Date of Birth', bnName: 'জন্ম তারিখ', required: 'ঐচ্ছিক', sampleEn: '2010-09-18', sampleBn: '১৮/০৯/২০১০', desc: 'YYYY-MM-DD অথবা DD/MM/YYYY' },
-  { field: "Father's Name", bnName: 'পিতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Sultan Mahmud', sampleBn: 'সুলতান মাহমুদ', desc: 'পিতার নাম (শিক্ষার্থীর নামের সাথে পৃথকভাবে সংরক্ষিত)' },
-  { field: "Mother's Name", bnName: 'মাতার নাম', required: 'ঐচ্ছিক', sampleEn: 'Nasima Begum', sampleBn: 'নাছিমা বেগম', desc: 'মাতার নাম (স্বতন্ত্রভাবে সংরক্ষিত)' },
-  { field: 'Contact Number', bnName: 'অভিভাবকের মোবাইল', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' },
-  { field: 'Address', bnName: 'বর্তমান ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'Baraitali, Chakaria', sampleBn: 'বরইতলী, চকরিয়া', desc: 'পূর্ণাঙ্গ যোগাযোগের ঠিকানা' },
-  { field: 'Previous Roll', bnName: 'পূর্ববর্তী রোল', required: 'ঐচ্ছিক', sampleEn: '15', sampleBn: '১৫', desc: 'ফাইলে থাকা আগের রোল' },
-  { field: 'Registration Number', bnName: 'রেজিস্ট্রেশন নম্বর', required: 'ঐচ্ছিক (৯ম-১০ম শ্রেণি)', sampleEn: '2115684301', sampleBn: '২১১৫৬৮৪৩০১', desc: 'শিক্ষা বোর্ড কর্তৃক প্রদত্ত ১০ ডিজিটের রেজিস্ট্রেশন নম্বর (৯ম ও ১০ম শ্রেণির জন্য প্রযোজ্য)' }
+  { field: 'Address', bnName: 'ঠিকানা', required: 'ঐচ্ছিক', sampleEn: 'East Baraitali, Chakaria', sampleBn: 'পূর্ব বরইতলী, চকরিয়া', desc: 'বর্তমান বা স্থায়ী ঠিকানা' },
+  { field: 'Mobile', bnName: 'মোবাইল নম্বর', required: 'প্রস্তাবিত', sampleEn: '01812345601', sampleBn: '০১৮১২৩৪৫৬০১', desc: '১১ ডিজিটের মোবাইল নম্বর' }
 ];
 
 interface StudentBulkImportPanelProps {
@@ -329,22 +324,18 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
       const wsStudents = XLSX.utils.json_to_sheet(data);
 
       wsStudents['!cols'] = [
-        { wch: 28 }, // Name
-        { wch: 12 }, // Class
-        { wch: 10 }, // Section
+        { wch: 10 }, // Roll
         { wch: 20 }, // Group
+        { wch: 28 }, // Student Name
         { wch: 12 }, // Gender
-        { wch: 16 }, // DOB
-        { wch: 26 }, // FatherName
-        { wch: 26 }, // MotherName
-        { wch: 18 }, // Contact
-        { wch: 38 }, // Address
-        { wch: 14 }, // PrevRoll
-        { wch: 20 }, // RegistrationNo
+        { wch: 26 }, // Father's Name
+        { wch: 26 }, // Mother's Name
         { wch: 14 }, // Religion
-        { wch: 14 }, // BloodGroup
-        { wch: 22 }, // BRN
-        { wch: 24 }  // Remarks
+        { wch: 22 }, // Registration Number
+        { wch: 16 }, // SSC Roll
+        { wch: 16 }, // Date of Birth
+        { wch: 38 }, // Address
+        { wch: 18 }  // Mobile
       ];
 
       const wsGuide = XLSX.utils.json_to_sheet(
@@ -639,7 +630,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">প্রস্তাবিত</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Student Name, Class, Section, Group, Gender, Date of Birth, Father's Name, Mother's Name, Contact Number, Address, Previous Roll</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -669,7 +660,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">সহজ</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">শিক্ষার্থীর নাম, শ্রেণি, শাখা, বিভাগ, লিঙ্গ, জন্ম তারিখ, পিতার নাম, মাতার নাম, মোবাইল, ঠিকানা, পূর্বের রোল...</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">রোল, বিভাগ, শিক্ষার্থীর নাম, লিঙ্গ, পিতার নাম, মাতার নাম, ধর্ম, রেজিস্ট্রেশন নম্বর, এসএসসি রোল, জন্ম তারিখ, ঠিকানা, মোবাইল</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -1073,115 +1064,204 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
             </div>
           </div>
 
-          {/* 🌟 4.4 PREVIEW TABLE WITH SEPARATED FATHER/MOTHER & ROLL BADGES */}
-          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl max-h-96">
+          {/* 🌟 4.4 PREVIEW TABLE WITH EXACT SPECIFIED 12 COLUMNS */}
+          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl max-h-[520px] shadow-sm bg-white dark:bg-slate-900">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold sticky top-0 z-10">
+              <thead className="bg-slate-100/90 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 font-bold sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700 backdrop-blur-xs">
                 <tr>
-                  <th className="p-2.5 border-b w-16 text-center">রোল নম্বর</th>
-                  <th className="p-2.5 border-b w-14 text-center">পূর্বের রোল</th>
-                  <th className="p-2.5 border-b">শিক্ষার্থীর নাম</th>
-                  <th className="p-2.5 border-b">শ্রেণি ও শাখা</th>
-                  <th className="p-2.5 border-b">বিভাগ</th>
-                  <th className="p-2.5 border-b text-center">রেজিস্ট্রেশন নং (৯ম-১০ম)</th>
-                  <th className="p-2.5 border-b">পিতার নাম</th>
-                  <th className="p-2.5 border-b">মাতার নাম</th>
-                  <th className="p-2.5 border-b">মোবাইল নম্বর</th>
-                  <th className="p-2.5 border-b">বর্তমান ঠিকানা</th>
-                  <th className="p-2.5 border-b text-center">পূর্ণাঙ্গ তথ্য</th>
+                  <th className="p-3 w-10 text-center text-slate-400 font-mono">#</th>
+                  <th className="p-3 w-20 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Roll</span>
+                    <span className="text-[10px] text-slate-500 font-normal">রোল</span>
+                  </th>
+                  <th className="p-3 w-32">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Group</span>
+                    <span className="text-[10px] text-slate-500 font-normal">বিভাগ</span>
+                  </th>
+                  <th className="p-3 min-w-[200px]">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Student Name</span>
+                    <span className="text-[10px] text-slate-500 font-normal">শিক্ষার্থীর নাম</span>
+                  </th>
+                  <th className="p-3 w-24 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">GENDER</span>
+                    <span className="text-[10px] text-slate-500 font-normal">লিঙ্গ</span>
+                  </th>
+                  <th className="p-3 min-w-[160px]">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Fathers Name</span>
+                    <span className="text-[10px] text-slate-500 font-normal">পিতার নাম</span>
+                  </th>
+                  <th className="p-3 min-w-[160px]">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Mother's Name</span>
+                    <span className="text-[10px] text-slate-500 font-normal">মাতার নাম</span>
+                  </th>
+                  <th className="p-3 w-24 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">RELIGION</span>
+                    <span className="text-[10px] text-slate-500 font-normal">ধর্ম</span>
+                  </th>
+                  <th className="p-3 w-36 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Registration Number</span>
+                    <span className="text-[10px] text-slate-500 font-normal">রেজিস্ট্রেশন নম্বর</span>
+                  </th>
+                  <th className="p-3 w-28 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">SSC Roll</span>
+                    <span className="text-[10px] text-slate-500 font-normal">এসএসসি রোল</span>
+                  </th>
+                  <th className="p-3 w-28 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">DATE OF BIRTH</span>
+                    <span className="text-[10px] text-slate-500 font-normal">জন্ম তারিখ</span>
+                  </th>
+                  <th className="p-3 min-w-[220px]">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Address</span>
+                    <span className="text-[10px] text-slate-500 font-normal">ঠিকানা</span>
+                  </th>
+                  <th className="p-3 w-32 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">MOBILE</span>
+                    <span className="text-[10px] text-slate-500 font-normal">মোবাইল</span>
+                  </th>
+                  <th className="p-3 w-16 text-center">
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Action</span>
+                    <span className="text-[10px] text-slate-500 font-normal">পূর্ণাঙ্গ</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                 {filteredPreview.map((st, i) => {
                   const isSci = st.group === 'বিজ্ঞান';
                   const isHum = st.group === 'মানবিক';
                   const isBus = st.group === 'ব্যবসায় শিক্ষা';
 
                   return (
-                    <tr key={i} className="hover:bg-violet-50/30 dark:hover:bg-slate-800/50">
-                      {/* Generated Roll */}
-                      <td className="p-2.5 text-center font-mono font-bold">
-                        <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-black shadow-xs ${
+                    <tr key={i} className="hover:bg-violet-50/40 dark:hover:bg-slate-800/50 transition-colors">
+                      {/* Index # */}
+                      <td className="p-3 text-center font-mono text-slate-400 text-[11px]">
+                        {i + 1}
+                      </td>
+
+                      {/* 1. Roll */}
+                      <td className="p-3 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[34px] px-2.5 py-0.5 rounded-lg text-xs font-mono font-black shadow-xs ${
                           isSci
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200'
+                            ? 'bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800'
                             : isHum
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200'
+                            ? 'bg-purple-50 text-purple-800 border border-purple-200 dark:bg-purple-950/70 dark:text-purple-300 dark:border-purple-800'
                             : isBus
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200'
-                            : 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800'
+                            : 'bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-200'
                         }`}>
                           {st.roll}
                         </span>
                       </td>
 
-                      {/* Previous Roll */}
-                      <td className="p-2.5 text-center font-mono text-slate-400">
-                        {st.prevRoll || '-'}
-                      </td>
-
-                      {/* Student Name */}
-                      <td className="p-2.5 font-bold text-slate-900 dark:text-white">
-                        {st.name}
-                      </td>
-
-                      {/* Grade & Section */}
-                      <td className="p-2.5">
-                        <span className="font-semibold">{st.gradeBn || st.grade}</span>{' '}
-                        <span className="text-slate-500 font-bold">({st.section})</span>
-                      </td>
-
-                      {/* Group */}
-                      <td className="p-2.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                      {/* 2. Group */}
+                      <td className="p-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
                           isSci
-                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            ? 'bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800'
                             : isHum
-                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                            ? 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
                             : isBus
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                            : 'bg-slate-100 text-slate-700'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
                         }`}>
-                          {st.group || 'সাধারণ'}
+                          {isSci ? '🔬 বিজ্ঞান' : isHum ? '📚 মানবিক' : isBus ? '💼 ব্যবসায় শিক্ষা' : st.group || 'সাধারণ'}
                         </span>
                       </td>
 
-                      {/* Registration Number (9th-10th) */}
-                      <td className="p-2.5 text-center font-mono">
-                        {st.registrationNo ? (
-                          <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            {st.registrationNo}
+                      {/* 3. Student Name */}
+                      <td className="p-3">
+                        <div className="font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          {st.name}
+                        </div>
+                        {(st.gradeBn || st.grade) && (
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {st.gradeBn || st.grade} {st.section ? `(${st.section})` : ''}
                           </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">-</span>
                         )}
                       </td>
 
-                      {/* Father Name (Distinct) */}
-                      <td className="p-2.5 text-slate-800 dark:text-slate-200 font-medium">
-                        {st.fatherName || '-'}
+                      {/* 4. GENDER */}
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                          st.gender === 'মহিলা' || st.gender?.toLowerCase() === 'female'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
+                            : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-900'
+                        }`}>
+                          {st.gender || 'পুরুষ'}
+                        </span>
                       </td>
 
-                      {/* Mother Name (Distinct) */}
-                      <td className="p-2.5 text-slate-700 dark:text-slate-300 font-medium">
-                        {st.motherName || '-'}
+                      {/* 5. Fathers Name */}
+                      <td className="p-3 text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">
+                        {st.fatherName || <span className="text-slate-300 dark:text-slate-600">-</span>}
                       </td>
 
-                      {/* Mobile */}
-                      <td className="p-2.5 font-mono text-slate-600 dark:text-slate-400">
-                        {st.mobile || '-'}
+                      {/* 6. Mother's Name */}
+                      <td className="p-3 text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">
+                        {st.motherName || <span className="text-slate-300 dark:text-slate-600">-</span>}
                       </td>
 
-                      {/* Address */}
-                      <td className="p-2.5 text-slate-500 text-[11px] max-w-[160px] truncate" title={st.currentAddress}>
-                        {st.currentAddress || '-'}
+                      {/* 7. RELIGION */}
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                          st.religion === 'ইসলাম'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-900'
+                            : st.religion === 'হিন্দু'
+                            ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-900'
+                            : st.religion === 'বৌদ্ধ'
+                            ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/60 dark:text-yellow-300 dark:border-yellow-900'
+                            : st.religion === 'খ্রিস্টান'
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                          {st.religion || 'ইসলাম'}
+                        </span>
                       </td>
 
-                      {/* Detail View Button */}
-                      <td className="p-2.5 text-center">
+                      {/* 8. Registration Number */}
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {st.registrationNo ? (
+                          <span className="font-mono font-bold text-[11px] text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 tracking-wider">
+                            {st.registrationNo}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 font-mono">-</span>
+                        )}
+                      </td>
+
+                      {/* 9. SSC Roll */}
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {st.sscRoll ? (
+                          <span className="font-mono font-bold text-[11px] text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-md border border-teal-200 dark:border-teal-800 tracking-wider">
+                            {st.sscRoll}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 font-mono">-</span>
+                        )}
+                      </td>
+
+                      {/* 10. DATE OF BIRTH */}
+                      <td className="p-3 text-center font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap text-[11px]">
+                        {st.dob || <span className="text-slate-300 dark:text-slate-600">-</span>}
+                      </td>
+
+                      {/* 11. Address */}
+                      <td className="p-3 text-slate-600 dark:text-slate-400 text-[11px] max-w-[220px]" title={st.currentAddress || st.permanentAddress}>
+                        <span className="truncate block">
+                          {st.currentAddress || st.permanentAddress || <span className="text-slate-300 dark:text-slate-600">-</span>}
+                        </span>
+                      </td>
+
+                      {/* 12. MOBILE */}
+                      <td className="p-3 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap text-xs">
+                        {st.mobile || <span className="text-slate-300 dark:text-slate-600">-</span>}
+                      </td>
+
+                      {/* Action */}
+                      <td className="p-3 text-center">
                         <button
                           type="button"
                           onClick={() => setSelectedStudentDetail(st)}
-                          className="p-1 hover:bg-violet-100 dark:hover:bg-slate-700 text-violet-700 dark:text-violet-400 rounded-lg transition"
+                          className="p-1.5 hover:bg-violet-100 dark:hover:bg-slate-800 text-violet-700 dark:text-violet-400 rounded-lg transition-all cursor-pointer"
                           title="সম্পূর্ণ বিস্তারিত প্রোফাইল দেখুন"
                         >
                           <Eye className="w-4 h-4" />
@@ -1193,7 +1273,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
 
                 {filteredPreview.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="p-6 text-center text-slate-400 font-bold">
+                    <td colSpan={14} className="p-8 text-center text-slate-400 font-bold">
                       কোনো শিক্ষার্থী পাওয়া যায়নি।
                     </td>
                   </tr>
@@ -1257,7 +1337,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1 sm:col-span-2">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">একাডেমিক তথ্য</span>
                 <p><strong>স্বয়ংক্রিয়ভাবে জেনারেটকৃত আইডি:</strong> <span className="font-mono text-violet-600 font-bold">{selectedStudentDetail.id}</span></p>
-                <p><strong>বোর্ড রেজিস্ট্রেশন নম্বর (৯ম-১০ম):</strong> <span className="font-mono text-indigo-700 dark:text-indigo-400 font-bold">{selectedStudentDetail.registrationNo || 'দেওয়া হয়নি'}</span></p>
+                <p><strong>বোর্ড রেজিস্ট্রেশন নম্বর:</strong> <span className="font-mono text-indigo-700 dark:text-indigo-400 font-bold">{selectedStudentDetail.registrationNo || 'দেওয়া হয়নি'}</span></p>
+                <p><strong>এসএসসি রোল (SSC Roll):</strong> <span className="font-mono text-teal-700 dark:text-teal-400 font-bold">{selectedStudentDetail.sscRoll || 'দেওয়া হয়নি'}</span></p>
                 <p><strong>শিক্ষাবর্ষ:</strong> {selectedStudentDetail.session || '২০২৬'}</p>
                 <p><strong>৪র্থ / ঐচ্ছিক বিষয়:</strong> {selectedStudentDetail.optionalSubject || 'দেওয়া হয়নি'}</p>
                 {selectedStudentDetail.remarks && <p><strong>মন্তব্য:</strong> {selectedStudentDetail.remarks}</p>}

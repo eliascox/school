@@ -23,6 +23,7 @@ export interface Student {
   gpa?: string;
   birthRegNo?: string;
   registrationNo?: string;      // ৯-১০ম শ্রেণির শিক্ষা বোর্ড রেজিস্ট্রেশন নম্বর (Board Registration No)
+  sscRoll?: string;             // এসএসসি রোল নম্বর (SSC Roll)
   dob?: string;
   gender?: string;
   religion?: string;

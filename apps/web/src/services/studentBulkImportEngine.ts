@@ -156,6 +156,16 @@ export function normalizeHeaderKey(rawKey: string): string {
     return 'prevRoll';
   }
 
+  // 4.5 SSC Roll (CHECK BEFORE generic 'roll'!)
+  if (
+    k.includes('sscroll') ||
+    k.includes('ssc') ||
+    k.includes('এসএসসিরোল') ||
+    k.includes('এসএসসি')
+  ) {
+    return 'sscRoll';
+  }
+
   // 5. Roll / Serial Number
   if (
     k.includes('rollno') ||
@@ -176,6 +186,7 @@ export function normalizeHeaderKey(rawKey: string): string {
   // 6. Student Name (Now safe to check 'name' / 'নাম')
   if (
     k.includes('student') ||
+    k.includes('studant') ||
     k.includes('শিক্ষার্থী') ||
     k.includes('ছাত্র') ||
     k.includes('ছাত্রী') ||
@@ -282,6 +293,7 @@ export function normalizeHeaderKey(rawKey: string): string {
     (
       k.includes('boardreg') ||
       k.includes('registrationno') ||
+      k.includes('regstation') ||
       k.includes('regno') ||
       k.includes('regnumber') ||
       k.includes('registrationnumber') ||
@@ -573,9 +585,10 @@ export function normalizeStudentRow(
   if (rawMobile.startsWith('880')) rawMobile = rawMobile.slice(2);
   if (rawMobile.length > 11) rawMobile = rawMobile.slice(-11);
 
-  // 10. Birth Reg No, Board Reg No & NIDs
+  // 10. Birth Reg No, Board Reg No, SSC Roll & NIDs
   const brnVal = bnToEnDigits(row['birthRegNo'] || '').replace(/[^0-9]/g, '');
   const regNoVal = bnToEnDigits(row['registrationNo'] || '').replace(/[^0-9]/g, '');
+  const sscRollVal = bnToEnDigits(row['sscRoll'] || '').replace(/[^0-9]/g, '');
   const fatherNidVal = bnToEnDigits(row['fatherNid'] || '').replace(/[^0-9]/g, '');
   const motherNidVal = bnToEnDigits(row['motherNid'] || '').replace(/[^0-9]/g, '');
   const dobVal = bnToEnDigits(row['dob'] || '').trim();
@@ -630,6 +643,7 @@ export function normalizeStudentRow(
     dob: dobVal,
     birthRegNo: brnVal,
     registrationNo: regNoVal,
+    sscRoll: sscRollVal,
     bloodGroup: bloodGroupVal,
     religion: religionVal,
     mobile: rawMobile,
