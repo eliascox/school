@@ -501,7 +501,6 @@ function PrintPageContent() {
                       <td className="font-mono font-bold">{toBn(summaryTotalBoys)}</td>
                       <td className="font-mono font-bold">{toBn(summaryTotalGirls)}</td>
                       <td className="font-mono font-bold">{toBn(summaryGrandTotal)}</td>
-                      <td></td>
                     </tr>
                   </tbody>
                 </table>
