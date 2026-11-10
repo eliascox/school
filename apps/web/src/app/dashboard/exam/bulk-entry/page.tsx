@@ -435,12 +435,20 @@ export default function BulkMarkEntryPage() {
       const targetGroupBn = isClass9or10 ? (selectedGroup === 'science' ? 'বিজ্ঞান' : selectedGroup === 'humanities' ? 'মানবিক' : 'ব্যবসায় শিক্ষা') : 'সাধারণ';
       const groupsToSave = isClass9or10 ? [selectedGroup, targetGroupBn, ''] : ['সাধারণ', ''];
 
+      const savedKeys: string[] = [];
       for (const gp of groupsToSave) {
         for (const ident of allIdentifiers) {
           if (!ident) continue;
-          localStorage.setItem(`sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${gp}_${ident}`, jsonVal);
+          const k = `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${gp}_${ident}`;
+          localStorage.setItem(k, jsonVal);
+          savedKeys.push(k);
         }
       }
+
+      // ☁️ Auto-sync saved marks to Cloud Firestore so /result works on all devices
+      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncMarksKeysToCloud(savedKeys).catch(() => {});
+      }).catch(() => {});
     }
   };
 

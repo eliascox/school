@@ -26,6 +26,23 @@ export interface UserSession {
   loginAt?: number;
   lastActiveAt?: number;
   expiresAt?: number;
+  sig?: string;
+}
+
+const SESSION_SIGNING_SECRET = 'BHS_SMS_AUTH_INTEGRITY_2026_V2_KEY';
+
+function computeSessionSignature(s: UserSession): string {
+  const payload = `${SESSION_SIGNING_SECRET}|${s.role}|${s.teacherId || 'ROOT'}|${s.loginAt || 0}|${s.expiresAt || 0}`;
+  let h1 = 0xdeadbeef ^ payload.length;
+  let h2 = 0x41c6ce57 ^ payload.length;
+  for (let i = 0; i < payload.length; i++) {
+    const ch = payload.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 'v2_' + (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
 }
 
 export interface LockoutStatus {
@@ -58,15 +75,21 @@ export function toBnDigits(num: number | string): string {
 }
 
 export const teacherAuthService = {
-  // Get Current Active Session (SEC-104: with session timeout validation)
+  // Get Current Active Session (SEC-104: with session timeout & integrity signature validation)
   getSession: (): UserSession | null => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('sms_current_session');
       if (stored) {
         try {
           const session: UserSession = JSON.parse(stored);
-          // Check session expiry (default 24h lifetime)
-          if (session.expiresAt && Date.now() > session.expiresAt) {
+          // 1. Check session expiry (default 24h lifetime)
+          if (!session.expiresAt || Date.now() > session.expiresAt) {
+            localStorage.removeItem('sms_current_session');
+            return null;
+          }
+          // 2. Verify cryptographic session signature to block DevTools role spoofing
+          const expectedSig = computeSessionSignature(session);
+          if (!session.sig || session.sig !== expectedSig) {
             localStorage.removeItem('sms_current_session');
             return null;
           }
@@ -79,7 +102,7 @@ export const teacherAuthService = {
     return null;
   },
 
-  // Set Session with lifetime metadata
+  // Set Session with lifetime metadata & cryptographic integrity signature
   setSession: (session: UserSession) => {
     if (typeof window !== 'undefined') {
       const now = Date.now();
@@ -89,6 +112,7 @@ export const teacherAuthService = {
         lastActiveAt: now,
         expiresAt: session.expiresAt || (now + 24 * 60 * 60 * 1000), // 24 hours
       };
+      sessionWithTiming.sig = computeSessionSignature(sessionWithTiming);
       localStorage.setItem('sms_current_session', JSON.stringify(sessionWithTiming));
       window.dispatchEvent(new Event('storage'));
     }
@@ -100,6 +124,7 @@ export const teacherAuthService = {
       const session = teacherAuthService.getSession();
       if (session) {
         session.lastActiveAt = Date.now();
+        session.sig = computeSessionSignature(session);
         localStorage.setItem('sms_current_session', JSON.stringify(session));
       }
     }

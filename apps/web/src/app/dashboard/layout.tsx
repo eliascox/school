@@ -29,14 +29,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // ☁️ Cross-PC Real-Time Cloud Firestore Sync on Dashboard Mount
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.onLine) {
-      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
-        firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
-          if (cloudData.settings) {
-            import('@/services/settingsService').then(({ settingsService }) => {
-              settingsService.updateSettings(cloudData.settings!);
-            }).catch(() => {});
+      import('@/services/firebaseSyncService').then(async ({ firebaseSyncService }) => {
+        try {
+          const rawStudents = localStorage.getItem('sms_students');
+          const hasLocalStudents = rawStudents && JSON.parse(rawStudents).length > 0;
+          if (!hasLocalStudents) {
+            // Fresh PC or cleared browser cache: automatically restore full school database from Cloud Firestore
+            await firebaseSyncService.pullAllFromCloud();
+          } else {
+            const cloudData = await firebaseSyncService.fetchLandingPageCloudData();
+            if (cloudData.settings) {
+              const { settingsService } = await import('@/services/settingsService');
+              settingsService.updateSettings(cloudData.settings);
+            }
           }
-        }).catch(() => {});
+        } catch {
+          // Ignore offline/network errors gracefully
+        }
       }).catch(() => {});
     }
   }, []);

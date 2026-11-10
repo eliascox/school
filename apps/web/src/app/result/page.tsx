@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { settingsService } from '@/services/settingsService';
 import { studentService } from '@/services/studentService';
 import { examService, ExamItem } from '@/services/examService';
+import { firebaseSyncService } from '@/services/firebaseSyncService';
 import {
   MarksheetSheetCard,
   generateStudentMarksheetData,
@@ -158,6 +159,12 @@ function ResultSearchContent() {
     };
 
     loadExams();
+    // ☁️ Sync live exams, students, and marks from Google Cloud Firestore for mobile visitors
+    firebaseSyncService.fetchPublicResultDataFromCloud().then(() => {
+      loadExams();
+      setSettings(settingsService.getSettings());
+    }).catch(() => {});
+
     const unsubExams = examService.subscribe(loadExams);
     const handleExamEvent = () => loadExams();
     window.addEventListener('sms_exam_setup_changed', handleExamEvent);
@@ -207,7 +214,7 @@ function ResultSearchContent() {
   // Logic: Only Class 9 and 10 have group selection; Class 6-8 have neither group nor section
   const isClass9or10 = selectedGrade === '9th' || selectedGrade === '10th';
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg('');
     setSearchSuccess(false);
@@ -222,6 +229,11 @@ function ResultSearchContent() {
       setIsSearching(false);
       return;
     }
+
+    // Ensure latest cloud data is pulled on mobile/external browsers
+    try {
+      await firebaseSyncService.fetchPublicResultDataFromCloud();
+    } catch (err) {}
 
     // 0. Strict Publication Gate: Check if exam result is published
     const isExamPublished = examService.isExamResultPublished(selectedExam);

@@ -119,6 +119,13 @@ export default function StudentListPage() {
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [sortStrategy, setSortStrategy] = useState<'roll_asc' | 'name_asc' | 'roll_desc' | 'name_desc'>('roll_asc');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  // Reset pagination to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, gradeFilter, branchFilter, genderFilter, groupFilter, sortStrategy, pageSize]);
 
   // In-Page Active View State (No Popups!)
   const [activeView, setActiveView] = useState<ViewState>('list');
@@ -729,6 +736,13 @@ export default function StudentListPage() {
 
   // 🌟 Group-wise and Roll-wise sorting: ছোট থেকে বড় (১, ২, ৩...) অথবা নাম (A-Z)
   const filteredStudents = sortStudentsGroupAndRoll(rawFilteredStudents as any, sortStrategy) as unknown as StudentItem[];
+
+  // ⚡ High-Performance Pagination for Main Interactive Directory Table
+  const totalPages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedStudents = pageSize === 0
+    ? filteredStudents
+    : filteredStudents.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   const totalStudents = students.length;
 
@@ -2775,7 +2789,7 @@ export default function StudentListPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-xs">
-                      {filteredStudents.map((st) => {
+                      {paginatedStudents.map((st) => {
                         const isSelected = selectedStudentIds.includes(st.id);
                         return (
                           <tr key={st.id} className={`hover:bg-slate-50/80 transition group ${isSelected ? 'bg-indigo-50/30' : ''}`}>
@@ -2950,10 +2964,53 @@ export default function StudentListPage() {
                   </table>
                 </div>
 
-                {/* Directory Footer */}
-                <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500 font-semibold">
-                  <span>মোট রেজিস্টার্ড শিক্ষার্থী: <strong>{totalStudents}</strong> জন (প্রদর্শিত: {filteredStudents.length})</span>
-                  <span>বরইতলী উচ্চ বিদ্যালয় ডিজিটাল ডিরেক্টরি</span>
+                {/* Directory Footer & High-Performance Pagination */}
+                <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-semibold">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span>
+                      মোট রেজিস্টার্ড শিক্ষার্থী: <strong>{toBnDigit(totalStudents)}</strong> জন
+                      {' '}(ফিল্টারকৃত: <strong>{toBnDigit(filteredStudents.length)}</strong> জন)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">পৃষ্ঠা প্রতি:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      >
+                        <option value={50}>৫০ জন</option>
+                        <option value={100}>১০০ জন</option>
+                        <option value={200}>২০০ জন</option>
+                        <option value={0}>সব ({toBnDigit(filteredStudents.length)})</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {totalPages > 1 ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        ← পূর্ববর্তী
+                      </button>
+                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-extrabold">
+                        পৃষ্ঠা {toBnDigit(safeCurrentPage)} / {toBnDigit(totalPages)}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        পরবর্তী →
+                      </button>
+                    </div>
+                  ) : (
+                    <span>বরইতলী উচ্চ বিদ্যালয় ডিজিটাল ডিরেক্টরি</span>
+                  )}
                 </div>
               </div>
 

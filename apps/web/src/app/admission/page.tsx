@@ -235,7 +235,7 @@ export default function PublicOnlineAdmissionPage() {
       appId: autoAppId
     });
 
-    // 2. Persist in Online Applications Registry
+    // 2. Persist in Online Applications Registry (Local + Cloud Firestore)
     if (typeof window !== 'undefined') {
       const storedApps = localStorage.getItem('sms_online_applications');
       let appList: any[] = [];
@@ -244,6 +244,9 @@ export default function PublicOnlineAdmissionPage() {
       }
       appList.unshift(studentData);
       localStorage.setItem('sms_online_applications', JSON.stringify(appList));
+      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncOnlineApplicationToCloud(studentData).catch(() => {});
+      }).catch(() => {});
     }
 
     // 3. 🚀 AUTOMATED CONFIRMATION SMS TRIGGER

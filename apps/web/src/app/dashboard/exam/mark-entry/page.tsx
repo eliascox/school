@@ -353,12 +353,20 @@ export default function ProfessionalMarkEntryPage() {
     const groupsToSave = isClass9or10 ? [selectedGroup, targetGroupBn, ''] : ['সাধারণ', ''];
 
     const jsonVal = JSON.stringify(updated);
+    const savedKeys: string[] = [];
     for (const gp of groupsToSave) {
       for (const ident of allIdentifiers) {
         if (!ident) continue;
-        localStorage.setItem(`sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${gp}_${ident}`, jsonVal);
+        const k = `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${gp}_${ident}`;
+        localStorage.setItem(k, jsonVal);
+        savedKeys.push(k);
       }
     }
+
+    // ☁️ Auto-sync saved marks to Cloud Firestore so /result works on all devices
+    import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+      firebaseSyncService.syncMarksKeysToCloud(savedKeys).catch(() => {});
+    }).catch(() => {});
 
     // Track last save time for Teacher Portal display
     const _now = new Date();

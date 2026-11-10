@@ -232,12 +232,117 @@ class FirebaseSyncService {
           await batch.commit();
           uploadedStudents += chunk.length;
 
-          const studentPercent = 25 + Math.round((uploadedStudents / totalStudents) * 70);
-          reportProgress(
-            `শিক্ষার্থী আপলোড হচ্ছে (${uploadedStudents}/${totalStudents})...`,
-            studentPercent,
-            100
-          );
+           const studentPercent = 25 + Math.round((uploadedStudents / totalStudents) * 50);
+           reportProgress(
+             `শিক্ষার্থী আপলোড হচ্ছে (${uploadedStudents}/${totalStudents})...`,
+             studentPercent,
+             100
+           );
+         }
+       }
+
+      // 6. Certificates, Exams, Marks, Attendance, Online Applications & Finance
+      if (typeof window !== 'undefined') {
+        reportProgress('সনদপত্র, পরীক্ষার ফলাফল ও হাজিরা ক্লাউডে সংরক্ষণ হচ্ছে...', 80, 100);
+
+        // 6a. Certificates History
+        try {
+          const rawCerts = localStorage.getItem('sms_certificates_history');
+          if (rawCerts) {
+            const certs: any[] = JSON.parse(rawCerts);
+            if (Array.isArray(certs) && certs.length > 0) {
+              const certBatch = writeBatch(firestore);
+              certs.slice(0, 450).forEach((c) => {
+                if (c && c.id) {
+                  const cRef = doc(firestore, 'certificates', String(c.id));
+                  certBatch.set(cRef, { ...c, updatedAt: serverTimestamp(), schoolId: firebaseConfig.projectId }, { merge: true });
+                }
+              });
+              await certBatch.commit();
+            }
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Certificates upload warning:', err);
+        }
+
+        // 6b. Exam Setup (sms_exam_setup)
+        try {
+          const rawExams = localStorage.getItem('sms_exam_setup');
+          if (rawExams) {
+            const exams = JSON.parse(rawExams);
+            await setDoc(doc(firestore, 'academic_data', 'exam_setup'), {
+              exams,
+              updatedAt: serverTimestamp(),
+              schoolId: firebaseConfig.projectId
+            }, { merge: true });
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Exam setup upload warning:', err);
+        }
+
+        // 6c. Exam Marks (sms_marks_*) & Attendance (sms_attendance_*)
+        try {
+          const allLocalKeys = Object.keys(localStorage);
+          const markKeys = allLocalKeys.filter((k) => k.startsWith('sms_marks_'));
+          for (let i = 0; i < markKeys.length; i += 350) {
+            const chunk = markKeys.slice(i, i + 350);
+            const markBatch = writeBatch(firestore);
+            chunk.forEach((k) => {
+              const val = localStorage.getItem(k);
+              if (val) {
+                const safeDocId = encodeURIComponent(k).replace(/\./g, '%2E');
+                const mRef = doc(firestore, 'exam_marks', safeDocId);
+                markBatch.set(mRef, {
+                  storageKey: k,
+                  value: val,
+                  updatedAt: serverTimestamp(),
+                  schoolId: firebaseConfig.projectId
+                }, { merge: true });
+              }
+            });
+            await markBatch.commit();
+          }
+
+          const attKeys = allLocalKeys.filter((k) => k.startsWith('sms_attendance_'));
+          for (let i = 0; i < attKeys.length; i += 350) {
+            const chunk = attKeys.slice(i, i + 350);
+            const attBatch = writeBatch(firestore);
+            chunk.forEach((k) => {
+              const val = localStorage.getItem(k);
+              if (val) {
+                const safeDocId = encodeURIComponent(k).replace(/\./g, '%2E');
+                const aRef = doc(firestore, 'attendance_records', safeDocId);
+                attBatch.set(aRef, {
+                  storageKey: k,
+                  value: val,
+                  updatedAt: serverTimestamp(),
+                  schoolId: firebaseConfig.projectId
+                }, { merge: true });
+              }
+            });
+            await attBatch.commit();
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Marks/Attendance upload warning:', err);
+        }
+
+        // 6d. Online Applications (sms_online_applications)
+        try {
+          const rawApps = localStorage.getItem('sms_online_applications');
+          if (rawApps) {
+            const apps: any[] = JSON.parse(rawApps);
+            if (Array.isArray(apps) && apps.length > 0) {
+              const appBatch = writeBatch(firestore);
+              apps.slice(0, 400).forEach((ap) => {
+                const docId = String(ap.appId || ap.id || `app_${Date.now()}`);
+                const apRef = doc(firestore, 'online_applications', docId);
+                appBatch.set(apRef, { ...ap, updatedAt: serverTimestamp(), schoolId: firebaseConfig.projectId }, { merge: true });
+              });
+              await appBatch.commit();
+            }
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Online applications upload warning:', err);
         }
       }
 
@@ -390,6 +495,82 @@ class FirebaseSyncService {
         localStorage.setItem('sms_students', JSON.stringify(cloudStudents));
         // Trigger student listeners
         studentService.getAllStudents();
+      }
+
+      // 6. Pull Certificates, Exam Setup, Exam Marks, Attendance & Online Applications
+      if (typeof window !== 'undefined') {
+        if (onProgress) {
+          onProgress({
+            step: 'পরীক্ষার ফলাফল, সনদপত্র ও হাজিরা সিঙ্ক হচ্ছে...',
+            current: 75,
+            total: 100,
+            percent: 75,
+            status: 'syncing'
+          });
+        }
+
+        // 6a. Pull Certificates
+        try {
+          const certsSnap = await getDocs(collection(firestore, 'certificates'));
+          const cloudCerts: any[] = [];
+          certsSnap.forEach((d) => cloudCerts.push({ ...d.data(), id: d.id }));
+          if (cloudCerts.length > 0) {
+            localStorage.setItem('sms_certificates_history', JSON.stringify(cloudCerts));
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull certificates skipped:', err);
+        }
+
+        // 6b. Pull Exam Setup
+        try {
+          const examDoc = await getDoc(doc(firestore, 'academic_data', 'exam_setup'));
+          if (examDoc.exists()) {
+            const data = examDoc.data();
+            if (Array.isArray(data?.exams) && data.exams.length > 0) {
+              localStorage.setItem('sms_exam_setup', JSON.stringify(data.exams));
+            }
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull exam setup skipped:', err);
+        }
+
+        // 6c. Pull Exam Marks
+        try {
+          const marksSnap = await getDocs(collection(firestore, 'exam_marks'));
+          marksSnap.forEach((d) => {
+            const data = d.data();
+            if (data?.storageKey && typeof data?.value === 'string') {
+              localStorage.setItem(data.storageKey, data.value);
+            }
+          });
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull exam marks skipped:', err);
+        }
+
+        // 6d. Pull Attendance Records
+        try {
+          const attSnap = await getDocs(collection(firestore, 'attendance_records'));
+          attSnap.forEach((d) => {
+            const data = d.data();
+            if (data?.storageKey && typeof data?.value === 'string') {
+              localStorage.setItem(data.storageKey, data.value);
+            }
+          });
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull attendance skipped:', err);
+        }
+
+        // 6e. Pull Online Applications
+        try {
+          const appsSnap = await getDocs(collection(firestore, 'online_applications'));
+          const cloudApps: any[] = [];
+          appsSnap.forEach((d) => cloudApps.push({ ...d.data(), id: d.id }));
+          if (cloudApps.length > 0) {
+            localStorage.setItem('sms_online_applications', JSON.stringify(cloudApps));
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull online applications skipped:', err);
+        }
       }
 
       const now = new Date().toISOString();
@@ -689,6 +870,214 @@ class FirebaseSyncService {
     } catch (err) {
       console.warn('[FirebaseSync] subscribeLandingPageCloud warning:', err);
       return () => {};
+    }
+  }
+
+  /**
+   * 📜 Instant Certificate Auto-Sync to Firestore ('certificates' collection)
+   */
+  public async syncCertificateToCloud(cert: any): Promise<void> {
+    if (!db || !cert?.id || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const certRef = doc(firestore, 'certificates', String(cert.id));
+      await setDoc(certRef, {
+        ...cert,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Certificate cloud sync warning:', err);
+    }
+  }
+
+  /**
+   * 🗑️ Instant Certificate Deletion from Firestore
+   */
+  public async deleteCertificateFromCloud(certId: string): Promise<void> {
+    if (!db || !certId || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      await deleteDoc(doc(firestore, 'certificates', String(certId)));
+    } catch (err) {
+      console.warn('[FirebaseSync] Certificate cloud delete warning:', err);
+    }
+  }
+
+  /**
+   * 🔍 Public Certificate Verification from Cloud Firestore
+   * Enables mobile QR scanners on any device to verify official school certificates
+   */
+  public async fetchCertificateFromCloudById(idOrCode: string): Promise<any | null> {
+    if (!db || !idOrCode) return null;
+    try {
+      const firestore = db as Firestore;
+      const queryClean = idOrCode.trim();
+      const queryLower = queryClean.toLowerCase();
+
+      // 1. Try direct document ID lookup first
+      const directSnap = await getDoc(doc(firestore, 'certificates', queryClean));
+      if (directSnap.exists()) {
+        return { ...directSnap.data(), id: directSnap.id };
+      }
+
+      // 2. Scan certificates collection for case-insensitive ID, verificationCode, or refNo match
+      const certsSnap = await getDocs(collection(firestore, 'certificates'));
+      let matched: any | null = null;
+      const allCloudCerts: any[] = [];
+
+      certsSnap.forEach((d) => {
+        const data = { ...d.data(), id: d.id } as any;
+        allCloudCerts.push(data);
+        if (
+          data.id?.toLowerCase() === queryLower ||
+          data.verificationCode?.toLowerCase() === queryLower ||
+          data.refNo?.toLowerCase() === queryLower
+        ) {
+          matched = data;
+        }
+      });
+
+      if (allCloudCerts.length > 0 && typeof window !== 'undefined') {
+        localStorage.setItem('sms_certificates_history', JSON.stringify(allCloudCerts));
+      }
+
+      return matched;
+    } catch (err) {
+      console.warn('[FirebaseSync] fetchCertificateFromCloudById warning:', err);
+      return null;
+    }
+  }
+
+  /**
+   * 📝 Sync Exam Setup (sms_exam_setup) to Firestore
+   */
+  public async syncExamsToCloud(exams: any[]): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      await setDoc(doc(firestore, 'academic_data', 'exam_setup'), {
+        exams,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Exam setup cloud sync warning:', err);
+    }
+  }
+
+  /**
+   * 📊 Sync specific Exam Mark keys (sms_marks_*) to Firestore
+   */
+  public async syncMarksKeysToCloud(keys: string[]): Promise<void> {
+    if (!db || typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const uniqueKeys = Array.from(new Set(keys)).filter((k) => k.startsWith('sms_marks_'));
+      if (uniqueKeys.length === 0) return;
+
+      const batch = writeBatch(firestore);
+      uniqueKeys.slice(0, 400).forEach((k) => {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const safeDocId = encodeURIComponent(k).replace(/\./g, '%2E');
+          const mRef = doc(firestore, 'exam_marks', safeDocId);
+          batch.set(mRef, {
+            storageKey: k,
+            value: val,
+            updatedAt: serverTimestamp(),
+            schoolId: firebaseConfig.projectId
+          }, { merge: true });
+        }
+      });
+      await batch.commit();
+    } catch (err) {
+      console.warn('[FirebaseSync] Marks cloud sync warning:', err);
+    }
+  }
+
+  /**
+   * 🌐 Fetch Public Result Data (Settings, Exams, Students, Marks) from Cloud Firestore
+   * Enables students & parents on any mobile phone to check results live on /result
+   */
+  public async fetchPublicResultDataFromCloud(): Promise<{
+    synced: boolean;
+    studentCount: number;
+    markKeysCount: number;
+  }> {
+    if (!db || typeof window === 'undefined') {
+      return { synced: false, studentCount: 0, markKeysCount: 0 };
+    }
+    try {
+      const firestore = db as Firestore;
+
+      // 1. Settings
+      try {
+        const settingsSnap = await getDoc(doc(firestore, 'settings', 'general'));
+        if (settingsSnap.exists()) {
+          settingsService.updateSettings(settingsSnap.data() as SchoolSettings);
+        }
+      } catch (e) {}
+
+      // 2. Exam Setup
+      try {
+        const examSnap = await getDoc(doc(firestore, 'academic_data', 'exam_setup'));
+        if (examSnap.exists()) {
+          const data = examSnap.data();
+          if (Array.isArray(data?.exams) && data.exams.length > 0) {
+            localStorage.setItem('sms_exam_setup', JSON.stringify(data.exams));
+            window.dispatchEvent(new CustomEvent('sms_exam_setup_changed', { detail: data.exams }));
+          }
+        }
+      } catch (e) {}
+
+      // 3. Students
+      let studentCount = 0;
+      try {
+        const studentsSnap = await getDocs(collection(firestore, 'students'));
+        const cloudStudents: Student[] = [];
+        studentsSnap.forEach((d) => cloudStudents.push({ ...d.data(), id: d.id } as Student));
+        if (cloudStudents.length > 0) {
+          localStorage.setItem('sms_students', JSON.stringify(cloudStudents));
+          studentCount = cloudStudents.length;
+        }
+      } catch (e) {}
+
+      // 4. Exam Marks
+      let markKeysCount = 0;
+      try {
+        const marksSnap = await getDocs(collection(firestore, 'exam_marks'));
+        marksSnap.forEach((d) => {
+          const data = d.data();
+          if (data?.storageKey && typeof data?.value === 'string') {
+            localStorage.setItem(data.storageKey, data.value);
+            markKeysCount++;
+          }
+        });
+      } catch (e) {}
+
+      return { synced: true, studentCount, markKeysCount };
+    } catch (err) {
+      console.warn('[FirebaseSync] fetchPublicResultDataFromCloud warning:', err);
+      return { synced: false, studentCount: 0, markKeysCount: 0 };
+    }
+  }
+
+  /**
+   * 🎓 Sync Online Admission Application to Firestore ('online_applications' collection)
+   */
+  public async syncOnlineApplicationToCloud(appData: any): Promise<void> {
+    if (!db || !appData || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const docId = String(appData.appId || appData.id || `app_${Date.now()}`);
+      await setDoc(doc(firestore, 'online_applications', docId), {
+        ...appData,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] Online application cloud sync warning:', err);
     }
   }
 }

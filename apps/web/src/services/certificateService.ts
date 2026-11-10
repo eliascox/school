@@ -340,6 +340,9 @@ class CertificateService {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       window.dispatchEvent(new Event('storage'));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncCertificateToCloud(newRecord).catch(() => {});
+      }).catch(() => {});
     }
 
     return newRecord;
@@ -376,6 +379,9 @@ class CertificateService {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       window.dispatchEvent(new Event('storage'));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        createdList.forEach((c) => firebaseSyncService.syncCertificateToCloud(c).catch(() => {}));
+      }).catch(() => {});
     }
 
     return createdList;
@@ -406,6 +412,9 @@ class CertificateService {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
       window.dispatchEvent(new Event('storage'));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncCertificateToCloud(updatedRecord).catch(() => {});
+      }).catch(() => {});
     }
 
     return true;
@@ -431,6 +440,9 @@ class CertificateService {
     const updatedList = list.map((c) => (c.id === id ? updatedRecord : c));
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncCertificateToCloud(updatedRecord).catch(() => {});
+      }).catch(() => {});
     }
   }
 
@@ -439,6 +451,9 @@ class CertificateService {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
       window.dispatchEvent(new Event('storage'));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.deleteCertificateFromCloud(id).catch(() => {});
+      }).catch(() => {});
     }
   }
 

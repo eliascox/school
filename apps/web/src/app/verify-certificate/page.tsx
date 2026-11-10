@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
+import { firebaseSyncService } from '@/services/firebaseSyncService';
 import Link from 'next/link';
 
 function VerificationContent() {
@@ -43,28 +44,54 @@ function VerificationContent() {
   const [searchedId, setSearchedId] = useState(certIdParam);
   const [cert, setCert] = useState<CertificateRecord | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isVerifyingCloud, setIsVerifyingCloud] = useState(false);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(settingsService.getSettings());
+
+  const performVerification = async (query: string) => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
+    setSearchedId(cleanQuery);
+
+    // 1. Check local storage first for instant response
+    const localFound = certificateService.getCertificateById(cleanQuery);
+    if (localFound) {
+      setCert(localFound);
+      setHasSearched(true);
+    }
+
+    // 2. Always verify / fetch latest status from Google Cloud Firestore (for mobile QR scans)
+    setIsVerifyingCloud(true);
+    try {
+      const cloudCert = await firebaseSyncService.fetchCertificateFromCloudById(cleanQuery);
+      if (cloudCert) {
+        setCert(cloudCert as CertificateRecord);
+      } else if (!localFound) {
+        setCert(null);
+      }
+    } catch (e) {
+      if (!localFound) setCert(null);
+    } finally {
+      setIsVerifyingCloud(false);
+      setHasSearched(true);
+    }
+  };
 
   useEffect(() => {
     setSchoolSettings(settingsService.getSettings());
+    // Sync school settings from cloud for mobile visitors
+    firebaseSyncService.fetchLandingPageCloudData().then((data) => {
+      if (data.settings) setSchoolSettings(data.settings);
+    }).catch(() => {});
+
     if (certIdParam) {
       setSearchQuery(certIdParam);
-      setSearchedId(certIdParam);
-      const found = certificateService.getCertificateById(certIdParam);
-      setCert(found);
-      setHasSearched(true);
+      performVerification(certIdParam);
     }
   }, [certIdParam]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
-
-    setSearchedId(query);
-    const found = certificateService.getCertificateById(query);
-    setCert(found);
-    setHasSearched(true);
+    await performVerification(searchQuery);
   };
 
   const getCertTypeName = (type: string) => {

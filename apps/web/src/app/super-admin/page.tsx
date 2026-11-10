@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { teacherAuthService } from '@/services/teacherAuthService';
 import { 
   centralAdminService, 
   ExtendedSchoolData 
@@ -34,6 +36,8 @@ import {
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [schools, setSchools] = useState<ExtendedSchoolData[]>([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, suspended: 0, rejected: 0, totalDevices: 0 });
   const [selectedTab, setSelectedTab] = useState<'ALL' | SchoolStatus | 'RELEASES' | 'AUDITS'>('ALL');
@@ -70,8 +74,22 @@ export default function SuperAdminPage() {
   };
 
   useEffect(() => {
+    const session = teacherAuthService.getSession();
+    if (!session || session.role !== 'admin') {
+      router.replace('/login');
+      return;
+    }
+    setIsAuthorized(true);
     loadData();
-  }, []);
+  }, [router]);
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-400 font-bold text-sm">
+        অ্যাডমিন নিরাপত্তা যাচাই করা হচ্ছে...
+      </div>
+    );
+  }
 
   // Filtered Schools
   const filteredSchools = schools.filter(s => {

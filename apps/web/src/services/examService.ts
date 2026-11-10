@@ -252,6 +252,9 @@ class ExamService {
       this.notifyListeners();
       // Dispatch custom window event for same-tab reactive syncing
       window.dispatchEvent(new CustomEvent('sms_exam_setup_changed', { detail: exams }));
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncExamsToCloud(exams).catch(() => {});
+      }).catch(() => {});
     } catch (err) {
       console.error('Failed to save exams', err);
     }
