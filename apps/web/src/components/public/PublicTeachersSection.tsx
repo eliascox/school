@@ -14,6 +14,7 @@ import {
   Phone
 } from 'lucide-react';
 import { TeacherAccount } from '@/services/teacherAuthService';
+import InitialsAvatar from './InitialsAvatar';
 
 interface PublicTeachersSectionProps {
   teachers?: TeacherAccount[];
@@ -38,20 +39,38 @@ interface TeacherProfile {
 }
 
 export default function PublicTeachersSection({ teachers = [] }: PublicTeachersSectionProps) {
-  // 4 Realistic Sample Teachers Data in Bengali
-  const sampleTeachers: TeacherProfile[] = [
+  // Real registered teachers if present, otherwise realistic institutional staff roster
+  const sampleTeachers: TeacherProfile[] = teachers.length > 0
+    ? teachers.slice(0, 4).map((t, idx) => ({
+        id: t.id || `TCH-${101 + idx}`,
+        name: t.name,
+        designation: t.designation || 'সহকারী শিক্ষক',
+        subject: t.subject || 'সাধারণ',
+        qualification: t.qualification || 'স্নাতক / স্নাতকোত্তর; বি.এড',
+        experience: '১০+ বছর',
+        joiningDate: '২০১৫',
+        email: t.email || `${t.id?.toLowerCase() || 'teacher'}@school.edu.bd`,
+        phone: t.mobile || t.phone,
+        bio: 'শিক্ষার্থীদের সুনাগরিক ও নৈতিক মূল্যবোধসম্পন্ন মানুষ হিসেবে গড়ে তোলাই আমাদের অঙ্গীকার।',
+        photo: (t as any).photo || '',
+        facebook: '#',
+        linkedin: '#',
+        whatsapp: t.mobile ? `https://wa.me/${t.mobile.replace(/\D/g, '')}` : '#',
+        telegram: '#'
+      }))
+    : [
     {
       id: 'TCH-101',
       name: 'জনাব মোখলেসুর রহমান',
       designation: 'সিনিয়র শিক্ষক (বাংলা)',
-      subject: 'বাংলা ১ম ও ২য় পত্র',
+      subject: 'বাংলা ১ম ও ২য় পত্র',
       qualification: 'এম.এ (বাংলা সাহিত্য), ঢাকা বিশ্ববিদ্যালয়; বি.এড',
       experience: '১৫+ বছর',
       joiningDate: '১০ মার্চ ২০১০',
       email: 'mokhlesur.bangla@school.edu.bd',
       phone: '+880 1711-234567',
       bio: 'মাতৃভাষা ও সাহিত্যের শুদ্ধ চর্চায় শিক্ষার্থীদের দক্ষ করে তোলাই আমার মূল ব্রত। ক্লাসরুমে সৃজনশীল লিখন ও ব্যাকরণের সহজ পাঠদানে আমি বিশ্বাসী।',
-      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop',
+      photo: '',
       facebook: '#',
       linkedin: '#',
       whatsapp: 'https://wa.me/8801711234567',
@@ -68,7 +87,7 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
       email: 'shaheen.english@school.edu.bd',
       phone: '+880 1812-345678',
       bio: 'ইংরেজি ভীতি দূর করে যোগাযোগের বাস্তব প্রয়োগ ও গ্রামাটিক্যাল নির্ভুলতায় শিক্ষার্থীদের আত্মবিশ্বাসী গড়ে তুলতে আনন্দময় পদ্ধতিতে পাঠদান করি।',
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop',
+      photo: '',
       facebook: '#',
       linkedin: '#',
       whatsapp: 'https://wa.me/8801812345678',
@@ -85,7 +104,7 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
       email: 'kamrul.math@school.edu.bd',
       phone: '+880 1913-456789',
       bio: 'গণিত কোনো মুখস্থ করার বিষয় নয়, এটি চিন্তার যুক্তি ও সৌন্দর্য। শিক্ষার্থীদের ধাপে ধাপে গাণিতিক সমস্যা সমাধানে দক্ষ করে তোলাই আমার লক্ষ্য।',
-      photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=600&auto=format&fit=crop',
+      photo: '',
       facebook: '#',
       linkedin: '#',
       whatsapp: 'https://wa.me/8801913456789',
@@ -102,7 +121,7 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
       email: 'farhana.ict@school.edu.bd',
       phone: '+880 1614-567890',
       bio: 'একবিংশ শতাব্দীর চ্যালেঞ্জ মোকাবেলায় শিক্ষার্থীদের কম্পিউটার প্রোগ্রামিং, রোবটিক্স এবং নিরাপদ ইন্টারনেট ব্যবহারের আধুনিক জ্ঞানে সমৃদ্ধ করছি।',
-      photo: 'https://images.unsplash.com/photo-1580894732454-defbe4fc8331?q=80&w=600&auto=format&fit=crop',
+      photo: '',
       facebook: '#',
       linkedin: '#',
       whatsapp: 'https://wa.me/8801614567890',
@@ -117,7 +136,7 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
 
   return (
     <section id="teachers" className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors relative">
-      <div id="faculty" className="absolute -top-24 left-0" />
+      <div id="faculty" className="absolute top-0 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ===================================================================
@@ -159,11 +178,12 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
               {/* Card Header & Photo with Slide-up Social Overlay */}
               <div>
                 <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-700">
-                  <img
+                  <InitialsAvatar
                     src={teacher.photo}
-                    alt={teacher.name}
-                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
+                    name={teacher.name}
+                    className="w-full h-full"
+                    textClassName="text-5xl"
+                    imgClassName="transition-transform duration-500 group-hover:scale-105 object-top"
                   />
 
                   {/* Subject Badge on Top-Right */}
@@ -315,13 +335,12 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
 
             {/* Profile Content */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mt-2">
-              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shrink-0 border-2 border-[#0B5D3B] shadow-md">
-                <img
-                  src={selectedTeacher.photo}
-                  alt={selectedTeacher.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <InitialsAvatar
+                src={selectedTeacher.photo}
+                name={selectedTeacher.name}
+                className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl shrink-0 border-2 border-[#0B5D3B] shadow-md"
+                textClassName="text-4xl"
+              />
 
               <div className="text-center sm:text-left space-y-1.5 flex-1">
                 <span className="inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -459,10 +478,11 @@ export default function PublicTeachersSection({ teachers = [] }: PublicTeachersS
                   className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                 >
                   <div className="flex items-center gap-3.5">
-                    <img
+                    <InitialsAvatar
                       src={teacher.photo}
-                      alt={teacher.name}
-                      className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                      name={teacher.name}
+                      className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                      textClassName="text-base"
                     />
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white">{teacher.name}</h4>

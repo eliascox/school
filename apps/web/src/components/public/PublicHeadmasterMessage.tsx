@@ -5,6 +5,8 @@ import { ArrowRight, X, Check } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
 import { AboutConfig } from '@/services/landingPageService';
 
+import InitialsAvatar from './InitialsAvatar';
+
 interface PublicHeadmasterMessageProps {
   settings: SchoolSettings | null;
   aboutConfig?: AboutConfig | null;
@@ -78,7 +80,7 @@ export default function PublicHeadmasterMessage({ settings, aboutConfig }: Publi
       id="principal" 
       className="py-14 sm:py-20 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/70 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/80 dark:border-slate-800 relative overflow-hidden"
     >
-      <div id="headmaster" className="absolute -top-24 left-0" />
+      <div id="headmaster" className="absolute top-0 left-0" />
       
       {/* ── Soft Ambient Background Blurs ── */}
       <div className="absolute top-10 left-10 w-96 h-96 bg-emerald-400/5 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -123,19 +125,12 @@ export default function PublicHeadmasterMessage({ settings, aboutConfig }: Publi
                   
                   {/* Perfect Circular Avatar with Distinctive Ring */}
                   <div className="relative shrink-0">
-                    <div className={`w-22 h-22 sm:w-24 sm:h-24 rounded-full ${leader.ringClass} flex items-center justify-center shadow-md`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={leader.photo}
-                        alt={leader.name}
-                        className="w-full h-full rounded-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = leader.id === 'president'
-                            ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'
-                            : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400&auto=format&fit=crop';
-                        }}
-                      />
-                    </div>
+                    <InitialsAvatar
+                      src={leader.photo}
+                      name={leader.name}
+                      className={`w-22 h-22 sm:w-24 sm:h-24 rounded-full ${leader.ringClass} shadow-md`}
+                      textClassName="text-3xl"
+                    />
 
                     {/* Verified Checkmark Badge at Bottom Right */}
                     <div className={`absolute bottom-0.5 right-0.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full ${leader.badgeBg} border-2 border-white dark:border-slate-900 flex items-center justify-center text-white shadow-md`}>
@@ -207,10 +202,11 @@ export default function PublicHeadmasterMessage({ settings, aboutConfig }: Publi
 
             {/* Modal Header */}
             <div className="flex items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <img
+              <InitialsAvatar
                 src={activeLeaderModal.photo}
-                alt={activeLeaderModal.name}
-                className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-700 shadow-sm"
+                name={activeLeaderModal.name}
+                className="w-16 h-16 rounded-full border-2 border-slate-200 dark:border-slate-700 shadow-sm shrink-0"
+                textClassName="text-xl"
               />
               <div>
                 <span className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wide">

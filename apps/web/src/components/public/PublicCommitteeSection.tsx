@@ -13,6 +13,7 @@ import {
   CheckCircle2 
 } from 'lucide-react';
 import { settingsService, CommitteeMember, DEFAULT_COMMITTEE_MEMBERS } from '@/services/settingsService';
+import InitialsAvatar from './InitialsAvatar';
 
 interface PublicCommitteeSectionProps {
   committeeMembers?: CommitteeMember[];
@@ -46,7 +47,7 @@ export default function PublicCommitteeSection({ committeeMembers: propMembers }
 
   return (
     <section id="committee" className="py-10 sm:py-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors relative">
-      <div id="smc" className="absolute -top-24 left-0" />
+      <div id="smc" className="absolute top-0 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ===================================================================
@@ -85,23 +86,12 @@ export default function PublicCommitteeSection({ committeeMembers: propMembers }
                 {/* প্রোফাইল ছবি */}
                 <div className="flex justify-center mb-5">
                   <div className="relative">
-                    <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-[#0B5D3B] shadow-md group-hover:scale-105 transition-transform duration-300 bg-emerald-50 dark:bg-slate-700 flex items-center justify-center">
-                      {member.photo ? (
-                        <img
-                          src={member.photo}
-                          alt={member.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=500&auto=format&fit=crop';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-emerald-100 dark:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-300 font-black text-2xl">
-                          {member.name ? member.name.charAt(0) : 'ক'}
-                        </div>
-                      )}
-                    </div>
+                    <InitialsAvatar
+                      src={member.photo}
+                      name={member.name}
+                      className="w-28 h-28 rounded-2xl border-2 border-[#0B5D3B] shadow-md group-hover:scale-105 transition-transform duration-300"
+                      textClassName="text-3xl"
+                    />
                     {/* পদবি আইকন ব্যাজ */}
                     <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#0B5D3B] text-white flex items-center justify-center shadow-md border-2 border-white dark:border-slate-800">
                       <Award className="w-4 h-4 text-[#F4B400]" />
@@ -227,9 +217,12 @@ export default function PublicCommitteeSection({ committeeMembers: propMembers }
             </button>
 
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 mt-2">
-              <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 border-2 border-[#0B5D3B] shadow-md">
-                <img src={selectedMember.photo} alt={selectedMember.name} className="w-full h-full object-cover" />
-              </div>
+              <InitialsAvatar
+                src={selectedMember.photo}
+                name={selectedMember.name}
+                className="w-24 h-24 rounded-2xl border-2 border-[#0B5D3B] shadow-md shrink-0"
+                textClassName="text-3xl"
+              />
               <div className="text-center sm:text-left space-y-1">
                 <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-bold border ${selectedMember.badgeColor}`}>
                   {selectedMember.role}
@@ -319,20 +312,12 @@ export default function PublicCommitteeSection({ committeeMembers: propMembers }
                   className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center">
-                      {m.photo ? (
-                        <img
-                          src={m.photo}
-                          alt={m.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=500&auto=format&fit=crop';
-                          }}
-                        />
-                      ) : (
-                        <span className="font-bold text-[#0B5D3B] text-sm">{m.name ? m.name.charAt(0) : 'ক'}</span>
-                      )}
-                    </div>
+                    <InitialsAvatar
+                      src={m.photo}
+                      name={m.name}
+                      className="w-11 h-11 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                      textClassName="text-sm"
+                    />
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white">{m.name}</h4>
                       <p className="text-xs font-semibold text-[#0B5D3B] dark:text-emerald-400">{m.role}</p>

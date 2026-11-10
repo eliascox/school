@@ -223,8 +223,8 @@ export default function PublicStats({
       ref={sectionRef} 
       className="py-12 sm:py-16 text-slate-900 dark:text-white relative overflow-hidden bg-gradient-to-b from-white via-slate-50/70 to-emerald-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-y border-slate-200/80 dark:border-slate-800"
     >
-      <div id="student-info" className="absolute -top-24 left-0" />
-      <div id="stats" className="absolute -top-24 left-0" />
+      <div id="student-info" className="absolute top-0 left-0" />
+      <div id="stats" className="absolute top-0 left-0" />
       
       {/* ── Soft Ambient Background Glow Highlights ── */}
       <div className="absolute top-10 left-1/4 w-[500px] h-[500px] bg-emerald-400/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />

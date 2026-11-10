@@ -63,10 +63,10 @@ export default function PublicFooter({ settings, footerConfig }: PublicFooterPro
             
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#login" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">
+                <Link href="/login" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">
                   <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>ওয়েব মেইল (Webmail)</span>
-                </a>
+                  <span>ওয়েব মেইল ও স্টাফ পোর্টাল</span>
+                </Link>
               </li>
               <li>
                 <a href="https://pds.emis.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">
@@ -75,10 +75,10 @@ export default function PublicFooter({ settings, footerConfig }: PublicFooterPro
                 </a>
               </li>
               <li>
-                <a href="#login" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">
+                <Link href="/login" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">
                   <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
                   <span>ই-স্কুল পোর্টাল (E-School)</span>
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="https://moedu.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-400 hover:translate-x-1 duration-200">

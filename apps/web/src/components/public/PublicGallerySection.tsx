@@ -38,12 +38,11 @@ export default function PublicGallerySection({ galleryConfig }: PublicGallerySec
     },
     {
       id: 'gal-2',
-      type: 'video',
+      type: 'image',
       title: 'বার্ষিক ক্রীড়া ও সাংস্কৃতিক প্রতিযোগিতা ২০২৬',
-      category: 'ভিডিও হাইলাইটস',
+      category: 'ক্রীড়া ও সহশিক্ষা',
       thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=800&auto=format&fit=crop',
       date: '০৫ অক্টোবর ২০২৬',
-      videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
       caption: 'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা ও মনোজ্ঞ সাংস্কৃতিক অনুষ্ঠানের সেরা মুহূর্তসমূহ।',
       visible: true
     },

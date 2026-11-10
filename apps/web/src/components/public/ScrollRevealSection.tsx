@@ -88,17 +88,43 @@ export function LandingScrollFeatures() {
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
+    // requestAnimationFrame-throttled scroll tracking: at most one state update per frame,
+    // and only when the rounded value actually changes -> buttery smooth 60fps scrolling.
+    let ticking = false;
+    let lastPct = -1;
+    let lastShow: boolean | null = null;
+
+    const update = () => {
+      ticking = false;
       const scrollTop = window.scrollY;
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
       const pct = docHeight > 0 ? Math.min(Math.max((scrollTop / docHeight) * 100, 0), 100) : 0;
-      setScrollProgress(pct);
-      setShowBackToTop(scrollTop > 380);
+      const roundedPct = Math.round(pct * 10) / 10;
+      if (roundedPct !== lastPct) {
+        lastPct = roundedPct;
+        setScrollProgress(roundedPct);
+      }
+      const show = scrollTop > 380;
+      if (show !== lastShow) {
+        lastShow = show;
+        setShowBackToTop(show);
+      }
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(update);
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
   }, []);
 
   const scrollToTop = () => {
@@ -118,8 +144,8 @@ export function LandingScrollFeatures() {
         className="fixed top-0 left-0 right-0 h-1 z-[100] pointer-events-none bg-transparent print:hidden"
       >
         <div
-          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 shadow-[0_0_12px_rgba(16,185,129,0.75)] transition-[width] duration-150 ease-out"
-          style={{ width: `${scrollProgress}%` }}
+          className="h-full origin-left bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-[#F4B400] shadow-[0_0_10px_rgba(16,185,129,0.6)] will-change-transform"
+          style={{ transform: `scaleX(${scrollProgress / 100})` }}
         />
       </div>
 
@@ -129,7 +155,7 @@ export function LandingScrollFeatures() {
         onClick={scrollToTop}
         aria-label="পেজের উপরে যান"
         title="পেজের উপরে যান (Back to Top)"
-        className={`fixed bottom-6 right-5 sm:bottom-8 sm:right-8 z-50 w-12 h-12 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl shadow-emerald-950/15 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-500 dark:hover:text-slate-950 hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer print:hidden ${
+        className={`group fixed bottom-6 right-5 sm:bottom-8 sm:right-8 z-50 w-12 h-12 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl shadow-emerald-950/15 border border-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-[#0B5D3B] hover:text-white dark:hover:bg-emerald-500 dark:hover:text-slate-950 hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer print:hidden ${
           showBackToTop
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-6 pointer-events-none'

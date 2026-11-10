@@ -15,6 +15,7 @@ import {
 
 import { AchieversConfig } from '@/services/landingPageService';
 import { Student } from '@/services/studentService';
+import InitialsAvatar from './InitialsAvatar';
 
 interface BestStudent {
   id: string;
@@ -47,7 +48,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       class: '১০ম শ্রেণি (বিজ্ঞান)',
       roll: '০১',
       year: '২০২৬',
-      photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop',
+      photo: '',
       badgeType: 'trophy',
       achievement: '১ম স্থান ও বিজ্ঞান অলিম্পিয়াড চ্যাম্পিয়ন',
       gpa: 'জিপিএ ৫.০০',
@@ -59,7 +60,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       class: '৯ম শ্রেণি (বিজ্ঞান)',
       roll: '০১',
       year: '২০২৬',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop',
+      photo: '',
       badgeType: 'star',
       achievement: 'মেধাতালিকায় শীর্ষ ও বিতর্ক দলনেতা',
       gpa: 'জিপিএ ৫.০০',
@@ -71,7 +72,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       class: '৮ম শ্রেণি',
       roll: '০১',
       year: '২০২৬',
-      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop',
+      photo: '',
       badgeType: 'trophy',
       achievement: 'ট্যালেন্টপুল বৃত্তি ও গণিত উৎসব বিজয়ী',
       gpa: 'জিপিএ ৫.০০',
@@ -83,7 +84,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       class: '৭ম শ্রেণি',
       roll: '০১',
       year: '২০২৬',
-      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop',
+      photo: '',
       badgeType: 'star',
       achievement: 'বার্ষিক মূল্যায়ন পরীক্ষায় ১ম স্থান',
       gpa: 'জিপিএ ৫.০০',
@@ -102,7 +103,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
           class: st.gradeBn || `${st.grade} শ্রেণি`,
           roll: st.roll,
           year: st.session || '২০২৬',
-          photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+          photo: st.photo || '',
           badgeType: (i === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
           achievement: st.gpa === '5.00' ? '🏆 গোল্ডেন জিপিএ ৫.০০' : `মেধাবী স্থান #${st.roll}`,
           gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
@@ -118,7 +119,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
         class: st.class,
         roll: st.roll,
         year: st.year,
-        photo: st.photo || (i % 2 === 0 ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=400&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'),
+        photo: st.photo || '',
         badgeType: (i % 2 === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
         achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
         gpa: st.gpa ? (st.gpa.startsWith('জিপিএ') ? st.gpa : `জিপিএ ${st.gpa}`) : 'জিপিএ ৫.০০',
@@ -173,14 +174,12 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
                 <div className="flex justify-center mb-5">
                   <div className="relative">
                     {/* গোল ছবি */}
-                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#0B5D3B]/20 group-hover:border-[#0B5D3B] shadow-md transition-colors duration-300 p-0.5 bg-white">
-                      <img
-                        src={student.photo}
-                        alt={student.name}
-                        className="w-full h-full object-cover rounded-full group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    </div>
+                    <InitialsAvatar
+                      src={student.photo}
+                      name={student.name}
+                      className="w-28 h-28 rounded-full border-4 border-[#0B5D3B]/20 group-hover:border-[#0B5D3B] shadow-md transition-all duration-300 group-hover:scale-105"
+                      textClassName="text-3xl"
+                    />
 
                     {/* ছবির ওপর ট্রফি/স্টার ব্যাজ */}
                     <div className="absolute top-0 right-0 w-8 h-8 rounded-full bg-[#F4B400] text-slate-900 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 animate-bounce">
@@ -287,10 +286,11 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
 
             <div className="flex flex-col items-center text-center mt-2">
               <div className="relative mb-3">
-                <img
+                <InitialsAvatar
                   src={selectedStudent.photo}
-                  alt={selectedStudent.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-[#0B5D3B] shadow-md"
+                  name={selectedStudent.name}
+                  className="w-24 h-24 rounded-full border-4 border-[#0B5D3B] shadow-md"
+                  textClassName="text-3xl"
                 />
                 <div className="absolute top-0 right-0 w-7 h-7 rounded-full bg-[#F4B400] flex items-center justify-center shadow-md">
                   <Trophy className="w-3.5 h-3.5 text-slate-900" />
@@ -379,7 +379,12 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
                   className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={s.photo} alt={s.name} className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500" />
+                    <InitialsAvatar
+                      src={s.photo}
+                      name={s.name}
+                      className="w-11 h-11 rounded-full border-2 border-emerald-500 shrink-0"
+                      textClassName="text-sm"
+                    />
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white">{s.name}</h4>
                       <p className="text-xs text-[#0B5D3B] dark:text-emerald-400 font-semibold">{s.class} (রোল: {s.roll})</p>

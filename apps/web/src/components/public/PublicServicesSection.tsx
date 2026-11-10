@@ -161,7 +161,7 @@ export default function PublicServicesSection({ servicesConfig }: PublicServices
   ];
 
   return (
-    <section className="relative py-10 sm:py-14 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <section id="services" className="relative py-10 sm:py-14 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       {/* Decorative ambient background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-400/10 dark:bg-emerald-600/5 blur-3xl" />
