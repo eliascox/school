@@ -30,7 +30,7 @@ import QRCode from 'qrcode';
 import { studentService, Student } from '@/services/studentService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { getStudentReligion, ReligionType } from '@/lib/religionUtils';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 
 interface AdmitCardStudent {
   id: string;
@@ -240,8 +240,8 @@ export default function ProfessionalAdmitCardPage() {
     if (!file || !file.type.startsWith('image/')) return;
 
     try {
-      // 1. Compress to crisp, lightweight passport dimensions (~25KB)
-      const compressed = await compressImage(file, 300, 360, 0.85);
+      // 1. Auto-crop to crisp, lightweight passport dimensions (300x360 ~25KB)
+      const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       if (!compressed) return;
 
       // 2. Permanently link with student in studentService (Master SMS Directory)

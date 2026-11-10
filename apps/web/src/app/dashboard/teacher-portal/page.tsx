@@ -18,7 +18,7 @@ import {
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, TeacherRecord, SubjectAssignment, ClassTeacherAssignment } from '@/services/teacherRBACService';
 import { studentService, Student } from '@/services/studentService';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 import { financeService, StudentFeeLedger } from '@/services/financeService';
 import { noticeService, Notice } from '@/services/noticeService';
 import { leaveService, LeaveApplication, LeaveType, LEAVE_TYPE_LABELS } from '@/services/leaveService';
@@ -1567,7 +1567,7 @@ export default function TeacherPortalPage() {
                               alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
                               return;
                             }
-                            const compressed = await compressImage(file);
+                            const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
                             setEditForm((prev) => ({ ...prev, photo: compressed }));
                           }
                         }}

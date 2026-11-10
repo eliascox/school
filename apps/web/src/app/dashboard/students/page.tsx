@@ -56,7 +56,7 @@ import { settingsService } from '@/services/settingsService';
 import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
 import SchoolPadWrapper from '@/components/SchoolPadWrapper';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 
 interface StudentItem {
   id: string;
@@ -171,7 +171,7 @@ export default function StudentListPage() {
     }
 
     try {
-      const compressed = await compressImage(file, 400, 400, 0.85);
+      const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       const student = students.find(s => s.id === studentId);
       if (!student) return;
 
@@ -186,7 +186,7 @@ export default function StudentListPage() {
         if (editFormData?.id === studentId) {
           setEditFormData(prev => prev ? { ...prev, photo: compressed } : null);
         }
-        showToast(`"${student.name}" এর ছবি সফলভাবে আপলোড হয়েছে!`, 'success');
+        showToast(`🎉 "${student.name}" এর ছবি অটো ক্রপ ও পাসপোর্ট সাইজে (৩০০×৩৬০) ছোট করে সংরক্ষণ করা হয়েছে!`, 'success');
       } else {
         showToast('ছবি সংরক্ষণ করতে সমস্যা হয়েছে!', 'error');
       }
@@ -220,7 +220,7 @@ export default function StudentListPage() {
 
     const newBulkItems: typeof bulkPhotos = [];
     for (const f of fileArr) {
-      const preview = await compressImage(f, 300, 300, 0.8);
+      const preview = await autoCropAndCompressStudentPhoto(f, 300, 360, 0.85);
       const cleanFileName = f.name.replace(/\.[^/.]+$/, '').trim().toLowerCase();
       
       // Matching priority:
@@ -1376,7 +1376,7 @@ export default function StudentListPage() {
                                   alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
                                   return;
                                 }
-                                const compressed = await compressImage(file);
+                                const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
                                 setEditFormData((prev) => prev ? { ...prev, photo: compressed } : null);
                               }
                             }}
@@ -3133,9 +3133,14 @@ export default function StudentListPage() {
                       অথবা কম্পিউটার থেকে ফাইল ব্রাউজ করতে এখানে ক্লিক করুন
                     </p>
                   </div>
-                  <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100/70 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800">
-                    💡 ফাইলের নাম রোল নম্বর (যেমন: 01.jpg, 02.jpg) বা আইডি হলে অটোমেটিক ম্যাচ হবে
-                  </span>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100/70 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                      💡 ফাইলের নাম রোল নম্বর (যেমন: 01.jpg, 02.jpg) বা আইডি হলে অটোমেটিক ম্যাচ হবে
+                    </span>
+                    <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                      ✂️ অটো ক্রপ ও অটো সাইজ: আপলোডকৃত ছবি পাসপোর্ট সাইজে (৩০০×৩৬০) ছোট হয়ে যাবে
+                    </span>
+                  </div>
                 </div>
               </div>
 

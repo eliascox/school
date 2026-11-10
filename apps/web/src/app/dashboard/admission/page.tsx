@@ -36,7 +36,7 @@ import { smsService } from '@/services/smsService';
 import { useRouter } from 'next/navigation';
 import { teacherAuthService } from '@/services/teacherAuthService';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 
 export default function AdmissionPage() {
   const router = useRouter();
@@ -282,7 +282,7 @@ export default function AdmissionPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) return alert('ছবি সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
-      const compressed = await compressImage(file);
+      const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       setPhoto(compressed);
     }
   };

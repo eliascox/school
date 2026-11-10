@@ -31,7 +31,7 @@ import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { curriculumService } from '@/services/curriculumService';
 import { smsService } from '@/services/smsService';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 
 export default function PublicOnlineAdmissionPage() {
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
@@ -133,7 +133,7 @@ export default function PublicOnlineAdmissionPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) return alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
-      const compressed = await compressImage(file);
+      const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       setPhoto(compressed);
     }
   };
