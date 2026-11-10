@@ -49,6 +49,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { studentService, Student } from '@/services/studentService';
+import { sortStudentsGroupAndRoll } from '@/services/studentBulkImportEngine';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
 import { settingsService } from '@/services/settingsService';
@@ -117,6 +118,7 @@ export default function StudentListPage() {
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [sortStrategy, setSortStrategy] = useState<'roll_asc' | 'name_asc' | 'roll_desc' | 'name_desc'>('roll_asc');
 
   // In-Page Active View State (No Popups!)
   const [activeView, setActiveView] = useState<ViewState>('list');
@@ -688,7 +690,7 @@ export default function StudentListPage() {
     switchView('view', editFormData);
   };
 
-  const filteredStudents = students.filter((st) => {
+  const rawFilteredStudents = students.filter((st) => {
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch = !q ||
       st.name.toLowerCase().includes(q) ||
@@ -725,12 +727,15 @@ export default function StudentListPage() {
     return matchesSearch && matchesGrade && matchesBranch && matchesGender && matchesGroup;
   });
 
+  // 🌟 Group-wise and Roll-wise sorting: ছোট থেকে বড় (১, ২, ৩...) অথবা নাম (A-Z)
+  const filteredStudents = sortStudentsGroupAndRoll(rawFilteredStudents as any, sortStrategy) as unknown as StudentItem[];
+
   const totalStudents = students.length;
 
   // ─────────────────────────────────────────────────────────────
   // 🖨️ FILTERED STUDENTS & METRICS FOR PRINT LIST VIEW
   // ─────────────────────────────────────────────────────────────
-  const printableFilteredStudents = students.filter((st) => {
+  const rawPrintableFilteredStudents = students.filter((st) => {
     // 1. Grade filter
     const matchGrade = printGradeFilter === 'all' || 
       st.grade.toLowerCase() === printGradeFilter.toLowerCase() ||
@@ -774,6 +779,8 @@ export default function StudentListPage() {
 
     return matchGrade && matchBranch && matchGroup && matchReligion && matchGender && matchStipend && matchSearch;
   });
+
+  const printableFilteredStudents = sortStudentsGroupAndRoll(rawPrintableFilteredStudents as any, sortStrategy) as unknown as StudentItem[];
 
   // Calculate Print List Statistics
   const printTotalCount = printableFilteredStudents.length;
@@ -2631,6 +2638,19 @@ export default function StudentListPage() {
                     <option value="বিজ্ঞান">{currentLang === 'en' ? 'Science' : 'বিজ্ঞান'}</option>
                     <option value="মানবিক">{currentLang === 'en' ? 'Humanities' : 'মানবিক'}</option>
                     <option value="ব্যবসায়">{currentLang === 'en' ? 'Business Studies' : 'ব্যবসায় শিক্ষা'}</option>
+                  </select>
+
+                  {/* Sort Strategy Dropdown: গ্রুপভিত্তিক রোল (ছোট থেকে বড় / ১, ২, ৩...) অথবা নাম (এ-ঝেড / A-Z) */}
+                  <select
+                    value={sortStrategy}
+                    onChange={(e) => setSortStrategy(e.target.value as any)}
+                    className="px-3 py-2 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    title="গ্রুপ ও রোল অনুযায়ী সাজানোর ক্রম"
+                  >
+                    <option value="roll_asc">🔢 গ্রুপভিত্তিক রোল: ছোট থেকে বড় (১, ২, ৩...)</option>
+                    <option value="name_asc">🔤 গ্রুপভিত্তিক নাম: এ-ঝেড (A–Z)</option>
+                    <option value="roll_desc">🔻 গ্রুপভিত্তিক রোল: বড় থেকে ছোট</option>
+                    <option value="name_desc">🔤 গ্রুপভিত্তিক নাম: ঝেড-এ (Z–A)</option>
                   </select>
 
                   {/* Clear filter button if any active */}

@@ -17,7 +17,7 @@ import { auditTrailService } from './auditTrailService';
 import { syncQueueService } from './syncQueueService';
 import { sanitizeCsvField } from '@/lib/securityUtils';
 
-export type RollSortStrategy = 'name_asc' | 'file_order' | 'prev_roll';
+export type RollSortStrategy = 'roll_asc' | 'name_asc' | 'file_order' | 'prev_roll' | 'roll_desc' | 'name_desc';
 
 export interface GroupStats {
   science: number;
@@ -675,7 +675,7 @@ export function normalizeStudentRow(
  */
 export function generateGroupWiseRolls(
   students: Student[],
-  strategy: RollSortStrategy = 'name_asc',
+  strategy: RollSortStrategy = 'roll_asc',
   targetGrade: string = '9th',
   keepUploadedRoll: boolean = true
 ): GroupWiseRollResult {
@@ -709,21 +709,53 @@ export function generateGroupWiseRolls(
     }
   });
 
-  // Sorter function based on strategy
+  // Sorter function based on strategy (Roll Ascending: ছোট থেকে বড় / ১, ২, ৩... বা Name A-Z)
   const sortGroup = (list: Student[]): Student[] => {
     const copy = [...list];
-    if (strategy === 'name_asc') {
+    if (strategy === 'roll_asc') {
+      copy.sort((a, b) => {
+        const rA = parseInt(bnToEnDigits(a.roll || a.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        const rB = parseInt(bnToEnDigits(b.roll || b.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        if (rA !== rB) return rA - rB;
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        return nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+      });
+    } else if (strategy === 'roll_desc') {
+      copy.sort((a, b) => {
+        const rA = parseInt(bnToEnDigits(a.roll || a.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        const rB = parseInt(bnToEnDigits(b.roll || b.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        if (rA !== rB) return rB - rA;
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        return nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+      });
+    } else if (strategy === 'name_asc') {
       copy.sort((a, b) => {
         const nameA = (a.name || '').trim();
         const nameB = (b.name || '').trim();
-        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+        const comp = nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+        if (comp !== 0) return comp;
+        const rA = parseInt(bnToEnDigits(a.roll || a.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        const rB = parseInt(bnToEnDigits(b.roll || b.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        return rA - rB;
+      });
+    } else if (strategy === 'name_desc') {
+      copy.sort((a, b) => {
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        const comp = nameB.localeCompare(nameA, 'bn', { numeric: true, sensitivity: 'base' });
+        if (comp !== 0) return comp;
+        const rA = parseInt(bnToEnDigits(a.roll || a.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        const rB = parseInt(bnToEnDigits(b.roll || b.prevRoll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
+        return rA - rB;
       });
     } else if (strategy === 'prev_roll') {
       copy.sort((a, b) => {
         const rA = parseInt(bnToEnDigits(a.prevRoll || a.roll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
         const rB = parseInt(bnToEnDigits(b.prevRoll || b.roll || '999999').replace(/[^0-9]/g, ''), 10) || 999999;
         if (rA !== rB) return rA - rB;
-        return (a.name || '').localeCompare(b.name || '');
+        return (a.name || '').localeCompare(b.name || '', 'bn');
       });
     }
     // 'file_order' maintains existing order
@@ -822,6 +854,90 @@ export function generateGroupWiseRolls(
     groupStats,
     rollRanges,
   };
+}
+
+/**
+ * Institutional Group Sorting Hierarchy:
+ * 1. বিজ্ঞান (Science) -> 1
+ * 2. মানবিক (Humanities) -> 2
+ * 3. ব্যবসায় শিক্ষা / বাণিজ্য (Business Studies) -> 3
+ * 4. সাধারণ / অন্যান্য (General / Other) -> 4
+ */
+export function getGroupPriority(groupName?: string): number {
+  if (!groupName) return 99;
+  const g = groupName.trim().toLowerCase();
+  if (g.includes('বিজ্ঞান') || g.includes('science')) return 1;
+  if (g.includes('মানবিক') || g.includes('humanities') || g.includes('arts')) return 2;
+  if (g.includes('ব্যবসা') || g.includes('বাণিজ্য') || g.includes('business') || g.includes('commerce')) return 3;
+  if (g.includes('সাধারণ') || g.includes('general')) return 4;
+  return 5;
+}
+
+export function parseRollNumber(rollStr?: string | number): number {
+  if (rollStr === undefined || rollStr === null) return 999999;
+  const enDigits = bnToEnDigits(String(rollStr)).replace(/[^0-9]/g, '');
+  if (!enDigits) return 999999;
+  const num = parseInt(enDigits, 10);
+  return isNaN(num) ? 999999 : num;
+}
+
+/**
+ * 🌟 CORE LOGIC: Sorts any student list group-wise and by roll / name:
+ * - Group priority: বিজ্ঞান (১) -> মানবিক (২) -> ব্যবসায় শিক্ষা (৩) -> সাধারণ/অন্যান্য (৪)
+ * - Strategy: 'roll_asc' (ছোট থেকে বড় / ১, ২, ৩...), 'name_asc' (এ-ঝেড / A-Z), 'roll_desc', 'name_desc'
+ */
+export function sortStudentsGroupAndRoll(
+  students: Student[],
+  strategy: RollSortStrategy = 'roll_asc'
+): Student[] {
+  const copy = [...students];
+  return copy.sort((a, b) => {
+    // 1. Group hierarchy first
+    const prioA = getGroupPriority(a.group);
+    const prioB = getGroupPriority(b.group);
+    if (prioA !== prioB) {
+      return prioA - prioB;
+    }
+
+    // 2. Ordering within the same group
+    if (strategy === 'roll_asc') {
+      const rA = parseRollNumber(a.roll || a.prevRoll);
+      const rB = parseRollNumber(b.roll || b.prevRoll);
+      if (rA !== rB) return rA - rB;
+      const nameA = (a.name || '').trim();
+      const nameB = (b.name || '').trim();
+      return nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+    } else if (strategy === 'name_asc') {
+      const nameA = (a.name || '').trim();
+      const nameB = (b.name || '').trim();
+      const comp = nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+      if (comp !== 0) return comp;
+      const rA = parseRollNumber(a.roll || a.prevRoll);
+      const rB = parseRollNumber(b.roll || b.prevRoll);
+      return rA - rB;
+    } else if (strategy === 'roll_desc') {
+      const rA = parseRollNumber(a.roll || a.prevRoll);
+      const rB = parseRollNumber(b.roll || b.prevRoll);
+      if (rA !== rB) return rB - rA;
+      const nameA = (a.name || '').trim();
+      const nameB = (b.name || '').trim();
+      return nameA.localeCompare(nameB, 'bn', { numeric: true, sensitivity: 'base' });
+    } else if (strategy === 'name_desc') {
+      const nameA = (a.name || '').trim();
+      const nameB = (b.name || '').trim();
+      const comp = nameB.localeCompare(nameA, 'bn', { numeric: true, sensitivity: 'base' });
+      if (comp !== 0) return comp;
+      const rA = parseRollNumber(a.roll || a.prevRoll);
+      const rB = parseRollNumber(b.roll || b.prevRoll);
+      return rA - rB;
+    } else if (strategy === 'prev_roll') {
+      const rA = parseRollNumber(a.prevRoll || a.roll);
+      const rB = parseRollNumber(b.prevRoll || b.roll);
+      if (rA !== rB) return rA - rB;
+      return (a.name || '').localeCompare(b.name || '', 'bn');
+    }
+    return 0; // file_order
+  });
 }
 
 // ─── 5. DATA VALIDATION ENGINE (CORE REQUIREMENT 5) ──────────────────────────
@@ -1032,8 +1148,11 @@ export function executeBulkImport(
       finalStudentList = Array.from(existingMap.values());
     }
 
+    // 🌟 Sort saved list group-wise & roll-wise before committing to local/cloud storage
+    const sortedToSave = sortStudentsGroupAndRoll(finalStudentList, sortStrategy);
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sms_students', JSON.stringify(finalStudentList));
+      localStorage.setItem('sms_students', JSON.stringify(sortedToSave));
       localStorage.removeItem('sms_uploaded_students');
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new CustomEvent('sms:students-updated'));

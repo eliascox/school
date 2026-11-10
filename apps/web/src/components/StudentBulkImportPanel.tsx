@@ -258,8 +258,8 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [rawParsedStudents, setRawParsedStudents] = useState<Student[]>([]);
-  const [rollSortStrategy, setRollSortStrategy] = useState<RollSortStrategy>('name_asc');
-  const [keepUploadedRoll, setKeepUploadedRoll] = useState<boolean>(true); // 🛡️ Default true: "শিক্ষার্থীর যে রোল আপলোড হবে সেটি ঠিক থাকবে , শুধু এ-ঝেড আকারে সাজাবে"
+  const [rollSortStrategy, setRollSortStrategy] = useState<RollSortStrategy>('roll_asc');
+  const [keepUploadedRoll, setKeepUploadedRoll] = useState<boolean>(true); // 🛡️ Default true: retaining uploaded rolls sorted group & roll-wise
   const [autoAssignRolls, setAutoAssignRolls] = useState<boolean>(true);
   const [selectedSaveMode, setSelectedSaveMode] = useState<'merge' | 'replace_grade' | 'replace'>('merge');
   const [groupTabFilter, setGroupTabFilter] = useState<'all' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা'>('all');
@@ -988,14 +988,19 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <select
                 value={
                   keepUploadedRoll
-                    ? rollSortStrategy === 'name_asc'
+                    ? rollSortStrategy === 'roll_asc'
+                      ? 'keep_roll_asc'
+                      : rollSortStrategy === 'name_asc'
                       ? 'keep_name_asc'
                       : 'keep_file_order'
                     : 'reassign_1_to_n'
                 }
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === 'keep_name_asc') {
+                  if (val === 'keep_roll_asc') {
+                    setKeepUploadedRoll(true);
+                    setRollSortStrategy('roll_asc');
+                  } else if (val === 'keep_name_asc') {
                     setKeepUploadedRoll(true);
                     setRollSortStrategy('name_asc');
                   } else if (val === 'keep_file_order') {
@@ -1003,13 +1008,14 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                     setRollSortStrategy('file_order');
                   } else if (val === 'reassign_1_to_n') {
                     setKeepUploadedRoll(false);
-                    setRollSortStrategy('name_asc');
+                    setRollSortStrategy('roll_asc');
                   }
                 }}
                 className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-violet-300 dark:border-violet-700 rounded-xl text-xs font-black text-violet-700 dark:text-violet-300 outline-none cursor-pointer focus:ring-2 focus:ring-violet-500"
               >
-                <option value="keep_name_asc">✅ আপলোডকৃত রোল ঠিক থাকবে (A–Z সাজানো) [ডিফল্ট]</option>
-                <option value="keep_file_order">📑 আপলোডকৃত রোল ও ফাইলের ক্রম অপরিবর্তিত</option>
+                <option value="keep_roll_asc">✅ গ্রুপভিত্তিক রোল অনুযায়ী: ছোট থেকে বড় (১, ২, ৩...) [ডিফল্ট]</option>
+                <option value="keep_name_asc">🔤 গ্রুপভিত্তিক নামানুসারে: এ-ঝেড (A–Z) সাজানো</option>
+                <option value="keep_file_order">📑 ফাইলে যেভাবে আছে সেই মূল ক্রম (Original Order)</option>
                 <option value="reassign_1_to_n">🔢 ১ থেকে নতুন ক্রমিক রোল তৈরি (A–Z)</option>
               </select>
             </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { studentService } from '@/services/studentService';
+import { sortStudentsGroupAndRoll } from '@/services/studentBulkImportEngine';
 import { settingsService } from '@/services/settingsService';
 import { GraduationCap, Printer, ArrowLeft, BarChart3, FileText } from 'lucide-react';
 
@@ -90,7 +91,8 @@ function PrintPageContent() {
       return matchGrade && matchBranch && matchGroup && matchGender && matchReligion;
     });
 
-    setFilteredStudents(filtered);
+    // 🌟 Group-wise and Roll-wise sorting: ছোট থেকে বড় (১, ২, ৩...)
+    setFilteredStudents(sortStudentsGroupAndRoll(filtered, 'roll_asc'));
     setReady(true);
 
     return () => unsub();
