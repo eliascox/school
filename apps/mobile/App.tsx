@@ -101,6 +101,70 @@ export default function App() {
           <Text style={styles.checkIcon}>✅</Text>
         </View>
 
+        {/* Tab-Specific Detail Section */}
+        {activeTab === 'attendance' && (
+          <View style={styles.profileCard}>
+            <Text style={styles.sectionHeaderTitle}>📊 মাসিক ডিজিটাল হাজিরা প্রতিবেদন</Text>
+            <View style={styles.profileDivider} />
+            <View style={styles.profileStatsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>মোট কার্যদিবস</Text>
+                <Text style={styles.statValueBlue}>২৬ দিন</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>উপস্থিত</Text>
+                <Text style={styles.statValueGreen}>২৫ দিন</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>অনুপস্থিত</Text>
+                <Text style={styles.statValueBlue}>১ দিন</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'results' && (
+          <View style={styles.profileCard}>
+            <Text style={styles.sectionHeaderTitle}>🏆 একাডেমিক পরীক্ষার ফলাফল (২০২৬)</Text>
+            <View style={styles.profileDivider} />
+            <View style={styles.profileStatsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>পরীক্ষা</Text>
+                <Text style={styles.statValueBlue}>বার্ষিক ২০২৬</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>প্রাপ্ত জিপিএ</Text>
+                <Text style={styles.statValueGreen}>৫.০০ (A+)</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>মেধাক্রম</Text>
+                <Text style={styles.statValueGreen}>১ম স্থান</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'fees' && (
+          <View style={styles.profileCard}>
+            <Text style={styles.sectionHeaderTitle}>💳 বেতন ও ফি খতিয়ান (২০২৬)</Text>
+            <View style={styles.profileDivider} />
+            <View style={styles.profileStatsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>মোট ধার্য</Text>
+                <Text style={styles.statValueBlue}>৳৪,৮০০</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>পরিশোধিত</Text>
+                <Text style={styles.statValueGreen}>৳৪,৮০০</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>বর্তমান বকেয়া</Text>
+                <Text style={styles.statValueGreen}>৳০</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Quick Action Grid */}
         <Text style={styles.sectionHeaderTitle}>ডিজিটাল সেবাসমূহ</Text>
         <View style={styles.gridContainer}>

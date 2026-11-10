@@ -127,7 +127,7 @@ export default function TeacherPortalPage() {
   // ─── Data Loader ───────────────────────────────────────────────────────────
   const loadAllPortalData = useCallback(() => {
     const s = teacherAuthService.getSession();
-    if (!s || s.role !== 'teacher') {
+    if (!s || (s.role !== 'teacher' && s.role !== 'admin')) {
       router.push('/login');
       return;
     }
@@ -136,23 +136,27 @@ export default function TeacherPortalPage() {
     const teachers = teacherRBACService.getTeachers();
     const me = teachers.find(t =>
       t.id === s.teacherId || t.name === s.teacherName || t.phone === s.teacherId
-    );
+    ) || (s.role === 'admin' ? teachers[0] : undefined);
     setTeacher(me || null);
 
     const myId = me?.id || s.teacherId || s.teacherName || '';
 
     // Assignments
     const allAssignments = teacherRBACService.getSubjectAssignments();
-    const myAssignments = allAssignments.filter(a =>
-      a.teacherId === myId || a.teacherId === s.teacherId || a.teacherId === s.teacherName
-    );
+    const myAssignments = s.role === 'admin'
+      ? allAssignments
+      : allAssignments.filter(a =>
+          a.teacherId === myId || a.teacherId === s.teacherId || a.teacherId === s.teacherName
+        );
     setAssignments(myAssignments);
 
     // Class Teachers
     const allCT = teacherRBACService.getClassTeachers();
-    const myCT = allCT.filter(ct =>
-      ct.teacherId === myId || ct.teacherId === s.teacherId || ct.teacherId === s.teacherName
-    );
+    const myCT = s.role === 'admin'
+      ? allCT
+      : allCT.filter(ct =>
+          ct.teacherId === myId || ct.teacherId === s.teacherId || ct.teacherId === s.teacherName
+        );
     setClassTeachers(myCT);
 
     // Load Class Students & Fee Ledgers if Class Teacher

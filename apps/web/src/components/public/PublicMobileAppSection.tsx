@@ -17,22 +17,28 @@ import {
   ExternalLink,
   ChevronRight,
   Info,
-  Layers,
   Copy,
   Check,
   X,
-  Globe,
   Wifi,
-  BatteryCharging
+  BatteryCharging,
+  Award
 } from 'lucide-react';
 import { MobileAppConfig, DEFAULT_MOBILE_APP_CONFIG } from '@/services/landingPageService';
 import { SchoolSettings } from '@/services/settingsService';
+import { studentService } from '@/services/studentService';
+import { noticeService } from '@/services/noticeService';
 import QRCodeLib from 'qrcode';
 
 interface PublicMobileAppSectionProps {
   appConfig?: MobileAppConfig | null;
   settings?: SchoolSettings | null;
 }
+
+const toBnDigit = (num: number | string) => {
+  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/[0-9]/g, (d) => bn[parseInt(d, 10)]);
+};
 
 export default function PublicMobileAppSection({
   appConfig,
@@ -41,22 +47,87 @@ export default function PublicMobileAppSection({
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [generatedQr, setGeneratedQr] = useState<string>('');
+  const [qrMode, setQrMode] = useState<'webapp' | 'apk'>('webapp');
+  const [mockupTab, setMockupTab] = useState<'home' | 'attendance' | 'results' | 'routine'>('home');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  const [sampleStudent, setSampleStudent] = useState<{
+    name: string;
+    roll: string;
+    grade: string;
+    section: string;
+    gpa: string;
+  }>({
+    name: 'শিক্ষার্থী প্রোফাইল',
+    roll: '০১',
+    grade: '১০ম শ্রেণি',
+    section: 'বিজ্ঞান শাখা',
+    gpa: '৫.০০',
+  });
+  const [latestNoticeTitle, setLatestNoticeTitle] = useState(
+    '২০২৬ শিক্ষাবর্ষের ক্লাস ও পরীক্ষার সময়সূচি প্রকাশিত হয়েছে'
+  );
 
   const cfg = appConfig || DEFAULT_MOBILE_APP_CONFIG;
-
-  if (cfg.enabled === false) {
-    return null;
-  }
-
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
   const apkUrl = cfg.apkDownloadUrl || '/downloads/school-app.apk';
-  const playStoreUrl = cfg.playStoreUrl || 'https://play.google.com/store';
-  const appStoreUrl = cfg.appStoreUrl || 'https://www.apple.com/app-store/';
+
+  const getScannableBaseOrigin = () => {
+    if (typeof window === 'undefined') return '';
+    const { hostname, port } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `http://192.168.0.187:${port || '3000'}`;
+    }
+    return window.location.origin;
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Load live student & notice sample for the interactive phone preview
+    try {
+      const allStudents = studentService.getAllStudents();
+      if (allStudents.length > 0) {
+        const st = allStudents[0];
+        const gMap: Record<string, string> = {
+          '6th': '৬ষ্ঠ শ্রেণি',
+          '7th': '৭ম শ্রেণি',
+          '8th': '৮ম শ্রেণি',
+          '9th': '৯ম শ্রেণি',
+          '10th': '১০ম শ্রেণি',
+        };
+        setSampleStudent({
+          name: st.name,
+          roll: toBnDigit(st.roll || 1),
+          grade: gMap[st.grade] || st.grade || '১০ম শ্রেণি',
+          section: st.group && st.group !== 'None' ? st.group : `শাখা ${st.section || 'ক'}`,
+          gpa: st.gpa ? toBnDigit(st.gpa) : '৫.০০',
+        });
+      }
+      const allNotices = noticeService.getNotices();
+      if (allNotices.length > 0 && allNotices[0].title) {
+        setLatestNoticeTitle(allNotices[0].title);
+      }
+    } catch {}
+
+    // Listen for native PWA install prompt
+    const w = window as any;
+    if (w.__deferredPwaPrompt) setDeferredPrompt(w.__deferredPwaPrompt);
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      w.__deferredPwaPrompt = e;
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  }, []);
 
   // Generate dynamic scannable QR code
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const fullUrl = window.location.origin + apkUrl;
+      const origin = getScannableBaseOrigin();
+      const targetPath = qrMode === 'webapp' ? '/mobile-app' : apkUrl;
+      const fullUrl = origin + targetPath;
       QRCodeLib.toDataURL(fullUrl, {
         width: 220,
         margin: 1,
@@ -68,15 +139,31 @@ export default function PublicMobileAppSection({
         .then((url) => setGeneratedQr(url))
         .catch(() => {});
     }
-  }, [apkUrl]);
+  }, [apkUrl, qrMode]);
+
+  if (cfg.enabled === false) {
+    return null;
+  }
 
   const handleCopyLink = () => {
     if (typeof window !== 'undefined') {
-      const fullUrl = window.location.origin + apkUrl;
+      const origin = getScannableBaseOrigin();
+      const targetPath = qrMode === 'webapp' ? '/mobile-app' : apkUrl;
+      const fullUrl = origin + targetPath;
       navigator.clipboard.writeText(fullUrl).then(() => {
         setCopiedLink(true);
         setTimeout(() => setCopiedLink(false), 2500);
       });
+    }
+  };
+
+  const handlePwaInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+    } else {
+      setShowInstallModal(true);
     }
   };
 
@@ -120,7 +207,7 @@ export default function PublicMobileAppSection({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
               <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{cfg.eyebrow || 'স্মার্ট ডিজিটাল ক্যাম্পাস মোবাইল অ্যাপ'}</span>
+              <span>{cfg.eyebrow || 'স্মার্ট ডিজিটাল ক্যাম্পাস মোবাইল অ্যাপ (v2.0)'}</span>
             </div>
 
             {/* Title & Subtitle */}
@@ -159,7 +246,7 @@ export default function PublicMobileAppSection({
               ))}
             </div>
 
-            {/* Download Buttons Section */}
+            {/* Download & Launch Buttons Section */}
             <div className="pt-2 space-y-4">
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 sm:gap-4">
                 
@@ -181,66 +268,70 @@ export default function PublicMobileAppSection({
                       APK ডাউনলোড করুন
                     </span>
                     <span className="text-[10px] text-emerald-200 block font-normal">
-                      {cfg.version} • {cfg.fileSize}
+                      ভার্সন ২.০.০ • অফলাইন ও ক্লাউড সিঙ্ক
                     </span>
                   </div>
                 </a>
 
-                {/* 2. Google Play Store */}
-                <a
-                  href={playStoreUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white border border-slate-700 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+                {/* 2. Open Live Mobile App directly in browser (Android & iOS) */}
+                <Link
+                  href="/mobile-app"
+                  className="inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white border border-slate-700 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <svg className="w-6 h-6 fill-current text-emerald-400" viewBox="0 0 24 24">
-                    <path d="M3.609 1.814L13.792 12 3.61 22.186a2.38 2.38 0 0 1-.61-.926V2.74c0-.342.103-.667.28-.934l.329.008zm11.235 11.238l2.095 2.095-11.77 6.792 9.675-8.887zm0-2.104L5.17 2.062l11.769 6.792-2.095 2.094zm1.488 1.052l2.977 1.718a1.69 1.69 0 0 1 0 2.928l-2.977 1.718-2.046-2.046 2.046-2.046z"/>
-                  </svg>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
                   <div className="text-left">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">
-                      GET IT ON
+                    <span className="text-[9px] uppercase tracking-wider text-emerald-400 block font-bold">
+                      ANDROID ও IPHONE
                     </span>
                     <span className="text-xs sm:text-sm font-black tracking-tight leading-none">
-                      Google Play
+                      মোবাইল অ্যাপ ওপেন করুন
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      ইনস্টল ছাড়াই সরাসরি চালু
                     </span>
                   </div>
-                </a>
+                </Link>
 
-                {/* 3. Apple App Store */}
-                <a
-                  href={appStoreUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white border border-slate-700 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+                {/* 3. 1-Click PWA Web App Install */}
+                <button
+                  type="button"
+                  onClick={handlePwaInstall}
+                  className="inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
-                  <svg className="w-6 h-6 fill-current text-white" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.63 1.35-.57.65-1.07 1.72-.94 2.74 1 .08 2.03-.51 2.65-1.24z"/>
-                  </svg>
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
                   <div className="text-left">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">
-                      Download on the
+                    <span className="text-[9px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block font-bold">
+                      ১-ক্লিক ওয়েব অ্যাপ (PWA)
                     </span>
                     <span className="text-xs sm:text-sm font-black tracking-tight leading-none">
-                      App Store
+                      ফোনে ইনস্টল করুন
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">
+                      হোম স্ক্রিনে যুক্ত করুন
                     </span>
                   </div>
-                </a>
+                </button>
 
                 {/* 4. Installation Help Button */}
                 <button
                   type="button"
                   onClick={() => setShowInstallModal(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 underline underline-offset-4 px-2 py-1 transition"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 underline underline-offset-4 px-2 py-1 transition cursor-pointer"
                 >
                   <Info className="w-3.5 h-3.5" />
                   <span>ইনস্টলেশন সহায়িকা ও নিয়মাবলী</span>
                 </button>
               </div>
 
-              {/* Scannable QR Code Card */}
+              {/* Scannable QR Code Card with Mode Toggle */}
               <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 flex flex-col sm:flex-row items-center gap-4 text-left">
                 <div className="p-2 bg-white rounded-xl shadow-xs border border-emerald-200 shrink-0">
                   {generatedQr ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={generatedQr}
                       alt="School App QR Code"
@@ -252,25 +343,60 @@ export default function PublicMobileAppSection({
                     </div>
                   )}
                 </div>
-                <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
-                  <div className="flex items-center justify-center sm:justify-start gap-1.5">
-                    <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
-                      মোবাইলে ক্যামেরা দিয়ে স্ক্যান করুন
-                    </span>
+                <div className="space-y-1.5 text-center sm:text-left flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                        মোবাইলে ক্যামেরা দিয়ে স্ক্যান করুন
+                      </span>
+                    </div>
+                    <div className="inline-flex rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-emerald-200 dark:border-slate-700 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setQrMode('webapp')}
+                        className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                          qrMode === 'webapp'
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        লাইভ অ্যাপ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQrMode('apk')}
+                        className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                          qrMode === 'apk'
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        APK ডাউনলোড
+                      </button>
+                    </div>
                   </div>
                   <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300">
-                    ক্যামেরা ওপেন করে QR কোডটি স্ক্যান করলেই সরাসরি ডাউনলোড লিংকটি চালু হবে।
+                    {qrMode === 'webapp'
+                      ? 'ক্যামেরা দিয়ে স্ক্যান করলেই আপনার ফোনে সরাসরি স্মার্ট ক্যাম্পাস মোবাইল অ্যাপ চালু হবে।'
+                      : 'ক্যামেরা দিয়ে স্ক্যান করলেই সরাসরি অফিশিয়াল Android APK ফাইলটি ডাউনলোড শুরু হবে।'}
                   </p>
-                  <div className="pt-1 flex items-center justify-center sm:justify-start gap-2">
+                  <div className="pt-0.5 flex items-center justify-center sm:justify-start gap-3">
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
                     >
                       {copiedLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedLink ? 'ডাউনলোড লিংক কপি হয়েছে!' : 'ডাউনলোড লিংক কপি করুন'}</span>
+                      <span>{copiedLink ? 'লিংক কপি হয়েছে!' : 'অ্যাপ লিংক কপি করুন'}</span>
                     </button>
+                    <Link
+                      href="/mobile-app"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      <span>ফুল-স্ক্রিন অ্যাপ দেখুন</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -283,7 +409,7 @@ export default function PublicMobileAppSection({
           <div className="lg:col-span-5 flex justify-center relative">
             
             {/* Floating Trust Badge 1 (Top Left) */}
-            <div className="absolute -top-4 -left-4 sm:left-4 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 flex items-center gap-2.5 animate-pulse">
+            <div className="absolute -top-4 -left-4 sm:left-4 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 flex items-center gap-2.5">
               <div className="p-1.5 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
               </div>
@@ -313,7 +439,7 @@ export default function PublicMobileAppSection({
             </div>
 
             {/* Realistic Smartphone Frame */}
-            <div className="w-[280px] sm:w-[310px] rounded-[48px] p-3.5 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 shadow-2xl shadow-slate-900/40 border-4 border-slate-700/60 ring-1 ring-white/10 relative">
+            <div className="w-[290px] sm:w-[320px] rounded-[48px] p-3.5 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 shadow-2xl shadow-slate-900/40 border-4 border-slate-700/60 ring-1 ring-white/10 relative">
               
               {/* Phone Speaker & Camera Notch (Dynamic Island) */}
               <div className="absolute top-6 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full flex items-center justify-between px-3 z-30 shadow-inner">
@@ -336,116 +462,201 @@ export default function PublicMobileAppSection({
                   </div>
                 </div>
 
-                {/* App Screen Content */}
-                <div className="p-4 space-y-3.5 bg-gradient-to-b from-emerald-800 to-slate-900 text-white">
-                  
-                  {/* App Header */}
+                {/* App Screen Header */}
+                <div className="p-4 space-y-3 bg-gradient-to-b from-emerald-800 to-slate-900 text-white">
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-white/20 p-1 flex items-center justify-center font-bold text-xs">
                         🏫
                       </div>
                       <div>
-                        <h5 className="text-[11px] font-black leading-tight truncate max-w-[140px]">
+                        <h5 className="text-[11px] font-black leading-tight truncate max-w-[150px]">
                           {schoolName}
                         </h5>
-                        <span className="text-[9px] text-emerald-200 block">স্মার্ট অ্যাপ পোর্টাল</span>
+                        <span className="text-[9px] text-emerald-200 block">স্মার্ট অ্যাপ পোর্টাল • LIVE</span>
                       </div>
                     </div>
-                    <div className="relative p-1.5 rounded-lg bg-white/10">
-                      <Bell className="w-3.5 h-3.5 text-white" />
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 text-[8px] font-black rounded-full flex items-center justify-center text-white">
-                        ৩
-                      </span>
-                    </div>
+                    <Link
+                      href="/mobile-app"
+                      className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[9px] transition"
+                    >
+                      ওপেন ↗
+                    </Link>
                   </div>
 
                   {/* Student Profile Card */}
                   <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 space-y-2">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-emerald-400 flex items-center justify-center font-black text-slate-900 text-xs shadow-xs">
-                        তা
+                        {sampleStudent.name.slice(0, 2)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
-                          <h6 className="text-xs font-black truncate">তানভীর আহমেদ</h6>
+                          <h6 className="text-xs font-black truncate">{sampleStudent.name}</h6>
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
                             সক্রিয়
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-300">১০ম শ্রেণি • রোল: ০১ • বিজ্ঞান শাখা</p>
+                        <p className="text-[10px] text-slate-300 truncate">
+                          {sampleStudent.grade} • রোল: {sampleStudent.roll} • {sampleStudent.section}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-white/10 text-[10px]">
-                      <span className="text-slate-300">বার্ষিক উপস্থিতি:</span>
-                      <span className="font-extrabold text-emerald-300">৯৮.৫% (উপস্থিত)</span>
+                      <span className="text-slate-300">জিপিএ: {sampleStudent.gpa}</span>
+                      <span className="font-extrabold text-emerald-300">উপস্থিতি: ৯৮%</span>
                     </div>
                   </div>
-
                 </div>
 
-                {/* Body Content in Mockup */}
+                {/* Interactive Body Content in Mockup */}
                 <div className="p-3.5 space-y-3 bg-slate-50 dark:bg-slate-950 flex-1 text-slate-900 dark:text-slate-100">
                   
-                  {/* Quick Action 4-Grid */}
+                  {/* Interactive Quick Action 4-Grid */}
                   <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('attendance')}
+                      className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition cursor-pointer ${
+                        mockupTab === 'attendance'
+                          ? 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900/60'
+                          : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900'
+                      }`}
+                    >
                       <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[9px] font-bold">হাজিরা</span>
-                    </div>
+                    </button>
 
-                    <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('results')}
+                      className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition cursor-pointer ${
+                        mockupTab === 'results'
+                          ? 'bg-blue-100 border-blue-400 dark:bg-blue-900/60'
+                          : 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-900'
+                      }`}
+                    >
                       <div className="w-6 h-6 rounded-lg bg-blue-500 text-white flex items-center justify-center text-xs">
                         <FileText className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[9px] font-bold">ফলাফল</span>
-                    </div>
+                    </button>
 
-                    <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-900 flex flex-col items-center gap-1">
+                    <Link
+                      href="/mobile-app"
+                      className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-900 flex flex-col items-center gap-1 hover:border-purple-400 transition"
+                    >
                       <div className="w-6 h-6 rounded-lg bg-purple-500 text-white flex items-center justify-center text-xs">
                         <CreditCard className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[9px] font-bold">ফি প্রদান</span>
-                    </div>
+                      <span className="text-[9px] font-bold">ফি খতিয়ান</span>
+                    </Link>
 
-                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900 flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('routine')}
+                      className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition cursor-pointer ${
+                        mockupTab === 'routine'
+                          ? 'bg-amber-100 border-amber-400 dark:bg-amber-900/60'
+                          : 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-900'
+                      }`}
+                    >
                       <div className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs">
                         <Calendar className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[9px] font-bold">রুটিন</span>
-                    </div>
+                    </button>
                   </div>
 
-                  {/* Today Attendance Widget */}
-                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
-                      <span className="text-[10px] font-black">আজকের হাজিরা: সময়মত প্রবেশ</span>
-                    </div>
-                    <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
-                      সকাল ০৯:১৫
-                    </span>
-                  </div>
+                  {/* Dynamic Widget Based on Selected Mockup Tab */}
+                  {mockupTab === 'home' && (
+                    <>
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
+                          <span className="text-[10px] font-black">আজকের হাজিরা: উপস্থিত</span>
+                        </div>
+                        <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                          ভেরিফাইড
+                        </span>
+                      </div>
 
-                  {/* Latest Notice in Mockup */}
-                  <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60">
-                    <div className="flex items-center gap-1 text-[10px] font-black text-amber-800 dark:text-amber-300">
-                      <span>📢</span>
-                      <span>বার্ষিক পরীক্ষার রুটিন ও আসন বিন্যাস</span>
+                      <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60">
+                        <div className="flex items-center gap-1 text-[10px] font-black text-amber-800 dark:text-amber-300">
+                          <span>📢</span>
+                          <span className="truncate">{latestNoticeTitle}</span>
+                        </div>
+                        <p className="text-[9px] text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-1">
+                          বিস্তারিত নোটিশ ও রুটিন দেখতে অ্যাপ ওপেন করুন।
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {mockupTab === 'attendance' && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-black text-emerald-900 dark:text-emerald-200">
+                        <span>📊 মাসিক হাজিরা সারাংশ</span>
+                        <span>৯৮.৫% উপস্থিত</span>
+                      </div>
+                      <p className="text-[9px] text-emerald-800 dark:text-emerald-300">
+                        মোট কার্যদিবস: ২৬ দিন • উপস্থিত: ২৫ দিন • অনুপস্থিত: ১ দিন
+                      </p>
                     </div>
-                    <p className="text-[9px] text-slate-600 dark:text-slate-400 mt-0.5 line-clamp-1">
-                      সকল শ্রেণির পরীক্ষার চূড়ান্ত সংশোধিত সময়সূচি প্রকাশ করা হয়েছে।
-                    </p>
-                  </div>
+                  )}
+
+                  {mockupTab === 'results' && (
+                    <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-black text-blue-900 dark:text-blue-200">
+                        <span>🏆 সর্বশেষ পরীক্ষার ফলাফল</span>
+                        <span>জিপিএ {sampleStudent.gpa} (A+)</span>
+                      </div>
+                      <p className="text-[9px] text-blue-800 dark:text-blue-300">
+                        সকল বিষয়ে কৃতকার্য • পূর্ণাঙ্গ মার্কশিট ডাউনলোড করতে ক্লিক করুন।
+                      </p>
+                    </div>
+                  )}
+
+                  {mockupTab === 'routine' && (
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-black text-amber-900 dark:text-amber-200">
+                        <span>📖 আজকের ক্লাস রুটিন</span>
+                        <span>সকাল ১০:০০ - ০৪:০০</span>
+                      </div>
+                      <p className="text-[9px] text-amber-800 dark:text-amber-300">
+                        ১ম পিরিয়ড: বাংলা • ২য় পিরিয়ড: ইংরেজি • ৩য় পিরিয়ড: গণিত
+                      </p>
+                    </div>
+                  )}
 
                   {/* Mockup Bottom Navigation Bar */}
-                  <div className="pt-1 border-t border-slate-200 dark:border-slate-800 flex items-center justify-around text-slate-400 text-[9px] font-bold">
-                    <span className="text-emerald-600 dark:text-emerald-400">🏠 হোম</span>
-                    <span>📊 হাজিরা</span>
-                    <span>📝 ফলাফল</span>
-                    <span>👤 প্রোফাইল</span>
+                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-around text-slate-400 text-[9px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('home')}
+                      className={`cursor-pointer ${mockupTab === 'home' ? 'text-emerald-600 dark:text-emerald-400 font-black' : ''}`}
+                    >
+                      🏠 হোম
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('attendance')}
+                      className={`cursor-pointer ${mockupTab === 'attendance' ? 'text-emerald-600 dark:text-emerald-400 font-black' : ''}`}
+                    >
+                      📊 হাজিরা
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMockupTab('results')}
+                      className={`cursor-pointer ${mockupTab === 'results' ? 'text-emerald-600 dark:text-emerald-400 font-black' : ''}`}
+                    >
+                      📝 ফলাফল
+                    </button>
+                    <Link href="/mobile-app" className="text-indigo-600 dark:text-indigo-400 font-black">
+                      🚀 পূর্ণ অ্যাপ
+                    </Link>
                   </div>
 
                 </div>
@@ -464,7 +675,7 @@ export default function PublicMobileAppSection({
         </div>
       </div>
 
-      {/* APK Installation Guide Modal */}
+      {/* APK & PWA Installation Guide Modal */}
       {showInstallModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 relative">
@@ -473,7 +684,7 @@ export default function PublicMobileAppSection({
             <button
               type="button"
               onClick={() => setShowInstallModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -485,10 +696,10 @@ export default function PublicMobileAppSection({
               </div>
               <div>
                 <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-                  অ্যান্ড্রয়েড ফোনে APK ইনস্টল করার নিয়ম
+                  মোবাইলে অ্যাপ ইনস্টল ও ব্যবহারের নিয়ম
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  নিচের ৪টি সহজ ধাপে অ্যাপটি আপনার ফোনে ইনস্টল করুন
+                  Android APK অথবা সরাসরি ওয়েব অ্যাপ (PWA) হিসেবে ব্যবহার করুন
                 </p>
               </div>
             </div>
@@ -501,7 +712,7 @@ export default function PublicMobileAppSection({
                   ১
                 </span>
                 <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">ফাইল ডাউনলোড সম্পন্ন করুন</h5>
+                  <h5 className="font-bold text-slate-900 dark:text-white">ফাইল ডাউনলোড ও ওপেন করুন</h5>
                   <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
                     ডাউনলোড সম্পন্ন হলে ব্রাউজারের নোটিফিকেশন বার অথবা ফোনের &apos;Downloads&apos; ফোল্ডার থেকে <strong>school-app.apk</strong> ফাইলে ট্যাপ করুন।
                   </p>
@@ -515,31 +726,19 @@ export default function PublicMobileAppSection({
                 <div>
                   <h5 className="font-bold text-slate-900 dark:text-white">সিকিউরিটি পারমিশন এলাউ করুন</h5>
                   <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                    যদি &apos;Install unknown apps&apos; বা সতর্কবার্তা দেখায়, তবে <strong>Settings</strong> এ গিয়ে <strong>&apos;Allow from this source&apos;</strong> অপশনটি চালু করে দিন।
+                    যদি &apos;Install unknown apps&apos; দেখায়, তবে <strong>Settings → Allow from this source</strong> চালু করে <strong>Install</strong> বাটনে চাপ দিন।
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
                 <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
                   ৩
                 </span>
                 <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">ইনস্টলেশন সম্পন্ন করুন</h5>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                    <strong>Install</strong> বাটনে চাপ দিন এবং কয়েক সেকেন্ডের মধ্যে ইনস্টলেশন সফলভাবে সম্পন্ন হবে।
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
-                  ৪
-                </span>
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">সহজে লগইন করুন</h5>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                    অ্যাপটি ওপেন করে শিক্ষার্থী তার রোল/পিন এবং শিক্ষক তার আইডি ও পাসওয়ার্ড দিয়ে সরাসরি লগইন করতে পারবেন।
+                  <h5 className="font-bold text-slate-900 dark:text-white">ইনস্টল ছাড়াই সরাসরি ওয়েব অ্যাপ (Android ও iPhone)</h5>
+                  <p className="text-slate-600 dark:text-slate-300 text-xs mt-0.5">
+                    যেকোনো ফোনে APK ছাড়াই সরাসরি <strong>&quot;মোবাইল অ্যাপ ওপেন করুন&quot;</strong> বাটনে ক্লিক করে সব সেবা ব্যবহার করতে পারবেন।
                   </p>
                 </div>
               </div>
@@ -547,21 +746,29 @@ export default function PublicMobileAppSection({
             </div>
 
             {/* Modal Actions */}
-            <div className="pt-2 flex items-center justify-end gap-3">
+            <div className="pt-2 flex flex-wrap items-center justify-end gap-2.5">
+              <Link
+                href="/mobile-app"
+                onClick={() => setShowInstallModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm transition"
+              >
+                <Smartphone className="w-4 h-4 text-emerald-400" />
+                <span>মোবাইল অ্যাপ ওপেন করুন</span>
+              </Link>
               <a
                 href={apkUrl}
                 download="school-app.apk"
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition"
               >
                 <Download className="w-4 h-4" />
-                <span>সরাসরি APK ডাউনলোড করুন</span>
+                <span>APK ডাউনলোড করুন</span>
               </a>
               <button
                 type="button"
                 onClick={() => setShowInstallModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm transition"
+                className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm transition cursor-pointer"
               >
-                বুঝেছি, ধন্যবাদ
+                বন্ধ করুন
               </button>
             </div>
 

@@ -1,16 +1,28 @@
 ﻿{
-  "name": "SchoolPro - বরইতলী উচ্চ বিদ্যালয়",
-  "short_name": "SchoolPro",
-  "description": "বরইতলী উচ্চ বিদ্যালয় — শিক্ষক ও প্রশাসন ডিজিটাল ম্যানেজমেন্ট সিস্টেম",
-  "start_url": "/login",
+  "name": "স্মার্ট ক্যাম্পাস - বরইতলী উচ্চ বিদ্যালয়",
+  "short_name": "স্মার্ট ক্যাম্পাস",
+  "description": "বরইতলী উচ্চ বিদ্যালয় — শিক্ষার্থী, অভিভাবক ও শিক্ষক স্মার্ট ডিজিটাল ক্যাম্পাস মোবাইল অ্যাপ",
+  "start_url": "/mobile-app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#4f46e5",
-  "orientation": "any",
+  "theme_color": "#065f46",
+  "orientation": "portrait-primary",
   "lang": "bn",
   "dir": "ltr",
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icons/icon-192x192.svg",
       "sizes": "192x192",
@@ -26,18 +38,25 @@
   ],
   "shortcuts": [
     {
-      "name": "নম্বর এন্ট্রি",
-      "short_name": "নম্বর",
-      "description": "শিক্ষার্থীদের নম্বর এন্ট্রি করুন",
-      "url": "/dashboard/exam/mark-entry",
-      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
+      "name": "স্মার্ট মোবাইল অ্যাপ",
+      "short_name": "অ্যাপ",
+      "description": "শিক্ষার্থী, অভিভাবক ও শিক্ষক পোর্টাল",
+      "url": "/mobile-app",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "শ্রেণি হাজিরা",
-      "short_name": "হাজিরা",
-      "description": "শ্রেণির শিক্ষার্থীদের হাজিরা নিন",
-      "url": "/dashboard/academic/attendance",
-      "icons": [{ "src": "/icons/icon-192x192.svg", "sizes": "192x192" }]
+      "name": "শিক্ষক পোর্টাল",
+      "short_name": "শিক্ষক",
+      "description": "হাজিরা ও নম্বর এন্ট্রি পোর্টাল",
+      "url": "/dashboard/teacher-portal",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "অনলাইন ফলাফল",
+      "short_name": "ফলাফল",
+      "description": "পরীক্ষার মার্কশিট ও গ্রেডশিট",
+      "url": "/result",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "categories": ["education", "productivity"]

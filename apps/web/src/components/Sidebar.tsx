@@ -45,7 +45,8 @@ import {
   FileText,
   FileSpreadsheet,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  Smartphone
 } from 'lucide-react';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
@@ -589,6 +590,20 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
               labelBn: 'ওয়েবসাইট কন্টেন্ট এডিটর',
               href: '/dashboard/landing-page',
               icon: <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" />,
+            },
+            {
+              label: 'Mobile App & PWA Hub',
+              labelBn: 'মোবাইল অ্যাপ ও APK হাব',
+              href: '/dashboard/mobile-app',
+              icon: <Smartphone className="w-3.5 h-3.5 text-emerald-600" />,
+              badge: 'v2.0',
+              badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold',
+            },
+            {
+              label: 'Teacher Mobile Portal',
+              labelBn: 'শিক্ষক মোবাইল পোর্টাল',
+              href: '/dashboard/teacher-portal',
+              icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600" />,
             },
             {
               label: 'View Public Site',
