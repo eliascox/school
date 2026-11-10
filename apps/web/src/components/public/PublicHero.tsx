@@ -176,7 +176,7 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
 
   // Keep currentIndex valid
   useEffect(() => {
-    if (currentIndex >= slides.length) {
+    if (slides.length > 0 && currentIndex >= slides.length) {
       setCurrentIndex(0);
       setPreviousIndex(null);
     }
@@ -201,12 +201,14 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
     if (slides.length <= 1 || isPaused || heroConfig?.enableSlider === false) return;
 
     const timer = setInterval(() => {
-      setPreviousIndex(currentIndex);
-      setCurrentIndex((prev) => (prev + 1) % slides.length);
+      setCurrentIndex((prev) => {
+        setPreviousIndex(prev);
+        return (prev + 1) % slides.length;
+      });
     }, 5500);
 
     return () => clearInterval(timer);
-  }, [slides.length, isPaused, heroConfig?.enableSlider, currentIndex]);
+  }, [slides.length, isPaused, heroConfig?.enableSlider]);
 
   const activeSlide = slides[currentIndex] || slides[0];
 

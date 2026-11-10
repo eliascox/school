@@ -51,22 +51,8 @@ const SECTION_REVEAL_VARIANTS: Record<string, RevealVariant> = {
 
 export default function PublicSchoolHomePage() {
   const [mounted, setMounted] = useState(false);
-  const [settings, setSettings] = useState<SchoolSettings | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return settingsService.getSettings();
-      } catch (e) {}
-    }
-    return null;
-  });
-  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return landingPageService.getPublishedConfig();
-      } catch (e) {}
-    }
-    return DEFAULT_LANDING_CONFIG;
-  });
+  const [settings, setSettings] = useState<SchoolSettings | null>(null);
+  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(DEFAULT_LANDING_CONFIG);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -108,9 +94,6 @@ export default function PublicSchoolHomePage() {
     const applyCloudData = (cloudData: LandingPageCloudData) => {
       if (cloudData.settings) {
         setSettings((prev) => ({ ...(prev || {}), ...cloudData.settings } as SchoolSettings));
-        try {
-          settingsService.updateSettings(cloudData.settings);
-        } catch (e) {}
       }
       if (cloudData.landingConfig) {
         setLandingConfig(cloudData.landingConfig);
@@ -151,7 +134,6 @@ export default function PublicSchoolHomePage() {
     // Re-sync on service updates
     const unsubSettings = settingsService.subscribe((s) => {
       setSettings(s);
-      landingPageService.syncWithSchoolSettings(s);
     });
     const unsubLanding = landingPageService.subscribePublished((cfg) => setLandingConfig(cfg));
     const unsubNotices = noticeService.subscribe(() => setNotices(noticeService.getNotices()));

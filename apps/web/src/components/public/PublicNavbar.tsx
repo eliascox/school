@@ -81,7 +81,14 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
     } catch (e) {}
 
     const unsub = settingsService.subscribe((s) => {
-      if (s) setActiveSettings(s);
+      if (s) {
+        setActiveSettings((prev) => {
+          if (prev && prev.schoolName === s.schoolName && prev.schoolLogo === s.schoolLogo && prev.eiin === s.eiin) {
+            return prev;
+          }
+          return s;
+        });
+      }
     });
     return () => unsub();
   }, []);

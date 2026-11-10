@@ -20,13 +20,9 @@ interface PublicCommitteeSectionProps {
 }
 
 export default function PublicCommitteeSection({ committeeMembers: propMembers }: PublicCommitteeSectionProps = {}) {
-  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>(() => {
-    if (propMembers && propMembers.length > 0) return propMembers;
-    const settings = settingsService.getSettings();
-    return (settings.committeeMembers && settings.committeeMembers.length > 0)
-      ? settings.committeeMembers
-      : DEFAULT_COMMITTEE_MEMBERS;
-  });
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>(
+    propMembers && propMembers.length > 0 ? propMembers : DEFAULT_COMMITTEE_MEMBERS
+  );
 
   useEffect(() => {
     if (propMembers !== undefined) {

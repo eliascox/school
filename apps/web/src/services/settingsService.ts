@@ -271,11 +271,15 @@ if (typeof window !== 'undefined') {
     // 2. Real-time onSnapshot subscription for live multi-PC syncing
     firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
       if (cloudUpdate.settings && (cloudUpdate.settings.schoolLogo || cloudUpdate.settings.schoolName)) {
-        currentSettings = {
+        const nextSettings: SchoolSettings = {
           ...DEFAULT_SETTINGS,
           ...currentSettings,
           ...cloudUpdate.settings,
         };
+        const prevSerialized = JSON.stringify({ ...currentSettings, updatedAt: undefined });
+        const nextSerialized = JSON.stringify({ ...nextSettings, updatedAt: undefined });
+        if (prevSerialized === nextSerialized) return;
+        currentSettings = nextSettings;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
           if (currentSettings.schoolLogo) {
@@ -298,7 +302,7 @@ export const settingsService = {
     return currentSettings;
   },
   updateSettings: (newSettings: Partial<SchoolSettings>) => {
-    currentSettings = {
+    const nextSettings: SchoolSettings = {
       ...currentSettings,
       ...newSettings,
       padMargins: {
@@ -307,6 +311,12 @@ export const settingsService = {
         ...(newSettings.padMargins || {})
       }
     };
+    const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
+    const nextClean = JSON.stringify({ ...(nextSettings as any), updatedAt: undefined });
+    if (prevClean === nextClean) {
+      return;
+    }
+    currentSettings = nextSettings;
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
