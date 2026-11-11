@@ -562,11 +562,11 @@ function PrintPageContent() {
         }
       `}</style>
 
-      {/* ── NO-PRINT TOP CONTROL TOOLBAR ── */}
-      <div className="no-print sticky top-0 z-50 bg-slate-900 text-white px-4 sm:px-6 py-3 shadow-xl border-b border-slate-800 space-y-2.5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      {/* ── NO-PRINT TOP CONTROL TOOLBAR (SINGLE LINE) ── */}
+      <div className="no-print sticky top-0 z-50 bg-slate-900 text-white px-4 sm:px-6 py-2.5 shadow-xl border-b border-slate-800 space-y-2">
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           {/* Left: Back & Report Mode Switcher */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => {
                 if (window.history.length > 1) {
@@ -575,90 +575,90 @@ function PrintPageContent() {
                   window.location.href = '/dashboard/students?view=print';
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition cursor-pointer border border-slate-700"
+              className="h-9 flex items-center gap-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition cursor-pointer border border-slate-700 whitespace-nowrap"
             >
               <ArrowLeft size={14} /> ফিরে যান
             </button>
 
             {/* Report Mode Switcher Tabs */}
-            <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <div className="h-9 flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
               <button
                 onClick={() => {
                   setReportType('summary');
                   setOrientation('portrait');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   reportType === 'summary'
                     ? 'bg-emerald-600 text-white shadow-xs font-black'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                <BarChart3 size={14} />
-                শ্রেণি ও বিভাগ সামারি
+                <BarChart3 size={13} />
+                সামারি রিপোর্ট
               </button>
               <button
                 onClick={() => setReportType('detailed')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   reportType === 'detailed'
                     ? 'bg-indigo-600 text-white shadow-xs font-black'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                <FileText size={14} />
-                বিস্তারিত শিক্ষার্থী তালিকা ({toBn(filteredStudents.length)} জন)
+                <FileText size={13} />
+                বিস্তারিত তালিকা ({toBn(filteredStudents.length)} জন)
               </button>
             </div>
           </div>
 
-          {/* Center: Orientation & Margin Controls */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Right: Orientation, Margin, Rows/Page & Print Action */}
+          <div className="flex items-center gap-2 shrink-0">
             {/* Portrait / Landscape Toggle */}
-            <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <div className="h-9 flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
               <button
                 onClick={() => setOrientation('portrait')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   orientation === 'portrait'
                     ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                📄 পোর্ট্রেট (Portrait)
+                📄 পোর্ট্রেট
               </button>
               <button
                 onClick={() => setOrientation('landscape')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   orientation === 'landscape'
                     ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                📜 ল্যান্ডস্কেপ (Landscape)
+                📜 ল্যান্ডস্কেপ
               </button>
             </div>
 
             {/* Page Margin Selector */}
-            <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs">
-              <Maximize2 size={13} className="text-emerald-400" />
+            <div className="h-9 flex items-center gap-1.5 bg-slate-800 px-2.5 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
+              <Maximize2 size={13} className="text-emerald-400 shrink-0" />
               <span className="text-slate-400 font-bold">মার্জিন:</span>
               <select
                 value={marginPreset}
                 onChange={(e) => setMarginPreset(e.target.value as MarginPreset)}
-                className="bg-slate-900 text-white font-bold text-xs px-2 py-0.5 rounded-lg border border-slate-700 outline-none cursor-pointer"
+                className="bg-slate-900 text-white font-bold text-xs px-2 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
               >
-                <option value="normal">স্ট্যান্ডার্ড (১৫ মিমি)</option>
-                <option value="wide">প্রশস্ত (২০ মিমি)</option>
-                <option value="compact">কমপ্যাক্ট (১০ মিমি)</option>
+                <option value="normal">১৫ মিমি (স্ট্যান্ডার্ড)</option>
+                <option value="wide">২০ মিমি (প্রশস্ত)</option>
+                <option value="compact">১০ মিমি (কমপ্যাক্ট)</option>
               </select>
             </div>
 
             {/* Students Per Page Selector (For Detailed Report) */}
             {reportType === 'detailed' && (
-              <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs">
-                <span className="text-slate-400 font-bold">পৃষ্ঠা প্রতি:</span>
+              <div className="h-9 flex items-center gap-1.5 bg-slate-800 px-2.5 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
+                <span className="text-slate-400 font-bold">পৃষ্ঠায়:</span>
                 <select
                   value={rowsPerPage}
                   onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  className="bg-slate-900 text-white font-bold text-xs px-2 py-0.5 rounded-lg border border-slate-700 outline-none cursor-pointer"
+                  className="bg-slate-900 text-white font-bold text-xs px-2 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
                 >
                   <option value={0}>অটো ({orientation === 'portrait' ? '২৪–২৮' : '১৫–১৮'} জন)</option>
                   <option value={15}>১৫ জন</option>
@@ -668,15 +668,12 @@ function PrintPageContent() {
                 </select>
               </div>
             )}
-          </div>
 
-          {/* Right: Print Action */}
-          <div className="flex items-center gap-3">
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer"
+              className="h-9 flex items-center gap-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap"
             >
-              <Printer size={15} /> প্রিন্ট / PDF সংরক্ষণ
+              <Printer size={14} /> প্রিন্ট / PDF সংরক্ষণ
             </button>
           </div>
         </div>

@@ -1826,110 +1826,118 @@ export default function StudentListPage() {
               {/* TOP ACTION & CONTROLS RIBBON (Hidden in print) */}
               <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm print:hidden space-y-4">
                 
-                {/* ─── REPORT MODE SWITCHER TABS ─── */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                {/* ─── SINGLE-LINE PROFESSIONAL REPORT TOOLBAR ─── */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5 overflow-x-auto no-scrollbar">
                   
-                  {/* Left: Back Button & Mode Tabs */}
-                  <div className="flex items-center gap-3 flex-wrap">
+                  {/* Left: Back Button & Mode Segmented Switcher */}
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => switchView('list')}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition cursor-pointer"
+                      className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
+                      title="শিক্ষার্থী তালিকায় ফিরে যান"
                     >
-                      <ArrowLeft size={16} /> শিক্ষার্থী তালিকায় ফিরুন
+                      <ArrowLeft size={14} className="text-slate-600" /> তালিকায় ফিরুন
                     </button>
 
-                    <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                    <div className="h-5 w-px bg-slate-200" />
+
+                    <div className="h-9 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/90">
                       <button
                         onClick={() => {
                           setPrintReportTab('detailed');
                           setPrintOrientation('landscape');
                         }}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          printReportTab === 'detailed' 
-                            ? 'bg-white text-indigo-950 shadow-sm font-black' 
+                        className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          printReportTab === 'detailed'
+                            ? 'bg-white text-indigo-950 shadow-xs font-black'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <FileText size={15} className="text-indigo-600" />
-                        বিস্তারিত শিক্ষার্থী তালিকা
+                        <FileText size={13} className="text-indigo-600 shrink-0" />
+                        বিস্তারিত তালিকা
                       </button>
                       <button
                         onClick={() => {
                           setPrintReportTab('summary');
                           setPrintOrientation('portrait');
                         }}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          printReportTab === 'summary' 
-                            ? 'bg-white text-emerald-950 shadow-sm font-black' 
+                        className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                          printReportTab === 'summary'
+                            ? 'bg-white text-emerald-950 shadow-xs font-black'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <BarChart3 size={15} className="text-emerald-600" />
-                        শ্রেণি ও বিভাগ সামারি রিপোর্ট
+                        <BarChart3 size={13} className="text-emerald-600 shrink-0" />
+                        সামারি রিপোর্ট
                       </button>
                     </div>
                   </div>
 
-                  {/* Right: Print & Export Actions */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Right: Unified Single-Line Print Settings & Export Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     
                     {/* Custom Column Selector Button (Only on detailed list) */}
                     {printReportTab === 'detailed' && (
                       <button
                         onClick={() => setShowColumnSelector(!showColumnSelector)}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-black text-xs transition border cursor-pointer ${
-                          showColumnSelector 
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
-                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                        className={`h-9 flex items-center gap-1.5 px-3 rounded-xl font-extrabold text-xs transition border cursor-pointer whitespace-nowrap ${
+                          showColumnSelector
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
+                        title="প্রিন্ট কলাম নির্বাচন করুন"
                       >
-                        <SlidersHorizontal size={15} /> 
-                        কাস্টম কলাম ({Object.values(selectedColumns).filter(Boolean).length})
+                        <SlidersHorizontal size={13} />
+                        কলাম ({toBnDigit(Object.values(selectedColumns).filter(Boolean).length)})
                       </button>
                     )}
 
-                    {/* Orientation Toggle */}
-                    <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                    {/* Orientation Segmented Toggle */}
+                    <div className="h-9 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/90">
                       <button
                         onClick={() => setPrintOrientation('portrait')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          printOrientation === 'portrait' ? 'bg-white text-indigo-900 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
+                        className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                          printOrientation === 'portrait'
+                            ? 'bg-white text-indigo-950 shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         📄 পোর্ট্রেট
                       </button>
                       <button
                         onClick={() => setPrintOrientation('landscape')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          printOrientation === 'landscape' ? 'bg-white text-indigo-900 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
+                        className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                          printOrientation === 'landscape'
+                            ? 'bg-white text-indigo-950 shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         📜 ল্যান্ডস্কেপ
                       </button>
                     </div>
 
-                    {/* Margin Selector */}
-                    <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-2xl border border-slate-200 text-xs">
-                      <span className="text-slate-500 font-bold">মার্জিন:</span>
+                    {/* Compact Margin Selector */}
+                    <div className="h-9 flex items-center gap-1 bg-slate-50 px-2.5 rounded-xl border border-slate-200 text-xs whitespace-nowrap">
+                      <span className="text-slate-500 font-bold text-[11px]">মার্জিন:</span>
                       <select
                         value={printMargin}
                         onChange={(e) => setPrintMargin(e.target.value as 'normal' | 'wide' | 'compact')}
-                        className="bg-white text-slate-900 font-bold text-xs px-2 py-1 rounded-xl border border-slate-200 outline-none cursor-pointer"
+                        className="bg-transparent text-slate-900 font-extrabold text-xs outline-none cursor-pointer"
                       >
-                        <option value="normal">স্ট্যান্ডার্ড (১৫ মিমি)</option>
-                        <option value="wide">প্রশস্ত (২০ মিমি)</option>
-                        <option value="compact">কমপ্যাক্ট (১০ মিমি)</option>
+                        <option value="normal">১৫ মিমি (স্ট্যান্ডার্ড)</option>
+                        <option value="wide">২০ মিমি (প্রশস্ত)</option>
+                        <option value="compact">১০ মিমি (কমপ্যাক্ট)</option>
                       </select>
                     </div>
 
-                    {/* Rows Per Print Page Selector (Only on Detailed List) */}
+                    {/* Compact Rows Per Page Selector (Only on Detailed List) */}
                     {printReportTab === 'detailed' && (
-                      <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-2xl border border-slate-200 text-xs">
-                        <span className="text-slate-500 font-bold">পৃষ্ঠা প্রতি:</span>
+                      <div className="h-9 flex items-center gap-1 bg-slate-50 px-2.5 rounded-xl border border-slate-200 text-xs whitespace-nowrap">
+                        <span className="text-slate-500 font-bold text-[11px]">পৃষ্ঠায়:</span>
                         <select
                           value={printRowsPerPage}
                           onChange={(e) => setPrintRowsPerPage(Number(e.target.value))}
-                          className="bg-white text-slate-900 font-bold text-xs px-2 py-1 rounded-xl border border-slate-200 outline-none cursor-pointer"
+                          className="bg-transparent text-slate-900 font-extrabold text-xs outline-none cursor-pointer"
                         >
                           <option value={0}>অটো ({printOrientation === 'portrait' ? '২৪–২৮' : '১৫–১৮'} জন)</option>
                           <option value={15}>১৫ জন</option>
@@ -1940,24 +1948,28 @@ export default function StudentListPage() {
                       </div>
                     )}
 
+                    <div className="h-5 w-px bg-slate-200 mx-0.5" />
+
                     {/* CSV Export Button */}
                     <button
                       onClick={printReportTab === 'summary' ? handleExportSummaryCSV : handleExportCSV}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition border border-slate-200 cursor-pointer"
-                      title="CSV এক্সপোর্ট"
+                      className="h-9 flex items-center gap-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-xl font-extrabold text-xs transition border border-slate-200 cursor-pointer whitespace-nowrap"
+                      title="এক্সেল / CSV এক্সপোর্ট"
                     >
-                      <FileSpreadsheet size={15} className="text-emerald-600" /> এক্সেল / CSV
+                      <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" /> CSV
                     </button>
 
+                    {/* Blank School Pad Button */}
                     <button
                       type="button"
                       onClick={() => setShowBlankPadModal(true)}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl font-black text-xs transition border border-emerald-200 cursor-pointer"
+                      className="h-9 flex items-center gap-1.5 px-3 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 rounded-xl font-extrabold text-xs transition border border-emerald-200 cursor-pointer whitespace-nowrap"
+                      title="ফাঁকা স্কুল প্যাড প্রিন্ট"
                     >
-                      <Printer size={15} /> ফাঁকা স্কুল প্যাড
+                      <Printer size={14} className="shrink-0" /> স্কুল প্যাড
                     </button>
 
-                    {/* Print / PDF Button — opens dedicated print page in new tab (no hang!) */}
+                    {/* Primary Print / PDF Button */}
                     <button
                       onClick={() => {
                         const params = new URLSearchParams();
@@ -1984,9 +1996,9 @@ export default function StudentListPage() {
                         const url = `/dashboard/students/print?${params.toString()}`;
                         window.open(url, '_blank');
                       }}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-xl transition transform active:scale-95 cursor-pointer"
+                      className="h-9 flex items-center gap-1.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition transform active:scale-95 cursor-pointer whitespace-nowrap"
                     >
-                      <Printer size={16} /> প্রিন্ট / PDF সংরক্ষণ
+                      <Printer size={14} className="shrink-0" /> প্রিন্ট / PDF সংরক্ষণ
                     </button>
                   </div>
                 </div>
