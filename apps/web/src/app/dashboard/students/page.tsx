@@ -305,6 +305,9 @@ export default function StudentListPage() {
   const [printStipendFilter, setPrintStipendFilter] = useState<string>('all');
   const [printSearchQuery, setPrintSearchQuery] = useState<string>('');
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape');
+  const [printMargin, setPrintMargin] = useState<'normal' | 'wide' | 'compact'>('normal');
+  const [printPreviewPage, setPrintPreviewPage] = useState<number>(1);
+  const [showAllPrintSheets, setShowAllPrintSheets] = useState<boolean>(true);
   const [printFontSize, setPrintFontSize] = useState<'xs' | 'sm' | 'base'>('xs');
   const [showColumnSelector, setShowColumnSelector] = useState<boolean>(false);
   const [showBlankPadModal, setShowBlankPadModal] = useState<boolean>(false);
@@ -744,6 +747,20 @@ export default function StudentListPage() {
     ? filteredStudents
     : filteredStudents.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
+  const directoryStartIndex = filteredStudents.length === 0 ? 0 : pageSize === 0 ? 1 : (safeCurrentPage - 1) * pageSize + 1;
+  const directoryEndIndex = pageSize === 0 ? filteredStudents.length : Math.min(filteredStudents.length, safeCurrentPage * pageSize);
+
+  const goToDirectoryPage = (targetPage: number) => {
+    const nextP = Math.max(1, Math.min(totalPages, targetPage));
+    setCurrentPage(nextP);
+    if (typeof document !== 'undefined') {
+      const tableEl = document.getElementById('student-directory-table-top');
+      if (tableEl) {
+        tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
   const totalStudents = students.length;
 
   // ─────────────────────────────────────────────────────────────
@@ -804,6 +821,55 @@ export default function StudentListPage() {
   const printHinduCount = printableFilteredStudents.filter(s => s.religion && (s.religion.includes('হিন্দু') || s.religion.includes('Hindu') || s.religion.includes('সনাতন'))).length;
   const printOthersCount = Math.max(0, printTotalCount - printMuslimCount - printHinduCount);
   const printStipendCount = printableFilteredStudents.filter(s => (s as any).isStipend).length;
+
+  // 📄 Multi-Page A4 Pagination Engine for In-Page Print View
+  const paginatedPrintSheets = React.useMemo(() => {
+    const firstPageMax = printOrientation === 'portrait' ? 24 : 15;
+    const subsequentPageMax = printOrientation === 'portrait' ? 28 : 18;
+
+    if (printableFilteredStudents.length === 0) {
+      return [{ pageNumber: 1, rows: [] as Array<{ student: StudentItem; globalIndex: number }> }];
+    }
+
+    const sheets: Array<{
+      pageNumber: number;
+      rows: Array<{ student: StudentItem; globalIndex: number }>;
+    }> = [];
+
+    let cursor = 0;
+    let pageNum = 1;
+
+    while (cursor < printableFilteredStudents.length) {
+      const limit = pageNum === 1 ? firstPageMax : subsequentPageMax;
+      const chunk = printableFilteredStudents.slice(cursor, cursor + limit).map((student, i) => ({
+        student,
+        globalIndex: cursor + i + 1,
+      }));
+      sheets.push({ pageNumber: pageNum, rows: chunk });
+      cursor += limit;
+      pageNum += 1;
+    }
+
+    return sheets;
+  }, [printableFilteredStudents, printOrientation]);
+
+  const totalPrintSheets = paginatedPrintSheets.length;
+  const safePrintPreviewPage = Math.min(printPreviewPage, totalPrintSheets);
+
+  useEffect(() => {
+    setPrintPreviewPage(1);
+  }, [printGradeFilter, printBranchFilter, printGroupFilter, printReligionFilter, printGenderFilter, printSearchQuery, printOrientation, printReportTab]);
+
+  const goToPrintSheet = (pageNum: number) => {
+    const nextP = Math.max(1, Math.min(totalPrintSheets, pageNum));
+    setPrintPreviewPage(nextP);
+    if (showAllPrintSheets && typeof document !== 'undefined') {
+      const sheetEl = document.getElementById(`inpage-print-sheet-${nextP}`);
+      if (sheetEl) {
+        sheetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────
   // 📊 CLASS & GROUP-WISE SUMMARY REPORT CALCULATION
@@ -1861,6 +1927,20 @@ export default function StudentListPage() {
                       </button>
                     </div>
 
+                    {/* Margin Selector */}
+                    <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-2xl border border-slate-200 text-xs">
+                      <span className="text-slate-500 font-bold">মার্জিন:</span>
+                      <select
+                        value={printMargin}
+                        onChange={(e) => setPrintMargin(e.target.value as 'normal' | 'wide' | 'compact')}
+                        className="bg-white text-slate-900 font-bold text-xs px-2 py-1 rounded-xl border border-slate-200 outline-none cursor-pointer"
+                      >
+                        <option value="normal">স্ট্যান্ডার্ড (১৫ মিমি)</option>
+                        <option value="wide">প্রশস্ত (২০ মিমি)</option>
+                        <option value="compact">কমপ্যাক্ট (১০ মিমি)</option>
+                      </select>
+                    </div>
+
                     {/* CSV Export Button */}
                     <button
                       onClick={printReportTab === 'summary' ? handleExportSummaryCSV : handleExportCSV}
@@ -1887,11 +1967,19 @@ export default function StudentListPage() {
                         } else {
                           params.set('tab', 'detailed');
                         }
+                        params.set('orientation', printOrientation);
+                        params.set('margin', printMargin);
+                        const activeColKeys = Object.entries(selectedColumns)
+                          .filter(([, v]) => v)
+                          .map(([k]) => k)
+                          .join(',');
+                        if (activeColKeys) params.set('cols', activeColKeys);
                         if (printGradeFilter !== 'all') params.set('grade', printGradeFilter);
                         if (printBranchFilter !== 'all') params.set('branch', printBranchFilter);
                         if (printGroupFilter !== 'all') params.set('group', printGroupFilter);
                         if (printReligionFilter !== 'all') params.set('religion', printReligionFilter);
                         if (printGenderFilter !== 'all') params.set('gender', printGenderFilter);
+                        if (printSearchQuery.trim()) params.set('q', printSearchQuery.trim());
                         params.set('year', new Date().getFullYear().toString());
                         const url = `/dashboard/students/print?${params.toString()}`;
                         window.open(url, '_blank');
@@ -2144,7 +2232,7 @@ export default function StudentListPage() {
               <style>{`
                 @page {
                   size: A4 ${printOrientation};
-                  margin: 0.5in;
+                  margin: ${printMargin === 'wide' ? '18mm 20mm' : printMargin === 'compact' ? '10mm 12mm' : '14mm 16mm'};
                 }
                 @media print {
                   body {
@@ -2156,6 +2244,19 @@ export default function StudentListPage() {
                   .print\\:hidden {
                     display: none !important;
                   }
+                  .inpage-print-sheet {
+                    display: flex !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: ${printMargin === 'wide' ? '6mm' : printMargin === 'compact' ? '3mm' : '4mm'} !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                  }
+                  .inpage-sheet-break {
+                    page-break-after: always !important;
+                    break-after: page !important;
+                  }
                   .print-table {
                     width: 100% !important;
                     border-collapse: collapse !important;
@@ -2163,6 +2264,7 @@ export default function StudentListPage() {
                   }
                   .print-table tr {
                     page-break-inside: avoid !important;
+                    break-inside: avoid !important;
                     page-break-after: auto !important;
                   }
                   .print-table thead {
@@ -2171,105 +2273,139 @@ export default function StudentListPage() {
                   .print-table th, .print-table td {
                     border: 1px solid #1e293b !important;
                   }
+                  .signature-avoid-break {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
                 }
               `}</style>
+
+              {/* ─── MULTI-PAGE NAVIGATION BAR FOR DETAILED STUDENT LIST ─── */}
+              {printReportTab === 'detailed' && (
+                <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-md flex items-center justify-between flex-wrap gap-3 print:hidden">
+                  <div className="flex items-center gap-2.5 text-xs font-bold">
+                    <span className="px-3 py-1 rounded-xl bg-slate-800 text-amber-300 border border-slate-700">
+                      A4 {printOrientation === 'landscape' ? 'ল্যান্ডস্কেপ' : 'পোর্ট্রেট'} | মোট পৃষ্ঠা: {toBnDigit(totalPrintSheets)} টি
+                    </span>
+                    <span className="text-slate-300 hidden md:inline">
+                      • মার্জিন: {printMargin === 'wide' ? 'প্রশস্ত (২০ মিমি)' : printMargin === 'compact' ? 'কমপ্যাক্ট (১০ মিমি)' : 'স্ট্যান্ডার্ড (১৫ মিমি)'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    {totalPrintSheets > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllPrintSheets(!showAllPrintSheets)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold border transition cursor-pointer ${
+                          !showAllPrintSheets
+                            ? 'bg-indigo-600 text-white border-indigo-500'
+                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                        }`}
+                      >
+                        <Layers size={14} />
+                        {showAllPrintSheets ? 'এক পৃষ্ঠা করে দেখুন' : 'সব পৃষ্ঠা একসাথে দেখুন'}
+                      </button>
+                    )}
+
+                    <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => goToPrintSheet(safePrintPreviewPage - 1)}
+                        disabled={safePrintPreviewPage <= 1}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft size={13} /> পূর্ববর্তী পৃষ্ঠা
+                      </button>
+
+                      <div className="flex items-center gap-1 px-1">
+                        {Array.from({ length: totalPrintSheets }, (_, i) => i + 1).map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => goToPrintSheet(p)}
+                            className={`w-7 h-7 rounded-lg font-extrabold text-xs transition cursor-pointer ${
+                              safePrintPreviewPage === p
+                                ? 'bg-amber-400 text-slate-950 shadow-xs'
+                                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-700 hover:text-white'
+                            }`}
+                          >
+                            {toBnDigit(p)}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => goToPrintSheet(safePrintPreviewPage + 1)}
+                        disabled={safePrintPreviewPage >= totalPrintSheets}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        পরবর্তী পৃষ্ঠা <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ═════════════════════════════════════════════════════════════════ */}
               {/* 📄 OFFICIAL A4 PRINTABLE DOCUMENT CONTAINER (BORDERLESS, PROPER MARGINS) */}
               {/* ═════════════════════════════════════════════════════════════════ */}
-              <div className="bg-white text-slate-900 font-sans p-8 sm:p-12 rounded-2xl shadow-md print:border-0 print:p-4 print:shadow-none box-border relative overflow-hidden">
-                
-                {/* Translucent Watermark (জলছাপ) */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
-                  <div className="text-center transform -rotate-12">
-                    <h2 className="text-7xl font-black uppercase text-slate-900 tracking-widest">
-                      {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
-                    </h2>
-                    <p className="text-3xl font-black text-slate-900 mt-2">OFFICIAL STUDENT DIRECTORY</p>
+              {printReportTab === 'summary' ? (
+                <div
+                  className={`inpage-print-sheet bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all ${
+                    printOrientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]'
+                  } ${
+                    printMargin === 'wide' ? 'p-10 sm:p-16' : printMargin === 'compact' ? 'p-5 sm:p-8' : 'p-8 sm:p-12'
+                  }`}
+                >
+                  {/* Translucent Watermark (জলছাপ) */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
+                    <div className="text-center transform -rotate-12">
+                      <h2 className="text-7xl font-black uppercase text-slate-900 tracking-widest">
+                        {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                      </h2>
+                      <p className="text-3xl font-black text-slate-900 mt-2">OFFICIAL STUDENT DIRECTORY</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="relative z-10 space-y-3">
-                  
-                  {/* 1. THREE-LINE INSTITUTION HEADER WITH SYSTEM LOGO */}
-                  <div className="border-b-2 border-slate-900 pb-3">
-                    <div className="flex items-center justify-between gap-4">
-                      
-                      {/* Left System School Logo */}
-                      <div className="w-16 h-16 shrink-0 flex items-center justify-center">
-                        {schoolSettings?.schoolLogo ? (
-                          <img 
-                            src={schoolSettings.schoolLogo} 
-                            alt="School Logo" 
-                            className="w-16 h-16 object-contain" 
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-emerald-800 text-white border-2 border-emerald-600 shadow-xs flex flex-col items-center justify-center">
-                            <GraduationCap className="w-8 h-8 text-amber-200" />
-                          </div>
-                        )}
+                  <div className="relative z-10 space-y-3">
+                    {/* 1. THREE-LINE INSTITUTION HEADER WITH SYSTEM LOGO */}
+                    <div className="border-b-2 border-slate-900 pb-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                          {schoolSettings?.schoolLogo ? (
+                            <img
+                              src={schoolSettings.schoolLogo}
+                              alt="School Logo"
+                              className="w-16 h-16 object-contain"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-emerald-800 text-white border-2 border-emerald-600 shadow-xs flex flex-col items-center justify-center">
+                              <GraduationCap className="w-8 h-8 text-amber-200" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-center flex-1 pr-16">
+                          <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-serif">
+                            {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                          </h1>
+                          <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5">
+                            {schoolSettings?.address || 'বরইতলী , চকরিয়া , কক্সবাজার।'}
+                          </p>
+                          <p className="text-[11px] sm:text-xs font-semibold text-slate-600 mt-0.5">
+                            EIIN: {schoolSettings?.eiin || '106184'} , স্থাপিত: {schoolSettings?.estdYear || '১৯৬৯'} খ্রি .
+                          </p>
+                        </div>
                       </div>
-
-                      {/* 03 Line Official School Identity (Centered) */}
-                      <div className="text-center flex-1 pr-16">
-                        <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-serif">
-                          {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
-                        </h1>
-                        <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5">
-                          {schoolSettings?.address || 'বরইতলী , চকরিয়া , কক্সবাজার।'}
-                        </p>
-                        <p className="text-[11px] sm:text-xs font-semibold text-slate-600 mt-0.5">
-                          EIIN: {schoolSettings?.eiin || '106184'} , স্থাপিত: {schoolSettings?.estdYear || '১৯৬৯'} খ্রি .
-                        </p>
-                      </div>
-
                     </div>
 
-                    {/* Detailed Tab specific title and filters (Only shown when on detailed tab) */}
-                    {printReportTab === 'detailed' && (
-                      <>
-                        <div className="text-center mt-2">
-                          <div className="inline-block px-6 py-1 bg-[#0a2558] text-white font-black text-xs uppercase tracking-wider rounded-md border border-amber-400 shadow-xs">
-                            শিক্ষার্থী তালিকা ও সাধারণ বিবরণী - ২০২৬
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-700 mt-2 px-1 bg-slate-50 py-1 rounded border border-slate-200">
-                          <div>
-                            শ্রেণি: <span className="text-indigo-950 font-black">{printGradeFilter === 'all' ? 'সকল শ্রেণি' : printGradeFilter === '6th' ? '৬ষ্ঠ' : printGradeFilter === '7th' ? '৭ম' : printGradeFilter === '8th' ? '৮ম' : printGradeFilter === '9th' ? '৯ম' : '১০ম'}</span> | 
-                            শাখা: <span className="text-indigo-950 font-black">{printBranchFilter === 'all' ? 'সকল শাখা' : printBranchFilter}</span> | 
-                            বিভাগ: <span className="text-indigo-950 font-black">{printGroupFilter === 'all' ? 'সকল বিভাগ' : printGroupFilter}</span> | 
-                            ধর্ম: <span className="text-indigo-950 font-black">{printReligionFilter === 'all' ? 'সকল ধর্ম' : printReligionFilter}</span> | 
-                            লিঙ্গ: <span className="text-indigo-950 font-black">{printGenderFilter === 'all' ? 'সকল' : printGenderFilter}</span>
-                          </div>
-                          <div>
-                            তারিখ: <span className="font-mono text-slate-900">{new Date().toLocaleDateString('bn-BD')}</span>
-                          </div>
-                        </div>
-
-                        {/* Detailed Tab Summary Strip */}
-                        <div className="bg-slate-100/90 border border-slate-800 px-3 py-1 text-[10px] font-bold text-slate-900 flex justify-between items-center rounded-sm mt-2">
-                          <span>মোট শিক্ষার্থী: <strong className="text-indigo-900">{printTotalCount} জন</strong></span>
-                          <span>ছাত্র: <strong>{printMaleCount} জন</strong> ({printTotalCount > 0 ? ((printMaleCount / printTotalCount) * 100).toFixed(0) : 0}%)</span>
-                          <span> ছাত্রী: <strong>{printFemaleCount} জন</strong> ({printTotalCount > 0 ? ((printFemaleCount / printTotalCount) * 100).toFixed(0) : 0}%)</span>
-                          <span>মুসলিম: <strong>{printMuslimCount} জন</strong></span>
-                          <span>হিন্দু: <strong>{printHinduCount} জন</strong></span>
-                          {printStipendCount > 0 && <span>উপবৃত্তি: <strong>{printStipendCount} জন</strong></span>}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* 2. DYNAMIC DATA TABLE / SIMPLE OFFICIAL SUMMARY REPORT TABLE (EXACTLY MATCHING USER IMAGE) */}
-                  {printReportTab === 'summary' ? (
                     <div className="overflow-x-auto my-3">
-                      
-                      {/* Section Title matching reference image */}
                       <div className="text-center font-bold text-base sm:text-lg my-3 text-slate-950 font-serif">
                         ২০২৬ সালের শিক্ষার্থী সংখ্যা
                       </div>
 
-                      {/* MAIN STATISTICAL TABLE */}
                       <table className="print-table w-full text-center text-xs border-collapse border border-black shadow-xs bg-white">
                         <thead>
                           <tr className="bg-white text-black font-bold text-xs uppercase border border-black">
@@ -2296,7 +2432,6 @@ export default function StudentListPage() {
 
                             return (
                               <>
-                                {/* Row 1: 6th */}
                                 <tr>
                                   <td className="p-2 text-center border border-black font-mono">০১</td>
                                   <td className="p-2 text-center border border-black font-bold">৬ষ্ঠ</td>
@@ -2306,8 +2441,6 @@ export default function StudentListPage() {
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r6.total)}</td>
                                   <td rowSpan={10} className="p-2 text-center border border-black align-middle text-xs text-slate-500 font-normal"></td>
                                 </tr>
-
-                                {/* Row 2: 7th */}
                                 <tr>
                                   <td className="p-2 text-center border border-black font-mono">০২</td>
                                   <td className="p-2 text-center border border-black font-bold">৭ম</td>
@@ -2316,8 +2449,6 @@ export default function StudentListPage() {
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r7.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r7.total)}</td>
                                 </tr>
-
-                                {/* Row 3: 8th */}
                                 <tr>
                                   <td className="p-2 text-center border border-black font-mono">০৩</td>
                                   <td className="p-2 text-center border border-black font-bold">৮ম</td>
@@ -2326,8 +2457,6 @@ export default function StudentListPage() {
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r8.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r8.total)}</td>
                                 </tr>
-
-                                {/* Row 4: 9th Science */}
                                 <tr>
                                   <td rowSpan={3} className="p-2 text-center border border-black font-mono align-middle">০৪</td>
                                   <td rowSpan={3} className="p-2 text-center border border-black font-bold align-middle">৯ম</td>
@@ -2336,22 +2465,18 @@ export default function StudentListPage() {
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Sci.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Sci.total)}</td>
                                 </tr>
-                                {/* Row 5: 9th Humanities */}
                                 <tr>
                                   <td className="p-2 text-center border border-black">মানবিক</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Hum.boys)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Hum.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Hum.total)}</td>
                                 </tr>
-                                {/* Row 6: 9th Business */}
                                 <tr>
                                   <td className="p-2 text-center border border-black">ব্যবসায় শিক্ষা</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Bs.boys)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Bs.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r9Bs.total)}</td>
                                 </tr>
-
-                                {/* Row 7: 10th Science */}
                                 <tr>
                                   <td rowSpan={3} className="p-2 text-center border border-black font-mono align-middle">০৫</td>
                                   <td rowSpan={3} className="p-2 text-center border border-black font-bold align-middle">১০ম</td>
@@ -2360,22 +2485,18 @@ export default function StudentListPage() {
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Sci.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Sci.total)}</td>
                                 </tr>
-                                {/* Row 8: 10th Humanities */}
                                 <tr>
                                   <td className="p-2 text-center border border-black">মানবিক</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Hum.boys)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Hum.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Hum.total)}</td>
                                 </tr>
-                                {/* Row 9: 10th Business */}
                                 <tr>
                                   <td className="p-2 text-center border border-black">ব্যবসায় শিক্ষা</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Bs.boys)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Bs.girls)}</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(r10Bs.total)}</td>
                                 </tr>
-
-                                {/* Row 10: Total */}
                                 <tr className="font-bold border-2 border-black">
                                   <td colSpan={3} className="p-2 text-center border border-black font-bold">মোট</td>
                                   <td className="p-2 text-center border border-black font-mono font-bold">{toBnDigit(summaryTotalBoys)}</td>
@@ -2387,154 +2508,9 @@ export default function StudentListPage() {
                           })()}
                         </tbody>
                       </table>
-
                     </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                    <table className="print-table w-full text-left text-[11px] border-collapse border border-slate-800">
-                      <thead>
-                        <tr className="bg-[#0a2558] text-white font-extrabold text-[10px] uppercase border border-slate-800">
-                          {selectedColumns.sl && <th className="p-1.5 text-center w-8 border border-slate-700">ক্র.</th>}
-                          {selectedColumns.roll && <th className="p-1.5 text-center w-12 border border-slate-700">রোল</th>}
-                          {selectedColumns.id && <th className="p-1.5 text-center border border-slate-700">আইডি</th>}
-                          {selectedColumns.name && <th className="p-1.5 border border-slate-700">শিক্ষার্থীর নাম</th>}
-                          {selectedColumns.gender && <th className="p-1.5 text-center border border-slate-700">লিঙ্গ</th>}
-                          {selectedColumns.religion && <th className="p-1.5 text-center border border-slate-700">ধর্ম</th>}
-                          {selectedColumns.grade && <th className="p-1.5 text-center border border-slate-700">শ্রেণি ও শাখা</th>}
-                          {selectedColumns.group && <th className="p-1.5 text-center border border-slate-700">বিভাগ/গ্রুপ</th>}
-                          {selectedColumns.guardian && <th className="p-1.5 border border-slate-700">পিতার নাম / অভিভাবক</th>}
-                          {selectedColumns.fatherNid && <th className="p-1.5 text-center border border-slate-700">পিতার NID</th>}
-                          {selectedColumns.motherName && <th className="p-1.5 border border-slate-700">মাতার নাম</th>}
-                          {selectedColumns.motherNid && <th className="p-1.5 text-center border border-slate-700">মাতার NID</th>}
-                          {selectedColumns.mobile && <th className="p-1.5 text-center border border-slate-700">মোবাইল নম্বর</th>}
-                          {selectedColumns.optionalSubject && <th className="p-1.5 text-center border border-slate-700">৪র্থ/ঐচ্ছিক বিষয়</th>}
-                          {selectedColumns.birthRegNo && <th className="p-1.5 text-center border border-slate-700">জন্ম নিবন্ধন নম্বর</th>}
-                          {selectedColumns.dob && <th className="p-1.5 text-center border border-slate-700">জন্ম তারিখ</th>}
-                          {selectedColumns.bloodGroup && <th className="p-1.5 text-center font-bold text-rose-700 border border-slate-700">রক্তের গ্রুপ</th>}
-                          {selectedColumns.address && <th className="p-1.5 border border-slate-700">ঠিকানা</th>}
-                          {selectedColumns.stipend && <th className="p-1.5 text-center border border-slate-700">উপবৃত্তি</th>}
-                          {selectedColumns.remarks && <th className="p-1.5 text-center w-24 border border-slate-700">মন্তব্য / স্বাক্ষর</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-300 text-slate-900 font-semibold">
-                        {printableFilteredStudents.map((st, idx) => (
-                          <tr key={st.id} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                            {selectedColumns.sl && (
-                              <td className="p-1.5 text-center font-mono font-bold border border-slate-400 text-[10px]">
-                                {idx + 1}
-                              </td>
-                            )}
-                            {selectedColumns.roll && (
-                              <td className="p-1.5 text-center font-mono font-black text-slate-950 border border-slate-400">
-                                {st.roll}
-                              </td>
-                            )}
-                            {selectedColumns.id && (
-                              <td className="p-1.5 text-center font-mono text-[9px] text-slate-700 border border-slate-400">
-                                {st.id}
-                              </td>
-                            )}
-                            {selectedColumns.name && (
-                              <td className="p-1.5 font-bold text-slate-950 border border-slate-400 whitespace-nowrap">
-                                {st.name}
-                              </td>
-                            )}
-                            {selectedColumns.gender && (
-                              <td className="p-1.5 text-center text-[10px] border border-slate-400">
-                                {st.gender || 'পুরুষ'}
-                              </td>
-                            )}
-                            {selectedColumns.religion && (
-                              <td className="p-1.5 text-center text-[10px] border border-slate-400">
-                                {st.religion || 'ইসলাম'}
-                              </td>
-                            )}
-                            {selectedColumns.grade && (
-                              <td className="p-1.5 text-center text-[10px] font-bold border border-slate-400">
-                                {st.grade} ({st.branch})
-                              </td>
-                            )}
-                            {selectedColumns.group && (
-                              <td className="p-1.5 text-center text-[10px] border border-slate-400">
-                                {st.group}
-                              </td>
-                            )}
-                            {selectedColumns.guardian && (
-                              <td className="p-1.5 border border-slate-400 whitespace-nowrap text-slate-800 text-[10px]">
-                                {st.guardian}
-                              </td>
-                            )}
-                            {selectedColumns.fatherNid && (
-                              <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
-                                {st.fatherNid || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.motherName && (
-                              <td className="p-1.5 border border-slate-400 whitespace-nowrap text-[10px]">
-                                {st.motherName || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.motherNid && (
-                              <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
-                                {st.motherNid || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.mobile && (
-                              <td className="p-1.5 text-center font-mono text-[10px] border border-slate-400 text-slate-800">
-                                {st.mobile}
-                              </td>
-                            )}
-                            {selectedColumns.optionalSubject && (
-                              <td className="p-1.5 text-center text-[10px] border border-slate-400">
-                                {st.optionalSubject || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.birthRegNo && (
-                              <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
-                                {st.birthRegNo || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.dob && (
-                              <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
-                                {st.dob || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.bloodGroup && (
-                              <td className="p-1.5 text-center font-bold text-rose-700 text-[10px] border border-slate-400">
-                                B+
-                              </td>
-                            )}
-                            {selectedColumns.address && (
-                              <td className="p-1.5 border border-slate-400 text-[9px] truncate max-w-xs">
-                                {st.currentAddress || '-'}
-                              </td>
-                            )}
-                            {selectedColumns.stipend && (
-                              <td className="p-1.5 text-center text-[9px] font-bold border border-slate-400">
-                                {(st as any).isStipend ? 'উপবৃত্তি' : '-'}
-                              </td>
-                            )}
-                            {selectedColumns.remarks && (
-                              <td className="p-1.5 border border-slate-400 text-center"></td>
-                            )}
-                          </tr>
-                        ))}
 
-                        {printableFilteredStudents.length === 0 && (
-                          <tr>
-                            <td colSpan={20} className="p-8 text-center text-slate-400 font-bold text-xs border border-slate-300">
-                              নির্বাচিত ফিল্টারের ভিত্তিতে কোনো শিক্ষার্থী পাওয়া যায়নি।
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  )}
-
-                  {/* 3. FORMAL SIGNATURE BLOCKS (Only single Principal signature on Summary tab, full 3 signatures on Detailed tab) */}
-                  {printReportTab === 'summary' ? (
-                    <div className="pt-14 pb-2 flex justify-end text-center text-xs font-bold text-slate-900">
+                    <div className="signature-avoid-break pt-14 pb-2 flex justify-end text-center text-xs font-bold text-slate-900">
                       <div className="space-y-1">
                         <div className="w-48 border-b border-slate-900 mx-auto"></div>
                         <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
@@ -2543,31 +2519,306 @@ export default function StudentListPage() {
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    <div className="pt-12 pb-2 flex justify-between items-end text-center text-xs font-bold text-slate-900">
-                      <div className="space-y-1">
-                        <div className="w-40 border-b border-slate-900 mx-auto"></div>
-                        <p>শ্রেণি শিক্ষকের স্বাক্ষর</p>
-                        <p className="text-[9px] text-slate-500 font-normal">তারিখ: ....................</p>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="w-40 border-b border-slate-900 mx-auto"></div>
-                        <p>সহকারী প্রধান শিক্ষক</p>
-                        <p className="text-[9px] text-slate-500 font-normal">তারিখ: ....................</p>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="w-48 border-b border-slate-900 mx-auto"></div>
-                        <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
-                        <p className="text-[9px] text-slate-600 font-bold">
-                          {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, চকরিয়া
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
+                  </div>
                 </div>
+              ) : (
+                /* ─── MULTI-PAGE A4 SHEETS FOR DETAILED STUDENT LIST ─── */
+                <div className="space-y-8 print:space-y-0">
+                  {paginatedPrintSheets.map((sheet) => {
+                    const isFirstPage = sheet.pageNumber === 1;
+                    const isLastPage = sheet.pageNumber === totalPrintSheets;
+                    const hiddenOnScreen = !showAllPrintSheets && safePrintPreviewPage !== sheet.pageNumber;
 
-              </div>
+                    return (
+                      <div
+                        key={sheet.pageNumber}
+                        id={`inpage-print-sheet-${sheet.pageNumber}`}
+                        style={hiddenOnScreen ? { display: 'none' } : undefined}
+                        className={`inpage-print-sheet ${!isLastPage ? 'inpage-sheet-break' : ''} bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all ${
+                          printOrientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]'
+                        } ${
+                          printMargin === 'wide' ? 'p-10 sm:p-16' : printMargin === 'compact' ? 'p-5 sm:p-8' : 'p-8 sm:p-12'
+                        }`}
+                      >
+                        {/* Translucent Watermark (জলছাপ) */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
+                          <div className="text-center transform -rotate-12">
+                            <h2 className="text-7xl font-black uppercase text-slate-900 tracking-widest">
+                              {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                            </h2>
+                            <p className="text-3xl font-black text-slate-900 mt-2">OFFICIAL STUDENT DIRECTORY</p>
+                          </div>
+                        </div>
+
+                        <div className="relative z-10 space-y-3">
+                          {/* Screen-only Page Indicator Strip */}
+                          <div className="print:hidden flex items-center justify-between pb-2 border-b border-dashed border-slate-200 text-[11px] font-bold text-slate-400">
+                            <span>
+                              📄 পৃষ্ঠা {toBnDigit(sheet.pageNumber)} / {toBnDigit(totalPrintSheets)} ({printOrientation === 'landscape' ? 'ল্যান্ডস্কেপ' : 'পোর্ট্রেট'})
+                            </span>
+                            <span>
+                              ক্রম: {sheet.rows.length > 0 ? `${toBnDigit(sheet.rows[0].globalIndex)} – ${toBnDigit(sheet.rows[sheet.rows.length - 1].globalIndex)}` : '০'} (মোট {toBnDigit(printTotalCount)} জন)
+                            </span>
+                          </div>
+
+                          {isFirstPage ? (
+                            <div className="border-b-2 border-slate-900 pb-3">
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                                  {schoolSettings?.schoolLogo ? (
+                                    <img
+                                      src={schoolSettings.schoolLogo}
+                                      alt="School Logo"
+                                      className="w-16 h-16 object-contain"
+                                    />
+                                  ) : (
+                                    <div className="w-16 h-16 rounded-full bg-emerald-800 text-white border-2 border-emerald-600 shadow-xs flex flex-col items-center justify-center">
+                                      <GraduationCap className="w-8 h-8 text-amber-200" />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-center flex-1 pr-16">
+                                  <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-serif">
+                                    {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                                  </h1>
+                                  <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5">
+                                    {schoolSettings?.address || 'বরইতলী , চকরিয়া , কক্সবাজার।'}
+                                  </p>
+                                  <p className="text-[11px] sm:text-xs font-semibold text-slate-600 mt-0.5">
+                                    EIIN: {schoolSettings?.eiin || '106184'} , স্থাপিত: {schoolSettings?.estdYear || '১৯৬৯'} খ্রি .
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="text-center mt-2">
+                                <div className="inline-block px-6 py-1 bg-[#0a2558] text-white font-black text-xs uppercase tracking-wider rounded-md border border-amber-400 shadow-xs">
+                                  শিক্ষার্থী তালিকা ও সাধারণ বিবরণী - ২০২৬
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-700 mt-2 px-2 bg-slate-50 py-1 rounded border border-slate-200">
+                                <div>
+                                  শ্রেণি: <span className="text-indigo-950 font-black">{printGradeFilter === 'all' ? 'সকল শ্রেণি' : printGradeFilter === '6th' ? '৬ষ্ঠ' : printGradeFilter === '7th' ? '৭ম' : printGradeFilter === '8th' ? '৮ম' : printGradeFilter === '9th' ? '৯ম' : '১০ম'}</span> |{' '}
+                                  শাখা: <span className="text-indigo-950 font-black">{printBranchFilter === 'all' ? 'সকল শাখা' : printBranchFilter}</span> |{' '}
+                                  বিভাগ: <span className="text-indigo-950 font-black">{printGroupFilter === 'all' ? 'সকল বিভাগ' : printGroupFilter}</span> |{' '}
+                                  ধর্ম: <span className="text-indigo-950 font-black">{printReligionFilter === 'all' ? 'সকল ধর্ম' : printReligionFilter}</span> |{' '}
+                                  লিঙ্গ: <span className="text-indigo-950 font-black">{printGenderFilter === 'all' ? 'সকল' : printGenderFilter}</span>
+                                </div>
+                                <div>
+                                  তারিখ: <span className="font-mono text-slate-900">{new Date().toLocaleDateString('bn-BD')}</span>
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-100/90 border border-slate-800 px-3 py-1 text-[10px] font-bold text-slate-900 flex justify-between items-center rounded-sm mt-2">
+                                <span>মোট শিক্ষার্থী: <strong className="text-indigo-900">{toBnDigit(printTotalCount)} জন</strong></span>
+                                <span>ছাত্র: <strong>{toBnDigit(printMaleCount)} জন</strong> ({printTotalCount > 0 ? ((printMaleCount / printTotalCount) * 100).toFixed(0) : 0}%)</span>
+                                <span>ছাত্রী: <strong>{toBnDigit(printFemaleCount)} জন</strong> ({printTotalCount > 0 ? ((printFemaleCount / printTotalCount) * 100).toFixed(0) : 0}%)</span>
+                                <span>মুসলিম: <strong>{toBnDigit(printMuslimCount)} জন</strong></span>
+                                <span>হিন্দু: <strong>{toBnDigit(printHinduCount)} জন</strong></span>
+                                {printStipendCount > 0 && <span>উপবৃত্তি: <strong>{toBnDigit(printStipendCount)} জন</strong></span>}
+                              </div>
+                            </div>
+                          ) : (
+                            /* Page 2+ Continuation Header */
+                            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 text-xs font-bold text-slate-900">
+                              <div className="flex items-center gap-2">
+                                <span className="font-serif font-black text-sm text-slate-950">
+                                  {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                                </span>
+                                <span className="text-slate-400">|</span>
+                                <span>শিক্ষার্থী তালিকা — ২০২৬ (পূর্ববর্তী পৃষ্ঠার পর)</span>
+                              </div>
+                              <div>
+                                পৃষ্ঠা: <strong>{toBnDigit(sheet.pageNumber)} / {toBnDigit(totalPrintSheets)}</strong>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Table for this Page */}
+                          <div className="overflow-x-auto">
+                            <table className="print-table w-full text-left text-[11px] border-collapse border border-slate-800">
+                              <thead>
+                                <tr className="bg-[#0a2558] text-white font-extrabold text-[10px] uppercase border border-slate-800">
+                                  {selectedColumns.sl && <th className="p-1.5 text-center w-8 border border-slate-700">ক্র.</th>}
+                                  {selectedColumns.roll && <th className="p-1.5 text-center w-12 border border-slate-700">রোল</th>}
+                                  {selectedColumns.id && <th className="p-1.5 text-center border border-slate-700">আইডি</th>}
+                                  {selectedColumns.name && <th className="p-1.5 border border-slate-700">শিক্ষার্থীর নাম</th>}
+                                  {selectedColumns.gender && <th className="p-1.5 text-center border border-slate-700">লিঙ্গ</th>}
+                                  {selectedColumns.religion && <th className="p-1.5 text-center border border-slate-700">ধর্ম</th>}
+                                  {selectedColumns.grade && <th className="p-1.5 text-center border border-slate-700">শ্রেণি ও শাখা</th>}
+                                  {selectedColumns.group && <th className="p-1.5 text-center border border-slate-700">বিভাগ/গ্রুপ</th>}
+                                  {selectedColumns.guardian && <th className="p-1.5 border border-slate-700">পিতার নাম / অভিভাবক</th>}
+                                  {selectedColumns.fatherNid && <th className="p-1.5 text-center border border-slate-700">পিতার NID</th>}
+                                  {selectedColumns.motherName && <th className="p-1.5 border border-slate-700">মাতার নাম</th>}
+                                  {selectedColumns.motherNid && <th className="p-1.5 text-center border border-slate-700">মাতার NID</th>}
+                                  {selectedColumns.mobile && <th className="p-1.5 text-center border border-slate-700">মোবাইল নম্বর</th>}
+                                  {selectedColumns.optionalSubject && <th className="p-1.5 text-center border border-slate-700">৪র্থ/ঐচ্ছিক বিষয়</th>}
+                                  {selectedColumns.birthRegNo && <th className="p-1.5 text-center border border-slate-700">জন্ম নিবন্ধন নম্বর</th>}
+                                  {selectedColumns.dob && <th className="p-1.5 text-center border border-slate-700">জন্ম তারিখ</th>}
+                                  {selectedColumns.bloodGroup && <th className="p-1.5 text-center font-bold text-rose-700 border border-slate-700">রক্তের গ্রুপ</th>}
+                                  {selectedColumns.address && <th className="p-1.5 border border-slate-700">ঠিকানা</th>}
+                                  {selectedColumns.stipend && <th className="p-1.5 text-center border border-slate-700">উপবৃত্তি</th>}
+                                  {selectedColumns.remarks && <th className="p-1.5 text-center w-24 border border-slate-700">মন্তব্য / স্বাক্ষর</th>}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-300 text-slate-900 font-semibold">
+                                {sheet.rows.map(({ student: st, globalIndex }, idx) => (
+                                  <tr key={st.id || globalIndex} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                                    {selectedColumns.sl && (
+                                      <td className="p-1.5 text-center font-mono font-bold border border-slate-400 text-[10px]">
+                                        {toBnDigit(globalIndex)}
+                                      </td>
+                                    )}
+                                    {selectedColumns.roll && (
+                                      <td className="p-1.5 text-center font-mono font-black text-slate-950 border border-slate-400">
+                                        {toBnDigit(st.roll)}
+                                      </td>
+                                    )}
+                                    {selectedColumns.id && (
+                                      <td className="p-1.5 text-center font-mono text-[9px] text-slate-700 border border-slate-400">
+                                        {st.id}
+                                      </td>
+                                    )}
+                                    {selectedColumns.name && (
+                                      <td className="p-1.5 font-bold text-slate-950 border border-slate-400 whitespace-nowrap">
+                                        {st.name}
+                                      </td>
+                                    )}
+                                    {selectedColumns.gender && (
+                                      <td className="p-1.5 text-center text-[10px] border border-slate-400">
+                                        {st.gender || 'পুরুষ'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.religion && (
+                                      <td className="p-1.5 text-center text-[10px] border border-slate-400">
+                                        {st.religion || 'ইসলাম'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.grade && (
+                                      <td className="p-1.5 text-center text-[10px] font-bold border border-slate-400">
+                                        {st.grade} ({st.branch})
+                                      </td>
+                                    )}
+                                    {selectedColumns.group && (
+                                      <td className="p-1.5 text-center text-[10px] border border-slate-400">
+                                        {st.group}
+                                      </td>
+                                    )}
+                                    {selectedColumns.guardian && (
+                                      <td className="p-1.5 border border-slate-400 whitespace-nowrap text-slate-800 text-[10px]">
+                                        {st.guardian}
+                                      </td>
+                                    )}
+                                    {selectedColumns.fatherNid && (
+                                      <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
+                                        {st.fatherNid || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.motherName && (
+                                      <td className="p-1.5 border border-slate-400 whitespace-nowrap text-[10px]">
+                                        {st.motherName || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.motherNid && (
+                                      <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
+                                        {st.motherNid || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.mobile && (
+                                      <td className="p-1.5 text-center font-mono text-[10px] border border-slate-400 text-slate-800">
+                                        {st.mobile}
+                                      </td>
+                                    )}
+                                    {selectedColumns.optionalSubject && (
+                                      <td className="p-1.5 text-center text-[10px] border border-slate-400">
+                                        {st.optionalSubject || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.birthRegNo && (
+                                      <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
+                                        {st.birthRegNo || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.dob && (
+                                      <td className="p-1.5 text-center font-mono text-[9px] border border-slate-400">
+                                        {st.dob || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.bloodGroup && (
+                                      <td className="p-1.5 text-center font-bold text-rose-700 text-[10px] border border-slate-400">
+                                        {st.bloodGroup || 'B+'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.address && (
+                                      <td className="p-1.5 border border-slate-400 text-[9px] truncate max-w-xs">
+                                        {st.currentAddress || '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.stipend && (
+                                      <td className="p-1.5 text-center text-[9px] font-bold border border-slate-400">
+                                        {(st as any).isStipend ? 'উপবৃত্তি' : '-'}
+                                      </td>
+                                    )}
+                                    {selectedColumns.remarks && (
+                                      <td className="p-1.5 border border-slate-400 text-center"></td>
+                                    )}
+                                  </tr>
+                                ))}
+
+                                {sheet.rows.length === 0 && (
+                                  <tr>
+                                    <td colSpan={20} className="p-8 text-center text-slate-400 font-bold text-xs border border-slate-300">
+                                      নির্বাচিত ফিল্টারের ভিত্তিতে কোনো শিক্ষার্থী পাওয়া যায়নি।
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Bottom Signature Block (Last Page) or Continuation Footer */}
+                          <div className="signature-avoid-break">
+                            {isLastPage ? (
+                              <div className="pt-12 pb-2 flex justify-between items-end text-center text-xs font-bold text-slate-900">
+                                <div className="space-y-1">
+                                  <div className="w-40 border-b border-slate-900 mx-auto"></div>
+                                  <p>শ্রেণি শিক্ষকের স্বাক্ষর</p>
+                                  <p className="text-[9px] text-slate-500 font-normal">তারিখ: ....................</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="w-40 border-b border-slate-900 mx-auto"></div>
+                                  <p>সহকারী প্রধান শিক্ষক</p>
+                                  <p className="text-[9px] text-slate-500 font-normal">তারিখ: ....................</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="w-48 border-b border-slate-900 mx-auto"></div>
+                                  <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
+                                  <p className="text-[9px] text-slate-600 font-bold">
+                                    {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, চকরিয়া
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="pt-4 flex items-center justify-between text-[10px] font-bold text-slate-600">
+                                <span>চলমান তালিকা — পরবর্তী পৃষ্ঠায় ({toBnDigit(sheet.pageNumber + 1)} নং পৃষ্ঠায়) দেখুন...</span>
+                                <span>অনুস্বাক্ষর: ..............................</span>
+                              </div>
+                            )}
+
+                            {totalPrintSheets > 1 && (
+                              <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                                <span>{schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'} — অফিশিয়াল শিক্ষার্থী ডিরেক্টরি</span>
+                                <span>পৃষ্ঠা: <strong>{toBnDigit(sheet.pageNumber)}</strong> / <strong>{toBnDigit(totalPrintSheets)}</strong></span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
             </div>
           )}
@@ -2751,7 +3002,35 @@ export default function StudentListPage() {
               </div>
 
               {/* MAIN DIRECTORY TABLE (Matching Header Structure of Image 1) */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div id="student-directory-table-top" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-20">
+                {totalPages > 1 && (
+                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                    <span>
+                      দেখানো হচ্ছে: <strong className="text-indigo-700">{toBnDigit(directoryStartIndex)} – {toBnDigit(directoryEndIndex)}</strong> তম শিক্ষার্থী (মোট <strong>{toBnDigit(filteredStudents.length)}</strong> জন)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1}
+                        onClick={() => goToDirectoryPage(safeCurrentPage - 1)}
+                        className="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        ← পূর্ববর্তী
+                      </button>
+                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-extrabold border border-indigo-100">
+                        পৃষ্ঠা {toBnDigit(safeCurrentPage)} / {toBnDigit(totalPages)}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= totalPages}
+                        onClick={() => goToDirectoryPage(safeCurrentPage + 1)}
+                        className="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        পরবর্তী →
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
@@ -2961,8 +3240,9 @@ export default function StudentListPage() {
                 <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-semibold">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span>
-                      মোট রেজিস্টার্ড শিক্ষার্থী: <strong>{toBnDigit(totalStudents)}</strong> জন
-                      {' '}(ফিল্টারকৃত: <strong>{toBnDigit(filteredStudents.length)}</strong> জন)
+                      দেখানো হচ্ছে: <strong className="text-indigo-700">{toBnDigit(directoryStartIndex)} – {toBnDigit(directoryEndIndex)}</strong>
+                      {' '}তম | ফিল্টারকৃত: <strong>{toBnDigit(filteredStudents.length)}</strong> জন
+                      {' '}(মোট: <strong>{toBnDigit(totalStudents)}</strong> জন)
                     </span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-slate-400">পৃষ্ঠা প্রতি:</span>
@@ -2971,6 +3251,7 @@ export default function StudentListPage() {
                         onChange={(e) => setPageSize(Number(e.target.value))}
                         className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                       >
+                        <option value={25}>২৫ জন</option>
                         <option value={50}>৫০ জন</option>
                         <option value={100}>১০০ জন</option>
                         <option value={200}>২০০ জন</option>
@@ -2980,25 +3261,73 @@ export default function StudentListPage() {
                   </div>
 
                   {totalPages > 1 ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         type="button"
                         disabled={safeCurrentPage <= 1}
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() => goToDirectoryPage(1)}
+                        className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                        title="প্রথম পৃষ্ঠা"
+                      >
+                        ⏮ প্রথম
+                      </button>
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage <= 1}
+                        onClick={() => goToDirectoryPage(safeCurrentPage - 1)}
                         className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
                       >
                         ← পূর্ববর্তী
                       </button>
-                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-extrabold">
-                        পৃষ্ঠা {toBnDigit(safeCurrentPage)} / {toBnDigit(totalPages)}
-                      </span>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                          .reduce((acc: Array<number | string>, p, idx, arr) => {
+                            if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                              acc.push('...');
+                            }
+                            acc.push(p);
+                            return acc;
+                          }, [])
+                          .map((item, idx) =>
+                            item === '...' ? (
+                              <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold">
+                                …
+                              </span>
+                            ) : (
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => goToDirectoryPage(item as number)}
+                                className={`w-8 h-8 rounded-lg font-extrabold text-xs transition cursor-pointer border ${
+                                  safeCurrentPage === item
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700'
+                                }`}
+                              >
+                                {toBnDigit(item)}
+                              </button>
+                            )
+                          )}
+                      </div>
+
                       <button
                         type="button"
                         disabled={safeCurrentPage >= totalPages}
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        onClick={() => goToDirectoryPage(safeCurrentPage + 1)}
                         className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
                       >
                         পরবর্তী →
+                      </button>
+                      <button
+                        type="button"
+                        disabled={safeCurrentPage >= totalPages}
+                        onClick={() => goToDirectoryPage(totalPages)}
+                        className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-bold text-slate-700 transition cursor-pointer disabled:cursor-not-allowed"
+                        title="শেষ পৃষ্ঠা"
+                      >
+                        শেষ ⏭
                       </button>
                     </div>
                   ) : (
