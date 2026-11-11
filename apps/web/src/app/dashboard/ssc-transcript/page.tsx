@@ -494,16 +494,66 @@ function SSCTestimonialsContent() {
     });
   }, [students, groupFilter, searchQuery]);
 
-  // Generate Ultra High-DPI QR Code for Testimonial verification
+  // Ensure a Testimonial record is persisted locally and synced to Cloud Firestore for QR verification
+  const ensureTestimonialSyncedForVerification = useCallback((record: SSCTestimonialRecord) => {
+    try {
+      const existing = certificateService.getCertificateById(record.refNo) || certificateService.getCertificateById(record.id);
+      const saved = certificateService.saveCertificate({
+        id: existing?.id || record.id,
+        type: 'ssc_testimonial',
+        issueDate: record.issueDate,
+        refNo: record.refNo,
+        studentId: record.studentId || record.boardRoll || 'SSC-CANDIDATE',
+        studentName: record.studentName,
+        fatherName: cleanFatherName(record.fatherName),
+        motherName: cleanMotherName(record.motherName),
+        village: record.village || 'Boraitoli',
+        postOffice: record.postOffice || 'Boraitoli',
+        upazila: record.upazilla || 'Chakaria',
+        district: record.district || "Cox's Bazar",
+        dob: record.dob || '2009-05-14',
+        grade: '10th',
+        roll: record.boardRoll || '01',
+        section: 'A',
+        group: record.group || 'Science',
+        boardRoll: record.boardRoll,
+        boardReg: record.boardReg,
+        session: record.session || '2024-2025',
+        passingYear: record.passingYear || '2026',
+        gpa: record.gpa || '5.00',
+        characterRemarks: record.characterRemarks || 'He bears an exemplary moral character.',
+        isAlumni: true,
+        padType: 'digital_server'
+      });
+      return saved;
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
+  // Generate Ultra High-DPI QR Code for Testimonial verification (/verify-certificate)
   const generateQRCode = useCallback(async (record: SSCTestimonialRecord) => {
     try {
-      const verifyUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/verify/ssc-testimonial?ref=${encodeURIComponent(
-        record.refNo
-      )}&roll=${record.boardRoll}&reg=${record.boardReg}&year=${record.passingYear}`;
+      ensureTestimonialSyncedForVerification(record);
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const params = new URLSearchParams({
+        id: record.refNo || record.id,
+        n: record.studentName || '',
+        f: cleanFatherName(record.fatherName),
+        m: cleanMotherName(record.motherName),
+        r: record.boardRoll || '',
+        reg: record.boardReg || '',
+        g: record.gpa || '',
+        y: record.passingYear || '',
+        grp: record.group || '',
+        s: record.session || '',
+        d: record.issueDate || ''
+      });
+      const verifyUrl = `${origin}/verify-certificate?${params.toString()}`;
       const url = await QRCode.toDataURL(verifyUrl, {
-        width: 240,
+        width: 280,
         margin: 1,
-        scale: 4,
+        errorCorrectionLevel: 'M',
         color: { dark: '#0f172a', light: '#ffffff' }
       });
       setQrCodeDataUrls((prev) => ({ ...prev, [record.id]: url }));
@@ -511,7 +561,7 @@ function SSCTestimonialsContent() {
     } catch (e) {
       return '';
     }
-  }, []);
+  }, [ensureTestimonialSyncedForVerification]);
 
   const showAlert = (type: 'success' | 'error', text: string) => {
     setAlertMsg({ type, text });
@@ -1396,17 +1446,28 @@ function SSCTestimonialsContent() {
               </div>
               <input
                 type="range"
-                min="85"
-                max="115"
+                min="75"
+                max="175"
                 step="5"
                 value={layoutConfig.fontScale}
                 onChange={(e) => updateLayoutConfig({ fontScale: parseInt(e.target.value) })}
                 className="w-full accent-amber-400 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>85% (কমপ্যাক্ট)</span>
-                <span>100%</span>
-                <span>115% (লার্জ)</span>
+              <div className="flex items-center justify-between gap-1 pt-1">
+                {[90, 100, 115, 130, 150].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => updateLayoutConfig({ fontScale: preset })}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
+                      layoutConfig.fontScale === preset
+                        ? 'bg-amber-400 text-slate-950 font-black'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {preset}%
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -2430,17 +2491,28 @@ function SSCTestimonialsContent() {
                 </div>
                 <input
                   type="range"
-                  min="85"
-                  max="115"
+                  min="75"
+                  max="175"
                   step="5"
                   value={layoutConfig.fontScale}
                   onChange={(e) => updateLayoutConfig({ fontScale: parseInt(e.target.value) })}
                   className="w-full accent-amber-500 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                  <span>85% (কমপ্যাক্ট)</span>
-                  <span>100%</span>
-                  <span>115% (লার্জ)</span>
+                <div className="flex items-center justify-between gap-1 pt-1">
+                  {[90, 100, 115, 130, 150].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => updateLayoutConfig({ fontScale: preset })}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
+                        layoutConfig.fontScale === preset
+                          ? 'bg-amber-500 text-slate-950 font-black'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -2636,14 +2708,53 @@ function SSCTestimonialsContent() {
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
           <div className="bg-white rounded-3xl max-w-5xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto print:max-w-none print:p-0 print:h-auto print:overflow-visible print:border-none print:shadow-none">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 print:hidden">
               <div className="flex items-center gap-2">
                 <Award size={20} className="text-amber-500" />
                 <h3 className="font-black text-slate-950 text-sm">
                   অফিশিয়াল প্রশংসাপত্র প্রিভিউ (৯.২&quot; × ৮.২&quot;) • {previewTestimonial.studentName}
                 </h3>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Quick Live Font Size Adjuster inside Modal */}
+                <div className="flex items-center gap-1 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
+                  <span className="text-slate-600 mr-1">ফন্ট সাইজ:</span>
+                  <button
+                    type="button"
+                    onClick={() => updateLayoutConfig({ fontScale: Math.max(75, layoutConfig.fontScale - 5) })}
+                    className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-900 font-black flex items-center justify-center border border-slate-300 cursor-pointer"
+                    title="ফন্ট ছোট করুন"
+                  >
+                    −
+                  </button>
+                  <span className="font-mono font-black text-indigo-700 px-1.5 min-w-[44px] text-center">
+                    {layoutConfig.fontScale}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateLayoutConfig({ fontScale: Math.min(175, layoutConfig.fontScale + 5) })}
+                    className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-900 font-black flex items-center justify-center border border-slate-300 cursor-pointer"
+                    title="ফন্ট বড় করুন"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick PNG Border Upload inside Modal */}
+                <label className="relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={handleDirectBorderUpload}
+                  />
+                  <span className="px-3 py-2 rounded-xl font-bold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5 transition">
+                    <Upload size={13} />
+                    {activeBorderUrl ? 'বর্ডার পরিবর্তন' : 'বর্ডার যোগ করুন'}
+                  </span>
+                </label>
+
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -2700,7 +2811,7 @@ function SSCTestimonialSheetCard({
   const schoolAddressEn = record.schoolAddressEn || "Boraitoli, Chakaria, Cox's Bazar";
   const schoolPhone = (layoutConfig.customPhone !== undefined && layoutConfig.customPhone !== '') 
     ? layoutConfig.customPhone 
-    : (schoolSettings?.phone || '01819-640163');
+    : (schoolSettings?.phone || '01819-000000');
   
   // Smart gender detection
   const detectedGen = detectGender(record.gender, record.studentName);
@@ -2713,6 +2824,9 @@ function SSCTestimonialSheetCard({
       : layoutConfig.titleStyle === 'classic'
       ? "'Times New Roman', Times, serif"
       : "'Cinzel', 'Cinzel Decorative', 'Playfair Display', Georgia, serif";
+
+  const bodyFontSizePx = (15.4 * (layoutConfig.fontScale || 100)) / 100;
+  const metaFontSizePx = Math.max(11.5, (12.2 * (layoutConfig.fontScale || 100)) / 100);
 
   return (
     <div
@@ -2728,6 +2842,20 @@ function SSCTestimonialSheetCard({
         overflow: 'hidden'
       }}
     >
+      {/* ── SUBTLE INSTITUTIONAL WATERMARK EMBLEM IN CENTER ── */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+        {schoolSettings?.schoolLogo ? (
+          <img
+            src={schoolSettings.schoolLogo}
+            alt=""
+            aria-hidden="true"
+            className="w-[3.1in] h-[3.1in] object-contain opacity-[0.045] grayscale contrast-125"
+          />
+        ) : (
+          <GraduationCap className="w-[2.8in] h-[2.8in] text-slate-900 opacity-[0.035]" />
+        )}
+      </div>
+
       {/* ── PNG BORDER OVERLAY (Spans exact 9.2in x 8.2in outer sheet) ── */}
       {borderImageUrl ? (
         <img
@@ -2743,10 +2871,20 @@ function SSCTestimonialSheetCard({
           }}
         />
       ) : (
-        /* Double certificate border if no custom PNG uploaded */
-        <div 
-          className="absolute inset-[0.22in] border-2 border-double border-slate-900 pointer-events-none z-10"
-        />
+        /* Professional Multi-Rule Institutional Frame if no custom PNG border is uploaded */
+        <div className="absolute inset-[0.20in] pointer-events-none select-none z-10">
+          {/* Outer thick institutional frame */}
+          <div className="w-full h-full border-[2.5px] border-slate-900 relative p-[4px]">
+            {/* Inner fine rule frame */}
+            <div className="w-full h-full border border-amber-900/70 relative">
+              {/* Classic ornamental corner accents */}
+              <div className="absolute -top-[3px] -left-[3px] w-3.5 h-3.5 border-t-[3px] border-l-[3px] border-amber-800" />
+              <div className="absolute -top-[3px] -right-[3px] w-3.5 h-3.5 border-t-[3px] border-r-[3px] border-amber-800" />
+              <div className="absolute -bottom-[3px] -left-[3px] w-3.5 h-3.5 border-b-[3px] border-l-[3px] border-amber-800" />
+              <div className="absolute -bottom-[3px] -right-[3px] w-3.5 h-3.5 border-b-[3px] border-r-[3px] border-amber-800" />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── INNER SAFE MARGIN CONTAINER (Safe padding so text NEVER touches border) ── */}
@@ -2761,59 +2899,62 @@ function SSCTestimonialSheetCard({
         }}
       >
         <div>
-          {/* 1. INSTITUTIONAL HEADER (With School Name, Address & Mobile Number) */}
+          {/* 1. INSTITUTIONAL HEADER (With School Name, Address, EIIN & Mobile Number — No harsh divider line) */}
           <div className="text-center flex flex-col items-center justify-center space-y-1">
             <div className="flex items-center justify-center gap-3.5">
               {schoolSettings?.schoolLogo ? (
-                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-14 h-14 object-contain shrink-0" />
+                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-15 h-15 object-contain shrink-0" />
               ) : (
-                <div className="w-12 h-12 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center bg-slate-50">
+                <div className="w-13 h-13 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center bg-slate-50">
                   <GraduationCap className="w-7 h-7 text-slate-800" />
                 </div>
               )}
               <div className="text-center">
-                <h1 className="text-2xl sm:text-[27px] font-black text-slate-950 tracking-[0.03em] font-serif uppercase leading-none mb-1">
+                <h1
+                  className="text-[26px] sm:text-[29px] font-black text-slate-950 tracking-[0.04em] uppercase leading-none mb-1"
+                  style={{ fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif" }}
+                >
                   {schoolNameEn}
                 </h1>
-                <p className="text-[12px] font-semibold text-slate-800 tracking-wide">
+                <p className="text-[13px] font-semibold text-slate-800 tracking-wide font-serif">
                   {schoolAddressEn}
                 </p>
               </div>
             </div>
             
-            {/* Line 1: EIIN, Established (exact user specification) */}
-            <p className="text-[11.5px] font-bold text-slate-800 font-mono tracking-wider mt-0.5">
+            {/* Line 1: EIIN, Established */}
+            <p className="text-[12px] font-bold text-slate-800 font-mono tracking-wider pt-0.5">
               EIIN: {record.eiin}, Established: {schoolSettings?.estdYear || '1969'}
             </p>
 
-            {/* Line 2: Mobile Number (from Admin Settings) */}
-            <p className="text-[11.5px] font-black text-slate-950 font-mono tracking-wider">
-              Mobile: {schoolSettings?.phone || '01819-000000'}
+            {/* Line 2: Mobile Number */}
+            <p className="text-[12px] font-black text-slate-950 font-mono tracking-wider">
+              Mobile: {schoolPhone}
             </p>
           </div>
 
-          {/* FULL WIDTH HORIZONTAL DIVIDING LINE */}
-          <div className="w-full border-b-2 border-slate-950 my-1.5" />
-
-          {/* 2. REF NO & DATE BAR */}
-          <div className="flex justify-between items-center text-[11px] font-bold text-slate-800 px-2 mb-1.5 font-mono">
+          {/* 2. REF NO & DATE BAR (Clean spacing without horizontal line) */}
+          <div
+            className="flex justify-between items-center font-bold text-slate-800 px-3 sm:px-6 mt-3 mb-2"
+            style={{ fontSize: `${metaFontSizePx}px` }}
+          >
             <div>
-              <span className="font-sans font-bold text-slate-600">Ref. No: </span>
-              <span className="font-mono font-black text-slate-950">{record.refNo}</span>
+              <span className="font-serif italic font-semibold text-slate-700">Ref. No: </span>
+              <span className="font-mono font-black text-slate-950 tracking-tight">{record.refNo}</span>
             </div>
             <div>
-              <span className="font-sans font-bold text-slate-600">Date: </span>
-              <span className="font-mono font-bold text-slate-950">{record.issueDate}</span>
+              <span className="font-serif italic font-semibold text-slate-700">Date: </span>
+              <span className="font-mono font-black text-slate-950">{record.issueDate}</span>
             </div>
           </div>
 
           {/* 3. STYLISH BOLD TESTIMONIAL TITLE */}
-          <div className="text-center my-2 sm:my-2.5">
+          <div className="text-center my-2.5 sm:my-3">
             <div className="inline-flex flex-col items-center justify-center">
               <div className="flex items-center justify-center gap-3">
-                <span className="text-amber-800 text-sm font-serif select-none">❖</span>
+                <span className="text-amber-800 text-base font-serif select-none">❖</span>
                 <h2 
-                  className="text-2xl sm:text-[27px] font-black text-slate-950 uppercase tracking-[0.24em] select-none"
+                  className="text-[26px] sm:text-[29px] font-black text-slate-950 uppercase tracking-[0.24em] select-none"
                   style={{
                     fontFamily: titleFontFamily,
                     fontWeight: 900,
@@ -2823,77 +2964,82 @@ function SSCTestimonialSheetCard({
                 >
                   TESTIMONIAL
                 </h2>
-                <span className="text-amber-800 text-sm font-serif select-none">❖</span>
+                <span className="text-amber-800 text-base font-serif select-none">❖</span>
               </div>
               
               {/* Stylish Ornamental Flourish Line */}
-              <div className="flex items-center justify-center gap-1.5 w-full mt-1">
-                <div className="h-[2px] w-12 bg-slate-950 rounded-full" />
-                <div className="h-[1px] w-20 bg-slate-600" />
+              <div className="flex items-center justify-center gap-1.5 w-full mt-1.5">
+                <div className="h-[2px] w-14 bg-slate-950 rounded-full" />
+                <div className="h-[1px] w-24 bg-slate-600" />
                 <div className="w-2 h-2 rotate-45 bg-amber-800 shrink-0" />
-                <div className="h-[1px] w-20 bg-slate-600" />
-                <div className="h-[2px] w-12 bg-slate-950 rounded-full" />
+                <div className="h-[1px] w-24 bg-slate-600" />
+                <div className="h-[2px] w-14 bg-slate-950 rounded-full" />
               </div>
             </div>
 
-            <div className="mt-1">
-              <span className="text-[10px] sm:text-[11px] font-black text-slate-700 tracking-[0.16em] uppercase font-sans">
-                SECONDARY SCHOOL CERTIFICATE (SSC) EXAMINATION — {record.passingYear}
+            <div className="mt-1.5">
+              <span className="text-[11px] sm:text-[12px] font-extrabold text-slate-800 tracking-[0.18em] uppercase font-serif">
+                SECONDARY SCHOOL CERTIFICATE EXAMINATION — {record.passingYear}
               </span>
             </div>
           </div>
 
-          {/* 4. OFFICIAL TESTIMONIAL PARAGRAPH TEXT (Exact Official Template) */}
+          {/* 4. OFFICIAL TESTIMONIAL PARAGRAPH TEXT (Larger Scalable Typography) */}
           <div 
-            className="font-serif text-slate-950 text-justify px-3 sm:px-6 space-y-3.5 print-quality-boost"
+            className="font-serif text-slate-950 text-justify px-3 sm:px-6 space-y-3.5 print-quality-boost mt-3"
             style={{
-              fontSize: `${(13.2 * layoutConfig.fontScale) / 100}px`,
-              lineHeight: layoutConfig.lineHeight === 'tight' ? 1.75 : layoutConfig.lineHeight === 'relaxed' ? 2.3 : 2.05,
-              wordSpacing: '0.04em'
+              fontSize: `${bodyFontSizePx}px`,
+              lineHeight: layoutConfig.lineHeight === 'tight' ? 1.65 : layoutConfig.lineHeight === 'relaxed' ? 2.15 : 1.9,
+              wordSpacing: '0.03em',
+              fontFamily: "'Times New Roman', 'Playfair Display', Georgia, serif"
             }}
           >
-            <p className="leading-relaxed">
-              This is to certify that <strong className="font-serif font-black text-slate-950 tracking-wide uppercase border-b border-slate-900 pb-[1px]">{record.studentName}</strong>, {isFemale ? 'daughter' : 'son'} of Mr. <strong className="font-serif font-bold text-slate-900">{cleanFatherName(record.fatherName)}</strong> and Mrs. <strong className="font-serif font-bold text-slate-900">{cleanMotherName(record.motherName)}</strong>, Village: <strong className="font-serif font-bold text-slate-900">{record.village || 'Boraitoli'}</strong>, Post Office: <strong className="font-serif font-bold text-slate-900">{record.postOffice || 'Boraitoli'}</strong>, Upazilla: <strong className="font-serif font-bold text-slate-900">{record.upazilla || (record as any).upazila || 'Chakaria'}</strong>, District: <strong className="font-serif font-bold text-slate-900">{record.district || "Cox's Bazar"}</strong>, was a student of this school bearing Roll No. <strong className="font-mono font-bold text-slate-950">{record.boardRoll}</strong>, Registration No. <strong className="font-mono font-bold text-slate-950">{record.boardReg}</strong>, Session <strong className="font-mono font-bold text-slate-950">{record.session}</strong>, Group <strong className="font-serif font-bold uppercase text-slate-950">{record.group}</strong>.
+            <p>
+              This is to certify that <strong className="font-serif font-black text-slate-950 tracking-wide uppercase border-b border-dotted border-slate-900 pb-[1px] px-0.5">{record.studentName}</strong>, {isFemale ? 'daughter' : 'son'} of Mr. <strong className="font-serif font-bold text-slate-950">{cleanFatherName(record.fatherName)}</strong> and Mrs. <strong className="font-serif font-bold text-slate-950">{cleanMotherName(record.motherName)}</strong>, Village: <strong className="font-serif font-bold text-slate-950">{record.village || 'Boraitoli'}</strong>, Post Office: <strong className="font-serif font-bold text-slate-950">{record.postOffice || 'Boraitoli'}</strong>, Upazilla: <strong className="font-serif font-bold text-slate-950">{record.upazilla || (record as any).upazila || 'Chakaria'}</strong>, District: <strong className="font-serif font-bold text-slate-950">{record.district || "Cox's Bazar"}</strong>, was a student of this school bearing Roll No. <strong className="font-mono font-bold text-slate-950">{record.boardRoll}</strong>, Registration No. <strong className="font-mono font-bold text-slate-950">{record.boardReg}</strong>, Session <strong className="font-mono font-bold text-slate-950">{record.session}</strong>, Group <strong className="font-serif font-bold uppercase text-slate-950">{record.group}</strong>.
             </p>
 
-            <p className="leading-relaxed">
+            <p>
               {isFemale ? 'She' : 'He'} has duly passed the S.S.C. Examination held in the year <strong className="font-mono font-bold text-slate-950">{record.passingYear}</strong> and secured a GPA of <strong className="font-mono font-black text-slate-950">{record.gpa}</strong> out of 5.00, under the {record.boardName || 'Board of Intermediate and Secondary Education, Chattogram'}.
             </p>
 
-            <p className="leading-relaxed">
+            <p>
               During {isFemale ? 'her' : 'his'} stay in this institution, {isFemale ? 'her' : 'his'} moral character and conduct were good. There is no information of {isFemale ? 'her' : 'his'} being involved in any activity subversive to the interest of the state or against school discipline.
             </p>
 
-            <p className="leading-relaxed">
+            <p>
               We wish {isFemale ? 'her' : 'him'} success in life.
             </p>
           </div>
         </div>
 
-        {/* 5. FOOTER SIGNATURES & QR VERIFICATION (No Prepared by, Flow Principal Signature) */}
+        {/* 5. FOOTER SIGNATURES & SCANNABLE QR VERIFICATION */}
         <div 
-          className="pt-3 flex items-end justify-between text-xs font-bold text-slate-950 px-4"
+          className="pt-2 flex items-end justify-between text-xs font-bold text-slate-950 px-3 sm:px-6"
           style={{ marginTop: `${layoutConfig.signatureGap || 18}px` }}
         >
           {qrCodeUrl ? (
             <div className="flex flex-col items-center text-center">
-              <img src={qrCodeUrl} alt="QR Seal" className="w-12 h-12" />
-              <span className="text-[8px] font-mono font-black text-slate-700 mt-0.5 tracking-wider">QR VERIFIED</span>
+              <div className="p-1 bg-white border border-slate-300 rounded shadow-2xs">
+                <img src={qrCodeUrl} alt="Scan to Verify Testimonial" className="w-16 h-16 object-contain" />
+              </div>
+              <span className="text-[8.5px] font-mono font-black text-slate-800 mt-1 tracking-widest uppercase">
+                QR VERIFIED
+              </span>
             </div>
           ) : (
             <div />
           )}
 
           <div className="text-center">
-            <div className="w-56 border-t-2 border-slate-950 pt-1.5">
-              <p className="font-black text-slate-950 text-xs uppercase font-serif tracking-wide">
+            <div className="w-60 border-t-[1.5px] border-slate-950 pt-1.5">
+              <p className="font-black text-slate-950 text-[13px] uppercase font-serif tracking-wide">
                 {getEnglishPrincipalName(schoolSettings?.principalName)}
               </p>
-              <p className="text-[11px] font-bold text-slate-800">
+              <p className="text-[11.5px] font-bold text-slate-800 font-serif">
                 {getEnglishPrincipalTitle(schoolSettings?.principalTitle)}
               </p>
-              <p className="text-[10px] text-slate-600 font-serif tracking-wide">{schoolNameEn}</p>
-              <p className="text-[9px] text-slate-500 font-serif">{schoolAddressEn}</p>
+              <p className="text-[10.5px] font-bold text-slate-700 font-serif tracking-wide">{schoolNameEn}</p>
+              <p className="text-[9.5px] text-slate-600 font-serif">{schoolAddressEn}</p>
             </div>
           </div>
         </div>

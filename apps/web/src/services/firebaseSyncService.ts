@@ -880,9 +880,11 @@ class FirebaseSyncService {
     if (!db || !cert?.id || typeof navigator === 'undefined' || !navigator.onLine) return;
     try {
       const firestore = db as Firestore;
-      const certRef = doc(firestore, 'certificates', String(cert.id));
+      const safeDocId = String(cert.id).replace(/\//g, '_');
+      const certRef = doc(firestore, 'certificates', safeDocId);
+      const cleanCert = JSON.parse(JSON.stringify(cert));
       await setDoc(certRef, {
-        ...cert,
+        ...cleanCert,
         updatedAt: serverTimestamp(),
         schoolId: firebaseConfig.projectId
       }, { merge: true });
@@ -898,7 +900,8 @@ class FirebaseSyncService {
     if (!db || !certId || typeof navigator === 'undefined' || !navigator.onLine) return;
     try {
       const firestore = db as Firestore;
-      await deleteDoc(doc(firestore, 'certificates', String(certId)));
+      const safeDocId = String(certId).replace(/\//g, '_');
+      await deleteDoc(doc(firestore, 'certificates', safeDocId));
     } catch (err) {
       console.warn('[FirebaseSync] Certificate cloud delete warning:', err);
     }
@@ -913,12 +916,14 @@ class FirebaseSyncService {
     try {
       const firestore = db as Firestore;
       const queryClean = idOrCode.trim();
+      const safeDocId = queryClean.replace(/\//g, '_');
       const queryLower = queryClean.toLowerCase();
 
       // 1. Try direct document ID lookup first
-      const directSnap = await getDoc(doc(firestore, 'certificates', queryClean));
+      const directSnap = await getDoc(doc(firestore, 'certificates', safeDocId));
       if (directSnap.exists()) {
-        return { ...directSnap.data(), id: directSnap.id };
+        const data = directSnap.data();
+        return { ...data, id: data.id || directSnap.id };
       }
 
       // 2. Scan certificates collection for case-insensitive ID, verificationCode, or refNo match
@@ -927,7 +932,7 @@ class FirebaseSyncService {
       const allCloudCerts: any[] = [];
 
       certsSnap.forEach((d) => {
-        const data = { ...d.data(), id: d.id } as any;
+        const data = { ...d.data(), id: d.data().id || d.id } as any;
         allCloudCerts.push(data);
         if (
           data.id?.toLowerCase() === queryLower ||

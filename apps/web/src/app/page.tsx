@@ -271,7 +271,11 @@ export default function PublicSchoolHomePage() {
 
       {/* Institutional Footer */}
       <ScrollRevealSection sectionKey="footer" variant="fade-up">
-        <PublicFooter settings={settings} footerConfig={landingConfig.footer} />
+        <PublicFooter
+          settings={settings}
+          footerConfig={landingConfig.footer}
+          lastUpdatedAt={landingConfig.lastUpdatedAt || (settings as any)?.updatedAt}
+        />
       </ScrollRevealSection>
     </div>
   );

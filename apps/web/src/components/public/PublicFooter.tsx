@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   School, 
@@ -21,9 +21,48 @@ import { FooterConfig } from '@/services/landingPageService';
 interface PublicFooterProps {
   settings?: SchoolSettings | null;
   footerConfig?: FooterConfig | null;
+  lastUpdatedAt?: any;
 }
 
-export default function PublicFooter({ settings, footerConfig }: PublicFooterProps) {
+function formatBengaliDateTime(raw?: any): string {
+  try {
+    let dateObj: Date | null = null;
+    if (raw && typeof raw?.toDate === 'function') {
+      dateObj = raw.toDate();
+    } else if (raw && typeof raw?.seconds === 'number') {
+      dateObj = new Date(raw.seconds * 1000);
+    } else if (typeof raw === 'string' && raw.trim()) {
+      const parsed = new Date(raw);
+      if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2025) {
+        dateObj = parsed;
+      }
+    }
+    if (!dateObj || isNaN(dateObj.getTime())) {
+      dateObj = new Date();
+    }
+    const dateStr = dateObj.toLocaleDateString('bn-BD', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const timeStr = dateObj.toLocaleTimeString('bn-BD', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${dateStr}, ${timeStr}`;
+  } catch {
+    return '';
+  }
+}
+
+export default function PublicFooter({ settings, footerConfig, lastUpdatedAt }: PublicFooterProps) {
+  const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>('');
+
+  useEffect(() => {
+    setLastUpdatedDisplay(formatBengaliDateTime(lastUpdatedAt || (settings as any)?.updatedAt));
+  }, [lastUpdatedAt, settings]);
+
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
   const eiin = footerConfig?.eiin || settings?.eiin || '১০৬১৮৪';
   const schoolCode = footerConfig?.schoolCode || '৩৪১২';
@@ -272,16 +311,23 @@ export default function PublicFooter({ settings, footerConfig }: PublicFooterPro
       </div>
 
       {/* ===================================================================
-          সবার নিচে কপিরাইট বার (BOTTOM COPYRIGHT BAR)
+          সবার নিচে কপিরাইট বার ও সর্বশেষ আপডেটের তারিখ ও সময় (BOTTOM BAR)
           =================================================================== */}
-      <div className="bg-black/60 border-t border-slate-900 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div className="bg-black/60 border-t border-slate-900 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           
-          {/* কপিরাইট নোটিশ */}
-          <div className="text-center sm:text-left">
+          {/* কপিরাইট নোটিশ ও সর্বশেষ আপডেট */}
+          <div className="text-center sm:text-left space-y-1">
             <p className="text-slate-400">
               {copyrightText}
             </p>
+            {lastUpdatedDisplay && (
+              <p className="text-[10.5px] text-slate-500 flex items-center justify-center sm:justify-start gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 inline-block" />
+                <Clock className="w-3 h-3 text-slate-500 shrink-0" />
+                <span>সর্বশেষ আপডেট: <span className="text-slate-400 font-medium">{lastUpdatedDisplay}</span></span>
+              </p>
+            )}
           </div>
 
           {/* সিস্টেম ক্রেডিট ও ব্যাক টু টপ বাটন */}

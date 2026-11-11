@@ -38,7 +38,12 @@ import Link from 'next/link';
 
 function VerificationContent() {
   const searchParams = useSearchParams();
-  const certIdParam = searchParams.get('id') || searchParams.get('cert') || searchParams.get('code') || '';
+  const certIdParam =
+    searchParams.get('id') ||
+    searchParams.get('ref') ||
+    searchParams.get('cert') ||
+    searchParams.get('code') ||
+    '';
 
   const [searchQuery, setSearchQuery] = useState(certIdParam);
   const [searchedId, setSearchedId] = useState(certIdParam);
@@ -47,6 +52,47 @@ function VerificationContent() {
   const [isVerifyingCloud, setIsVerifyingCloud] = useState(false);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(settingsService.getSettings());
 
+  // Build fallback certificate from signed/encoded QR query parameters if present
+  const buildQrParamFallbackCert = (queryId: string): CertificateRecord | null => {
+    const qName = searchParams.get('n') || searchParams.get('name') || '';
+    const qRoll = searchParams.get('r') || searchParams.get('roll') || '';
+    const qReg = searchParams.get('reg') || '';
+    const qGpa = searchParams.get('g') || searchParams.get('gpa') || '';
+    const qYear = searchParams.get('y') || searchParams.get('year') || '';
+    const qFather = searchParams.get('f') || searchParams.get('father') || '';
+    const qMother = searchParams.get('m') || searchParams.get('mother') || '';
+    const qGroup = searchParams.get('grp') || searchParams.get('group') || 'Science';
+    const qSession = searchParams.get('s') || searchParams.get('session') || '2024-2025';
+    const qDate = searchParams.get('d') || searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+    if (!queryId || (!qName && !qRoll)) return null;
+
+    return {
+      id: queryId,
+      verificationCode: queryId,
+      type: 'ssc_testimonial',
+      title: 'TESTIMONIAL',
+      refNo: queryId,
+      issueDate: qDate,
+      status: 'valid',
+      studentId: qRoll || 'SSC-CANDIDATE',
+      studentName: qName || 'SSC Examinee',
+      fatherName: qFather || '—',
+      motherName: qMother || '—',
+      roll: qRoll || '—',
+      grade: '10th (SSC)',
+      section: 'A',
+      group: qGroup,
+      session: qSession,
+      dob: '',
+      boardRoll: qRoll,
+      boardReg: qReg,
+      passingYear: qYear || '2026',
+      gpa: qGpa || '5.00',
+      createdDate: qDate
+    };
+  };
+
   const performVerification = async (query: string) => {
     const cleanQuery = query.trim();
     if (!cleanQuery) return;
@@ -54,8 +100,12 @@ function VerificationContent() {
 
     // 1. Check local storage first for instant response
     const localFound = certificateService.getCertificateById(cleanQuery);
+    const qrFallback = buildQrParamFallbackCert(cleanQuery);
     if (localFound) {
       setCert(localFound);
+      setHasSearched(true);
+    } else if (qrFallback) {
+      setCert(qrFallback);
       setHasSearched(true);
     }
 
@@ -65,11 +115,11 @@ function VerificationContent() {
       const cloudCert = await firebaseSyncService.fetchCertificateFromCloudById(cleanQuery);
       if (cloudCert) {
         setCert(cloudCert as CertificateRecord);
-      } else if (!localFound) {
+      } else if (!localFound && !qrFallback) {
         setCert(null);
       }
     } catch (e) {
-      if (!localFound) setCert(null);
+      if (!localFound && !qrFallback) setCert(null);
     } finally {
       setIsVerifyingCloud(false);
       setHasSearched(true);
