@@ -1,11 +1,15 @@
-// SchoolPro Service Worker v3 — Teacher Mobile-First PWA
-const CACHE_NAME = 'schoolpro-v3';
-const STATIC_CACHE = 'schoolpro-static-v3';
-const DYNAMIC_CACHE = 'schoolpro-dynamic-v3';
+// SchoolPro Service Worker v4 — Teacher & Campus Mobile-First PWA
+const CACHE_NAME = 'schoolpro-v4';
+const STATIC_CACHE = 'schoolpro-static-v4';
+const DYNAMIC_CACHE = 'schoolpro-dynamic-v4';
 
 // Pre-cache critical app shell routes
 const PRECACHE_URLS = [
   '/',
+  '/mobile-app',
+  '/result',
+  '/admission',
+  '/verify-certificate',
   '/login',
   '/teacher-login',
   '/dashboard',
@@ -15,6 +19,7 @@ const PRECACHE_URLS = [
   '/dashboard/academic/attendance',
   '/dashboard/teacher',
   '/manifest.json',
+  '/logo.png',
   '/icons/icon-192x192.svg',
   '/icons/icon-512x512.svg'
 ];

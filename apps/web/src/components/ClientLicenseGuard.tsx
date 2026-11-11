@@ -74,6 +74,7 @@ export default function ClientLicenseGuard({ children }: { children: React.React
     pathname?.startsWith('/admission') || 
     pathname?.startsWith('/result') || 
     pathname?.startsWith('/verify-certificate') || 
+    pathname?.startsWith('/mobile-app') ||
     pathname?.startsWith('/login') ||
     pathname?.startsWith('/teacher-login');
 
