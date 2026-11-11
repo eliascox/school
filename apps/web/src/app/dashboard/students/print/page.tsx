@@ -58,6 +58,7 @@ function PrintPageContent() {
   const [reportType, setReportType] = useState<'summary' | 'detailed'>('summary');
   const [orientation, setOrientation] = useState<OrientationMode>('portrait');
   const [marginPreset, setMarginPreset] = useState<MarginPreset>('normal');
+  const [rowsPerPage, setRowsPerPage] = useState<number>(0); // 0 = Auto (Portrait 24-28 / Landscape 15-18)
   const [activeCols, setActiveCols] = useState<Record<string, boolean>>(DEFAULT_COLUMNS);
   const [currentSheetPage, setCurrentSheetPage] = useState<number>(1);
   const [viewAllSheets, setViewAllSheets] = useState<boolean>(true);
@@ -103,6 +104,11 @@ function PrintPageContent() {
     const marginParam = searchParams?.get('margin');
     if (marginParam === 'normal' || marginParam === 'wide' || marginParam === 'compact') {
       setMarginPreset(marginParam);
+    }
+
+    const perPageParam = Number(searchParams?.get('perPage') || 0);
+    if (perPageParam > 0) {
+      setRowsPerPage(perPageParam);
     }
 
     const colsParam = searchParams?.get('cols');
@@ -300,8 +306,8 @@ function PrintPageContent() {
   // page numbering, and never splits a student row or signature block!
   // ─────────────────────────────────────────────────────────────
   const paginatedDetailedSheets = useMemo(() => {
-    const firstPageMax = orientation === 'portrait' ? 24 : 15;
-    const subsequentPageMax = orientation === 'portrait' ? 28 : 18;
+    const firstPageMax = rowsPerPage > 0 ? rowsPerPage : orientation === 'portrait' ? 24 : 15;
+    const subsequentPageMax = rowsPerPage > 0 ? rowsPerPage : orientation === 'portrait' ? 28 : 18;
 
     if (filteredStudents.length === 0) {
       return [{ pageNumber: 1, rows: [] as Array<{ student: any; globalIndex: number }> }];
@@ -327,13 +333,13 @@ function PrintPageContent() {
     }
 
     return sheets;
-  }, [filteredStudents, orientation]);
+  }, [filteredStudents, orientation, rowsPerPage]);
 
   const totalDetailedPages = paginatedDetailedSheets.length;
 
   useEffect(() => {
     setCurrentSheetPage(1);
-  }, [orientation, reportType, filteredStudents.length]);
+  }, [orientation, rowsPerPage, reportType, filteredStudents.length]);
 
   const scrollToSheet = (pageNum: number) => {
     setCurrentSheetPage(pageNum);
@@ -644,6 +650,24 @@ function PrintPageContent() {
                 <option value="compact">কমপ্যাক্ট (১০ মিমি)</option>
               </select>
             </div>
+
+            {/* Students Per Page Selector (For Detailed Report) */}
+            {reportType === 'detailed' && (
+              <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-700 text-xs">
+                <span className="text-slate-400 font-bold">পৃষ্ঠা প্রতি:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  className="bg-slate-900 text-white font-bold text-xs px-2 py-0.5 rounded-lg border border-slate-700 outline-none cursor-pointer"
+                >
+                  <option value={0}>অটো ({orientation === 'portrait' ? '২৪–২৮' : '১৫–১৮'} জন)</option>
+                  <option value={15}>১৫ জন</option>
+                  <option value={20}>২০ জন</option>
+                  <option value={25}>২৫ জন</option>
+                  <option value={30}>৩০ জন</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Right: Print Action */}
