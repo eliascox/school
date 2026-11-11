@@ -2842,21 +2842,21 @@ export default function StudentListPage() {
           {activeView === 'list' && (
             <div className="space-y-4">
               
-              {/* TOP COMPACT FILTER & ACTION BAR (Single Row Bar like Image 1) */}
-              <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+              {/* TOP COMPACT FILTER & ACTION BAR (Single Row Bar) */}
+              <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 overflow-x-auto no-scrollbar">
                 
-                {/* Left Side: Search & Dropdown Filters (Image 1 Style) */}
-                <div className="flex items-center gap-2.5 flex-wrap flex-1">
+                {/* Left Side: Search & Compact Dropdown Filters */}
+                <div className="flex items-center gap-2 shrink-0">
                   
                   {/* Search Input */}
-                  <div className="relative w-full sm:w-56 md:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <div className="relative w-44 sm:w-52 lg:w-56 shrink-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search students..."
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-slate-900 placeholder:text-slate-400"
+                      placeholder={currentLang === 'en' ? 'Search students...' : 'শিক্ষার্থী খুঁজুন...'}
+                      className="w-full h-9 pl-8 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-slate-900 placeholder:text-slate-400 transition"
                     />
                   </div>
 
@@ -2864,35 +2864,35 @@ export default function StudentListPage() {
                   <select
                     value={gradeFilter}
                     onChange={(e) => setGradeFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
-                    <option value="all">All Classes</option>
-                    <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
-                    <option value="7th">৭ম শ্রেণি (Class 7)</option>
-                    <option value="8th">৮ম শ্রেণি (Class 8)</option>
-                    <option value="9th">৯ম শ্রেণি (Class 9)</option>
-                    <option value="10th">১০ম শ্রেণি (Class 10)</option>
+                    <option value="all">{currentLang === 'en' ? 'All Classes' : 'সকল শ্রেণি'}</option>
+                    <option value="6th">৬ষ্ঠ (Class 6)</option>
+                    <option value="7th">৭ম (Class 7)</option>
+                    <option value="8th">৮ম (Class 8)</option>
+                    <option value="9th">৯ম (Class 9)</option>
+                    <option value="10th">১০ম (Class 10)</option>
                   </select>
 
                   {/* Section / Branch Filter Dropdown */}
                   <select
                     value={branchFilter}
                     onChange={(e) => setBranchFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
-                    <option value="all">All Sections</option>
-                    <option value="A">শাখা ক (Sec A)</option>
-                    <option value="B">শাখা খ (Sec B)</option>
-                    <option value="C">শাখা গ (Sec C)</option>
+                    <option value="all">{currentLang === 'en' ? 'All Sections' : 'সকল শাখা'}</option>
+                    <option value="A">শাখা A</option>
+                    <option value="B">শাখা B</option>
+                    <option value="C">শাখা C</option>
                   </select>
 
                   {/* Gender Filter Dropdown */}
                   <select
                     value={genderFilter}
                     onChange={(e) => setGenderFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
-                    <option value="all">All Genders</option>
+                    <option value="all">{currentLang === 'en' ? 'All Genders' : 'সকল লিঙ্গ'}</option>
                     <option value="male">{currentLang === 'en' ? 'Male' : 'ছাত্র'}</option>
                     <option value="female">{currentLang === 'en' ? 'Female' : 'ছাত্রী'}</option>
                   </select>
@@ -2901,26 +2901,26 @@ export default function StudentListPage() {
                   <select
                     value={groupFilter}
                     onChange={(e) => setGroupFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
-                    <option value="all">All Statuses / Groups</option>
-                    <option value="সাধারণ">{currentLang === 'en' ? 'General' : 'সাধারণ'}</option>
-                    <option value="বিজ্ঞান">{currentLang === 'en' ? 'Science' : 'বিজ্ঞান'}</option>
-                    <option value="মানবিক">{currentLang === 'en' ? 'Humanities' : 'মানবিক'}</option>
-                    <option value="ব্যবসায়">{currentLang === 'en' ? 'Business Studies' : 'ব্যবসায় শিক্ষা'}</option>
+                    <option value="all">{currentLang === 'en' ? 'All Groups' : 'সকল বিভাগ'}</option>
+                    <option value="সাধারণ">সাধারণ</option>
+                    <option value="বিজ্ঞান">বিজ্ঞান</option>
+                    <option value="মানবিক">মানবিক</option>
+                    <option value="ব্যবসায়">ব্যবসায় শিক্ষা</option>
                   </select>
 
                   {/* Sort Strategy Dropdown: গ্রুপভিত্তিক রোল (ছোট থেকে বড় / ১, ২, ৩...) অথবা নাম (এ-ঝেড / A-Z) */}
                   <select
                     value={sortStrategy}
                     onChange={(e) => setSortStrategy(e.target.value as any)}
-                    className="px-3 py-2 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="h-9 px-2.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                     title="গ্রুপ ও রোল অনুযায়ী সাজানোর ক্রম"
                   >
-                    <option value="roll_asc">🔢 গ্রুপভিত্তিক রোল: ছোট থেকে বড় (১, ২, ৩...)</option>
-                    <option value="name_asc">🔤 গ্রুপভিত্তিক নাম: এ-ঝেড (A–Z)</option>
-                    <option value="roll_desc">🔻 গ্রুপভিত্তিক রোল: বড় থেকে ছোট</option>
-                    <option value="name_desc">🔤 গ্রুপভিত্তিক নাম: ঝেড-এ (Z–A)</option>
+                    <option value="roll_asc">রোল: ছোট→বড় (১, ২, ৩...)</option>
+                    <option value="name_asc">নাম: A–Z</option>
+                    <option value="roll_desc">রোল: বড়→ছোট</option>
+                    <option value="name_desc">নাম: Z–A</option>
                   </select>
 
                   {/* Clear filter button if any active */}
@@ -2933,81 +2933,40 @@ export default function StudentListPage() {
                         setGenderFilter('all');
                         setGroupFilter('all');
                       }}
-                      className="px-2.5 py-2 text-slate-500 hover:text-rose-600 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                      className="h-9 px-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0 border border-rose-100"
                       title="ফিল্টার রিসেট করুন"
                     >
-                      <X size={14} /> রিসেট
+                      <X size={13} /> রিসেট
                     </button>
                   )}
 
                 </div>
 
-                {/* Right Side: Print & Add Student Action Buttons */}
-                <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center flex-wrap">
-                  {students.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleClearAllStudents}
-                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                      title="সকল শিক্ষার্থীর রেকর্ড মুছে ফেলুন"
-                    >
-                      <Trash2 size={14} className="text-rose-600" /> সকল শিক্ষার্থী মুছুন
-                    </button>
-                  )}
-                  <Link
-                    href="/dashboard/students/bulk-import"
-                    className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                    title="এক্সেলে শিক্ষার্থীদের সকল তথ্য এক ক্লিকে বাল্ক আপলোড করুন"
-                  >
-                    <FileSpreadsheet size={15} /> বাল্ক এক্সেল আপলোড
-                  </Link>
+                {/* Right Side: Essential Actions Only (Clean Single-Line) */}
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowBulkPhotoModal(true)}
-                    className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    className="h-9 px-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
                     title="একসাথে একাধিক শিক্ষার্থীর ছবি ড্রাগ ও ড্রপ করে আপলোড করুন"
                   >
-                    <Camera size={15} /> বাল্ক ছবি ড্রপ
+                    <Camera size={14} className="shrink-0" /> বাল্ক ছবি ড্রপ
                   </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setSyncingCloud(true);
-                      try {
-                        const { firebaseSyncService } = await import('@/services/firebaseSyncService');
-                        const localCount = studentService.getAllStudents().length;
-                        if (localCount > 0) {
-                          const res = await firebaseSyncService.uploadAllToCloud();
-                          showToast(`☁️ ${res.uploadedCount} জন শিক্ষার্থীর তথ্য ক্লাউড সার্ভারে সিঙ্ক হয়েছে!`, 'success');
-                        } else {
-                          const res = await firebaseSyncService.pullAllFromCloud();
-                          loadStudentsFromStorage();
-                          showToast(`☁️ ক্লাউড থেকে ${res.studentCount} জন শিক্ষার্থীর তথ্য সফলভাবে ডাউনলোড হয়েছে!`, 'success');
-                        }
-                      } catch (e: any) {
-                        showToast('ক্লাউড সিঙ্ক ত্রুটি: ' + (e?.message || 'ইন্টারনেট চেক করুন'), 'error');
-                      } finally {
-                        setSyncingCloud(false);
-                      }
-                    }}
-                    disabled={syncingCloud}
-                    className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
-                    title="গুগল ফায়ারবেস ক্লাউডের সাথে তাৎক্ষণিক সিঙ্ক বা ব্যাকআপ করুন"
-                  >
-                    <Cloud size={15} className={syncingCloud ? 'animate-spin' : ''} />
-                    <span>{syncingCloud ? 'সিঙ্ক হচ্ছে...' : 'ক্লাউড সিঙ্ক'}</span>
-                  </button>
+                  
                   <button
                     onClick={() => switchView('print_list')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer active:scale-95"
+                    className="h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+                    title="শিক্ষার্থী তালিকা ও রিপোর্ট প্রিন্ট"
                   >
-                    <Printer size={15} /> শিক্ষার্থী তালিকা প্রিন্ট
+                    <Printer size={14} className="shrink-0" /> শিক্ষার্থী তালিকা প্রিন্ট
                   </button>
+                  
                   <Link
                     href="/dashboard/admission"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                    className="h-9 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer whitespace-nowrap"
+                    title="নতুন শিক্ষার্থী ভর্তি ফরম"
                   >
-                    <Plus size={15} /> নতুন ভর্তি
+                    <Plus size={14} className="shrink-0" /> নতুন ভর্তি
                   </Link>
                 </div>
 
