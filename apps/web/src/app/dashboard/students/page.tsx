@@ -2175,9 +2175,9 @@ export default function StudentListPage() {
               `}</style>
 
               {/* ═════════════════════════════════════════════════════════════════ */}
-              {/* 📄 OFFICIAL A4 PRINTABLE DOCUMENT CONTAINER                        */}
+              {/* 📄 OFFICIAL A4 PRINTABLE DOCUMENT CONTAINER (BORDERLESS, PROPER MARGINS) */}
               {/* ═════════════════════════════════════════════════════════════════ */}
-              <div className="bg-white text-slate-900 font-sans p-6 sm:p-8 border-2 border-slate-800 rounded-2xl shadow-md print:border-0 print:p-0 print:shadow-none box-border relative overflow-hidden">
+              <div className="bg-white text-slate-900 font-sans p-8 sm:p-12 rounded-2xl shadow-md print:border-0 print:p-4 print:shadow-none box-border relative overflow-hidden">
                 
                 {/* Translucent Watermark (জলছাপ) */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
@@ -2564,13 +2564,6 @@ export default function StudentListPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* 5. FOOTER SYSTEM BRANDING */}
-                  <div className="pt-2 border-t border-slate-400 flex justify-between text-[9px] text-slate-500 font-mono">
-                    <span>প্রিন্ট সময়: {new Date().toLocaleString('bn-BD')}</span>
-                    <span>পৃষ্ঠা: ১ / ১</span>
-                    <span>EduPulse School Management System - Official Student Report</span>
-                  </div>
 
                 </div>
 

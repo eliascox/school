@@ -194,14 +194,14 @@ function PrintPageContent() {
   return (
     <>
       {/* ══════════════════════════════════════════════
-          PRINT & SCREEN STYLES (A4 PORTRAIT WITH BORDER)
+          PRINT & SCREEN STYLES (CLEAN A4 PORTRAIT WITHOUT BORDER, PROPER MARGINS)
       ══════════════════════════════════════════════ */}
       <style>{`
         * { box-sizing: border-box; }
 
         @page {
           size: A4 portrait;
-          margin: 8mm;
+          margin: 15mm 18mm;
         }
 
         body {
@@ -213,34 +213,19 @@ function PrintPageContent() {
           print-color-adjust: exact !important;
         }
 
-        /* ── A4 PORTRAIT PAGE CONTAINER ── */
+        /* ── A4 PORTRAIT PAGE CONTAINER (NO OUTER BORDER, PROPER A4 MARGINS) ── */
         .a4-portrait-page {
           width: 210mm;
           min-height: 297mm;
-          margin: 20px auto;
+          margin: 24px auto;
           background: #ffffff;
-          padding: 12mm 15mm;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+          padding: 18mm 20mm;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+          border: none;
           position: relative;
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
-        }
-
-        /* ── ELEGANT SIDE BORDER (ব্যবহারকারীর চাহিদামতো সাইডে বর্ডার) ── */
-        .page-border-outer {
-          position: absolute;
-          inset: 5mm;
-          border: 1.5px solid #000000;
-          pointer-events: none;
-          z-index: 10;
-        }
-        .page-border-inner {
-          position: absolute;
-          inset: 6.5mm;
-          border: 0.8px solid #64748b;
-          pointer-events: none;
-          z-index: 10;
         }
 
         /* ── TABLE STYLING EXACTLY MATCHING USER SCREENSHOT ── */
@@ -250,12 +235,12 @@ function PrintPageContent() {
           border: 1.5px solid #000000;
           text-align: center;
           background: #ffffff;
-          margin-top: 8px;
+          margin-top: 10px;
         }
 
         .official-summary-table th {
           border: 1px solid #000000;
-          padding: 7px 4px;
+          padding: 7.5px 4px;
           font-size: 11pt;
           font-weight: 700;
           color: #000000;
@@ -264,7 +249,7 @@ function PrintPageContent() {
 
         .official-summary-table td {
           border: 1px solid #000000;
-          padding: 6.5px 4px;
+          padding: 7px 4px;
           font-size: 11pt;
           font-weight: 600;
           color: #000000;
@@ -284,7 +269,8 @@ function PrintPageContent() {
             width: 100% !important;
             min-height: auto !important;
             margin: 0 !important;
-            padding: 10mm 12mm !important;
+            padding: 4mm 2mm !important;
+            border: none !important;
             box-shadow: none !important;
           }
           .no-print {
@@ -347,13 +333,9 @@ function PrintPageContent() {
       </div>
 
       {/* ══════════════════════════════════════════════
-          📄 OFFICIAL A4 PORTRAIT DOCUMENT
+          📄 OFFICIAL A4 PORTRAIT DOCUMENT (BORDERLESS WITH PROPER MARGINS)
       ══════════════════════════════════════════════ */}
       <div className="a4-portrait-page">
-        {/* Double-line Side Border as requested by user ("সাইডে বর্ডার থাকবে") */}
-        <div className="page-border-outer" />
-        <div className="page-border-inner" />
-
         <div className="relative z-10 flex flex-col h-full">
 
           {/* ── 1. OFFICIAL INSTITUTION HEADER (EXACTLY MATCHING USER SCREENSHOT) ── */}
@@ -577,13 +559,6 @@ function PrintPageContent() {
               </div>
             </div>
           )}
-
-          {/* Printable Page Footer */}
-          <div className="pt-2 border-t border-slate-400 flex justify-between text-[8pt] text-slate-600 font-mono">
-            <span>প্রিন্ট সময়: {new Date().toLocaleString('bn-BD')}</span>
-            <span>পৃষ্ঠা: ১ / ১</span>
-            <span>School Management System — Official Summary Report</span>
-          </div>
 
         </div>
       </div>
