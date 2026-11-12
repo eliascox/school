@@ -951,36 +951,39 @@ function PrintPageContent() {
 
                       <div className="w-full border-b-[1.5px] border-black my-1.5" />
 
-                      {/* Report Title & Filter Meta Strip */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 my-2 text-[9.5pt] font-bold text-slate-900 bg-slate-50 px-3 py-1.5 border border-black">
-                        <div>
-                          শ্রেণি: <span className="font-extrabold">{gradeLabelBn}</span> | শাখা:{' '}
-                          <span className="font-extrabold">
-                            {filters.branch === 'all' ? 'সকল শাখা' : filters.branch}
-                          </span>{' '}
-                          | বিভাগ:{' '}
-                          <span className="font-extrabold">
-                            {filters.group === 'all' ? 'সকল বিভাগ' : filters.group}
+                      {/* Report Title Banner */}
+                      <div className="text-center my-1.5">
+                        <div className="inline-block px-6 py-1 bg-[#0a2558] text-white font-black text-xs uppercase tracking-wider rounded-md border border-amber-400 shadow-xs print:bg-slate-900 print:text-white print:border-slate-900">
+                          শিক্ষার্থী তালিকা ও সাধারণ বিবরণী — {bnYear}
+                        </div>
+                      </div>
+
+                      {/* Filter Meta Strip */}
+                      <div className="grid grid-cols-3 items-center text-[9.5pt] font-bold text-slate-900 bg-slate-50 px-3 py-1.5 border border-black my-1.5">
+                        <div className="text-left flex items-center gap-1.5">
+                          <span>শাখা:</span>
+                          <span className="font-extrabold">{filters.branch === 'all' ? 'সকল শাখা' : filters.branch}</span>
+                          <span className="text-slate-400">|</span>
+                          <span>বিভাগ:</span>
+                          <span className="font-extrabold">{filters.group === 'all' ? 'সকল বিভাগ' : filters.group}</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="font-black text-[11pt] text-slate-950 font-serif border-b-2 border-slate-900 pb-0.5 px-2.5">
+                            শ্রেণি: {gradeLabelBn}
                           </span>
-                          {filters.religion !== 'all' && (
-                            <>
-                              {' '}
-                              | ধর্ম: <span className="font-extrabold">{filters.religion}</span>
-                            </>
-                          )}
-                          {filters.gender !== 'all' && (
-                            <>
-                              {' '}
-                              | লিঙ্গ: <span className="font-extrabold">{filters.gender}</span>
-                            </>
-                          )}
                         </div>
-                        <div className="text-center font-serif text-[11pt] font-black uppercase">
-                          শিক্ষার্থী বিবরণী ও তালিকা — {bnYear}
+                        <div className="text-right">
+                          তারিখ: <span className="font-mono">{new Date().toLocaleDateString('bn-BD')}</span>
                         </div>
-                        <div>
-                          মোট: <strong>{toBn(filteredStudents.length)} জন</strong> (ছাত্র: {toBn(maleCount)}, ছাত্রী: {toBn(femaleCount)})
-                        </div>
+                      </div>
+
+                      {/* Statistics Summary Bar */}
+                      <div className="bg-slate-100/90 border border-slate-800 px-3 py-1 text-[9pt] font-bold text-slate-900 flex justify-between items-center rounded-sm mb-2">
+                        <span>মোট শিক্ষার্থী: <strong>{toBn(filteredStudents.length)} জন</strong></span>
+                        <span>ছাত্র: <strong>{toBn(maleCount)} জন</strong> ({filteredStudents.length > 0 ? ((maleCount / filteredStudents.length) * 100).toFixed(0) : 0}%)</span>
+                        <span>ছাত্রী: <strong>{toBn(femaleCount)} জন</strong> ({filteredStudents.length > 0 ? ((femaleCount / filteredStudents.length) * 100).toFixed(0) : 0}%)</span>
+                        <span>মুসলিম: <strong>{toBn(filteredStudents.filter((s) => s.religion?.includes('ইসলাম') || s.religion?.includes('Muslim')).length)} জন</strong></span>
+                        <span>হিন্দু: <strong>{toBn(filteredStudents.filter((s) => s.religion?.includes('হিন্দু') || s.religion?.includes('Hindu') || s.religion?.includes('সনাতন')).length)} জন</strong></span>
                       </div>
                     </>
                   ) : (

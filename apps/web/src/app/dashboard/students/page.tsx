@@ -2609,16 +2609,21 @@ export default function StudentListPage() {
                                 </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-700 mt-2 px-2 bg-slate-50 py-1 rounded border border-slate-200">
-                                <div>
-                                  শ্রেণি: <span className="text-indigo-950 font-black">{printGradeFilter === 'all' ? 'সকল শ্রেণি' : printGradeFilter === '6th' ? '৬ষ্ঠ' : printGradeFilter === '7th' ? '৭ম' : printGradeFilter === '8th' ? '৮ম' : printGradeFilter === '9th' ? '৯ম' : '১০ম'}</span> |{' '}
-                                  শাখা: <span className="text-indigo-950 font-black">{printBranchFilter === 'all' ? 'সকল শাখা' : printBranchFilter}</span> |{' '}
-                                  বিভাগ: <span className="text-indigo-950 font-black">{printGroupFilter === 'all' ? 'সকল বিভাগ' : printGroupFilter}</span> |{' '}
-                                  ধর্ম: <span className="text-indigo-950 font-black">{printReligionFilter === 'all' ? 'সকল ধর্ম' : printReligionFilter}</span> |{' '}
-                                  লিঙ্গ: <span className="text-indigo-950 font-black">{printGenderFilter === 'all' ? 'সকল' : printGenderFilter}</span>
+                              <div className="grid grid-cols-3 items-center text-[10.5px] font-bold text-slate-700 mt-2 px-3 py-1.5 bg-slate-50 rounded border border-slate-300">
+                                <div className="text-left flex items-center gap-1.5">
+                                  <span>শাখা:</span>
+                                  <span className="text-indigo-950 font-black">{printBranchFilter === 'all' ? 'সকল শাখা' : printBranchFilter}</span>
+                                  <span className="text-slate-400">|</span>
+                                  <span>বিভাগ:</span>
+                                  <span className="text-indigo-950 font-black">{printGroupFilter === 'all' ? 'সকল বিভাগ' : printGroupFilter}</span>
                                 </div>
-                                <div>
-                                  তারিখ: <span className="font-mono text-slate-900">{new Date().toLocaleDateString('bn-BD')}</span>
+                                <div className="text-center">
+                                  <span className="font-black text-xs sm:text-[13px] text-indigo-950 tracking-wide font-serif border-b-2 border-indigo-950 pb-0.5 px-2.5">
+                                    শ্রেণি: {printGradeFilter === 'all' ? 'সকল শ্রেণি' : `${printGradeFilter === '6th' ? '৬ষ্ঠ' : printGradeFilter === '7th' ? '৭ম' : printGradeFilter === '8th' ? '৮ম' : printGradeFilter === '9th' ? '৯ম' : '১০ম'} শ্রেণি`}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  তারিখ: <span className="font-mono text-slate-900 font-bold">{new Date().toLocaleDateString('bn-BD')}</span>
                                 </div>
                               </div>
 
