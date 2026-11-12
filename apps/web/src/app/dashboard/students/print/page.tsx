@@ -170,14 +170,20 @@ function PrintPageContent() {
         religion === 'all' ||
         (st.religion && st.religion.includes(religion));
 
-      const qLower = q.toLowerCase();
-      const matchSearch =
-        !qLower ||
-        (st.name || '').toLowerCase().includes(qLower) ||
-        String(st.roll || '').includes(qLower) ||
-        (st.id || '').toLowerCase().includes(qLower) ||
-        (st.guardian || st.fatherName || '').toLowerCase().includes(qLower) ||
-        (st.mobile || '').includes(qLower);
+      const norm = (v: unknown) =>
+        String(v ?? '')
+          .toLowerCase()
+          .replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+          .replace(/\s+/g, ' ')
+          .trim();
+      const qNorm = norm(q);
+      const haystack = [
+        st.name, st.nameEn, st.roll, st.id, st.guardian, st.fatherName, st.motherName,
+        st.mobile, st.grade, st.branch, st.group, st.birthRegNo, st.registrationNo,
+      ]
+        .map(norm)
+        .join(' | ');
+      const matchSearch = !qNorm || qNorm.split(' ').every((term) => haystack.includes(term));
 
       return (
         matchGrade &&
@@ -352,30 +358,25 @@ function PrintPageContent() {
   };
 
   // Margin values for @page and on-screen/print sheet padding
+  // @page margin = the real paper margin on EVERY printed page (incl. overflow pages).
+  // On screen, the sheet padding mirrors the exact same margin so preview === print.
   const marginConfig = useMemo(() => {
-    if (marginPreset === 'wide') {
-      return {
-        pageMargin: '18mm 20mm',
-        screenPadding: '20mm 22mm',
-        printPadding: '6mm 6mm',
-        label: 'প্রশস্ত মার্জিন (২০ মিমি)',
-      };
-    }
-    if (marginPreset === 'compact') {
-      return {
-        pageMargin: '10mm 12mm',
-        screenPadding: '12mm 14mm',
-        printPadding: '3mm 3mm',
-        label: 'কমপ্যাক্ট মার্জিন (১০ মিমি)',
-      };
-    }
+    const presets = {
+      wide: { v: 18, h: 20, label: 'প্রশস্ত মার্জিন (১৮ মিমি)' },
+      compact: { v: 8, h: 10, label: 'কমপ্যাক্ট মার্জিন (৮ মিমি)' },
+      normal: { v: 12, h: 14, label: 'স্ট্যান্ডার্ড মার্জিন (১২ মিমি)' },
+    } as const;
+    const p = presets[marginPreset] || presets.normal;
+    const pageH = orientation === 'landscape' ? 210 : 297;
     return {
-      pageMargin: '14mm 16mm',
-      screenPadding: '16mm 18mm',
-      printPadding: '4mm 4mm',
-      label: 'স্ট্যান্ডার্ড মার্জিন (১৫ মিমি)',
+      pageMargin: `${p.v}mm ${p.h}mm`,
+      screenPadding: `${p.v}mm ${p.h}mm`,
+      printPadding: '0',
+      // usable content height of one printed page (minus 1mm safety to avoid blank spill pages)
+      printContentHeight: `${pageH - p.v * 2 - 1}mm`,
+      label: p.label,
     };
-  }, [marginPreset]);
+  }, [marginPreset, orientation]);
 
   const gradeLabelBn =
     filters.grade === 'all'
@@ -545,15 +546,27 @@ function PrintPageContent() {
           .a4-print-sheet {
             display: flex !important;
             width: 100% !important;
-            min-height: calc(100vh - 4mm) !important;
+            min-height: ${marginConfig.printContentHeight} !important;
+            height: auto !important;
             margin: 0 !important;
-            padding: ${marginConfig.printPadding} !important;
+            padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
+            overflow: visible !important;
           }
           .a4-sheet-page-break {
             page-break-after: always !important;
             break-after: page !important;
+          }
+          .a4-print-sheet:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+          .official-detailed-table thead {
+            display: table-header-group !important;
+          }
+          .official-detailed-table tfoot {
+            display: table-footer-group !important;
           }
           .official-summary-table {
             page-break-inside: avoid !important;
@@ -645,9 +658,9 @@ function PrintPageContent() {
                 onChange={(e) => setMarginPreset(e.target.value as MarginPreset)}
                 className="bg-slate-900 text-white font-bold text-xs px-2 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
               >
-                <option value="normal">১৫ মিমি (স্ট্যান্ডার্ড)</option>
-                <option value="wide">২০ মিমি (প্রশস্ত)</option>
-                <option value="compact">১০ মিমি (কমপ্যাক্ট)</option>
+                <option value="normal">১২ মিমি (স্ট্যান্ডার্ড)</option>
+                <option value="wide">১৮ মিমি (প্রশস্ত)</option>
+                <option value="compact">৮ মিমি (কমপ্যাক্ট)</option>
               </select>
             </div>
 

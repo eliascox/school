@@ -105,6 +105,30 @@ const toBnDigit = (num: number | string) => {
   return String(num).replace(/[0-9]/g, (d) => bn[parseInt(d, 10)]);
 };
 
+// 🔍 Robust search normalizer: null-safe, case-insensitive, বাংলা ↔ English digit tolerant
+const normalizeSearchText = (val: unknown): string =>
+  String(val ?? '')
+    .toLowerCase()
+    .replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const studentMatchesSearch = (st: Partial<StudentItem>, rawQuery: string): boolean => {
+  const q = normalizeSearchText(rawQuery);
+  if (!q) return true;
+  const haystack = [
+    st.name, st.nameEn, st.roll, st.id, st.guardian, st.fatherName, st.fatherNameEn,
+    st.motherName, st.motherNameEn, st.mobile, st.grade, st.branch, st.section, st.group,
+    st.birthRegNo, st.registrationNo, st.sscRoll, st.religion, st.gender,
+  ]
+    .map(normalizeSearchText)
+    .join(' | ');
+  const digitsOnlyQ = q.replace(/[^0-9]/g, '');
+  // Every word in the query must match somewhere (multi-word search: "rahim 12")
+  return q.split(' ').every((term) => haystack.includes(term)) ||
+    (digitsOnlyQ.length >= 4 && normalizeSearchText(st.mobile).replace(/[^0-9]/g, '').includes(digitsOnlyQ));
+};
+
 export default function StudentListPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -306,6 +330,18 @@ export default function StudentListPage() {
   const [printSearchQuery, setPrintSearchQuery] = useState<string>('');
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [printMargin, setPrintMargin] = useState<'normal' | 'wide' | 'compact'>('normal');
+
+  // 📐 Unified print margin config: @page margin (real paper margin on EVERY page)
+  // + identical on-screen sheet padding so the preview matches the printed output exactly.
+  const printMarginMm = printMargin === 'wide' ? { v: 18, h: 20 } : printMargin === 'compact' ? { v: 8, h: 10 } : { v: 12, h: 14 };
+  const printPageMarginCss = `${printMarginMm.v}mm ${printMarginMm.h}mm`;
+  const printContentHeightCss = `${(printOrientation === 'landscape' ? 210 : 297) - printMarginMm.v * 2 - 1}mm`;
+  const inPageSheetStyle: React.CSSProperties = {
+    padding: printPageMarginCss,
+    width: printOrientation === 'landscape' ? '297mm' : '210mm',
+    maxWidth: '100%',
+    minHeight: printOrientation === 'landscape' ? '210mm' : '297mm',
+  };
   const [printRowsPerPage, setPrintRowsPerPage] = useState<number>(0); // 0 = Auto (Portrait 25 / Landscape 18)
   const [printPreviewPage, setPrintPreviewPage] = useState<number>(1);
   const [showAllPrintSheets, setShowAllPrintSheets] = useState<boolean>(true);
@@ -702,13 +738,7 @@ export default function StudentListPage() {
   };
 
   const rawFilteredStudents = students.filter((st) => {
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch = !q ||
-      st.name.toLowerCase().includes(q) ||
-      st.roll.includes(q) ||
-      st.id.toLowerCase().includes(q) ||
-      st.guardian.toLowerCase().includes(q) ||
-      st.mobile.includes(q);
+    const matchesSearch = studentMatchesSearch(st, searchQuery);
 
     const matchesGrade =
       gradeFilter === 'all' ||
@@ -782,12 +812,7 @@ export default function StudentListPage() {
     const matchStipend = printStipendFilter === 'all' || (printStipendFilter === 'stipend_only' && (st as any).isStipend);
 
     // 7. Search query
-    const matchSearch = !printSearchQuery ||
-      st.name.toLowerCase().includes(printSearchQuery.toLowerCase()) ||
-      st.roll.includes(printSearchQuery) ||
-      st.id.toLowerCase().includes(printSearchQuery.toLowerCase()) ||
-      st.guardian.toLowerCase().includes(printSearchQuery.toLowerCase()) ||
-      st.mobile.includes(printSearchQuery);
+    const matchSearch = studentMatchesSearch(st, printSearchQuery);
 
     return matchGrade && matchBranch && matchGroup && matchReligion && matchGender && matchStipend && matchSearch;
   });
@@ -1924,9 +1949,9 @@ export default function StudentListPage() {
                         onChange={(e) => setPrintMargin(e.target.value as 'normal' | 'wide' | 'compact')}
                         className="bg-transparent text-slate-900 font-extrabold text-xs outline-none cursor-pointer"
                       >
-                        <option value="normal">১৫ মিমি (স্ট্যান্ডার্ড)</option>
-                        <option value="wide">২০ মিমি (প্রশস্ত)</option>
-                        <option value="compact">১০ মিমি (কমপ্যাক্ট)</option>
+                        <option value="normal">১২ মিমি (স্ট্যান্ডার্ড)</option>
+                        <option value="wide">১৮ মিমি (প্রশস্ত)</option>
+                        <option value="compact">৮ মিমি (কমপ্যাক্ট)</option>
                       </select>
                     </div>
 
@@ -2244,9 +2269,13 @@ export default function StudentListPage() {
               <style>{`
                 @page {
                   size: A4 ${printOrientation};
-                  margin: ${printMargin === 'wide' ? '18mm 20mm' : printMargin === 'compact' ? '10mm 12mm' : '14mm 16mm'};
+                  margin: ${printPageMarginCss};
                 }
                 @media print {
+                  html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                  }
                   body {
                     background: white !important;
                     color: black !important;
@@ -2260,10 +2289,14 @@ export default function StudentListPage() {
                     display: flex !important;
                     width: 100% !important;
                     max-width: 100% !important;
+                    min-height: ${printContentHeightCss} !important;
+                    height: auto !important;
                     margin: 0 !important;
-                    padding: ${printMargin === 'wide' ? '6mm' : printMargin === 'compact' ? '3mm' : '4mm'} !important;
+                    padding: 0 !important;
                     border: none !important;
+                    border-radius: 0 !important;
                     box-shadow: none !important;
+                    overflow: visible !important;
                   }
                   .inpage-sheet-break {
                     page-break-after: always !important;
@@ -2300,7 +2333,7 @@ export default function StudentListPage() {
                       A4 {printOrientation === 'landscape' ? 'ল্যান্ডস্কেপ' : 'পোর্ট্রেট'} | মোট পৃষ্ঠা: {toBnDigit(totalPrintSheets)} টি
                     </span>
                     <span className="text-slate-300 hidden md:inline">
-                      • মার্জিন: {printMargin === 'wide' ? 'প্রশস্ত (২০ মিমি)' : printMargin === 'compact' ? 'কমপ্যাক্ট (১০ মিমি)' : 'স্ট্যান্ডার্ড (১৫ মিমি)'}
+                      • মার্জিন: {printMargin === 'wide' ? 'প্রশস্ত (১৮ মিমি)' : printMargin === 'compact' ? 'কমপ্যাক্ট (৮ মিমি)' : 'স্ট্যান্ডার্ড (১২ মিমি)'}
                     </span>
                   </div>
 
@@ -2365,11 +2398,8 @@ export default function StudentListPage() {
               {/* ═════════════════════════════════════════════════════════════════ */}
               {printReportTab === 'summary' ? (
                 <div
-                  className={`inpage-print-sheet bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all ${
-                    printOrientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]'
-                  } ${
-                    printMargin === 'wide' ? 'p-10 sm:p-16' : printMargin === 'compact' ? 'p-5 sm:p-8' : 'p-8 sm:p-12'
-                  }`}
+                  style={inPageSheetStyle}
+                  className="inpage-print-sheet bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all"
                 >
                   {/* Translucent Watermark (জলছাপ) */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
@@ -2545,12 +2575,8 @@ export default function StudentListPage() {
                       <div
                         key={sheet.pageNumber}
                         id={`inpage-print-sheet-${sheet.pageNumber}`}
-                        style={hiddenOnScreen ? { display: 'none' } : undefined}
-                        className={`inpage-print-sheet ${!isLastPage ? 'inpage-sheet-break' : ''} bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all ${
-                          printOrientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]'
-                        } ${
-                          printMargin === 'wide' ? 'p-10 sm:p-16' : printMargin === 'compact' ? 'p-5 sm:p-8' : 'p-8 sm:p-12'
-                        }`}
+                        style={hiddenOnScreen ? { ...inPageSheetStyle, display: 'none' } : inPageSheetStyle}
+                        className={`inpage-print-sheet ${!isLastPage ? 'inpage-sheet-break' : ''} bg-white text-slate-900 font-sans mx-auto rounded-2xl shadow-md box-border relative overflow-hidden flex flex-col justify-between transition-all`}
                       >
                         {/* Translucent Watermark (জলছাপ) */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
