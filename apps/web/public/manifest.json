@@ -1,8 +1,8 @@
-﻿{
+{
   "name": "স্মার্ট ক্যাম্পাস - বরইতলী উচ্চ বিদ্যালয়",
   "short_name": "স্মার্ট ক্যাম্পাস",
   "description": "বরইতলী উচ্চ বিদ্যালয় — শিক্ষার্থী, অভিভাবক ও শিক্ষক স্মার্ট ডিজিটাল ক্যাম্পাস মোবাইল অ্যাপ",
-  "start_url": "/mobile-app",
+  "start_url": "/mobile-app/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -41,21 +41,21 @@
       "name": "স্মার্ট মোবাইল অ্যাপ",
       "short_name": "অ্যাপ",
       "description": "শিক্ষার্থী, অভিভাবক ও শিক্ষক পোর্টাল",
-      "url": "/mobile-app",
+      "url": "/mobile-app/",
       "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "শিক্ষক পোর্টাল",
       "short_name": "শিক্ষক",
       "description": "হাজিরা ও নম্বর এন্ট্রি পোর্টাল",
-      "url": "/dashboard/teacher-portal",
+      "url": "/dashboard/teacher-portal/",
       "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "অনলাইন ফলাফল",
       "short_name": "ফলাফল",
       "description": "পরীক্ষার মার্কশিট ও গ্রেডশিট",
-      "url": "/result",
+      "url": "/result/",
       "icons": [{ "src": "/logo.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],

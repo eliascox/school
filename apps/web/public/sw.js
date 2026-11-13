@@ -1,23 +1,23 @@
-// SchoolPro Service Worker v4 — Teacher & Campus Mobile-First PWA
-const CACHE_NAME = 'schoolpro-v4';
-const STATIC_CACHE = 'schoolpro-static-v4';
-const DYNAMIC_CACHE = 'schoolpro-dynamic-v4';
+// SchoolPro Service Worker v5 — Teacher & Campus Mobile-First PWA
+const CACHE_NAME = 'schoolpro-v5';
+const STATIC_CACHE = 'schoolpro-static-v5';
+const DYNAMIC_CACHE = 'schoolpro-dynamic-v5';
 
-// Pre-cache critical app shell routes
+// Pre-cache critical app shell routes (trailing slashes match next.config.ts trailingSlash: true)
 const PRECACHE_URLS = [
   '/',
-  '/mobile-app',
-  '/result',
-  '/admission',
-  '/verify-certificate',
-  '/login',
-  '/teacher-login',
-  '/dashboard',
-  '/dashboard/teacher-portal',
-  '/dashboard/exam/mark-entry',
-  '/dashboard/exam/bulk-entry',
-  '/dashboard/academic/attendance',
-  '/dashboard/teacher',
+  '/mobile-app/',
+  '/result/',
+  '/admission/',
+  '/verify-certificate/',
+  '/login/',
+  '/teacher-login/',
+  '/dashboard/',
+  '/dashboard/teacher-portal/',
+  '/dashboard/exam/mark-entry/',
+  '/dashboard/exam/bulk-entry/',
+  '/dashboard/academic/attendance/',
+  '/dashboard/teacher/',
   '/manifest.json',
   '/logo.png',
   '/icons/icon-192x192.svg',
@@ -92,7 +92,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/login')))
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/login/')))
     );
     return;
   }

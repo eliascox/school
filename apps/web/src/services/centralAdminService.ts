@@ -8,6 +8,7 @@ import {
   LicensePlan,
   SchoolRegistrationRequest
 } from '@sms/shared-types';
+import { getConfiguredCentralApiUrl } from '@/lib/centralApiConfig';
 
 export interface ExtendedSchoolData extends School {
   license?: SchoolLicense;
@@ -354,25 +355,27 @@ export const centralAdminService = {
       window.dispatchEvent(new CustomEvent('sms:update-available', { detail: manifest }));
     }
 
-    // Forward to Central Backend API
-    const apiUrl = process.env.NEXT_PUBLIC_CENTRAL_API_URL || 'http://localhost:3000';
-    fetch(`${apiUrl}/api/v1/updates/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        versionNumber: manifest.version,
-        releaseChannel: manifest.releaseChannel,
-        minSupportedVersion: manifest.minSupportedVersion,
-        downloadUrl: manifest.downloadUrl,
-        packageSha256: manifest.sha256,
-        packageSizeBytes: manifest.packageSizeBytes,
-        releaseNotes: manifest.releaseNotes,
-        isCritical: manifest.isCritical,
-        signature: manifest.signature
-      })
-    }).catch(err => {
-      console.warn('[CentralAdmin] Could not forward release to API:', err.message);
-    });
+    // Forward to Central Backend API (only when configured; prevents localhost calls on Vercel/Firebase)
+    const apiUrl = getConfiguredCentralApiUrl();
+    if (apiUrl) {
+      fetch(`${apiUrl}/api/v1/updates/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionNumber: manifest.version,
+          releaseChannel: manifest.releaseChannel,
+          minSupportedVersion: manifest.minSupportedVersion,
+          downloadUrl: manifest.downloadUrl,
+          packageSha256: manifest.sha256,
+          packageSizeBytes: manifest.packageSizeBytes,
+          releaseNotes: manifest.releaseNotes,
+          isCritical: manifest.isCritical,
+          signature: manifest.signature
+        })
+      }).catch(err => {
+        console.warn('[CentralAdmin] Could not forward release to API:', err.message);
+      });
+    }
 
     return list;
   },
