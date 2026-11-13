@@ -158,15 +158,15 @@ export default function AcademicMarksheetPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* FILTER & SELECTION CONTROLS (Hidden on Print) */}
       {/* ═══════════════════════════════════════════ */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
         
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <BookOpen size={18} className="text-indigo-600" />
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen size={18} className="text-indigo-600 dark:text-indigo-400" />
               শ্রেণি ও রোল ভিত্তিক অফিশিয়াল মার্কশিট প্রিন্ট প্যানেল
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
               বাংলা ১ম+২য় এবং ইংরেজি ১ম+২য় যৌথ পাস (Joint Pass) মোট নম্বর সমন্বয়ে ডাইনামিক জিপিএ হিসাব।
             </p>
           </div>
@@ -177,8 +177,8 @@ export default function AcademicMarksheetPage() {
               onClick={() => setIsBulkMode(!isBulkMode)}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs transition border flex items-center gap-1 ${
                 isBulkMode 
-                  ? 'bg-purple-100 text-purple-900 border-purple-300' 
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-800/60' 
+                  : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {isBulkMode ? `✓ বাল্ক ভিউ মোড (${filteredStudents.length} জন)` : `বাল্ক ভিউ মোড (${filteredStudents.length} জন)`}
@@ -186,7 +186,7 @@ export default function AcademicMarksheetPage() {
 
             {/* Official English Marksheet Badge */}
             <span
-              className="px-3 py-1.5 rounded-xl font-bold text-xs border border-indigo-200 bg-indigo-50 text-indigo-700 flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl font-bold text-xs border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"
               title="অফিশিয়াল মার্কশীট সর্বদা শতভাগ ইংরেজিতে প্রস্তুত হয়"
             >
               🌐 অফিশিয়াল ইংলিশ ফরম্যাট
@@ -202,8 +202,8 @@ export default function AcademicMarksheetPage() {
               />
               <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
                 borderImageUrl
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800/60'
+                  : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}>
                 <Upload size={13} />
                 {borderImageUrl ? '✓ বর্ডার সেট' : 'PNG বর্ডার'}
@@ -213,7 +213,7 @@ export default function AcademicMarksheetPage() {
               <button
                 onClick={handleBorderClear}
                 title="বর্ডার সরান"
-                className="px-2 py-1.5 rounded-xl font-bold text-xs border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition"
+                className="px-2 py-1.5 rounded-xl font-bold text-xs border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition"
               >
                 ✕ বর্ডার সরান
               </button>
@@ -248,11 +248,11 @@ export default function AcademicMarksheetPage() {
           
           {/* Exam Filter */}
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">পরীক্ষা (Exam)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">পরীক্ষা (Exam)</label>
             <select
               value={selectedExam}
               onChange={(e) => setSelectedExam(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold"
             >
               <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
               <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -262,14 +262,14 @@ export default function AcademicMarksheetPage() {
 
           {/* Class Filter */}
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">শ্রেণি (Class)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">শ্রেণি (Class)</label>
             <select
               value={selectedGrade}
               onChange={(e) => {
                 setSelectedGrade(e.target.value);
                 setSelectedRoll('01');
               }}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold"
             >
               <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
               <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -282,14 +282,14 @@ export default function AcademicMarksheetPage() {
           {/* Group Filter for Class 9 & 10 */}
           {isClass9or10 && (
             <div>
-              <label className="block text-[10px] font-extrabold text-purple-700 uppercase mb-1">বিভাগ / গ্রুপ (Group) *</label>
+              <label className="block text-[10px] font-extrabold text-purple-700 dark:text-purple-300 uppercase mb-1">বিভাগ / গ্রুপ (Group) *</label>
               <select
                 value={selectedGroup}
                 onChange={(e) => {
                   setSelectedGroup(e.target.value);
                   setSelectedRoll('01');
                 }}
-                className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-200 text-purple-950 font-bold"
+                className="w-full px-3 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 rounded-xl outline-none focus:ring-2 focus:ring-purple-200 text-purple-950 dark:text-purple-200 font-bold"
               >
                 <option value="বিজ্ঞান">বিজ্ঞান (Science)</option>
                 <option value="মানবিক">মানবিক (Humanities)</option>
@@ -300,14 +300,14 @@ export default function AcademicMarksheetPage() {
 
           {/* Section Filter */}
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">শাখা / সেকশন (Section)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">শাখা / সেকশন (Section)</label>
             <select
               value={selectedBranch}
               onChange={(e) => {
                 setSelectedBranch(e.target.value);
                 setSelectedRoll('01');
               }}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold"
             >
               <option value="A">Section A (ক শাখা)</option>
               <option value="B">Section B (খ শাখা)</option>
@@ -317,14 +317,14 @@ export default function AcademicMarksheetPage() {
 
           {/* Search Filter */}
           <div>
-            <label className="block text-[10px] font-extrabold text-indigo-600 uppercase mb-1">খোঁজ করুন (Search)</label>
+            <label className="block text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase mb-1">খোঁজ করুন (Search)</label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="রোল বা শিক্ষার্থীর নাম..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 bg-indigo-50/50 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 font-bold text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-8 pr-3 py-2 bg-indigo-50/50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
               <Search className="absolute left-2.5 top-2.5 text-indigo-500" size={14} />
             </div>
@@ -332,15 +332,15 @@ export default function AcademicMarksheetPage() {
 
           {/* Roll / Student Selector */}
           <div>
-            <label className="block text-[10px] font-extrabold text-indigo-600 uppercase mb-1">
+            <label className="block text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase mb-1">
               {isBulkMode ? `বাল্ক মোড (${filteredStudents.length} জন)` : 'রোল ও শিক্ষার্থী নির্বাচন *'}
             </label>
             <select
               disabled={isBulkMode || filteredStudents.length === 0}
               value={selectedRoll}
               onChange={(e) => setSelectedRoll(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-xl outline-none text-slate-900 font-bold ${
-                isBulkMode ? 'bg-amber-50 border-amber-200 text-amber-900 cursor-not-allowed' : 'bg-indigo-50 border-indigo-200 focus:ring-2 focus:ring-indigo-200'
+              className={`w-full px-3 py-2 border rounded-xl outline-none text-slate-900 dark:text-white font-bold ${
+                isBulkMode ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 cursor-not-allowed' : 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800/60 focus:ring-2 focus:ring-indigo-200'
               }`}
             >
               {filteredStudents.length === 0 ? (
@@ -362,13 +362,13 @@ export default function AcademicMarksheetPage() {
       {/* 📄 PRINTABLE MARKSHEET DOCUMENT CONTAINER (SINGLE OR BULK)        */}
       {/* ═════════════════════════════════════════════════════════════════ */}
       {filteredStudents.length === 0 ? (
-        <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-4 shadow-sm print:hidden">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm print:hidden">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center">
             <UserX size={32} />
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-black text-slate-900">এই শ্রেণি বা শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">এই শ্রেণি বা শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
               বর্তমানে বেছে নেওয়া শ্রেণি ({gradeNameBn}) ও সেকশনে কোনো শিক্ষার্থী নিবন্ধিত নেই। অনুগ্রহ করে সেটিংস পেজ থেকে সিএসভি ফাইল আপলোড করুন অথবা নতুন শিক্ষার্থী ভর্তি করুন।
             </p>
           </div>
@@ -376,7 +376,7 @@ export default function AcademicMarksheetPage() {
             <Link href="/dashboard/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs shadow-md transition">
               <Upload size={16} /> সেটিংসে যান ও বাল্ক আপলোড দিন
             </Link>
-            <Link href="/dashboard/students" className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs transition">
+            <Link href="/dashboard/students" className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-extrabold text-xs transition">
               <UserCheck size={16} /> শিক্ষার্থী তালিকায় যান
             </Link>
           </div>

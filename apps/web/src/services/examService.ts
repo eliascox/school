@@ -270,7 +270,7 @@ class ExamService {
    */
   public formatExamNameForDisplay(rawTitle: string): string {
     if (!rawTitle) return 'Annual Examination 2026';
-    let t = rawTitle.trim();
+    const t = rawTitle.trim();
     // If it has both Bengali and English like "অর্ধ-বার্ষিক পরীক্ষা ২০২৬ (Half Yearly Exam)", extract English
     const engMatch = t.match(/\(([^)]+)\)/);
     if (engMatch && engMatch[1]) {

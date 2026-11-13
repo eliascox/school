@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Send
 } from 'lucide-react';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
@@ -353,17 +354,25 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
   const handleSyncClick = async () => {
     if (syncStatus.isSyncing) return;
     if (syncStatus.pendingCount > 0) {
-      const choice = window.confirm(
-        `সেন্ট্রাল সিঙ্ক স্ট্যাটাস:\nবর্তমানে ${syncStatus.pendingCount}টি পরিবর্তন অফলাইনে পেন্ডিং রয়েছে।\n\n- সেন্ট্রাল সার্ভারে সিঙ্ক করার চেষ্টা করতে "OK" চাপুন।\n- যদি সেন্ট্রাল সার্ভার অফলাইনে থাকে এবং আপনি পেন্ডিং তালিকা সম্পূর্ণ খালি করতে চান, তবে "Cancel" চাপুন।`
-      );
+      const choice = await confirmDialog({
+        title: 'সেন্ট্রাল সিঙ্ক স্ট্যাটাস',
+        message: `বর্তমানে ${syncStatus.pendingCount}টি পরিবর্তন অফলাইনে পেন্ডিং রয়েছে।\n\nসেন্ট্রাল সার্ভারে পুনরায় সিঙ্ক করার চেষ্টা করতে "পুনরায় সিঙ্ক করুন" চাপুন, অথবা পেন্ডিং কিউ খালি করার অপশন পেতে "অপশন / বাতিল" চাপুন।`,
+        confirmLabel: 'পুনরায় সিঙ্ক করুন',
+        cancelLabel: 'পেন্ডিং কিউ খালি করুন',
+      });
       if (choice) {
         await syncQueueService.syncAll();
       } else {
-        const confirmClear = window.confirm(
-          `⚠️ আপনি কি অফলাইন সিঙ্ক কিউয়ের সকল পেন্ডিং রেকর্ড (${syncStatus.pendingCount}টি) খালি করে স্ট্যাটাস 'সিঙ্ক সচল' করতে চান?`
-        );
+        const confirmClear = await confirmDialog({
+          title: 'অফলাইন সিঙ্ক কিউ খালি করুন',
+          message: `আপনি কি অফলাইন সিঙ্ক কিউয়ের সকল পেন্ডিং রেকর্ড (${syncStatus.pendingCount}টি) খালি করে স্ট্যাটাস 'সিঙ্ক সচল' করতে চান?`,
+          confirmLabel: 'হ্যাঁ, খালি করুন',
+          cancelLabel: 'বাতিল',
+          danger: true,
+        });
         if (confirmClear) {
           syncQueueService.clearQueue();
+          showToast('অফলাইন সিঙ্ক কিউ খালি করা হয়েছে।', 'success');
         }
       }
     } else {

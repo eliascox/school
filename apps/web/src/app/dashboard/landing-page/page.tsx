@@ -79,6 +79,7 @@ import { teacherAuthService } from '@/services/teacherAuthService';
 import { studentService, Student } from '@/services/studentService';
 import { settingsService } from '@/services/settingsService';
 import { compressImage } from '@/lib/imageUtils';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 
 type ActiveTab =
   | 'overview'
@@ -308,8 +309,8 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Discard Draft Action
-  const handleDiscardDraft = () => {
-    if (confirm('আপনি কি নিশ্চিত যে অপ্রকাশিত খসড়া পরিবর্তন বাতিল করে পূর্বের প্রকাশিত অবস্থায় ফিরে যেতে চান?')) {
+  const handleDiscardDraft = async () => {
+    if (await confirmDialog({ title: 'খসড়া বাতিল করুন', message: 'আপনি কি নিশ্চিত যে অপ্রকাশিত খসড়া পরিবর্তন বাতিল করে পূর্বের প্রকাশিত অবস্থায় ফিরে যেতে চান?', confirmLabel: 'বাতিল করুন', danger: true })) {
       landingPageService.discardDraft();
       const published = landingPageService.getPublishedConfig();
       setConfig(published);
@@ -319,8 +320,8 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Restore Version Action
-  const handleRestoreVersion = (ver: VersionSnapshot) => {
-    if (confirm(`আপনি কি সংস্করণ ${ver.version} (${ver.summary}) রিস্টোর করতে চান? এটি আপনার বর্তমান খসড়া প্রতিস্থাপন করবে।`)) {
+  const handleRestoreVersion = async (ver: VersionSnapshot) => {
+    if (await confirmDialog({ title: 'সংস্করণ রিস্টোর', message: `আপনি কি সংস্করণ ${ver.version} (${ver.summary}) রিস্টোর করতে চান? এটি আপনার বর্তমান খসড়া প্রতিস্থাপন করবে।`, confirmLabel: 'রিস্টোর করুন', danger: true })) {
       const ok = landingPageService.restoreVersion(ver.id, 'অ্যাডমিন');
       if (ok) {
         setConfig(landingPageService.getDraftConfig());
@@ -401,8 +402,8 @@ export default function LandingPageManagementDashboard() {
   };
 
   // Delete Section
-  const handleDeleteSection = (sec: SectionItem) => {
-    if (confirm(`আপনি কি "${sec.nameBn}" সেকশনটি মুছে ফেলতে চান?`)) {
+  const handleDeleteSection = async (sec: SectionItem) => {
+    if (await confirmDialog({ title: 'সেকশন মুছে ফেলুন', message: `আপনি কি "${sec.nameBn}" সেকশনটি মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       landingPageService.deleteSection(sec.id, 'অ্যাডমিন');
       const updated = landingPageService.getDraftConfig();
       landingPageService.publish('অ্যাডমিন', `"${sec.nameBn}" সেকশন মুছে ফেলা হয়েছে`, updated);
@@ -442,7 +443,7 @@ export default function LandingPageManagementDashboard() {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if (files.length === 0) {
-      alert('অনুগ্রহ করে শুধুমাত্র ছবি ফাইল (JPG, PNG, WebP, SVG) নির্বাচন করুন।');
+      showToast('অনুগ্রহ করে শুধুমাত্র ছবি ফাইল (JPG, PNG, WebP, SVG) নির্বাচন করুন।', 'error');
       return;
     }
 
@@ -803,8 +804,8 @@ export default function LandingPageManagementDashboard() {
     }
   };
 
-  const handleClearDemoHeroSlides = () => {
-    if (confirm('আপনি কি সমস্ত ডেমো স্টক স্লাইড মুছে ফেলতে চান? এরপর শুধুমাত্র আপনার আপলোড করা আসল ছবিগুলো স্লাইডারে থাকবে।')) {
+  const handleClearDemoHeroSlides = async () => {
+    if (await confirmDialog({ title: 'ডেমো স্লাইড মুছুন', message: 'আপনি কি সমস্ত ডেমো স্টক স্লাইড মুছে ফেলতে চান? এরপর শুধুমাত্র আপনার আপলোড করা আসল ছবিগুলো স্লাইডারে থাকবে।', confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const updated = {
         ...config,
         hero: {
@@ -1315,11 +1316,11 @@ export default function LandingPageManagementDashboard() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">২</span>
-                    <span><strong>"লাইভ প্রিভিউ"</strong> বাটনে ক্লিক করে মোবাইল বা কম্পিউটারে কেমন দেখাবে তা পরীক্ষা করুন।</span>
+                    <span><strong>&quot;লাইভ প্রিভিউ&quot;</strong> বাটনে ক্লিক করে মোবাইল বা কম্পিউটারে কেমন দেখাবে তা পরীক্ষা করুন।</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">৩</span>
-                    <span>সব ঠিক থাকলে <strong>"প্রকাশ করুন"</strong> বাটনে ক্লিক করলেই এক ক্লিকে মূল ওয়েবসাইট আপডেট হয়ে যাবে!</span>
+                    <span>সব ঠিক থাকলে <strong>&quot;প্রকাশ করুন&quot;</strong> বাটনে ক্লিক করলেই এক ক্লিকে মূল ওয়েবসাইট আপডেট হয়ে যাবে!</span>
                   </li>
                 </ul>
 
@@ -3791,8 +3792,8 @@ export default function LandingPageManagementDashboard() {
                       {/* Delete */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`আপনি কি "${st.name}" এর তথ্য মুছে ফেলতে চান?`)) {
+                        onClick={async () => {
+                          if (await confirmDialog({ title: 'কৃতী শিক্ষার্থী মুছে ফেলুন', message: `আপনি কি "${st.name}" এর তথ্য মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
                             const updated = config.achievers.students.filter((_, i) => i !== idx);
                             handleUpdateConfig({ ...config, achievers: { ...config.achievers, students: updated } });
                             showToast('শিক্ষার্থী তালিকা থেকে বাদ দেওয়া হয়েছে', 'info');
@@ -4155,8 +4156,8 @@ export default function LandingPageManagementDashboard() {
                           {/* Delete */}
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`আপনি কি "${item.title}" মুছে ফেলতে চান?`)) {
+                            onClick={async () => {
+                              if (await confirmDialog({ title: 'গ্যালারি আইটেম মুছে ফেলুন', message: `আপনি কি "${item.title}" মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
                                 const updated = currentItems.filter(i => i.id !== item.id);
                                 const curGal = config.gallery || DEFAULT_GALLERY_CONFIG;
                                 handleUpdateConfig({ ...config, gallery: { ...curGal, items: updated } });
@@ -5147,8 +5148,8 @@ export default function LandingPageManagementDashboard() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (confirm(`আপনি কি "${item.name}" মুছে ফেলতে চান?`)) {
+                                onClick={async () => {
+                                  if (await confirmDialog({ title: 'ছবি মুছে ফেলুন', message: `আপনি কি "${item.name}" মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
                                     landingPageService.deleteMediaItem(item.id);
                                     setMediaList(landingPageService.getMediaList());
                                     showToast('ছবি মুছে ফেলা হয়েছে', 'info');

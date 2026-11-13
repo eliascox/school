@@ -23,6 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { backupService, BackupMetadata, BackupRecordCounts } from '@/services/backupService';
+import { showToast } from '@/components/ui/ToastProvider';
 
 export default function DisasterRecoveryPanel() {
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
@@ -114,8 +115,8 @@ export default function DisasterRecoveryPanel() {
     try {
       const res = await backupService.restoreBackup(selectedBackupForRestore.filePath, restorePassword);
       if (res.success) {
-        alert('ডেটাবেস সফলভাবে রিস্টোর হয়েছে! সিস্টেম এখন রিলোড হবে।');
-        window.location.reload();
+        showToast('ডেটাবেস সফলভাবে রিস্টোর হয়েছে! সিস্টেম এখন রিলোড হবে।', 'success');
+        setTimeout(() => window.location.reload(), 600);
       } else {
         setRestoreError(res.error || 'রিস্টোর ব্যর্থ হয়েছে।');
       }
@@ -257,7 +258,7 @@ export default function DisasterRecoveryPanel() {
 
         {backups.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
-            কোনো সংরক্ষিত ব্যাকআপ ফাইল পাওয়া যায়নি। উপরে 'এখনই ব্যাকআপ তৈরি করুন' বাটনে ক্লিক করে প্রথম ব্যাকআপ তৈরি করুন।
+            কোনো সংরক্ষিত ব্যাকআপ ফাইল পাওয়া যায়নি। উপরে &apos;এখনই ব্যাকআপ তৈরি করুন&apos; বাটনে ক্লিক করে প্রথম ব্যাকআপ তৈরি করুন।
           </div>
         ) : (
           <div className="overflow-x-auto border border-slate-800 rounded-xl">

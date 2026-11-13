@@ -173,14 +173,14 @@ export const SecurityDeleteModal: React.FC<SecurityDeleteModalProps> = ({
                 onClick={() => handleQuickFill('সকল ডেমো মুছে ফ্রেশ স্টার্ট')}
                 className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
               >
-                "সকল ডেমো মুছে ফ্রেশ স্টার্ট"
+                &quot;সকল ডেমো মুছে ফ্রেশ স্টার্ট&quot;
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickFill('DELETE')}
                 className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-mono font-bold transition-colors cursor-pointer"
               >
-                "DELETE"
+                &quot;DELETE&quot;
               </button>
             </div>
 

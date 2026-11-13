@@ -45,6 +45,7 @@ import {
   AlertCircle,
   Cloud
 } from 'lucide-react';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -702,24 +703,25 @@ export default function StudentListPage() {
     }, 100);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('আপনি কি নিশ্চিত যে এই শিক্ষার্থীকে অপসারণ করতে চান?')) {
+  const handleDelete = async (id: string) => {
+    if (await confirmDialog({ title: 'শিক্ষার্থী অপসারণ', message: 'আপনি কি নিশ্চিত যে এই শিক্ষার্থীকে অপসারণ করতে চান?', confirmLabel: 'অপসারণ করুন', danger: true })) {
       studentService.deleteStudent(id);
       loadStudentsFromStorage();
       if (selectedStudent?.id === id) {
         switchView('list');
       }
+      showToast('শিক্ষার্থী তালিকা থেকে অপসারণ করা হয়েছে।', 'success');
     }
   };
 
-  const handleClearAllStudents = () => {
+  const handleClearAllStudents = async () => {
     if (students.length === 0) return;
-    if (confirm('আপনি কি নিশ্চিত যে সিস্টেম থেকে সকল শিক্ষার্থীর তালিকা মুছে ফ্রেশ করতে চান? এটি অপরিবর্তনীয়!')) {
+    if (await confirmDialog({ title: 'সকল শিক্ষার্থী মুছে ফেলা', message: 'আপনি কি নিশ্চিত যে সিস্টেম থেকে সকল শিক্ষার্থীর তালিকা মুছে ফ্রেশ করতে চান? এটি অপরিবর্তনীয়!', confirmLabel: 'সব মুছে ফেলুন', danger: true })) {
       const res = studentService.clearAllStudents();
       loadStudentsFromStorage();
       setSelectedStudentIds([]);
       if (activeView !== 'list') switchView('list');
-      alert(res.message);
+      showToast(res.message, 'success');
     }
   };
 
@@ -733,7 +735,7 @@ export default function StudentListPage() {
     }
     loadStudentsFromStorage();
     
-    alert('🎉 শিক্ষার্থীর সকল তথ্য প্রফেশনালভাবে আপডেট ও সংরক্ষিত হয়েছে!');
+    showToast('🎉 শিক্ষার্থীর সকল তথ্য প্রফেশনালভাবে আপডেট ও সংরক্ষিত হয়েছে!', 'success');
     switchView('view', editFormData);
   };
 
@@ -957,7 +959,7 @@ export default function StudentListPage() {
       {(!mounted || isLoadingView) && (
         <div className="py-12 text-center space-y-3">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-xs font-extrabold text-indigo-900 uppercase tracking-widest">
+          <p className="text-xs font-extrabold text-indigo-900 dark:text-indigo-200 uppercase tracking-widest">
             {!mounted ? 'শিক্ষার্থী ডিরেক্টরি লোড হচ্ছে...' : 'পৃষ্ঠা প্রস্তুত করা হচ্ছে...'}
           </p>
         </div>
@@ -972,10 +974,10 @@ export default function StudentListPage() {
             <div className="space-y-6">
               
               {/* Executive Top Navigation Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <button
                   onClick={() => switchView('list')}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition cursor-pointer self-start sm:self-auto"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition cursor-pointer self-start sm:self-auto"
                 >
                   <ArrowLeft size={16} /> শিক্ষার্থী তালিকায় ফিরে যান
                 </button>
@@ -997,7 +999,7 @@ export default function StudentListPage() {
               </div>
 
               {/* Profile Main Card */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-6">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden space-y-6">
                 
                 {/* Banner Header */}
                 <div className="bg-gradient-to-br from-indigo-800 via-indigo-900 to-slate-950 p-6 sm:p-8 text-white relative overflow-hidden">
@@ -1035,14 +1037,14 @@ export default function StudentListPage() {
                 </div>
 
                 {/* 📜 Profile Section Tabs: Details vs Certificates & Documents */}
-                <div className="px-6 sm:px-8 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                <div className="px-6 sm:px-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                   <div className="flex items-center gap-2 overflow-x-auto">
                     <button
                       onClick={() => setStudentProfileTab('details')}
                       className={`py-3 px-4 font-bold text-xs flex items-center gap-2 border-b-2 transition cursor-pointer whitespace-nowrap ${
                         studentProfileTab === 'details'
-                          ? 'border-indigo-600 text-indigo-700 bg-white shadow-xs rounded-t-xl'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
+                          ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 shadow-xs rounded-t-xl'
+                          : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
                       <User size={15} /> ১. ব্যক্তিগত ও একাডেমিক তথ্য
@@ -1051,12 +1053,12 @@ export default function StudentListPage() {
                       onClick={() => setStudentProfileTab('certificates')}
                       className={`py-3 px-4 font-bold text-xs flex items-center gap-2 border-b-2 transition cursor-pointer whitespace-nowrap ${
                         studentProfileTab === 'certificates'
-                          ? 'border-indigo-600 text-indigo-700 bg-white shadow-xs rounded-t-xl'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
+                          ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 shadow-xs rounded-t-xl'
+                          : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
                       <Award size={15} /> ২. সনদ ও অফিশিয়াল ডকুমেন্টস
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 font-mono">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 font-mono">
                         {studentCertificates.length}
                       </span>
                     </button>
@@ -1077,47 +1079,47 @@ export default function StudentListPage() {
                 <div className="p-6 sm:p-8 space-y-6">
                   
                   {/* Section 1: Personal Info */}
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-200 pb-2">
-                      <User size={16} className="text-indigo-600" /> ১. শিক্ষার্থীর ব্যক্তিগত তথ্য (Personal Details)
+                  <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                      <User size={16} className="text-indigo-600 dark:text-indigo-400" /> ১. শিক্ষার্থীর ব্যক্তিগত তথ্য (Personal Details)
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">পূর্ণ নাম</span>
-                        <span className="text-slate-900">{selectedStudent.name}</span>
+                        <span className="text-slate-900 dark:text-white">{selectedStudent.name}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">জন্ম তারিখ</span>
-                        <span className="text-slate-900">{selectedStudent.dob || '২০১০-০৫-১৫'}</span>
+                        <span className="text-slate-900 dark:text-white">{selectedStudent.dob || '২০১০-০৫-১৫'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">লিঙ্গ (Gender)</span>
-                        <span className="text-indigo-700">{selectedStudent.gender || 'পুরুষ'}</span>
+                        <span className="text-indigo-700 dark:text-indigo-300">{selectedStudent.gender || 'পুরুষ'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">ধর্ম (Religion)</span>
-                        <span className="text-slate-900">{selectedStudent.religion || 'ইসলাম'}</span>
+                        <span className="text-slate-900 dark:text-white">{selectedStudent.religion || 'ইসলাম'}</span>
                       </div>
                       <div className="sm:col-span-2">
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">ডিজিটাল জন্ম নিবন্ধন (17 Digits)</span>
-                        <span className="text-indigo-900 font-mono">{selectedStudent.birthRegNo || '20101234567890123'}</span>
+                        <span className="text-indigo-900 dark:text-indigo-200 font-mono">{selectedStudent.birthRegNo || '20101234567890123'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">রক্তের গ্রুপ</span>
-                        <span className="text-rose-600 font-black">{(selectedStudent as any).bloodGroup || 'অজানা (Not set)'}</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-black">{(selectedStudent as any).bloodGroup || 'অজানা (Not set)'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">জাতীয়তা</span>
-                        <span className="text-slate-900">বাংলাদেশী</span>
+                        <span className="text-slate-900 dark:text-white">বাংলাদেশী</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Section 2: Academic Info */}
-                  <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 space-y-4">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-200/60 pb-2">
-                      <GraduationCap size={16} className="text-indigo-600" /> ২. একাডেমিক ও পারফরম্যান্স (Academic & Performance)
+                  <div className="bg-indigo-50/50 dark:bg-indigo-950/50 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/60 space-y-4">
+                    <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2">
+                      <GraduationCap size={16} className="text-indigo-600 dark:text-indigo-400" /> ২. একাডেমিক ও পারফরম্যান্স (Academic & Performance)
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
@@ -1127,23 +1129,23 @@ export default function StudentListPage() {
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">শাখা (Section)</span>
-                        <span className="text-slate-900">{selectedStudent.branch || 'A'}</span>
+                        <span className="text-slate-900 dark:text-white">{selectedStudent.branch || 'A'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">বিভাগ/গ্রুপ</span>
-                        <span className="text-emerald-700">{selectedStudent.group || 'সাধারণ'}</span>
+                        <span className="text-emerald-700 dark:text-emerald-300">{selectedStudent.group || 'সাধারণ'}</span>
                       </div>
                       {['9th', '10th'].includes(selectedStudent.grade) && (
                         <>
                           <div>
                             <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">বোর্ড রেজিস্ট্রেশন নম্বর</span>
-                            <span className="px-2.5 py-1 bg-violet-100 text-violet-800 rounded-lg text-xs font-mono font-bold inline-block">
+                            <span className="px-2.5 py-1 bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 rounded-lg text-xs font-mono font-bold inline-block">
                               {selectedStudent.registrationNo || 'দেওয়া হয়নি'}
                             </span>
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">এসএসসি রোল (SSC Roll)</span>
-                            <span className="px-2.5 py-1 bg-teal-100 text-teal-800 rounded-lg text-xs font-mono font-bold inline-block">
+                            <span className="px-2.5 py-1 bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 rounded-lg text-xs font-mono font-bold inline-block">
                               {selectedStudent.sscRoll || 'দেওয়া হয়নি'}
                             </span>
                           </div>
@@ -1151,14 +1153,14 @@ export default function StudentListPage() {
                       )}
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">ঐচ্ছিক বিষয়</span>
-                        <span className="text-slate-900">{selectedStudent.optionalSubject || 'প্রযোজ্য নয়'}</span>
+                        <span className="text-slate-900 dark:text-white">{selectedStudent.optionalSubject || 'প্রযোজ্য নয়'}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">সর্বশেষ জিপিএ (GPA)</span>
                         <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-xs ${
                           selectedStudent.gpa === 'N/A' || !selectedStudent.gpa
-                            ? 'bg-slate-100 text-slate-500 border border-slate-200'
-                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                            : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
                         }`}>
                           {selectedStudent.gpa || 'N/A'}
                         </span>
@@ -1166,10 +1168,10 @@ export default function StudentListPage() {
                       <div className="sm:col-span-2">
                         <span className="text-[10px] text-slate-400 block mb-0.5 uppercase">উপস্থিতির হার</span>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${selectedStudent.attendance}%` }}></div>
                           </div>
-                          <span className="text-emerald-700 font-mono">{selectedStudent.attendance}%</span>
+                          <span className="text-emerald-700 dark:text-emerald-300 font-mono">{selectedStudent.attendance}%</span>
                         </div>
                       </div>
                     </div>
@@ -1179,18 +1181,18 @@ export default function StudentListPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
                     {/* Parents */}
-                    <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 space-y-3">
-                      <h3 className="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-2 border-b border-emerald-200/60 pb-2">
-                        <Users size={16} className="text-emerald-600" /> ৩. পিতা-মাতা ও অভিভাবক
+                    <div className="bg-emerald-50/50 dark:bg-emerald-950/50 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/60 space-y-3">
+                      <h3 className="text-xs font-black text-emerald-900 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-2">
+                        <Users size={16} className="text-emerald-600 dark:text-emerald-400" /> ৩. পিতা-মাতা ও অভিভাবক
                       </h3>
-                      <div className="space-y-2 text-xs font-bold text-slate-800">
+                      <div className="space-y-2 text-xs font-bold text-slate-800 dark:text-slate-100">
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase">পিতার নাম</span>
                           <span>{selectedStudent.guardian}</span>
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase">পিতার NID</span>
-                          <span className="font-mono text-indigo-900">{selectedStudent.fatherNid || '19801234567890101'}</span>
+                          <span className="font-mono text-indigo-900 dark:text-indigo-200">{selectedStudent.fatherNid || '19801234567890101'}</span>
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase">মাতার নাম</span>
@@ -1198,17 +1200,17 @@ export default function StudentListPage() {
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase">মোবাইল নম্বর</span>
-                          <span className="font-mono text-emerald-800">{selectedStudent.mobile}</span>
+                          <span className="font-mono text-emerald-800 dark:text-emerald-200">{selectedStudent.mobile}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Address & Verification */}
-                    <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 space-y-3">
-                      <h3 className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-2 border-b border-amber-200/60 pb-2">
-                        <Building2 size={16} className="text-amber-600" /> ৪. ঠিকানা ও তথ্য ভেরিফিকেশন
+                    <div className="bg-amber-50/50 dark:bg-amber-950/50 p-5 rounded-2xl border border-amber-100 dark:border-amber-800/60 space-y-3">
+                      <h3 className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider flex items-center gap-2 border-b border-amber-200/60 dark:border-amber-800/60 pb-2">
+                        <Building2 size={16} className="text-amber-600 dark:text-amber-400" /> ৪. ঠিকানা ও তথ্য ভেরিফিকেশন
                       </h3>
-                      <div className="space-y-2 text-xs font-bold text-slate-800">
+                      <div className="space-y-2 text-xs font-bold text-slate-800 dark:text-slate-100">
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase">বর্তমান ঠিকানা</span>
                           <span>{selectedStudent.currentAddress || 'বরইতলী, চকরিয়া'}</span>
@@ -1217,11 +1219,11 @@ export default function StudentListPage() {
                           <span className="text-[10px] text-slate-400 block uppercase">স্থায়ী ঠিকানা</span>
                           <span>{selectedStudent.permanentAddress || selectedStudent.currentAddress || 'বরইতলী, চকরিয়া'}</span>
                         </div>
-                        <div className="pt-2 flex items-center gap-3 border-t border-amber-200/60">
-                          {qrCodeUrl && <img src={qrCodeUrl} alt="QR Verification" className="w-14 h-14 p-1 bg-white border border-amber-300 rounded-lg" />}
+                        <div className="pt-2 flex items-center gap-3 border-t border-amber-200/60 dark:border-amber-800/60">
+                          {qrCodeUrl && <img src={qrCodeUrl} alt="QR Verification" className="w-14 h-14 p-1 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800/60 rounded-lg" />}
                           <div className="text-[10px]">
-                            <span className="text-slate-500 block">ডিজিটাল ভেরিফিকেশন কোড</span>
-                            <span className="font-mono font-black text-slate-900">{selectedStudent.id}</span>
+                            <span className="text-slate-500 dark:text-slate-400 block">ডিজিটাল ভেরিফিকেশন কোড</span>
+                            <span className="font-mono font-black text-slate-900 dark:text-white">{selectedStudent.id}</span>
                           </div>
                         </div>
                       </div>
@@ -1233,13 +1235,13 @@ export default function StudentListPage() {
                 ) : (
                 /* ─── 📜 TAB 2: CERTIFICATES & OFFICIAL DOCUMENTS ─── */
                 <div className="p-6 sm:p-8 space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        <Award size={18} className="text-indigo-600" />
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <Award size={18} className="text-indigo-600 dark:text-indigo-400" />
                         শিক্ষার্থীর প্রত্যয়ন ও সনদপত্র হিস্ট্রি (Certificate Records)
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         {selectedStudent.name} (রোল: {selectedStudent.roll}) এর নামে প্রস্তুতকৃত সকল সনদ ও দাপ্তরিক প্রত্যয়ন
                       </p>
                     </div>
@@ -1259,45 +1261,45 @@ export default function StudentListPage() {
                         return (
                           <div
                             key={cert.id}
-                            className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3.5 shadow-xs hover:shadow-md hover:border-indigo-300 transition"
+                            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3.5 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <span className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                <span className="font-mono text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800/60">
                                   {cert.id}
                                 </span>
-                                <h4 className="font-black text-slate-900 text-sm mt-1.5">
+                                <h4 className="font-black text-slate-900 dark:text-white text-sm mt-1.5">
                                   {cert.title || cert.type}
                                 </h4>
-                                <p className="text-[11px] text-slate-500 font-mono">
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                                   স্মারক: {cert.refNo || '—'}
                                 </p>
                               </div>
 
                               {isValid ? (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1">
                                   <CheckCircle2 size={11} /> বৈধ
                                 </span>
                               ) : (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800/60 flex items-center gap-1">
                                   <AlertCircle size={11} /> বাতিলকৃত
                                 </span>
                               )}
                             </div>
 
-                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs space-y-1 text-slate-600">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-xs space-y-1 text-slate-600 dark:text-slate-400">
                               <p><strong>ইস্যুর তারিখ:</strong> <span className="font-mono">{cert.issueDate}</span></p>
                               <p><strong>প্রস্তুতকারক:</strong> {cert.createdBy || 'প্রধান শিক্ষক'}</p>
                               {cert.achievementTitle && (
-                                <p className="text-amber-800 font-semibold"><strong>স্বীকৃতি:</strong> {cert.achievementTitle}</p>
+                                <p className="text-amber-800 dark:text-amber-200 font-semibold"><strong>স্বীকৃতি:</strong> {cert.achievementTitle}</p>
                               )}
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                               <Link
                                 href={`/verify-certificate?id=${cert.id}`}
                                 target="_blank"
-                                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1"
                               >
                                 <ShieldCheck size={14} /> অনলাইন যাচাই
                               </Link>
@@ -1314,13 +1316,13 @@ export default function StudentListPage() {
                       })}
                     </div>
                   ) : (
-                    <div className="py-12 text-center bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                    <div className="py-12 text-center bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
                         <FileText size={24} />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="font-black text-slate-900 text-sm">কোনো সনদপত্র ইস্যু করা হয়নি</h4>
-                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        <h4 className="font-black text-slate-900 dark:text-white text-sm">কোনো সনদপত্র ইস্যু করা হয়নি</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                           {selectedStudent.name} এর জন্য এখনো কোনো প্রত্যয়ন পত্র বা সনদ তৈরি করা হয়নি।
                         </p>
                       </div>
@@ -1340,11 +1342,11 @@ export default function StudentListPage() {
               {/* Certificate Print Preview Modal */}
               {selectedCertForPrint && (
                 <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto print:p-0 print:bg-white print:relative print:z-auto print:block">
-                  <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[96vh] overflow-y-auto print:overflow-visible print:shadow-none print:max-w-none print:rounded-none">
-                    <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-20 print:hidden">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[96vh] overflow-y-auto print:overflow-visible print:shadow-none print:max-w-none print:rounded-none">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 print:hidden">
                       <div>
-                        <h3 className="font-bold text-slate-900 text-sm">প্রত্যয়ন পত্র প্রিন্ট প্রিভিউ</h3>
-                        <p className="text-[11px] text-slate-500 font-mono">সনদ নং: {selectedCertForPrint.id}</p>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm">প্রত্যয়ন পত্র প্রিন্ট প্রিভিউ</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">সনদ নং: {selectedCertForPrint.id}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1358,7 +1360,7 @@ export default function StudentListPage() {
                         </button>
                         <button
                           onClick={() => setSelectedCertForPrint(null)}
-                          className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
                         >
                           <X size={18} />
                         </button>
@@ -1388,23 +1390,23 @@ export default function StudentListPage() {
             <div className="space-y-6">
               
               {/* Executive Top Navigation Bar */}
-              <div className="flex items-center justify-between bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <button
                   onClick={() => switchView('view', editFormData)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition cursor-pointer"
                 >
                   <ArrowLeft size={16} /> বাতিল ও প্রোফাইলে ফিরে যান
                 </button>
-                <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/60">
                   <Pencil size={15} /> শিক্ষার্থী তথ্য সম্পাদনা মোড
                 </div>
               </div>
 
               {/* Edit Form Container */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
                 
-                <div className="border-b border-slate-100 pb-4">
-                  <h2 className="text-xl font-black text-slate-900">শিক্ষার্থী তথ্য সম্পাদনা (Edit Student Profile)</h2>
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white">শিক্ষার্থী তথ্য সম্পাদনা (Edit Student Profile)</h2>
                   <p className="text-xs text-slate-400 font-semibold">শিক্ষার্থীর প্রয়োজনীয় ব্যক্তিগত, একাডেমিক ও পিতা-মাতার বিবরণ পরিবর্তন করুন</p>
                 </div>
 
@@ -1459,7 +1461,7 @@ export default function StudentListPage() {
                               const file = e.target.files?.[0];
                               if (file) {
                                 if (file.size > 5 * 1024 * 1024) {
-                                  alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
+                                  showToast('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।', 'error');
                                   return;
                                 }
                                 const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
@@ -1483,39 +1485,39 @@ export default function StudentListPage() {
                   </div>
                   
                   {/* Section 1: Personal Details */}
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
                       <User size={15} /> ১. শিক্ষার্থীর ব্যক্তিগত তথ্য
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-bold">
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">শিক্ষার্থীর পূর্ণ নাম *</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">শিক্ষার্থীর পূর্ণ নাম *</label>
                         <input
                           type="text"
                           required
                           value={editFormData.name}
                           onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">জন্ম তারিখ (DOB)</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">জন্ম তারিখ (DOB)</label>
                         <input
                           type="date"
                           value={editFormData.dob || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, dob: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">লিঙ্গ (Gender)</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">লিঙ্গ (Gender)</label>
                         <select
                           value={editFormData.gender || 'পুরুষ'}
                           onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="পুরুষ">{currentLang === 'en' ? 'Male' : 'পুরুষ'}</option>
                           <option value="নারী">{currentLang === 'en' ? 'Female' : 'নারী'}</option>
@@ -1523,11 +1525,11 @@ export default function StudentListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">ধর্ম (Religion)</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">ধর্ম (Religion)</label>
                         <select
                           value={editFormData.religion || 'ইসলাম'}
                           onChange={(e) => setEditFormData({ ...editFormData, religion: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="ইসলাম">{currentLang === 'en' ? 'Islam' : 'ইসলাম'}</option>
                           <option value="হিন্দু">{currentLang === 'en' ? 'Hinduism' : 'হিন্দু'}</option>
@@ -1537,41 +1539,41 @@ export default function StudentListPage() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর</label>
                         <input
                           type="text"
                           value={editFormData.birthRegNo || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, birthRegNo: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 dark:text-white"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Section 2: Academic Details */}
-                  <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 space-y-4">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-200/60 pb-2">
+                  <div className="bg-indigo-50/50 dark:bg-indigo-950/50 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/60 space-y-4">
+                    <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2">
                       <GraduationCap size={15} /> ২. একাডেমিক তথ্য
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">শ্রেণি রোল *</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">শ্রেণি রোল *</label>
                         <input
                           type="text"
                           required
                           value={editFormData.roll}
                           onChange={(e) => setEditFormData({ ...editFormData, roll: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">শ্রেণি (Grade) *</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">শ্রেণি (Grade) *</label>
                         <select
                           value={editFormData.grade}
                           onChange={(e) => setEditFormData({ ...editFormData, grade: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
                           <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -1582,13 +1584,13 @@ export default function StudentListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">
                           {editFormData.grade === '9th' || editFormData.grade === '10th' ? (currentLang === 'en' ? 'Group' : 'বিভাগ') : (currentLang === 'en' ? 'Section' : 'শাখা')}
                         </label>
                         <select
                           value={editFormData.branch}
                           onChange={(e) => setEditFormData({ ...editFormData, branch: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="A">Section A</option>
                           <option value="B">Section B</option>
@@ -1597,11 +1599,11 @@ export default function StudentListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">বিভাগ / গ্রুপ</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">বিভাগ / গ্রুপ</label>
                         <select
                           value={editFormData.group}
                           onChange={(e) => setEditFormData({ ...editFormData, group: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="সাধারণ">{currentLang === 'en' ? 'General' : 'সাধারণ'}</option>
                           <option value="বিজ্ঞান">{currentLang === 'en' ? 'Science' : 'বিজ্ঞান'}</option>
@@ -1613,34 +1615,34 @@ export default function StudentListPage() {
                       {['9th', '10th'].includes(editFormData.grade) && (
                         <>
                           <div>
-                            <label className="block text-[10px] text-indigo-700 uppercase mb-1">বোর্ড রেজিস্ট্রেশন নম্বর (৯ম-১০ম)</label>
+                            <label className="block text-[10px] text-indigo-700 dark:text-indigo-300 uppercase mb-1">বোর্ড রেজিস্ট্রেশন নম্বর (৯ম-১০ম)</label>
                             <input
                               type="text"
                               placeholder="১০ ডিজিটের নম্বর..."
                               value={editFormData.registrationNo || ''}
                               onChange={(e) => setEditFormData({ ...editFormData, registrationNo: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-white border border-indigo-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800/60 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 dark:text-white"
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] text-teal-700 uppercase mb-1">এসএসসি রোল (SSC Roll)</label>
+                            <label className="block text-[10px] text-teal-700 dark:text-teal-300 uppercase mb-1">এসএসসি রোল (SSC Roll)</label>
                             <input
                               type="text"
                               placeholder="৬ ডিজিটের এসএসসি রোল..."
                               value={editFormData.sscRoll || ''}
                               onChange={(e) => setEditFormData({ ...editFormData, sscRoll: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-white border border-teal-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-mono text-slate-900"
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-800/60 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-mono text-slate-900 dark:text-white"
                             />
                           </div>
                         </>
                       )}
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">ঐচ্ছিক বিষয়</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">ঐচ্ছিক বিষয়</label>
                         <select
                           value={editFormData.optionalSubject}
                           onChange={(e) => setEditFormData({ ...editFormData, optionalSubject: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white cursor-pointer"
                         >
                           <option value="কৃষি শিক্ষা">কৃষি শিক্ষা</option>
                           <option value="উচ্চতর গণিত">উচ্চতর গণিত</option>
@@ -1650,17 +1652,17 @@ export default function StudentListPage() {
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">GPA / গ্রেড পয়েন্ট</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">GPA / গ্রেড পয়েন্ট</label>
                         <input
                           type="text"
                           value={editFormData.gpa}
                           onChange={(e) => setEditFormData({ ...editFormData, gpa: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900 dark:text-white"
                         />
                       </div>
 
                       {/* Stipend Beneficiary Selection Field */}
-                      <div className="sm:col-span-4 bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="sm:col-span-4 bg-amber-50/80 dark:bg-amber-950/50 p-3.5 rounded-2xl border border-amber-200 dark:border-amber-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <input
                             type="checkbox"
@@ -1669,19 +1671,19 @@ export default function StudentListPage() {
                             onChange={(e) => setEditFormData({ ...editFormData, isStipend: e.target.checked } as any)}
                             className="w-5 h-5 accent-amber-500 rounded cursor-pointer shrink-0"
                           />
-                          <label htmlFor="editIsStipend" className="text-xs font-black text-amber-950 cursor-pointer flex items-center gap-1.5">
-                            <Award size={16} className="text-amber-600 shrink-0" />
+                          <label htmlFor="editIsStipend" className="text-xs font-black text-amber-950 dark:text-amber-200 cursor-pointer flex items-center gap-1.5">
+                            <Award size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                             {currentLang === 'en' ? 'Mark as Stipend Beneficiary (100% Free Tuition)' : 'উপবৃত্তি প্রাপ্ত শিক্ষার্থী হিসেবে চিহ্নিত করুন (১০০% ফ্রি বেতন)'}
                           </label>
                         </div>
 
                         {!!(editFormData as any).isStipend && (
                           <div className="flex items-center gap-2 shrink-0">
-                            <label className="text-[10px] font-black text-amber-800 uppercase">ক্যাটাগরি:</label>
+                            <label className="text-[10px] font-black text-amber-800 dark:text-amber-200 uppercase">ক্যাটাগরি:</label>
                             <select
                               value={(editFormData as any).stipendCategory || 'সাধারণ উপবৃত্তি'}
                               onChange={(e) => setEditFormData({ ...editFormData, stipendCategory: e.target.value } as any)}
-                              className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl font-bold text-xs text-amber-900 outline-none"
+                              className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800/60 rounded-xl font-bold text-xs text-amber-900 dark:text-amber-200 outline-none"
                             >
                               <option value="সাধারণ উপবৃত্তি">সাধারণ উপবৃত্তি</option>
                               <option value="মেধাভিত্তিক উপবৃত্তি">মেধাভিত্তিক উপবৃত্তি</option>
@@ -1694,91 +1696,91 @@ export default function StudentListPage() {
                   </div>
 
                   {/* Section 3: Parents & Contact */}
-                  <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 space-y-4">
-                    <h3 className="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-2 border-b border-emerald-200/60 pb-2">
+                  <div className="bg-emerald-50/50 dark:bg-emerald-950/50 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/60 space-y-4">
+                    <h3 className="text-xs font-black text-emerald-900 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-2">
                       <Users size={15} /> ৩. পিতা-মাতা ও অভিভাবক বিবরণী
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-bold">
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">পিতার নাম *</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">পিতার নাম *</label>
                         <input
                           type="text"
                           required
                           value={editFormData.guardian}
                           onChange={(e) => setEditFormData({ ...editFormData, guardian: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">পিতার NID</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">পিতার NID</label>
                         <input
                           type="text"
                           value={editFormData.fatherNid || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, fatherNid: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">মাতার নাম</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">মাতার নাম</label>
                         <input
                           type="text"
                           value={editFormData.motherName || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, motherName: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">মোবাইল নম্বর *</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">মোবাইল নম্বর *</label>
                         <input
                           type="tel"
                           required
                           value={editFormData.mobile}
                           onChange={(e) => setEditFormData({ ...editFormData, mobile: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900 dark:text-white"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Section 4: Address */}
-                  <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 space-y-4">
-                    <h3 className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-2 border-b border-amber-200/60 pb-2">
+                  <div className="bg-amber-50/50 dark:bg-amber-950/50 p-5 rounded-2xl border border-amber-100 dark:border-amber-800/60 space-y-4">
+                    <h3 className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider flex items-center gap-2 border-b border-amber-200/60 dark:border-amber-800/60 pb-2">
                       <Building2 size={15} /> ৪. ঠিকানা
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold">
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">বর্তমান ঠিকানা</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">বর্তমান ঠিকানা</label>
                         <input
                           type="text"
                           value={editFormData.currentAddress || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, currentAddress: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] text-slate-500 uppercase mb-1">স্থায়ী ঠিকানা</label>
+                        <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">স্থায়ী ঠিকানা</label>
                         <input
                           type="text"
                           value={editFormData.permanentAddress || ''}
                           onChange={(e) => setEditFormData({ ...editFormData, permanentAddress: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Form Footer Action */}
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => switchView('view', selectedStudent)}
-                      className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                      className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition cursor-pointer"
                     >
                       বাতিল
                     </button>
@@ -1849,24 +1851,24 @@ export default function StudentListPage() {
             <div className="space-y-6">
               
               {/* TOP ACTION & CONTROLS RIBBON (Hidden in print) */}
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm print:hidden space-y-4">
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden space-y-4">
                 
                 {/* ─── SINGLE-LINE PROFESSIONAL REPORT TOOLBAR ─── */}
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5 overflow-x-auto no-scrollbar">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3.5 overflow-x-auto no-scrollbar">
                   
                   {/* Left: Back Button & Mode Segmented Switcher */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => switchView('list')}
-                      className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
+                      className="h-9 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap"
                       title="শিক্ষার্থী তালিকায় ফিরে যান"
                     >
-                      <ArrowLeft size={14} className="text-slate-600" /> তালিকায় ফিরুন
+                      <ArrowLeft size={14} className="text-slate-600 dark:text-slate-400" /> তালিকায় ফিরুন
                     </button>
 
-                    <div className="h-5 w-px bg-slate-200" />
+                    <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
 
-                    <div className="h-9 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/90">
+                    <div className="h-9 flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/90 dark:border-slate-800">
                       <button
                         onClick={() => {
                           setPrintReportTab('detailed');
@@ -1874,11 +1876,11 @@ export default function StudentListPage() {
                         }}
                         className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                           printReportTab === 'detailed'
-                            ? 'bg-white text-indigo-950 shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        <FileText size={13} className="text-indigo-600 shrink-0" />
+                        <FileText size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                         বিস্তারিত তালিকা
                       </button>
                       <button
@@ -1888,11 +1890,11 @@ export default function StudentListPage() {
                         }}
                         className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                           printReportTab === 'summary'
-                            ? 'bg-white text-emerald-950 shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-emerald-950 dark:text-emerald-200 shadow-xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        <BarChart3 size={13} className="text-emerald-600 shrink-0" />
+                        <BarChart3 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                         সামারি রিপোর্ট
                       </button>
                     </div>
@@ -1908,7 +1910,7 @@ export default function StudentListPage() {
                         className={`h-9 flex items-center gap-1.5 px-3 rounded-xl font-extrabold text-xs transition border cursor-pointer whitespace-nowrap ${
                           showColumnSelector
                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                            : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                            : 'bg-indigo-50/80 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60'
                         }`}
                         title="প্রিন্ট কলাম নির্বাচন করুন"
                       >
@@ -1918,13 +1920,13 @@ export default function StudentListPage() {
                     )}
 
                     {/* Orientation Segmented Toggle */}
-                    <div className="h-9 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/90">
+                    <div className="h-9 flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/90 dark:border-slate-800">
                       <button
                         onClick={() => setPrintOrientation('portrait')}
                         className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                           printOrientation === 'portrait'
-                            ? 'bg-white text-indigo-950 shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         📄 পোর্ট্রেট
@@ -1933,8 +1935,8 @@ export default function StudentListPage() {
                         onClick={() => setPrintOrientation('landscape')}
                         className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                           printOrientation === 'landscape'
-                            ? 'bg-white text-indigo-950 shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         📜 ল্যান্ডস্কেপ
@@ -1942,12 +1944,12 @@ export default function StudentListPage() {
                     </div>
 
                     {/* Compact Margin Selector */}
-                    <div className="h-9 flex items-center gap-1 bg-slate-50 px-2.5 rounded-xl border border-slate-200 text-xs whitespace-nowrap">
-                      <span className="text-slate-500 font-bold text-[11px]">মার্জিন:</span>
+                    <div className="h-9 flex items-center gap-1 bg-slate-50 dark:bg-slate-950 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs whitespace-nowrap">
+                      <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">মার্জিন:</span>
                       <select
                         value={printMargin}
                         onChange={(e) => setPrintMargin(e.target.value as 'normal' | 'wide' | 'compact')}
-                        className="bg-transparent text-slate-900 font-extrabold text-xs outline-none cursor-pointer"
+                        className="bg-transparent text-slate-900 dark:text-white font-extrabold text-xs outline-none cursor-pointer"
                       >
                         <option value="normal">১২ মিমি (স্ট্যান্ডার্ড)</option>
                         <option value="wide">১৮ মিমি (প্রশস্ত)</option>
@@ -1957,12 +1959,12 @@ export default function StudentListPage() {
 
                     {/* Compact Rows Per Page Selector (Only on Detailed List) */}
                     {printReportTab === 'detailed' && (
-                      <div className="h-9 flex items-center gap-1 bg-slate-50 px-2.5 rounded-xl border border-slate-200 text-xs whitespace-nowrap">
-                        <span className="text-slate-500 font-bold text-[11px]">পৃষ্ঠায়:</span>
+                      <div className="h-9 flex items-center gap-1 bg-slate-50 dark:bg-slate-950 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs whitespace-nowrap">
+                        <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">পৃষ্ঠায়:</span>
                         <select
                           value={printRowsPerPage}
                           onChange={(e) => setPrintRowsPerPage(Number(e.target.value))}
-                          className="bg-transparent text-slate-900 font-extrabold text-xs outline-none cursor-pointer"
+                          className="bg-transparent text-slate-900 dark:text-white font-extrabold text-xs outline-none cursor-pointer"
                         >
                           <option value={0}>অটো ({printOrientation === 'portrait' ? '২৪–২৮' : '১৫–১৮'} জন)</option>
                           <option value={15}>১৫ জন</option>
@@ -1973,22 +1975,22 @@ export default function StudentListPage() {
                       </div>
                     )}
 
-                    <div className="h-5 w-px bg-slate-200 mx-0.5" />
+                    <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
                     {/* CSV Export Button */}
                     <button
                       onClick={printReportTab === 'summary' ? handleExportSummaryCSV : handleExportCSV}
-                      className="h-9 flex items-center gap-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-xl font-extrabold text-xs transition border border-slate-200 cursor-pointer whitespace-nowrap"
+                      className="h-9 flex items-center gap-1.5 px-3 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl font-extrabold text-xs transition border border-slate-200 dark:border-slate-800 cursor-pointer whitespace-nowrap"
                       title="এক্সেল / CSV এক্সপোর্ট"
                     >
-                      <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" /> CSV
+                      <FileSpreadsheet size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" /> CSV
                     </button>
 
                     {/* Blank School Pad Button */}
                     <button
                       type="button"
                       onClick={() => setShowBlankPadModal(true)}
-                      className="h-9 flex items-center gap-1.5 px-3 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 rounded-xl font-extrabold text-xs transition border border-emerald-200 cursor-pointer whitespace-nowrap"
+                      className="h-9 flex items-center gap-1.5 px-3 bg-emerald-50/80 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 rounded-xl font-extrabold text-xs transition border border-emerald-200 dark:border-emerald-800/60 cursor-pointer whitespace-nowrap"
                       title="ফাঁকা স্কুল প্যাড প্রিন্ট"
                     >
                       <Printer size={14} className="shrink-0" /> স্কুল প্যাড
@@ -2030,14 +2032,14 @@ export default function StudentListPage() {
 
                 {/* ─── CUSTOM COLUMN SELECTOR DRAWER / PANEL ─── */}
                 {showColumnSelector && (
-                  <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-indigo-200 space-y-4 animate-in fade-in duration-200">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/60 space-y-4 animate-in fade-in duration-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                       <div>
-                        <h3 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-                          <CheckSquare size={16} className="text-indigo-600" />
+                        <h3 className="text-xs font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider flex items-center gap-2">
+                          <CheckSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
                           {currentLang === 'en' ? 'Select Print Columns' : 'প্রিন্ট কলাম নির্বাচন'}
                         </h3>
-                        <p className="text-[11px] text-slate-500 font-medium">যে যে কলামগুলো তালিকায় ও প্রিন্টে রাখতে চান সেগুলো টিক চিহ্ন দিন</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">যে যে কলামগুলো তালিকায় ও প্রিন্টে রাখতে চান সেগুলো টিক চিহ্ন দিন</p>
                       </div>
 
                       {/* Quick Presets */}
@@ -2045,25 +2047,25 @@ export default function StudentListPage() {
                         <span className="text-[10px] font-extrabold text-slate-400 uppercase">প্রিসেট:</span>
                         <button
                           onClick={() => setColumnPreset('basic')}
-                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold transition cursor-pointer"
                         >
                           বেসিক তালিকা
                         </button>
                         <button
                           onClick={() => setColumnPreset('contact')}
-                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold transition cursor-pointer"
                         >
                           যোগাযোগ ও অভিভাবক
                         </button>
                         <button
                           onClick={() => setColumnPreset('official')}
-                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold transition cursor-pointer"
                         >
                           অফিশিয়াল রেজিস্টার
                         </button>
                         <button
                           onClick={() => setColumnPreset('all')}
-                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-[11px] font-black transition cursor-pointer"
+                          className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-lg text-[11px] font-black transition cursor-pointer"
                         >
                           সব কলাম অন
                         </button>
@@ -2098,8 +2100,8 @@ export default function StudentListPage() {
                           key={col.key}
                           className={`flex items-center gap-2 p-2.5 rounded-xl border transition cursor-pointer ${
                             selectedColumns[col.key] 
-                              ? 'bg-white border-indigo-400 text-indigo-950 font-bold shadow-xs' 
-                              : 'bg-slate-100/70 border-slate-200 text-slate-500 font-medium hover:bg-slate-100'
+                              ? 'bg-white dark:bg-slate-900 border-indigo-400 text-indigo-950 dark:text-indigo-200 font-bold shadow-xs' 
+                              : 'bg-slate-100/70 dark:bg-slate-800/70 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
                           <input
@@ -2122,13 +2124,13 @@ export default function StudentListPage() {
                   
                   {/* 1. Grade/Class Filter */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <GraduationCap size={12} className="text-indigo-600" /> শ্রেণি (Class)
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <GraduationCap size={12} className="text-indigo-600 dark:text-indigo-400" /> শ্রেণি (Class)
                     </label>
                     <select
                       value={printGradeFilter}
                       onChange={(e) => setPrintGradeFilter(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">{currentLang === 'en' ? 'All Classes' : 'সকল শ্রেণি'}</option>
                       <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
@@ -2141,13 +2143,13 @@ export default function StudentListPage() {
 
                   {/* 2. Section/Branch Filter */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <Building2 size={12} className="text-indigo-600" /> শাখা (Section)
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <Building2 size={12} className="text-indigo-600 dark:text-indigo-400" /> শাখা (Section)
                     </label>
                     <select
                       value={printBranchFilter}
                       onChange={(e) => setPrintBranchFilter(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">{currentLang === 'en' ? 'All Sections' : 'সকল শাখা'}</option>
                       <option value="A">শাখা A</option>
@@ -2158,13 +2160,13 @@ export default function StudentListPage() {
 
                   {/* 3. Group/Department Filter */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <Layers size={12} className="text-indigo-600" /> বিভাগ / গ্রুপ
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <Layers size={12} className="text-indigo-600 dark:text-indigo-400" /> বিভাগ / গ্রুপ
                     </label>
                     <select
                       value={printGroupFilter}
                       onChange={(e) => setPrintGroupFilter(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">{currentLang === 'en' ? 'All Groups' : 'সকল বিভাগ'}</option>
                       <option value="সাধারণ">{currentLang === 'en' ? 'General' : 'সাধারণ'}</option>
@@ -2176,13 +2178,13 @@ export default function StudentListPage() {
 
                   {/* 4. Religion Filter */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <Heart size={12} className="text-indigo-600" /> ধর্ম ভিত্তিক (Religion)
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <Heart size={12} className="text-indigo-600 dark:text-indigo-400" /> ধর্ম ভিত্তিক (Religion)
                     </label>
                     <select
                       value={printReligionFilter}
                       onChange={(e) => setPrintReligionFilter(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">{currentLang === 'en' ? 'All Religions' : 'সকল ধর্ম'}</option>
                       <option value="ইসলাম">{currentLang === 'en' ? 'Islam' : 'ইসলাম ধর্ম'}</option>
@@ -2194,13 +2196,13 @@ export default function StudentListPage() {
 
                   {/* 5. Gender Filter */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <User size={12} className="text-indigo-600" /> লিঙ্গ ভিত্তিক (Gender)
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <User size={12} className="text-indigo-600 dark:text-indigo-400" /> লিঙ্গ ভিত্তিক (Gender)
                     </label>
                     <select
                       value={printGenderFilter}
                       onChange={(e) => setPrintGenderFilter(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">{currentLang === 'en' ? 'All Students' : 'সকল শিক্ষার্থী'}</option>
                       <option value="পুরুষ">{currentLang === 'en' ? 'Boys / Male' : 'ছাত্র / পুরুষ'}</option>
@@ -2210,15 +2212,15 @@ export default function StudentListPage() {
 
                   {/* 6. Instant Search */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                      <Search size={12} className="text-indigo-600" /> তাৎক্ষণিক খুঁজুন
+                    <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                      <Search size={12} className="text-indigo-600 dark:text-indigo-400" /> তাৎক্ষণিক খুঁজুন
                     </label>
                     <input
                       type="text"
                       value={printSearchQuery}
                       onChange={(e) => setPrintSearchQuery(e.target.value)}
                       placeholder="নাম, রোল, মোবাইল..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
 
@@ -2233,35 +2235,35 @@ export default function StudentListPage() {
                   <span className="text-[10px] font-bold text-indigo-300 block uppercase">মোট শিক্ষার্থী</span>
                   <div className="text-2xl font-black text-white mt-1">{printTotalCount} <span className="text-xs font-normal">জন</span></div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">ছাত্র (Boys)</span>
-                  <div className="text-2xl font-black text-indigo-700 mt-1">
+                  <div className="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-1">
                     {printMaleCount} 
                     <span className="text-[11px] font-bold text-slate-400 ml-1.5">
                       ({printTotalCount > 0 ? ((printMaleCount/printTotalCount)*100).toFixed(1) : 0}%)
                     </span>
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">ছাত্রী (Girls)</span>
-                  <div className="text-2xl font-black text-rose-600 mt-1">
+                  <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
                     {printFemaleCount}
                     <span className="text-[11px] font-bold text-slate-400 ml-1.5">
                       ({printTotalCount > 0 ? ((printFemaleCount/printTotalCount)*100).toFixed(1) : 0}%)
                     </span>
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <span className="text-[10px] font-bold text-emerald-600 block uppercase">মুসলিম শিক্ষার্থী</span>
-                  <div className="text-2xl font-black text-emerald-700 mt-1">{printMuslimCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block uppercase">মুসলিম শিক্ষার্থী</span>
+                  <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">{printMuslimCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <span className="text-[10px] font-bold text-amber-600 block uppercase">হিন্দু শিক্ষার্থী</span>
-                  <div className="text-2xl font-black text-amber-700 mt-1">{printHinduCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block uppercase">হিন্দু শিক্ষার্থী</span>
+                  <div className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">{printHinduCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <span className="text-[10px] font-bold text-purple-600 block uppercase">অন্যান্য / উপবৃত্তি</span>
-                  <div className="text-2xl font-black text-purple-700 mt-1">{printStipendCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 block uppercase">অন্যান্য / উপবৃত্তি</span>
+                  <div className="text-2xl font-black text-purple-700 dark:text-purple-300 mt-1">{printStipendCount} <span className="text-xs font-normal text-slate-400">জন</span></div>
                 </div>
               </div>
 
@@ -2874,7 +2876,7 @@ export default function StudentListPage() {
             <div className="space-y-4">
               
               {/* TOP COMPACT FILTER & ACTION BAR (Single Row Bar) */}
-              <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 overflow-x-auto no-scrollbar">
+              <div className="bg-white dark:bg-slate-900 p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-between gap-2.5 overflow-x-auto no-scrollbar">
                 
                 {/* Left Side: Search & Compact Dropdown Filters */}
                 <div className="flex items-center gap-2 shrink-0">
@@ -2887,7 +2889,7 @@ export default function StudentListPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={currentLang === 'en' ? 'Search students...' : 'শিক্ষার্থী খুঁজুন...'}
-                      className="w-full h-9 pl-8 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-slate-900 placeholder:text-slate-400 transition"
+                      className="w-full h-9 pl-8 pr-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
                     />
                   </div>
 
@@ -2895,7 +2897,7 @@ export default function StudentListPage() {
                   <select
                     value={gradeFilter}
                     onChange={(e) => setGradeFilter(e.target.value)}
-                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
+                    className="h-9 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
                     <option value="all">{currentLang === 'en' ? 'All Classes' : 'সকল শ্রেণি'}</option>
                     <option value="6th">৬ষ্ঠ (Class 6)</option>
@@ -2909,7 +2911,7 @@ export default function StudentListPage() {
                   <select
                     value={branchFilter}
                     onChange={(e) => setBranchFilter(e.target.value)}
-                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
+                    className="h-9 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
                     <option value="all">{currentLang === 'en' ? 'All Sections' : 'সকল শাখা'}</option>
                     <option value="A">শাখা A</option>
@@ -2921,7 +2923,7 @@ export default function StudentListPage() {
                   <select
                     value={genderFilter}
                     onChange={(e) => setGenderFilter(e.target.value)}
-                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
+                    className="h-9 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
                     <option value="all">{currentLang === 'en' ? 'All Genders' : 'সকল লিঙ্গ'}</option>
                     <option value="male">{currentLang === 'en' ? 'Male' : 'ছাত্র'}</option>
@@ -2932,7 +2934,7 @@ export default function StudentListPage() {
                   <select
                     value={groupFilter}
                     onChange={(e) => setGroupFilter(e.target.value)}
-                    className="h-9 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
+                    className="h-9 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                   >
                     <option value="all">{currentLang === 'en' ? 'All Groups' : 'সকল বিভাগ'}</option>
                     <option value="সাধারণ">সাধারণ</option>
@@ -2945,7 +2947,7 @@ export default function StudentListPage() {
                   <select
                     value={sortStrategy}
                     onChange={(e) => setSortStrategy(e.target.value as any)}
-                    className="h-9 px-2.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
+                    className="h-9 px-2.5 bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer transition shrink-0"
                     title="গ্রুপ ও রোল অনুযায়ী সাজানোর ক্রম"
                   >
                     <option value="roll_asc">রোল: ছোট→বড় (১, ২, ৩...)</option>
@@ -2964,7 +2966,7 @@ export default function StudentListPage() {
                         setGenderFilter('all');
                         setGroupFilter('all');
                       }}
-                      className="h-9 px-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0 border border-rose-100"
+                      className="h-9 px-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0 border border-rose-100 dark:border-rose-800/60"
                       title="ফিল্টার রিসেট করুন"
                     >
                       <X size={13} /> রিসেট
@@ -3004,11 +3006,11 @@ export default function StudentListPage() {
               </div>
 
               {/* MAIN DIRECTORY TABLE (No Pagination — Shows all students together) */}
-              <div id="student-directory-table-top" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div id="student-directory-table-top" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                      <tr className="bg-slate-50/80 dark:bg-slate-950/80 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
                         <th className="p-3.5 w-10 text-center">
                           <input
                             type="checkbox"
@@ -3020,7 +3022,7 @@ export default function StudentListPage() {
                                 setSelectedStudentIds([]);
                               }
                             }}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
                           />
                         </th>
                         <th className="p-3.5">STUDENT <span className="text-[9px] text-indigo-500 font-bold ml-1 lowercase hidden sm:inline">(drag & drop photo)</span></th>
@@ -3034,11 +3036,11 @@ export default function StudentListPage() {
                         <th className="p-3.5 text-center">ACTIONS</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-xs">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-100 font-medium text-xs">
                       {paginatedStudents.map((st) => {
                         const isSelected = selectedStudentIds.includes(st.id);
                         return (
-                          <tr key={st.id} className={`hover:bg-slate-50/80 transition group ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                          <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800 transition group ${isSelected ? 'bg-indigo-50/30 dark:bg-indigo-950/50' : ''}`}>
                             {/* Checkbox */}
                             <td className="p-3.5 text-center">
                               <input
@@ -3049,13 +3051,13 @@ export default function StudentListPage() {
                                     prev.includes(st.id) ? prev.filter(id => id !== st.id) : [...prev, st.id]
                                   );
                                 }}
-                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
                               />
                             </td>
 
                             {/* Student Avatar & Name with Drag & Drop Upload */}
                             <td 
-                              className={`p-3.5 transition-colors ${dragOverStudentId === st.id ? 'bg-indigo-50/90 ring-2 ring-indigo-500/50 rounded-xl' : ''}`}
+                              className={`p-3.5 transition-colors ${dragOverStudentId === st.id ? 'bg-indigo-50/90 dark:bg-indigo-950/50 ring-2 ring-indigo-500/50 rounded-xl' : ''}`}
                               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverStudentId(st.id); }}
                               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverStudentId(st.id); }}
                               onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverStudentId(null); }}
@@ -3075,11 +3077,11 @@ export default function StudentListPage() {
                                   title="ছবি ড্রাগ করে এখানে ছেড়ে দিন অথবা ক্লিক করে ছবি পরিবর্তন করুন"
                                   className={`relative w-9 h-9 rounded-full cursor-pointer transition-all duration-200 group/avatar shrink-0 select-none ${
                                     dragOverStudentId === st.id
-                                      ? 'ring-4 ring-indigo-500 ring-offset-2 scale-110 shadow-lg bg-indigo-100'
+                                      ? 'ring-4 ring-indigo-500 ring-offset-2 scale-110 shadow-lg bg-indigo-100 dark:bg-indigo-900/40'
                                       : 'hover:ring-2 hover:ring-indigo-400 hover:scale-105'
                                   }`}
                                 >
-                                  <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center font-black text-indigo-700 text-xs">
+                                  <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-black text-indigo-700 dark:text-indigo-300 text-xs">
                                     {st.photo ? (
                                       <img src={st.photo} alt={st.name} className="w-full h-full object-cover" />
                                     ) : (
@@ -3105,7 +3107,7 @@ export default function StudentListPage() {
                                 </div>
 
                                 <div>
-                                  <span className="font-extrabold text-slate-900 block text-xs leading-tight">
+                                  <span className="font-extrabold text-slate-900 dark:text-white block text-xs leading-tight">
                                     {st.name}
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-medium">
@@ -3116,38 +3118,38 @@ export default function StudentListPage() {
                             </td>
 
                             {/* Student ID */}
-                            <td className="p-3.5 font-mono font-bold text-slate-700 text-xs">
+                            <td className="p-3.5 font-mono font-bold text-slate-700 dark:text-slate-300 text-xs">
                               {st.id}
                             </td>
 
                             {/* Class & Section */}
-                            <td className="p-3.5 font-semibold text-slate-800 text-xs">
+                            <td className="p-3.5 font-semibold text-slate-800 dark:text-slate-100 text-xs">
                               {st.grade} ({st.branch || 'A'})
                             </td>
 
                             {/* Roll */}
-                            <td className="p-3.5 font-mono font-black text-slate-900 text-xs">
+                            <td className="p-3.5 font-mono font-black text-slate-900 dark:text-white text-xs">
                               {st.roll || '০১'}
                             </td>
 
                             {/* Gender */}
-                            <td className="p-3.5 text-slate-700 text-xs">
+                            <td className="p-3.5 text-slate-700 dark:text-slate-300 text-xs">
                               {st.gender?.includes('নারী') || st.gender?.includes('মহিলা') || st.gender?.toLowerCase() === 'female' ? 'Female' : 'Male'}
                             </td>
 
                             {/* Guardian */}
-                            <td className="p-3.5 font-semibold text-slate-800 text-xs">
+                            <td className="p-3.5 font-semibold text-slate-800 dark:text-slate-100 text-xs">
                               {st.guardian || 'অভিভাবক'}
                             </td>
 
                             {/* Phone */}
-                            <td className="p-3.5 font-mono text-slate-600 text-xs">
+                            <td className="p-3.5 font-mono text-slate-600 dark:text-slate-400 text-xs">
                               {st.mobile || '০১৮১২-০০০১০৯'}
                             </td>
 
                             {/* Status */}
                             <td className="p-3.5 text-center">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 Active
                               </span>
@@ -3160,7 +3162,7 @@ export default function StudentListPage() {
                                 {/* 👁️ View Profile Button */}
                                 <button
                                   onClick={() => switchView('view', st)}
-                                  className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer"
                                   title="প্রোফাইল দেখুন"
                                 >
                                   <Eye size={15} />
@@ -3169,7 +3171,7 @@ export default function StudentListPage() {
                                 {/* 🖨️ Print Admission Form Button */}
                                 <button
                                   onClick={() => switchView('print_form', st)}
-                                  className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition cursor-pointer"
                                   title="ভর্তি ফরম প্রিন্ট"
                                 >
                                   <Printer size={15} />
@@ -3178,7 +3180,7 @@ export default function StudentListPage() {
                                 {/* ✏️ Edit Button */}
                                 <button
                                   onClick={() => switchView('edit', st)}
-                                  className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition cursor-pointer"
                                   title="এডিট"
                                 >
                                   <Pencil size={15} />
@@ -3187,7 +3189,7 @@ export default function StudentListPage() {
                                 {/* 🗑️ Delete Button */}
                                 <button
                                   onClick={() => handleDelete(st.id)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
                                   title="অপসারণ"
                                 >
                                   <Trash2 size={15} />
@@ -3211,7 +3213,7 @@ export default function StudentListPage() {
                 </div>
 
                 {/* Directory Footer (All students displayed together without pagination) */}
-                <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-semibold">
+                <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 font-semibold">
                   <span>
                     মোট রেজিস্টার্ড শিক্ষার্থী: <strong>{toBnDigit(totalStudents)}</strong> জন
                     {' '}(তালিকায় প্রদর্শিত: <strong>{toBnDigit(filteredStudents.length)}</strong> জন)
@@ -3229,14 +3231,14 @@ export default function StudentListPage() {
       {/* 🖨️ BLANK SCHOOL PAD MODAL */}
       {showBlankPadModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 print:p-0 print:bg-white print:relative print:z-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
               <div>
-                <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
-                  <Printer className="text-emerald-600" size={18} />
+                <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
+                  <Printer className="text-emerald-600 dark:text-emerald-400" size={18} />
                   ফাঁকা স্কুল প্যাড প্রিন্ট প্রিভিউ (Blank School Letterhead)
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   মার্জিন: উপরে {schoolSettings?.padMargins?.top ?? 0.5}&quot; | বামে {schoolSettings?.padMargins?.left ?? 0.5}&quot; | ডানে {schoolSettings?.padMargins?.right ?? 0.5}&quot; | নিচে {schoolSettings?.padMargins?.bottom ?? 0.5}&quot;
                 </p>
               </div>
@@ -3251,7 +3253,7 @@ export default function StudentListPage() {
                 <button
                   type="button"
                   onClick={() => setShowBlankPadModal(false)}
-                  className="p-2 hover:bg-slate-100 text-slate-500 rounded-xl cursor-pointer"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -3309,14 +3311,14 @@ export default function StudentListPage() {
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/80">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 flex items-center justify-center font-black">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black">
                   <Camera size={20} />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                     বাল্ক ছবি ড্রাগ ও ড্রপ আপলোডার (Bulk Photo Upload)
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     একসাথে একাধিক শিক্ষার্থীর ছবি টেনে এনে ছেড়ে দিন, স্বয়ংক্রিয়ভাবে রোল বা আইডি অনুযায়ী মিলে যাবে
                   </p>
                 </div>
@@ -3337,7 +3339,7 @@ export default function StudentListPage() {
               {/* Optional Class Filter for Roll Matching */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-purple-50/50 dark:bg-purple-950/20 p-3.5 rounded-2xl border border-purple-100 dark:border-purple-900/30">
                 <div className="text-xs font-bold text-purple-950 dark:text-purple-200 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-purple-600" />
+                  <Sparkles size={14} className="text-purple-600 dark:text-purple-400" />
                   <span>রোল নম্বর দিয়ে নির্ভুল ম্যাচ করতে শ্রেণি নির্ধারণ করুন:</span>
                 </div>
                 <select
@@ -3371,7 +3373,7 @@ export default function StudentListPage() {
                 className={`border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer select-none ${
                   isBulkDragging
                     ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/50 scale-[1.01] shadow-inner'
-                    : 'border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 hover:border-purple-400 hover:bg-purple-50/30'
+                    : 'border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 hover:border-purple-400 dark:hover:border-purple-700 hover:bg-purple-50/30 dark:hover:bg-purple-950/50'
                 }`}
               >
                 <input
@@ -3385,8 +3387,8 @@ export default function StudentListPage() {
                   className="hidden"
                 />
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center shadow-sm">
-                    <Upload size={24} className={isBulkDragging ? 'animate-bounce text-purple-600' : ''} />
+                  <div className="w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-sm">
+                    <Upload size={24} className={isBulkDragging ? 'animate-bounce text-purple-600 dark:text-purple-400' : ''} />
                   </div>
                   <div>
                     <h4 className="font-black text-slate-900 dark:text-white text-sm">
@@ -3412,13 +3414,13 @@ export default function StudentListPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h5 className="font-extrabold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-2">
-                      <ImageIcon size={14} className="text-purple-600" />
+                      <ImageIcon size={14} className="text-purple-600 dark:text-purple-400" />
                       মোট ড্রপকৃত ছবি ({bulkPhotos.length} টি)
                     </h5>
                     <button
                       type="button"
                       onClick={() => setBulkPhotos([])}
-                      className="text-xs text-rose-600 hover:underline font-bold cursor-pointer"
+                      className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold cursor-pointer"
                     >
                       সব ক্লিয়ার করুন
                     </button>
@@ -3438,7 +3440,7 @@ export default function StudentListPage() {
                           <img
                             src={item.preview}
                             alt={item.fileName}
-                            className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0"
+                            className="w-11 h-11 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shrink-0"
                           />
 
                           <div className="min-w-0 flex-1">
@@ -3502,15 +3504,15 @@ export default function StudentListPage() {
 
             {/* Modal Footer */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/80">
-              <span className="text-xs font-bold text-slate-500">
-                ম্যাচ হয়েছে: <strong className="text-emerald-600">{bulkPhotos.filter(p => p.matchedStudentId).length}</strong> / {bulkPhotos.length} টি ছবি
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                ম্যাচ হয়েছে: <strong className="text-emerald-600 dark:text-emerald-400">{bulkPhotos.filter(p => p.matchedStudentId).length}</strong> / {bulkPhotos.length} টি ছবি
               </span>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => { setShowBulkPhotoModal(false); setBulkPhotos([]); }}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 text-xs font-bold transition cursor-pointer"
                 >
                   বাতিল
                 </button>

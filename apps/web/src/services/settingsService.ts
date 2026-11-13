@@ -35,12 +35,14 @@ export type PadMargins = {
 
 export type SchoolSettings = {
   schoolName: string;
+  schoolNameEn?: string;
   schoolLogo: string;
   schoolPhoto?: string;
   customBorderPng?: string;
   customBorders?: CustomPngBorder[];
   selectedBorderId?: string;
   address: string;
+  addressEn?: string;
   eiin: string;
   estdYear: string;
   principalName: string;
@@ -346,4 +348,60 @@ export const settingsService = {
       if (idx > -1) listeners.splice(idx, 1);
     };
   },
+};
+
+/**
+ * Resolves the English display name of the school from settings without assuming a single hardcoded school.
+ */
+export const getEnglishSchoolName = (
+  settings?: Partial<SchoolSettings> | null,
+  fallback: string = 'Smart School Management'
+): string => {
+  if (settings?.schoolNameEn?.trim()) return settings.schoolNameEn.trim();
+  const bn = settings?.schoolName?.trim() || '';
+  if (!bn) return fallback;
+  if (bn.includes('বরইতলী') || bn.includes('বড়াইতলী')) return 'Baraitali High School';
+  if (/[\u0980-\u09FF]/.test(bn)) {
+    return bn
+      .replace(/উচ্চ\s*বিদ্যালয়|উচ্চ\s*বিদ্যালয়/g, 'High School')
+      .replace(/মাধ্যমিক\s*বিদ্যালয়|মাধ্যমিক\s*বিদ্যালয়/g, 'Secondary School')
+      .replace(/মডেল\s*স্কুল/g, 'Model School')
+      .replace(/কলেজ/g, 'College')
+      .replace(/মাদ্রাসা|মাদরাসা/g, 'Madrasah')
+      .replace(/সরকারি/g, 'Govt.')
+      .trim();
+  }
+  return bn;
+};
+
+/**
+ * Resolves the English display address of the school from settings.
+ */
+export const getEnglishAddress = (
+  settings?: Partial<SchoolSettings> | null,
+  fallback: string = 'Bangladesh'
+): string => {
+  if (settings?.addressEn?.trim()) return settings.addressEn.trim();
+  const bn = settings?.address?.trim() || '';
+  if (!bn) return fallback;
+  if (bn.includes('বরইতলী') && (bn.includes('চকরিয়া') || bn.includes('চকরিয়া') || bn.includes('কক্সবাজার'))) {
+    return "Baraitoli, Chakaria, Cox's Bazar";
+  }
+  return bn;
+};
+
+/**
+ * Derives short institutional crest initials dynamically from configured school name.
+ */
+export const getSchoolInitials = (
+  settings?: Partial<SchoolSettings> | null,
+  fallback: string = 'SMS'
+): string => {
+  const en = getEnglishSchoolName(settings, '');
+  if (!en) return fallback;
+  const words = en.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
+  }
+  return en.slice(0, 3).toUpperCase();
 };

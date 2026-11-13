@@ -533,7 +533,7 @@ export function normalizeStudentRow(
   const rollVal = rollDigits ? rollDigits.padStart(2, '0') : String(index + 1).padStart(2, '0');
 
   // 6. Gender
-  let rawGender = (row['gender'] || 'পুরুষ').toLowerCase().trim();
+  const rawGender = (row['gender'] || 'পুরুষ').toLowerCase().trim();
   let genderVal = 'পুরুষ';
   if (
     rawGender.includes('মহিলা') ||
@@ -549,7 +549,7 @@ export function normalizeStudentRow(
   }
 
   // 7. Religion
-  let rawRel = (row['religion'] || 'ইসলাম').toLowerCase().trim();
+  const rawRel = (row['religion'] || 'ইসলাম').toLowerCase().trim();
   let religionVal = 'ইসলাম';
   if (rawRel.includes('হিন্দু') || rawRel.includes('সনাতন') || rawRel.includes('hindu')) {
     religionVal = 'হিন্দু';

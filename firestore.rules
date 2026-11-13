@@ -1,0 +1,1433 @@
+rules_version = '2';
+
+// =============================================================================
+// Cloud Firestore Security Rules — Smart School Management System (bhsedu-e0906)
+// =============================================================================
+//
+// =============================================================================
+// Assumed Data Model
+// =============================================================================
+//
+// Authority & Authentication Model:
+//   - Identity relies strictly on Firebase Authentication + Verified Custom Claims:
+//     * request.auth.token.role == 'admin'   -> Full administrative authority
+//     * request.auth.token.role == 'teacher' -> Staff/teacher authority
+//     * request.auth.token.teacherId         -> Teacher document/leave binding
+//   - If an email claim is present in the ID token, email_verified == true is enforced.
+//   - NEVER derive privilege from user-writable Firestore documents.
+//
+// Collection: settings/{docId}
+//   Document ID: 'general' (public metadata), other docIds (admin-only)
+//   Fields:
+//     - schoolName: string (optional, <= 200)
+//     - schoolLogo, schoolPhoto, customBorderPng, uploadedPadTemplateUrl: media/path string (optional, <= 700000)
+//     - address: string (optional, <= 400), eiin: string (optional, <= 30), estdYear: string (optional, <= 20)
+//     - principalName, principalTitle, classTeacherTitle, guardianTitle, watermarkText, padRefPrefix: string (optional, <= 200)
+//     - phone, email, website, selectedBorderId, uploadedPadFileName: string (optional, <= 300)
+//     - uploadedPadType: 'image' | 'pdf' (optional), activePadMode: 'uploaded' | 'preprinted' (optional)
+//     - language: 'bn' | 'en' (optional), theme: 'light' | 'dark' (optional)
+//     - showWatermark, showClassSelection, showSectionSelection, showRollInput, onlineAdmissionEnabled: bool (optional)
+//     - watermarkOpacity, uploadedPadFileSize, padFontSize, padLineHeight, padSignatureGap: number (optional, >= 0)
+//     - customBorders: list (optional, <= 20), committeeMembers: list (optional, <= 100), padMargins: map (optional, <= 4 keys)
+//     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
+//
+// Collection: landing_page/{docId}
+//   Document ID: 'published' (public read), drafts/other docIds (admin-only)
+//   Fields: version, lastUpdatedAt, updatedBy, header, hero, sections, stats, services,
+//           about, achievers, facilities, gallery, academic, blog, faq, contact,
+//           mobileApp, footer, theme, seo, schoolId, updatedAt, createdAt (immutable)
+//
+// Collection: notices/{noticeId}
+//   Document ID: string (e.g. NOT-...)
+//   Fields:
+//     - id: string (required, immutable, 1..100)
+//     - title: string (required, 1..250)
+//     - content: string (required, 1..20000)
+//     - category: 'general' | 'academic' | 'exam' | 'emergency' | 'holiday' | 'events' (optional)
+//     - targetAudience: 'all' | 'students' | 'teachers' | 'parents' (optional)
+//     - priority: 'normal' | 'important' | 'urgent' (optional)
+//     - publisherName, publisherRole, refNo: string (optional, <= 120)
+//     - publishedAt: string (1..64) | timestamp (required)
+//     - isPinned: bool (required)
+//     - attachmentUrl: media/pdf/url string (optional, <= 500000)
+//     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
+//
+// Collection: classes/{classId}
+//   Document ID: string (e.g. cls-6)
+//   Fields:
+//     - id: string (required, immutable, 1..64), code: string (required, 1..32), name: string (required, 1..100)
+//     - nameBn, shift: string (optional, <= 100), classTeacher: string (optional, <= 120)
+//     - gradeNumber: number (required, 1..15), totalStudents: number (optional, 0..50000)
+//     - sections: list (required, <= 50), groups: list (required, <= 20)
+//     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
+//
+// Collection: academic_data/{docId}
+//   Document ID: 'exam_setup' | 'curriculum_subjects' | 'session_setup' | 'class_routines'
+//   Fields: doc-specific bounded lists/maps + schoolId, updatedAt, createdAt (immutable)
+//
+// Collection: teachers/{teacherId}
+//   Document ID: string (e.g. TCH-101)
+//   Fields:
+//     - id: string (required, immutable, 1..64), name: string (required, 1..120)
+//     - designation, subject, qualification, isClassTeacherOf: string (optional, <= 160)
+//     - mobile, phone, dob: string (optional, <= 40), email: email string | '' (optional, <= 160)
+//     - photoUrl, photo: media/path string (optional, <= 500000)
+//     - status: 'active' | 'inactive' (optional), mustChangePassword: bool (optional)
+//     - passwordHash: string (optional, <= 256) [plaintext 'password' & 'role' disallowed]
+//     - uid, schoolId: string (optional, <= 128), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
+//
+// Collection: students/{studentId}
+//   Document ID: string (e.g. STD-...)
+//   Fields:
+//     - id: string (required, immutable, 1..120), name: string (required, 1..120), grade: string (required, 1..30), roll: string (required, 1..30)
+//     - nameEn, section, branch, group, optionalSubject, guardian, fatherName, motherName, session, dob, gender, religion, bloodGroup,
+//       fatherNid, motherNid, mobile, birthRegNo, registrationNo, sscRoll, prevRoll, gpa, fatherOcc, motherOcc, prevSchoolName,
+//       prevGpa, appId, appliedAt, status, stipendCategory, stipendStartMonth, stipendMonth: string (optional, <= 200)
+//     - currentAddress, permanentAddress, remarks: string (optional, <= 400)
+//     - photo: media/path string (optional, <= 500000)
+//     - attendance: number (optional, 0..500), examMarkAvg: number (optional, 0..100), version: number (optional, >= 0)
+//     - isStipend: bool (optional), stipendStatus: 'Active' | 'Suspended' | 'Revoked' (optional)
+//     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
+//
+// Collection: certificates/{certId}
+//   Document ID: string (e.g. CERT-2026-8942)
+//   Fields:
+//     - id: string (required, immutable, 1..120), studentId: string (required, immutable, 1..120)
+//     - type: CertificateType enum (required), status: 'valid' | 'cancelled' (optional, cannot revert from cancelled)
+//     - studentName, refNo, issueDate, createdDate (required, immutable createdDate)
+//     - verificationCode, title, studentNameEn, fatherName, fatherNameEn, motherName, motherNameEn, guardian,
+//       admissionNo, roll, grade, section, group, session, dob, gender, religion, bloodGroup, birthRegNo,
+//       village, postOffice, upazila, district, address, boardRoll, boardReg, passingYear, gpa,
+//       achievementTitle, characterRemarks, customBody, templateId, principalTitle, authorizedPersonTitle,
+//       cancelledAt, cancelledBy, cancellationReason, createdBy, updatedDate, schoolId
+//     - layoutStyle: 'pad' | 'royal_border' | 'modern_clean' (optional)
+//     - padType: 'digital_server' | 'manual_printed' | 'blank_pad' (optional)
+//     - isAlumni: bool (optional), auditTrail: list (optional, <= 50), updatedAt, createdAt (immutable)
+//
+// Collection: exam_marks/{markId}
+//   Document ID: string (encoded storageKey or normalized mark ID)
+//   Supports EITHER sync-blob schema (storageKey + value) OR normalized score schema
+//   (examId, studentId, obtainedMarks, fullMarks, cq, mcq, practical, ca, totalMarks, etc.).
+//   Immutable on update: createdAt, storageKey, studentId, examId.
+//
+// Collection: attendance_records/{recordId}
+//   Document ID: string (encoded storageKey or normalized record ID)
+//   Supports EITHER sync-blob schema (storageKey + value) OR normalized attendance schema.
+//   Immutable on update: createdAt, storageKey, studentId, date.
+//
+// Collection: online_applications/{appId}
+//   Document ID: string (e.g. APP-2026-1234)
+//   Public create ONLY: requires studentName (1..120), appliedClass (1..40), status == 'pending',
+//   bounded applicant fields only (NO admin/review/stipend/roll fields).
+//   Admin read/create/update/delete with strict validation and immutable id/appId/appliedAt/createdAt.
+//
+// Collection: fee_invoices/{invoiceId}           (Admin only)
+// Collection: fee_ledgers/{ledgerId}             (Admin only)
+// Collection: payroll_records/{payrollId}        (Admin only)
+// Collection: expense_records/{expenseId}        (Admin only)
+// Collection: ledger_records/{ledgerId}          (Admin only)
+// Collection: stipend_students/{stipendId}       (Admin only)
+// Collection: ssc_testimonials/{testimonialId}   (Admin only)
+// Collection: class_routines/{routineId}         (Staff read; Admin write)
+// Collection: teacher_leaves/{leaveId}           (Admin full; Staff self-read & create with status Pending/pending)
+// Collection: _system_health/{docId}             (Signed-in read; Admin write)
+// Collection: fcm_tokens/{tokenId}               (Admin read/update/delete; Authenticated role-scoped create)
+//
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // Default Deny Everything
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Helper Functions: Authentication & RBAC
+    // =========================================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerifiedWhenPresent() {
+      return !('email' in request.auth.token) ||
+             request.auth.token.email == null ||
+             request.auth.token.email_verified == true;
+    }
+
+    function isAuthenticated() {
+      return isSignedIn() && isEmailVerifiedWhenPresent();
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             ('role' in request.auth.token) &&
+             request.auth.token.role is string &&
+             request.auth.token.role == 'admin';
+    }
+
+    function isTeacher() {
+      return isAuthenticated() &&
+             ('role' in request.auth.token) &&
+             request.auth.token.role is string &&
+             request.auth.token.role == 'teacher';
+    }
+
+    function isStaff() {
+      return isAdmin() || isTeacher();
+    }
+
+    function hasMatchingTeacherId(teacherId) {
+      return isStaff() &&
+             ('teacherId' in request.auth.token) &&
+             request.auth.token.teacherId is string &&
+             request.auth.token.teacherId == teacherId;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+             request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+             (('uid' in resource.data) && request.resource.data.uid == resource.data.uid);
+    }
+
+    // =========================================================================
+    // Helper Functions: Schema, Type & Size Validation
+    // =========================================================================
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasMaxKeys(maxKeys) {
+      return request.resource.data.keys().size() <= maxKeys;
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return (field in request.resource.data) &&
+             request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isStr(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptStr(data, field, minLen, maxLen) {
+      return !(field in data) || isStr(data[field], minLen, maxLen);
+    }
+
+    function isOptBool(data, field) {
+      return !(field in data) || data[field] is bool;
+    }
+
+    function isOptNum(data, field, minVal, maxVal) {
+      return !(field in data) ||
+             (data[field] is number && data[field] >= minVal && data[field] <= maxVal);
+    }
+
+    function isOptList(data, field, maxSize) {
+      return !(field in data) || (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    function isOptMap(data, field, maxKeys) {
+      return !(field in data) || (data[field] is map && data[field].keys().size() <= maxKeys);
+    }
+
+    function isOptTimestamp(data, field) {
+      return !(field in data) || data[field] is timestamp;
+    }
+
+    function isValidList(list, maxSize) {
+      return list is list && list.size() <= maxSize;
+    }
+
+    function isValidUrl(url) {
+      return url is string &&
+             url.size() <= 2048 &&
+             (url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    function isValidMediaOrPath(val, maxLen) {
+      return val is string &&
+             val.size() <= maxLen &&
+             (val == '' ||
+              val.matches('^https://.*') ||
+              val.matches('^http://.*') ||
+              val.matches('^/.*') ||
+              val.matches('^data:image/(jpeg|pjpeg|png|webp);base64,.*'));
+    }
+
+    function isValidAttachmentOrMedia(val, maxLen) {
+      return val is string &&
+             val.size() <= maxLen &&
+             (val == '' ||
+              val.matches('^https://.*') ||
+              val.matches('^http://.*') ||
+              val.matches('^/.*') ||
+              val.matches('^data:image/(jpeg|pjpeg|png|webp);base64,.*') ||
+              val.matches('^data:application/pdf;base64,.*'));
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+             email.size() <= 160 &&
+             email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isPositive(field) {
+      return (field in request.resource.data) &&
+             request.resource.data[field] is number &&
+             request.resource.data[field] > 0;
+    }
+
+    function isRecent(time) {
+      return time is timestamp &&
+             time > request.time - duration.value(5, 'm') &&
+             time <= request.time;
+    }
+
+    // =========================================================================
+    // Domain Validators
+    // =========================================================================
+
+    function isValidSchoolSettings(data) {
+      let allowed = [
+        'schoolName', 'schoolLogo', 'schoolPhoto', 'customBorderPng', 'customBorders',
+        'selectedBorderId', 'address', 'eiin', 'estdYear', 'principalName',
+        'principalTitle', 'classTeacherTitle', 'guardianTitle', 'showWatermark',
+        'watermarkText', 'watermarkOpacity', 'phone', 'email', 'website',
+        'showClassSelection', 'showSectionSelection', 'showRollInput', 'language',
+        'theme', 'onlineAdmissionEnabled', 'uploadedPadTemplateUrl', 'uploadedPadType',
+        'uploadedPadFileName', 'uploadedPadFileSize', 'activePadMode', 'padMargins',
+        'padFontSize', 'padLineHeight', 'padSignatureGap', 'padRefPrefix',
+        'committeeMembers', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 45 &&
+             isOptStr(data, 'schoolName', 0, 200) &&
+             (!('schoolLogo' in data) || isValidMediaOrPath(data.schoolLogo, 700000)) &&
+             (!('schoolPhoto' in data) || isValidMediaOrPath(data.schoolPhoto, 700000)) &&
+             (!('customBorderPng' in data) || isValidMediaOrPath(data.customBorderPng, 700000)) &&
+             (!('uploadedPadTemplateUrl' in data) || isValidAttachmentOrMedia(data.uploadedPadTemplateUrl, 700000)) &&
+             isOptList(data, 'customBorders', 20) &&
+             isOptStr(data, 'selectedBorderId', 0, 100) &&
+             isOptStr(data, 'address', 0, 400) &&
+             isOptStr(data, 'eiin', 0, 30) &&
+             isOptStr(data, 'estdYear', 0, 20) &&
+             isOptStr(data, 'principalName', 0, 120) &&
+             isOptStr(data, 'principalTitle', 0, 120) &&
+             isOptStr(data, 'classTeacherTitle', 0, 120) &&
+             isOptStr(data, 'guardianTitle', 0, 120) &&
+             isOptBool(data, 'showWatermark') &&
+             isOptStr(data, 'watermarkText', 0, 200) &&
+             isOptNum(data, 'watermarkOpacity', 0, 1) &&
+             isOptStr(data, 'phone', 0, 50) &&
+             (!('email' in data) || data.email == '' || isValidEmail(data.email)) &&
+             isOptStr(data, 'website', 0, 250) &&
+             isOptBool(data, 'showClassSelection') &&
+             isOptBool(data, 'showSectionSelection') &&
+             isOptBool(data, 'showRollInput') &&
+             (!('language' in data) || data.language in ['bn', 'en']) &&
+             (!('theme' in data) || data.theme in ['light', 'dark']) &&
+             isOptBool(data, 'onlineAdmissionEnabled') &&
+             (!('uploadedPadType' in data) || data.uploadedPadType in ['image', 'pdf']) &&
+             isOptStr(data, 'uploadedPadFileName', 0, 200) &&
+             isOptNum(data, 'uploadedPadFileSize', 0, 20000000) &&
+             (!('activePadMode' in data) || data.activePadMode in ['uploaded', 'preprinted']) &&
+             isOptMap(data, 'padMargins', 4) &&
+             isOptNum(data, 'padFontSize', 6, 48) &&
+             isOptNum(data, 'padLineHeight', 0.5, 5) &&
+             isOptNum(data, 'padSignatureGap', 0, 20) &&
+             isOptStr(data, 'padRefPrefix', 0, 120) &&
+             isOptList(data, 'committeeMembers', 100) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidLandingPageConfig(data) {
+      let allowed = [
+        'version', 'lastUpdatedAt', 'updatedBy', 'header', 'hero', 'sections',
+        'stats', 'services', 'about', 'achievers', 'facilities', 'gallery',
+        'academic', 'blog', 'faq', 'contact', 'mobileApp', 'footer', 'theme',
+        'seo', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 25 &&
+             isOptNum(data, 'version', 0, 1000000) &&
+             isOptStr(data, 'lastUpdatedAt', 0, 64) &&
+             isOptStr(data, 'updatedBy', 0, 120) &&
+             isOptMap(data, 'header', 25) &&
+             isOptMap(data, 'hero', 25) &&
+             isOptList(data, 'sections', 50) &&
+             isOptMap(data, 'stats', 20) &&
+             isOptMap(data, 'services', 20) &&
+             isOptMap(data, 'about', 25) &&
+             isOptMap(data, 'achievers', 20) &&
+             isOptMap(data, 'facilities', 20) &&
+             isOptMap(data, 'gallery', 20) &&
+             isOptMap(data, 'academic', 20) &&
+             isOptMap(data, 'blog', 20) &&
+             isOptMap(data, 'faq', 20) &&
+             isOptMap(data, 'contact', 20) &&
+             isOptMap(data, 'mobileApp', 25) &&
+             isOptMap(data, 'footer', 25) &&
+             isOptMap(data, 'theme', 20) &&
+             isOptMap(data, 'seo', 20) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidNotice(data) {
+      let allowed = [
+        'id', 'title', 'content', 'category', 'targetAudience', 'priority',
+        'publisherName', 'publisherRole', 'publishedAt', 'isPinned', 'refNo',
+        'attachmentUrl', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'title', 'content', 'publishedAt', 'isPinned']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.title, 1, 250) &&
+             isStr(data.content, 1, 20000) &&
+             (!('category' in data) || data.category in ['general', 'academic', 'exam', 'emergency', 'holiday', 'events']) &&
+             (!('targetAudience' in data) || data.targetAudience in ['all', 'students', 'teachers', 'parents']) &&
+             (!('priority' in data) || data.priority in ['normal', 'important', 'urgent']) &&
+             isOptStr(data, 'publisherName', 0, 120) &&
+             isOptStr(data, 'publisherRole', 0, 120) &&
+             (data.publishedAt is timestamp || isStr(data.publishedAt, 1, 64)) &&
+             data.isPinned is bool &&
+             isOptStr(data, 'refNo', 0, 120) &&
+             (!('attachmentUrl' in data) || isValidAttachmentOrMedia(data.attachmentUrl, 500000)) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidClassItem(data) {
+      let allowed = [
+        'id', 'code', 'name', 'nameBn', 'gradeNumber', 'shift',
+        'classTeacher', 'totalStudents', 'sections', 'groups',
+        'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 14 &&
+             data.keys().hasAll(['id', 'code', 'name', 'gradeNumber', 'sections', 'groups']) &&
+             isStr(data.id, 1, 64) &&
+             isStr(data.code, 1, 32) &&
+             isStr(data.name, 1, 100) &&
+             isOptStr(data, 'nameBn', 0, 100) &&
+             data.gradeNumber is number && data.gradeNumber >= 1 && data.gradeNumber <= 15 &&
+             isOptStr(data, 'shift', 0, 64) &&
+             isOptStr(data, 'classTeacher', 0, 120) &&
+             isOptNum(data, 'totalStudents', 0, 50000) &&
+             isValidList(data.sections, 50) &&
+             isValidList(data.groups, 20) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidAcademicDataDoc(docId, data) {
+      return isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt') &&
+             ((docId == 'exam_setup' &&
+               data.keys().hasOnly(['exams', 'updatedAt', 'createdAt', 'schoolId']) &&
+               ('exams' in data) && isValidList(data.exams, 100)) ||
+              (docId == 'curriculum_subjects' &&
+               data.keys().hasOnly(['subjects', 'items', 'curriculum', 'updatedAt', 'createdAt', 'schoolId']) &&
+               isOptList(data, 'subjects', 500) &&
+               isOptList(data, 'items', 500) &&
+               isOptList(data, 'curriculum', 500) &&
+               (('subjects' in data) || ('items' in data) || ('curriculum' in data))) ||
+              (docId == 'session_setup' &&
+               data.keys().hasOnly(['sessions', 'activeSession', 'activeSessionId', 'updatedAt', 'createdAt', 'schoolId']) &&
+               isOptList(data, 'sessions', 100) &&
+               isOptMap(data, 'activeSession', 20) &&
+               isOptStr(data, 'activeSessionId', 0, 64) &&
+               (('sessions' in data) || ('activeSession' in data) || ('activeSessionId' in data))) ||
+              (docId == 'class_routines' &&
+               data.keys().hasOnly(['routines', 'slots', 'periods', 'updatedAt', 'createdAt', 'schoolId']) &&
+               isOptList(data, 'routines', 1000) &&
+               isOptList(data, 'slots', 1000) &&
+               isOptList(data, 'periods', 50) &&
+               (('routines' in data) || ('slots' in data) || ('periods' in data))));
+    }
+
+    function isValidTeacher(data) {
+      // Strictly disallow plaintext 'password' and self-assignable 'role' fields
+      let allowed = [
+        'id', 'name', 'designation', 'subject', 'qualification',
+        'mobile', 'phone', 'email', 'dob', 'photoUrl', 'photo',
+        'status', 'isClassTeacherOf', 'mustChangePassword', 'passwordHash',
+        'uid', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 20 &&
+             data.keys().hasAll(['id', 'name']) &&
+             isStr(data.id, 1, 64) &&
+             isStr(data.name, 1, 120) &&
+             isOptStr(data, 'designation', 0, 160) &&
+             isOptStr(data, 'subject', 0, 160) &&
+             isOptStr(data, 'qualification', 0, 200) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptStr(data, 'phone', 0, 40) &&
+             (!('email' in data) || data.email == '' || isValidEmail(data.email)) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             (!('photoUrl' in data) || isValidMediaOrPath(data.photoUrl, 500000)) &&
+             (!('photo' in data) || isValidMediaOrPath(data.photo, 500000)) &&
+             (!('status' in data) || data.status in ['active', 'inactive']) &&
+             isOptStr(data, 'isClassTeacherOf', 0, 100) &&
+             isOptBool(data, 'mustChangePassword') &&
+             isOptStr(data, 'passwordHash', 0, 256) &&
+             isOptStr(data, 'uid', 0, 128) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             (isOptTimestamp(data, 'createdAt') || isOptStr(data, 'createdAt', 0, 64));
+    }
+
+    function isValidStudent(data) {
+      let allowed = [
+        'id', 'name', 'nameEn', 'roll', 'grade', 'gradeBn', 'section', 'branch',
+        'group', 'optionalSubject', 'guardian', 'fatherName', 'fatherNid',
+        'fatherOcc', 'motherName', 'motherNid', 'motherOcc', 'session',
+        'mobile', 'attendance', 'gpa', 'birthRegNo', 'registrationNo',
+        'sscRoll', 'prevRoll', 'dob', 'gender', 'religion', 'bloodGroup',
+        'currentAddress', 'permanentAddress', 'photo', 'remarks', 'isStipend',
+        'stipendCategory', 'stipendStatus', 'stipendStartMonth', 'stipendMonth',
+        'examMarkAvg', 'prevSchoolName', 'prevGpa', 'appId', 'appliedAt',
+        'status', 'version', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 48 &&
+             data.keys().hasAll(['id', 'name', 'grade', 'roll']) &&
+             isStr(data.id, 1, 120) &&
+             isStr(data.name, 1, 120) &&
+             isOptStr(data, 'nameEn', 0, 120) &&
+             isStr(data.grade, 1, 30) &&
+             isOptStr(data, 'gradeBn', 0, 40) &&
+             isStr(data.roll, 1, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'branch', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'optionalSubject', 0, 120) &&
+             isOptStr(data, 'guardian', 0, 120) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'fatherNid', 0, 40) &&
+             isOptStr(data, 'fatherOcc', 0, 100) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'motherNid', 0, 40) &&
+             isOptStr(data, 'motherOcc', 0, 100) &&
+             isOptStr(data, 'session', 0, 40) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptNum(data, 'attendance', 0, 500) &&
+             isOptStr(data, 'gpa', 0, 20) &&
+             isOptStr(data, 'birthRegNo', 0, 40) &&
+             isOptStr(data, 'registrationNo', 0, 40) &&
+             isOptStr(data, 'sscRoll', 0, 30) &&
+             isOptStr(data, 'prevRoll', 0, 30) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             isOptStr(data, 'gender', 0, 30) &&
+             isOptStr(data, 'religion', 0, 40) &&
+             isOptStr(data, 'bloodGroup', 0, 20) &&
+             isOptStr(data, 'currentAddress', 0, 400) &&
+             isOptStr(data, 'permanentAddress', 0, 400) &&
+             (!('photo' in data) || isValidMediaOrPath(data.photo, 500000)) &&
+             isOptStr(data, 'remarks', 0, 400) &&
+             isOptBool(data, 'isStipend') &&
+             isOptStr(data, 'stipendCategory', 0, 100) &&
+             (!('stipendStatus' in data) || data.stipendStatus in ['Active', 'Suspended', 'Revoked']) &&
+             isOptStr(data, 'stipendStartMonth', 0, 40) &&
+             isOptStr(data, 'stipendMonth', 0, 40) &&
+             isOptNum(data, 'examMarkAvg', 0, 100) &&
+             isOptStr(data, 'prevSchoolName', 0, 160) &&
+             isOptStr(data, 'prevGpa', 0, 20) &&
+             isOptStr(data, 'appId', 0, 64) &&
+             isOptStr(data, 'appliedAt', 0, 64) &&
+             isOptStr(data, 'status', 0, 40) &&
+             isOptNum(data, 'version', 0, 1000000) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidCertificate(data) {
+      let allowed = [
+        'id', 'verificationCode', 'type', 'title', 'refNo', 'issueDate', 'status',
+        'layoutStyle', 'studentId', 'studentName', 'studentNameEn', 'fatherName',
+        'fatherNameEn', 'motherName', 'motherNameEn', 'guardian', 'admissionNo',
+        'roll', 'grade', 'section', 'group', 'session', 'dob', 'gender', 'religion',
+        'bloodGroup', 'birthRegNo', 'village', 'postOffice', 'upazila', 'district',
+        'address', 'boardRoll', 'boardReg', 'passingYear', 'gpa', 'isAlumni',
+        'achievementTitle', 'characterRemarks', 'customBody', 'templateId',
+        'padType', 'principalTitle', 'authorizedPersonTitle', 'cancelledAt',
+        'cancelledBy', 'cancellationReason', 'createdBy', 'createdDate',
+        'updatedDate', 'auditTrail', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      let validTypes = [
+        'ssc_testimonial', 'character_certificate', 'transfer_certificate',
+        'current_student', 'appreciation', 'merit_certificate',
+        'student_verification', 'participation', 'activity_certificate',
+        'custom_certificate'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 55 &&
+             data.keys().hasAll(['id', 'type', 'studentId', 'studentName', 'refNo', 'issueDate', 'createdDate']) &&
+             isStr(data.id, 1, 120) &&
+             isOptStr(data, 'verificationCode', 0, 120) &&
+             data.type in validTypes &&
+             isOptStr(data, 'title', 0, 200) &&
+             isStr(data.refNo, 1, 160) &&
+             isStr(data.issueDate, 1, 64) &&
+             (!('status' in data) || data.status in ['valid', 'cancelled']) &&
+             (!('layoutStyle' in data) || data.layoutStyle in ['pad', 'royal_border', 'modern_clean']) &&
+             isStr(data.studentId, 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'studentNameEn', 0, 120) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'fatherNameEn', 0, 120) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'motherNameEn', 0, 120) &&
+             isOptStr(data, 'guardian', 0, 120) &&
+             isOptStr(data, 'admissionNo', 0, 64) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'grade', 0, 40) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'session', 0, 40) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             isOptStr(data, 'gender', 0, 30) &&
+             isOptStr(data, 'religion', 0, 40) &&
+             isOptStr(data, 'bloodGroup', 0, 20) &&
+             isOptStr(data, 'birthRegNo', 0, 40) &&
+             isOptStr(data, 'village', 0, 120) &&
+             isOptStr(data, 'postOffice', 0, 120) &&
+             isOptStr(data, 'upazila', 0, 120) &&
+             isOptStr(data, 'district', 0, 120) &&
+             isOptStr(data, 'address', 0, 400) &&
+             isOptStr(data, 'boardRoll', 0, 40) &&
+             isOptStr(data, 'boardReg', 0, 40) &&
+             isOptStr(data, 'passingYear', 0, 20) &&
+             isOptStr(data, 'gpa', 0, 20) &&
+             isOptBool(data, 'isAlumni') &&
+             isOptStr(data, 'achievementTitle', 0, 300) &&
+             isOptStr(data, 'characterRemarks', 0, 1000) &&
+             isOptStr(data, 'customBody', 0, 10000) &&
+             isOptStr(data, 'templateId', 0, 100) &&
+             (!('padType' in data) || data.padType in ['digital_server', 'manual_printed', 'blank_pad']) &&
+             isOptStr(data, 'principalTitle', 0, 120) &&
+             isOptStr(data, 'authorizedPersonTitle', 0, 120) &&
+             isOptStr(data, 'cancelledAt', 0, 64) &&
+             isOptStr(data, 'cancelledBy', 0, 120) &&
+             isOptStr(data, 'cancellationReason', 0, 500) &&
+             isOptStr(data, 'createdBy', 0, 120) &&
+             isStr(data.createdDate, 1, 64) &&
+             isOptStr(data, 'updatedDate', 0, 64) &&
+             isOptList(data, 'auditTrail', 50) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidExamMark(data) {
+      let blobAllowed = ['storageKey', 'value', 'updatedAt', 'createdAt', 'schoolId'];
+      let recordAllowed = [
+        'id', 'studentId', 'classId', 'grade', 'branch', 'group',
+        'subjectId', 'subject', 'examId', 'cq', 'mcq', 'practical', 'ca',
+        'obtainedMarks', 'totalMarks', 'fullMarks', 'academicYear',
+        'enteredBy', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      let isSyncBlob = data.keys().hasOnly(blobAllowed) &&
+                       data.keys().hasAll(['storageKey', 'value']) &&
+                       data.storageKey is string &&
+                       data.storageKey.matches('^sms_marks_.*') &&
+                       data.storageKey.size() <= 200 &&
+                       data.value is string &&
+                       data.value.size() <= 250000 &&
+                       isOptStr(data, 'schoolId', 0, 64) &&
+                       isOptTimestamp(data, 'updatedAt') &&
+                       isOptTimestamp(data, 'createdAt');
+      let isNormalized = data.keys().hasOnly(recordAllowed) &&
+                         data.keys().size() <= 22 &&
+                         data.keys().hasAll(['studentId', 'examId']) &&
+                         isStr(data.studentId, 1, 120) &&
+                         isStr(data.examId, 1, 100) &&
+                         isOptStr(data, 'id', 1, 120) &&
+                         isOptStr(data, 'classId', 0, 64) &&
+                         isOptStr(data, 'grade', 0, 30) &&
+                         isOptStr(data, 'branch', 0, 40) &&
+                         isOptStr(data, 'group', 0, 60) &&
+                         isOptStr(data, 'subjectId', 0, 100) &&
+                         isOptStr(data, 'subject', 0, 120) &&
+                         isOptNum(data, 'cq', 0, 1000) &&
+                         isOptNum(data, 'mcq', 0, 1000) &&
+                         isOptNum(data, 'practical', 0, 1000) &&
+                         isOptNum(data, 'ca', 0, 1000) &&
+                         isOptNum(data, 'obtainedMarks', 0, 1000) &&
+                         isOptNum(data, 'totalMarks', 0, 1000) &&
+                         isOptNum(data, 'fullMarks', 1, 1000) &&
+                         (!('obtainedMarks' in data) || !('fullMarks' in data) || data.obtainedMarks <= data.fullMarks) &&
+                         isOptNum(data, 'academicYear', 2000, 2100) &&
+                         isOptStr(data, 'enteredBy', 0, 120) &&
+                         isOptStr(data, 'schoolId', 0, 64) &&
+                         isOptTimestamp(data, 'updatedAt') &&
+                         isOptTimestamp(data, 'createdAt');
+      return isSyncBlob || isNormalized;
+    }
+
+    function isValidAttendanceRecord(data) {
+      let blobAllowed = ['storageKey', 'value', 'updatedAt', 'createdAt', 'schoolId'];
+      let recordAllowed = [
+        'id', 'studentId', 'roll', 'name', 'classId', 'grade', 'branch',
+        'date', 'status', 'reason', 'guardian', 'mobile', 'markedBy',
+        'records', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      let isSyncBlob = data.keys().hasOnly(blobAllowed) &&
+                       data.keys().hasAll(['storageKey', 'value']) &&
+                       data.storageKey is string &&
+                       data.storageKey.matches('^sms_attendance_.*') &&
+                       data.storageKey.size() <= 200 &&
+                       data.value is string &&
+                       data.value.size() <= 250000 &&
+                       isOptStr(data, 'schoolId', 0, 64) &&
+                       isOptTimestamp(data, 'updatedAt') &&
+                       isOptTimestamp(data, 'createdAt');
+      let isNormalized = data.keys().hasOnly(recordAllowed) &&
+                         data.keys().size() <= 18 &&
+                         data.keys().hasAll(['date']) &&
+                         isStr(data.date, 4, 40) &&
+                         isOptStr(data, 'id', 1, 120) &&
+                         isOptStr(data, 'studentId', 1, 120) &&
+                         isOptStr(data, 'roll', 0, 30) &&
+                         isOptStr(data, 'name', 0, 120) &&
+                         isOptStr(data, 'classId', 0, 64) &&
+                         isOptStr(data, 'grade', 0, 30) &&
+                         isOptStr(data, 'branch', 0, 40) &&
+                         (!('status' in data) || data.status in ['present', 'absent', 'late', 'Present', 'Absent', 'Leave']) &&
+                         isOptStr(data, 'reason', 0, 300) &&
+                         isOptStr(data, 'guardian', 0, 120) &&
+                         isOptStr(data, 'mobile', 0, 40) &&
+                         isOptStr(data, 'markedBy', 0, 120) &&
+                         isOptList(data, 'records', 300) &&
+                         isOptStr(data, 'schoolId', 0, 64) &&
+                         isOptTimestamp(data, 'updatedAt') &&
+                         isOptTimestamp(data, 'createdAt');
+      return isSyncBlob || isNormalized;
+    }
+
+    function isValidPublicOnlineApplication(data) {
+      // Strictly excludes all admin/review/stipend/roll/privilege fields
+      let allowed = [
+        'id', 'appId', 'studentName', 'studentNameEn', 'appliedClass',
+        'section', 'branch', 'group', 'optionalSubject', 'dob', 'gender',
+        'religion', 'bloodGroup', 'fatherName', 'fatherNid', 'fatherOcc',
+        'motherName', 'motherNid', 'motherOcc', 'guardian', 'mobile',
+        'phone', 'email', 'birthRegNo', 'prevSchoolName', 'prevGpa',
+        'currentAddress', 'permanentAddress', 'photo', 'appliedAt',
+        'status', 'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 35 &&
+             data.keys().hasAll(['studentName', 'appliedClass', 'status']) &&
+             isOptStr(data, 'id', 1, 100) &&
+             isOptStr(data, 'appId', 1, 100) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'studentNameEn', 0, 120) &&
+             isStr(data.appliedClass, 1, 40) &&
+             data.status == 'pending' &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'branch', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'optionalSubject', 0, 120) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             isOptStr(data, 'gender', 0, 30) &&
+             isOptStr(data, 'religion', 0, 40) &&
+             isOptStr(data, 'bloodGroup', 0, 20) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'fatherNid', 0, 40) &&
+             isOptStr(data, 'fatherOcc', 0, 100) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'motherNid', 0, 40) &&
+             isOptStr(data, 'motherOcc', 0, 100) &&
+             isOptStr(data, 'guardian', 0, 120) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptStr(data, 'phone', 0, 40) &&
+             (!('email' in data) || data.email == '' || isValidEmail(data.email)) &&
+             isOptStr(data, 'birthRegNo', 0, 40) &&
+             isOptStr(data, 'prevSchoolName', 0, 160) &&
+             isOptStr(data, 'prevGpa', 0, 20) &&
+             isOptStr(data, 'currentAddress', 0, 400) &&
+             isOptStr(data, 'permanentAddress', 0, 400) &&
+             (!('photo' in data) || isValidMediaOrPath(data.photo, 500000)) &&
+             isOptStr(data, 'appliedAt', 0, 64) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             (!('createdAt' in data) || isRecent(data.createdAt)) &&
+             (!('updatedAt' in data) || isRecent(data.updatedAt));
+    }
+
+    function isValidAdminOnlineApplication(data) {
+      let allowed = [
+        'id', 'appId', 'studentName', 'studentNameEn', 'name', 'nameEn',
+        'appliedClass', 'grade', 'section', 'branch', 'roll', 'group',
+        'optionalSubject', 'dob', 'gender', 'religion', 'bloodGroup',
+        'fatherName', 'fatherNid', 'fatherOcc', 'motherName', 'motherNid',
+        'motherOcc', 'guardian', 'mobile', 'phone', 'email', 'birthRegNo',
+        'prevSchoolName', 'prevGpa', 'currentAddress', 'permanentAddress',
+        'photo', 'appliedAt', 'status', 'isStipend', 'stipendCategory',
+        'reviewedBy', 'reviewedAt', 'adminRemarks', 'admittedStudentId',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 45 &&
+             (('studentName' in data && isStr(data.studentName, 1, 120)) ||
+              ('name' in data && isStr(data.name, 1, 120))) &&
+             (('appliedClass' in data && isStr(data.appliedClass, 1, 40)) ||
+              ('grade' in data && isStr(data.grade, 1, 40))) &&
+             ('status' in data) &&
+             data.status in ['pending', 'under_review', 'approved', 'rejected', 'Admitted'] &&
+             isOptStr(data, 'id', 1, 100) &&
+             isOptStr(data, 'appId', 1, 100) &&
+             isOptStr(data, 'studentNameEn', 0, 120) &&
+             isOptStr(data, 'nameEn', 0, 120) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'branch', 0, 40) &&
+             isOptStr(data, 'roll', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'optionalSubject', 0, 120) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             isOptStr(data, 'gender', 0, 30) &&
+             isOptStr(data, 'religion', 0, 40) &&
+             isOptStr(data, 'bloodGroup', 0, 20) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'fatherNid', 0, 40) &&
+             isOptStr(data, 'fatherOcc', 0, 100) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'motherNid', 0, 40) &&
+             isOptStr(data, 'motherOcc', 0, 100) &&
+             isOptStr(data, 'guardian', 0, 120) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptStr(data, 'phone', 0, 40) &&
+             (!('email' in data) || data.email == '' || isValidEmail(data.email)) &&
+             isOptStr(data, 'birthRegNo', 0, 40) &&
+             isOptStr(data, 'prevSchoolName', 0, 160) &&
+             isOptStr(data, 'prevGpa', 0, 20) &&
+             isOptStr(data, 'currentAddress', 0, 400) &&
+             isOptStr(data, 'permanentAddress', 0, 400) &&
+             (!('photo' in data) || isValidMediaOrPath(data.photo, 500000)) &&
+             isOptStr(data, 'appliedAt', 0, 64) &&
+             isOptBool(data, 'isStipend') &&
+             isOptStr(data, 'stipendCategory', 0, 100) &&
+             isOptStr(data, 'reviewedBy', 0, 120) &&
+             isOptStr(data, 'reviewedAt', 0, 64) &&
+             isOptStr(data, 'adminRemarks', 0, 500) &&
+             isOptStr(data, 'admittedStudentId', 0, 120) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidFeeInvoice(data) {
+      let allowed = [
+        'id', 'invoiceNo', 'invoiceId', 'studentId', 'studentName', 'roll',
+        'mobile', 'grade', 'section', 'month', 'year', 'issueDate', 'dueDate',
+        'items', 'subtotal', 'totalDiscount', 'waiverReason', 'totalPayable',
+        'netPayable', 'totalPaid', 'paidAmount', 'dueAmount', 'status',
+        'payments', 'notes', 'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 30 &&
+             data.keys().hasAll(['id', 'studentId', 'studentName', 'totalPayable', 'totalPaid', 'dueAmount', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isOptStr(data, 'invoiceNo', 0, 100) &&
+             isOptStr(data, 'invoiceId', 0, 100) &&
+             isStr(data.studentId, 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'month', 0, 40) &&
+             isOptNum(data, 'year', 2000, 2100) &&
+             isOptStr(data, 'issueDate', 0, 64) &&
+             isOptStr(data, 'dueDate', 0, 64) &&
+             isOptList(data, 'items', 50) &&
+             isOptNum(data, 'subtotal', 0, 100000000) &&
+             isOptNum(data, 'totalDiscount', 0, 100000000) &&
+             isOptStr(data, 'waiverReason', 0, 300) &&
+             data.totalPayable is number && data.totalPayable >= 0 && data.totalPayable <= 100000000 &&
+             isOptNum(data, 'netPayable', 0, 100000000) &&
+             data.totalPaid is number && data.totalPaid >= 0 && data.totalPaid <= 100000000 &&
+             isOptNum(data, 'paidAmount', 0, 100000000) &&
+             data.dueAmount is number && data.dueAmount >= 0 && data.dueAmount <= 100000000 &&
+             data.status in ['unpaid', 'partial', 'paid', 'cancelled'] &&
+             isOptList(data, 'payments', 100) &&
+             isOptStr(data, 'notes', 0, 500) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             (isOptTimestamp(data, 'createdAt') || isOptStr(data, 'createdAt', 0, 64));
+    }
+
+    function isValidFeeLedger(data) {
+      let allowed = [
+        'id', 'studentId', 'studentName', 'roll', 'grade', 'section',
+        'sessionYear', 'isStipend', 'stipendStartMonth', 'openingDue',
+        'openingDuePaid', 'openingDueRemaining', 'openingDueNote',
+        'openingDueSetDate', 'months', 'otherFees', 'totalBilled',
+        'totalPaid', 'totalDiscount', 'totalDue', 'lastPaymentDate',
+        'lastPaymentMethod', 'lastReceiptId', 'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 30 &&
+             data.keys().hasAll(['studentId', 'sessionYear', 'totalBilled', 'totalPaid', 'totalDue']) &&
+             isOptStr(data, 'id', 1, 120) &&
+             isStr(data.studentId, 1, 120) &&
+             isOptStr(data, 'studentName', 0, 120) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             data.sessionYear is number && data.sessionYear >= 2000 && data.sessionYear <= 2100 &&
+             isOptBool(data, 'isStipend') &&
+             isOptStr(data, 'stipendStartMonth', 0, 40) &&
+             isOptNum(data, 'openingDue', 0, 100000000) &&
+             isOptNum(data, 'openingDuePaid', 0, 100000000) &&
+             isOptNum(data, 'openingDueRemaining', 0, 100000000) &&
+             isOptStr(data, 'openingDueNote', 0, 300) &&
+             isOptStr(data, 'openingDueSetDate', 0, 64) &&
+             isOptList(data, 'months', 24) &&
+             isOptMap(data, 'otherFees', 50) &&
+             data.totalBilled is number && data.totalBilled >= 0 && data.totalBilled <= 100000000 &&
+             data.totalPaid is number && data.totalPaid >= 0 && data.totalPaid <= 100000000 &&
+             isOptNum(data, 'totalDiscount', 0, 100000000) &&
+             data.totalDue is number && data.totalDue >= 0 && data.totalDue <= 100000000 &&
+             isOptStr(data, 'lastPaymentDate', 0, 64) &&
+             isOptStr(data, 'lastPaymentMethod', 0, 64) &&
+             isOptStr(data, 'lastReceiptId', 0, 100) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidPayrollRecord(data) {
+      let allowed = [
+        'id', 'voucherNo', 'teacherId', 'teacherName', 'designation',
+        'month', 'year', 'baseSalary', 'allowances', 'bonus', 'deductions',
+        'netPayable', 'paidAmount', 'status', 'paymentDate', 'paymentMethod',
+        'trxId', 'note', 'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 24 &&
+             data.keys().hasAll(['id', 'teacherId', 'teacherName', 'month', 'year', 'netPayable', 'paidAmount', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isOptStr(data, 'voucherNo', 0, 100) &&
+             isStr(data.teacherId, 1, 64) &&
+             isStr(data.teacherName, 1, 120) &&
+             isOptStr(data, 'designation', 0, 120) &&
+             isStr(data.month, 1, 40) &&
+             data.year is number && data.year >= 2000 && data.year <= 2100 &&
+             isOptNum(data, 'baseSalary', 0, 10000000) &&
+             isOptNum(data, 'allowances', 0, 10000000) &&
+             isOptNum(data, 'bonus', 0, 10000000) &&
+             isOptNum(data, 'deductions', 0, 10000000) &&
+             data.netPayable is number && data.netPayable >= 0 && data.netPayable <= 10000000 &&
+             data.paidAmount is number && data.paidAmount >= 0 && data.paidAmount <= 10000000 &&
+             data.status in ['Paid', 'Pending', 'paid', 'pending'] &&
+             isOptStr(data, 'paymentDate', 0, 64) &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['Cash', 'Bank Transfer', 'bKash', 'Nagad']) &&
+             isOptStr(data, 'trxId', 0, 120) &&
+             isOptStr(data, 'note', 0, 500) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidExpenseRecord(data) {
+      let allowed = [
+        'id', 'voucherNo', 'category', 'accountCode', 'amount', 'date',
+        'paidTo', 'paymentMethod', 'note', 'recordedBy',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'category', 'amount', 'date', 'paidTo']) &&
+             isStr(data.id, 1, 100) &&
+             isOptStr(data, 'voucherNo', 0, 100) &&
+             isStr(data.category, 1, 120) &&
+             isOptStr(data, 'accountCode', 0, 40) &&
+             data.amount is number && data.amount > 0 && data.amount <= 100000000 &&
+             isStr(data.date, 4, 64) &&
+             isStr(data.paidTo, 1, 160) &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['Cash', 'Bank Check', 'Bank Transfer', 'bKash', 'Nagad']) &&
+             isOptStr(data, 'note', 0, 500) &&
+             isOptStr(data, 'recordedBy', 0, 120) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidLedgerRecord(data) {
+      let allowed = [
+        'id', 'type', 'category', 'grade', 'studentName', 'studentRoll',
+        'amount', 'voucherNo', 'date', 'paymentMethod', 'description',
+        'createdByName', 'updatedAt', 'createdAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'type', 'category', 'amount', 'voucherNo', 'date']) &&
+             isStr(data.id, 1, 100) &&
+             data.type in ['Income', 'Expense'] &&
+             isStr(data.category, 1, 120) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'studentName', 0, 120) &&
+             isOptStr(data, 'studentRoll', 0, 30) &&
+             data.amount is number && data.amount > 0 && data.amount <= 100000000 &&
+             isStr(data.voucherNo, 1, 100) &&
+             isStr(data.date, 4, 64) &&
+             (!('paymentMethod' in data) || data.paymentMethod in ['Cash', 'bKash', 'Nagad', 'Bank Transfer']) &&
+             isOptStr(data, 'description', 0, 500) &&
+             isOptStr(data, 'createdByName', 0, 120) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidStipendStudent(data) {
+      let allowed = [
+        'id', 'studentId', 'name', 'studentName', 'roll', 'grade', 'section',
+        'group', 'mobile', 'isStipend', 'stipendCategory', 'stipendStatus',
+        'stipendStartMonth', 'monthlyAmount', 'attRate', 'examMarkAvg',
+        'isEligible', 'bankAccount', 'mobileBankingNo', 'remarks',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 26 &&
+             data.keys().hasAll(['id', 'grade', 'roll']) &&
+             (('name' in data && isStr(data.name, 1, 120)) ||
+              ('studentName' in data && isStr(data.studentName, 1, 120))) &&
+             isStr(data.id, 1, 120) &&
+             isOptStr(data, 'studentId', 1, 120) &&
+             isStr(data.grade, 1, 30) &&
+             isStr(data.roll, 1, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'mobile', 0, 40) &&
+             isOptBool(data, 'isStipend') &&
+             isOptStr(data, 'stipendCategory', 0, 100) &&
+             (!('stipendStatus' in data) || data.stipendStatus in ['Active', 'Suspended', 'Revoked']) &&
+             isOptStr(data, 'stipendStartMonth', 0, 40) &&
+             isOptNum(data, 'monthlyAmount', 0, 100000) &&
+             isOptNum(data, 'attRate', 0, 100) &&
+             isOptNum(data, 'examMarkAvg', 0, 100) &&
+             isOptBool(data, 'isEligible') &&
+             isOptStr(data, 'bankAccount', 0, 80) &&
+             isOptStr(data, 'mobileBankingNo', 0, 40) &&
+             isOptStr(data, 'remarks', 0, 400) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidTeacherLeave(data) {
+      let allowed = [
+        'id', 'teacherId', 'teacherName', 'designation', 'leaveType',
+        'startDate', 'endDate', 'totalDays', 'reason', 'appliedAt',
+        'status', 'reviewedBy', 'reviewedAt', 'remarks',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 18 &&
+             data.keys().hasAll(['id', 'teacherId', 'teacherName', 'leaveType', 'startDate', 'endDate', 'totalDays', 'reason', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.teacherId, 1, 64) &&
+             isStr(data.teacherName, 1, 120) &&
+             isOptStr(data, 'designation', 0, 120) &&
+             data.leaveType in ['casual', 'medical', 'maternity', 'emergency', 'earned'] &&
+             isStr(data.startDate, 4, 40) &&
+             isStr(data.endDate, 4, 40) &&
+             data.totalDays is number && data.totalDays > 0 && data.totalDays <= 365 &&
+             isStr(data.reason, 3, 2000) &&
+             isOptStr(data, 'appliedAt', 0, 64) &&
+             data.status in ['Pending', 'pending', 'Approved', 'approved', 'Rejected', 'rejected'] &&
+             isOptStr(data, 'reviewedBy', 0, 120) &&
+             isOptStr(data, 'reviewedAt', 0, 64) &&
+             isOptStr(data, 'remarks', 0, 500) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidSscTestimonial(data) {
+      let allowed = [
+        'id', 'studentId', 'studentName', 'fatherName', 'motherName',
+        'village', 'postOffice', 'upazilla', 'upazila', 'district', 'dob',
+        'dobWords', 'gender', 'schoolName', 'schoolNameEn', 'schoolAddress',
+        'schoolAddressEn', 'eiin', 'boardName', 'centerName', 'group',
+        'boardRoll', 'boardReg', 'session', 'passingYear', 'gpa', 'gradeLetter',
+        'issueDate', 'refNo', 'characterRemarks', 'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 35 &&
+             data.keys().hasAll(['id', 'studentName', 'boardRoll', 'passingYear', 'refNo']) &&
+             isStr(data.id, 1, 120) &&
+             isOptStr(data, 'studentId', 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'village', 0, 120) &&
+             isOptStr(data, 'postOffice', 0, 120) &&
+             isOptStr(data, 'upazilla', 0, 120) &&
+             isOptStr(data, 'upazila', 0, 120) &&
+             isOptStr(data, 'district', 0, 120) &&
+             isOptStr(data, 'dob', 0, 40) &&
+             isOptStr(data, 'dobWords', 0, 200) &&
+             (!('gender' in data) || data.gender in ['Male', 'Female', 'Other']) &&
+             isOptStr(data, 'schoolName', 0, 200) &&
+             isOptStr(data, 'schoolNameEn', 0, 200) &&
+             isOptStr(data, 'schoolAddress', 0, 300) &&
+             isOptStr(data, 'schoolAddressEn', 0, 300) &&
+             isOptStr(data, 'eiin', 0, 30) &&
+             isOptStr(data, 'boardName', 0, 120) &&
+             isOptStr(data, 'centerName', 0, 120) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isStr(data.boardRoll, 1, 40) &&
+             isOptStr(data, 'boardReg', 0, 40) &&
+             isOptStr(data, 'session', 0, 40) &&
+             isStr(data.passingYear, 1, 20) &&
+             isOptStr(data, 'gpa', 0, 20) &&
+             isOptStr(data, 'gradeLetter', 0, 10) &&
+             isOptStr(data, 'issueDate', 0, 64) &&
+             isStr(data.refNo, 1, 160) &&
+             isOptStr(data, 'characterRemarks', 0, 1000) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidClassRoutine(data) {
+      let allowed = [
+        'id', 'classId', 'grade', 'branch', 'day', 'dayBn', 'periodNo',
+        'subject', 'teacherId', 'teacherName', 'roomNo',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'classId', 'day', 'periodNo', 'subject']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.classId, 1, 64) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'branch', 0, 40) &&
+             data.day in ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'] &&
+             isOptStr(data, 'dayBn', 0, 40) &&
+             data.periodNo is int && data.periodNo >= 1 && data.periodNo <= 12 &&
+             isStr(data.subject, 1, 120) &&
+             isOptStr(data, 'teacherId', 0, 64) &&
+             isOptStr(data, 'teacherName', 0, 120) &&
+             isOptStr(data, 'roomNo', 0, 40) &&
+             isOptStr(data, 'schoolId', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidSystemHealth(data) {
+      let allowed = ['timestamp', 'client', 'project', 'status', 'updatedAt', 'createdAt'];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 6 &&
+             isOptTimestamp(data, 'timestamp') &&
+             isOptStr(data, 'client', 0, 120) &&
+             isOptStr(data, 'project', 0, 64) &&
+             isOptStr(data, 'status', 0, 32) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptTimestamp(data, 'createdAt');
+    }
+
+    function isValidFcmToken(data) {
+      let allowed = ['token', 'role', 'userAgent', 'platform', 'uid', 'subscribedAt', 'lastActiveAt'];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 8 &&
+             data.keys().hasAll(['token', 'role']) &&
+             isStr(data.token, 20, 500) &&
+             data.role in ['admin', 'teacher', 'guardian'] &&
+             isOptStr(data, 'userAgent', 0, 500) &&
+             isOptStr(data, 'platform', 0, 64) &&
+             isOptStr(data, 'uid', 0, 128) &&
+             isOptTimestamp(data, 'subscribedAt') &&
+             isOptTimestamp(data, 'lastActiveAt');
+    }
+
+    // =========================================================================
+    // Collection Rules
+    // =========================================================================
+
+    // 1. Public School Metadata ('settings/general' public read; admin-only write)
+    match /settings/{docId} {
+      allow read: if docId == 'general' || isAdmin();
+      allow create: if isAdmin() && isValidSchoolSettings(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidSchoolSettings(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 2. Public Landing Page CMS ('landing_page/published' public read; admin-only write)
+    match /landing_page/{docId} {
+      allow read: if docId == 'published' || isAdmin();
+      allow create: if isAdmin() && isValidLandingPageConfig(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidLandingPageConfig(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 3. Notices (public read for website & PWA; staff CRUD with schema validation)
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow create: if isStaff() && isValidNotice(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidNotice(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isStaff();
+    }
+
+    // 4. Classes & Sections (public read for portal/admission; admin-only write)
+    match /classes/{classId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidClassItem(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidClassItem(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 5. Academic Data (public single-doc get for 4 published docs; staff list; admin write)
+    match /academic_data/{docId} {
+      allow get: if docId in ['exam_setup', 'curriculum_subjects', 'session_setup', 'class_routines'] || isStaff();
+      allow list: if isStaff();
+      allow create: if isAdmin() && isValidAcademicDataDoc(docId, request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidAcademicDataDoc(docId, request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 6. Teachers Directory & Credentials (sensitive: admin full; self get by teacherId claim; no public list)
+    match /teachers/{teacherId} {
+      allow get: if isAdmin() || hasMatchingTeacherId(teacherId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidTeacher(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidTeacher(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 7. Students Roster (PII: staff read; admin-only CRUD with strict validation)
+    match /students/{studentId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() && isValidStudent(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidStudent(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 8. Certificates (public single-doc get for QR verification; no unauthenticated list; staff create/update; admin delete)
+    match /certificates/{certId} {
+      allow get: if true;
+      allow list: if isStaff();
+      allow create: if isStaff() && isValidCertificate(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidCertificate(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'studentId', 'createdDate', 'createdAt']) &&
+                       (!('status' in resource.data) ||
+                        resource.data.status != 'cancelled' ||
+                        (('status' in request.resource.data) && request.resource.data.status == 'cancelled'));
+      allow delete: if isAdmin();
+    }
+
+    // 9. Exam Marks (staff read/create/update with score bounds; admin delete)
+    match /exam_marks/{markId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidExamMark(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidExamMark(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt', 'storageKey', 'studentId', 'examId']);
+      allow delete: if isAdmin();
+    }
+
+    // 10. Attendance Records (staff read/create/update with key validation; admin delete)
+    match /attendance_records/{recordId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidAttendanceRecord(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidAttendanceRecord(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt', 'storageKey', 'studentId', 'date']);
+      allow delete: if isAdmin();
+    }
+
+    // 11. Online Admission Applications (public create ONLY with status=='pending' & no admin fields; admin read/update/delete)
+    match /online_applications/{appId} {
+      allow read: if isAdmin();
+      allow create: if isValidPublicOnlineApplication(request.resource.data) ||
+                       (isAdmin() && isValidAdminOnlineApplication(request.resource.data));
+      allow update: if isAdmin() &&
+                       isValidAdminOnlineApplication(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'appId', 'appliedAt', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 12. Financial & Administrative Collections (Admin only, except teacher_leaves & class_routines)
+    match /fee_invoices/{invoiceId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidFeeInvoice(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidFeeInvoice(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'studentId', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /fee_ledgers/{ledgerId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidFeeLedger(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidFeeLedger(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['studentId', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /payroll_records/{payrollId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidPayrollRecord(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidPayrollRecord(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'teacherId', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /expense_records/{expenseId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidExpenseRecord(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidExpenseRecord(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /ledger_records/{ledgerId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidLedgerRecord(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidLedgerRecord(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /stipend_students/{stipendId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidStipendStudent(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidStipendStudent(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /teacher_leaves/{leaveId} {
+      allow read: if isAdmin() ||
+                     (isStaff() &&
+                      resource != null &&
+                      ('teacherId' in resource.data) &&
+                      hasMatchingTeacherId(resource.data.teacherId));
+      allow create: if isValidTeacherLeave(request.resource.data) &&
+                       (isAdmin() ||
+                        (isStaff() &&
+                         hasMatchingTeacherId(request.resource.data.teacherId) &&
+                         request.resource.data.status in ['Pending', 'pending'] &&
+                         !('reviewedBy' in request.resource.data) &&
+                         !('reviewedAt' in request.resource.data) &&
+                         !('remarks' in request.resource.data) &&
+                         (!('createdAt' in request.resource.data) || isRecent(request.resource.data.createdAt))));
+      allow update: if isAdmin() &&
+                       isValidTeacherLeave(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'teacherId', 'appliedAt', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /ssc_testimonials/{testimonialId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidSscTestimonial(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidSscTestimonial(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'studentId', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /class_routines/{routineId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() && isValidClassRoutine(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidClassRoutine(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 13. System Health Check (signed-in read; admin-only write)
+    match /_system_health/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidSystemHealth(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidSystemHealth(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 14. FCM Push Notification Device Tokens (discovered in pushNotificationService.ts)
+    match /fcm_tokens/{tokenId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() &&
+                       isValidFcmToken(request.resource.data) &&
+                       uidUnchanged() &&
+                       (request.resource.data.role == 'guardian' ||
+                        (request.resource.data.role == 'teacher' && isStaff()) ||
+                        (request.resource.data.role == 'admin' && isAdmin()));
+      allow update: if isValidFcmToken(request.resource.data) &&
+                       (isAdmin() ||
+                        (isAuthenticated() &&
+                         ('uid' in resource.data) &&
+                         resource.data.uid is string &&
+                         resource.data.uid == request.auth.uid &&
+                         uidNotModified() &&
+                         request.resource.data.role == resource.data.role &&
+                         areImmutableFieldsUnchanged(['subscribedAt', 'token', 'role', 'uid']))) &&
+                       areImmutableFieldsUnchanged(['subscribedAt']);
+      allow delete: if isAdmin();
+    }
+  }
+}

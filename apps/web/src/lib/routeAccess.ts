@@ -15,7 +15,6 @@ export const TEACHER_ALLOWED_PREFIXES: readonly string[] = [
   '/dashboard/exam/mark-entry',
   '/dashboard/academic/attendance',
   '/dashboard/notices',
-  '/dashboard/mobile-app', // existing redirect page → teacher-portal
 ];
 
 export const TEACHER_HOME = '/dashboard/teacher-portal';

@@ -8,6 +8,7 @@ import type {
   SyncPullResponse
 } from '@sms/shared-types';
 import { clientLicenseService } from './clientLicenseService';
+import { getConfiguredCentralApiUrl, getCentralApiBaseUrl } from '@/lib/centralApiConfig';
 
 const STORAGE_KEY_QUEUE = 'sms_offline_sync_queue_v2';
 const STORAGE_KEY_LAST_SYNC = 'sms_last_successful_sync_timestamp';
@@ -21,12 +22,14 @@ export interface SyncStatus {
 }
 
 class SyncQueueService {
-  private apiBaseUrl: string = process.env.NEXT_PUBLIC_CENTRAL_API_URL || 'http://localhost:3000';
+  private get apiBaseUrl(): string {
+    return getCentralApiBaseUrl();
+  }
   private isSyncing: boolean = false;
   private syncTimer: any = null;
 
   constructor() {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && getConfiguredCentralApiUrl()) {
       // Listen for online status restoration
       window.addEventListener('online', () => {
         console.log('[SyncService] Device connected online. Initiating auto-sync...');
@@ -72,7 +75,7 @@ class SyncQueueService {
     version: number = 1
   ): Promise<SyncQueueItem<T>> {
     const regState = clientLicenseService.getRegistrationState();
-    const schoolId = regState.schoolCode || 'SCH-106184';
+    const schoolId = regState.schoolCode || 'SCH-DEFAULT';
     const timestamp = new Date().toISOString();
     const id = `sync-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const idempotencyKey = this.generateIdempotencyKey(schoolId, entityType, entityId, action, version, timestamp);
@@ -159,7 +162,7 @@ class SyncQueueService {
    */
   public async pushBatch(): Promise<SyncPushBatchResponse | null> {
     const regState = clientLicenseService.getRegistrationState();
-    const schoolId = regState.schoolCode || 'SCH-106184';
+    const schoolId = regState.schoolCode || 'SCH-DEFAULT';
     const hw = await clientLicenseService.getHardwareInfo();
 
     let items: SyncQueueItem[] = [];
@@ -215,7 +218,7 @@ class SyncQueueService {
    */
   public async pullChanges(): Promise<number> {
     const regState = clientLicenseService.getRegistrationState();
-    const schoolId = regState.schoolCode || 'SCH-106184';
+    const schoolId = regState.schoolCode || 'SCH-DEFAULT';
     const hw = await clientLicenseService.getHardwareInfo();
     const lastSync = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_LAST_SYNC) || undefined : undefined;
 
@@ -257,6 +260,9 @@ class SyncQueueService {
    */
   public async syncAll(): Promise<{ pushed: number; pulled: number }> {
     if (this.isSyncing) return { pushed: 0, pulled: 0 };
+    if (!getConfiguredCentralApiUrl()) {
+      return { pushed: 0, pulled: 0 };
+    }
     this.isSyncing = true;
     this.notifyStatusChange();
 

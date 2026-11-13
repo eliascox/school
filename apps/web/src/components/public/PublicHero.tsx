@@ -157,8 +157,8 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
     // C. Curated high-res default slides
     return CURATED_DEFAULT_SLIDES.map((s, i) => ({
       ...s,
-      title: i === 0 && (heroConfig?.title || settings?.schoolName) ? (heroConfig?.title || settings?.schoolName!) : s.title,
-      subtitle: i === 0 && (heroConfig?.subtitle || settings?.address) ? (heroConfig?.subtitle || settings?.address!) : s.subtitle,
+      title: i === 0 ? (heroConfig?.title || settings?.schoolName || s.title) : s.title,
+      subtitle: i === 0 ? (heroConfig?.subtitle || settings?.address || s.subtitle) : s.subtitle,
       badge: heroConfig?.badgeText || s.badge,
     }));
   }, [

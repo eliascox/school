@@ -20,6 +20,10 @@ interface PublicGallerySectionProps {
 }
 
 export default function PublicGallerySection({ galleryConfig }: PublicGallerySectionProps = {}) {
+  // Lightbox Modal State
+  const [activeMedia, setActiveMedia] = useState<GalleryMediaItem | null>(null);
+  const [showAllModal, setShowAllModal] = useState<boolean>(false);
+
   if (galleryConfig && galleryConfig.enabled === false) {
     return null;
   }
@@ -64,10 +68,6 @@ export default function PublicGallerySection({ galleryConfig }: PublicGallerySec
   const sectionEyebrow = galleryConfig?.eyebrow || 'ক্যাম্পাস লাইফ ও স্মৃতি';
   const sectionTitle = galleryConfig?.title || 'ছবি এবং ভিডিও গ্যালারী';
   const sectionSubtitle = galleryConfig?.subtitle || 'বিদ্যালয়ের প্রাণবন্ত পাঠদান, ক্রীড়া ও সাংস্কৃতিক উৎসব এবং বিজ্ঞান প্রদর্শনীর স্মরণীয় মুহূর্তসমূহ।';
-
-  // Lightbox Modal State
-  const [activeMedia, setActiveMedia] = useState<GalleryMediaItem | null>(null);
-  const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
     <section id="gallery" className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">

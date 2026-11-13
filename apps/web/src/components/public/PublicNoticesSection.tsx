@@ -20,6 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Notice } from '@/services/noticeService';
+import { showToast } from '@/components/ui/ToastProvider';
 
 interface PublicNoticesSectionProps {
   notices?: Notice[];
@@ -457,7 +458,7 @@ export default function PublicNoticesSection({
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => alert('পিডিএফ বিজ্ঞপ্তি ডাউনলোড করা হচ্ছে...')}
+                onClick={() => showToast('পিডিএফ বিজ্ঞপ্তি ডাউনলোড করা হচ্ছে...', 'info')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-[#0B5D3B] hover:text-white text-[#0B5D3B] font-bold text-xs transition-colors"
               >
                 <Download className="w-4 h-4" />

@@ -99,10 +99,10 @@ export default function OfficialCertificateDoc({
       hideHeaderActions={hideHeaderActions}
       signatures={[
         {
-          title: safeSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+          title: safeSettings.principalName || 'প্রধান শিক্ষক / অধ্যক্ষ',
           designation: safeSettings.principalTitle || 'প্রধান শিক্ষক',
-          institution: safeSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-          address: safeSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+          institution: safeSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+          address: safeSettings.address || '',
           rightAligned: true,
         },
       ]}
@@ -119,7 +119,7 @@ export default function OfficialCertificateDoc({
               {cert.address && !cert.village ? (
                 <>ঠিকানা: <strong className="font-bold">{cert.address}</strong>।</>
               ) : (
-                <>গ্রাম: <strong className="font-bold">{cert.village || 'বরইতলী'}</strong>, ডাকঘর: <strong className="font-bold">{cert.postOffice || 'বরইতলী'}</strong>, উপজেলা: <strong className="font-bold">{cert.upazila || 'চকরিয়া'}</strong>, জেলা: <strong className="font-bold">{cert.district || 'কক্সবাজার'}</strong>।</>
+                <>গ্রাম: <strong className="font-bold">{cert.village || '---'}</strong>, ডাকঘর: <strong className="font-bold">{cert.postOffice || '---'}</strong>, উপজেলা: <strong className="font-bold">{cert.upazila || '---'}</strong>, জেলা: <strong className="font-bold">{cert.district || '---'}</strong>।</>
               )}
             </p>
             

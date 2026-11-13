@@ -25,7 +25,7 @@ import {
   Home
 } from 'lucide-react';
 import Link from 'next/link';
-import { settingsService } from '@/services/settingsService';
+import { settingsService, getEnglishSchoolName as resolveEnglishSchoolName, getEnglishAddress as resolveEnglishAddress } from '@/services/settingsService';
 import { studentService } from '@/services/studentService';
 import { examService, ExamItem } from '@/services/examService';
 import { firebaseSyncService } from '@/services/firebaseSyncService';
@@ -78,34 +78,12 @@ const formatGroupName = (group: string | undefined): string => {
 };
 
 // Helper for English School Name
-const getEnglishSchoolName = (name: string | undefined): string => {
-  if (!name) return 'Baraitali High School';
-  if (/[\u0980-\u09FF]/.test(name)) {
-    if (name.includes('বরইতলী') || name.includes('বড়াইতলী')) {
-      return 'Baraitali High School';
-    }
-    return name
-      .replace(/উচ্চ\s*বিদ্যালয়|উচ্চ\s*বিদ্যালয়/g, 'High School')
-      .replace(/মাধ্যমিক\s*বিদ্যালয়|মাধ্যমিক\s*বিদ্যালয়/g, 'Secondary School')
-      .replace(/মডেল\s*স্কুল/g, 'Model School')
-      .replace(/কলেজ/g, 'College')
-      .replace(/মাদ্রাসা|মাদরাসা/g, 'Madrasah')
-      .replace(/সরকারি/g, 'Govt.')
-      .trim();
-  }
-  return name;
-};
+const getEnglishSchoolName = (name: string | undefined): string =>
+  resolveEnglishSchoolName({ schoolName: name });
 
 // Helper for English School Address
-const getEnglishAddress = (addr: string | undefined): string => {
-  if (!addr) return "Baraitoli, Chakaria, Cox's Bazar";
-  if (/[\u0980-\u09FF]/.test(addr)) {
-    if (addr.includes('বরইতলী') || addr.includes('চকরিয়া') || addr.includes('কক্সবাজার')) {
-      return "Baraitoli, Chakaria, Cox's Bazar";
-    }
-  }
-  return addr;
-};
+const getEnglishAddress = (addr: string | undefined): string =>
+  resolveEnglishAddress({ address: addr });
 
 function ResultSearchContent() {
   const searchParams = useSearchParams();
@@ -420,7 +398,7 @@ function ResultSearchContent() {
                 {getEnglishSchoolName(settings?.schoolName)}
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '106184'}
+                {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '---'}
               </p>
             </div>
           </Link>
@@ -931,7 +909,7 @@ function ResultSearchContent() {
             © 2026 {getEnglishSchoolName(settings?.schoolName)}. All Rights Reserved.
           </p>
           <p className="text-[11px] text-slate-400">
-            Official Academic Result Portal • {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '106184'}
+            Official Academic Result Portal • {getEnglishAddress(settings?.address)} • EIIN: {settings?.eiin || '---'}
           </p>
         </div>
       </footer>

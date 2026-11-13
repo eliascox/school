@@ -33,9 +33,10 @@ public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "SmartCampusPrefsV2";
     private static final String KEY_SERVER_URL = "server_url";
+    private static final String KEY_CUSTOM_LAN_URL = "custom_lan_url";
     private static final String BUILTIN_MODE = "builtin://smartcampus";
     private static final String CLOUD_URL = "https://school-eta-kohl.vercel.app/mobile-app";
-    private static final String LOCAL_URL = "http://192.168.0.187:3000/mobile-app";
+    private static final String DEFAULT_LAN_HINT = "http://localhost:3000/mobile-app";
     private static final int FILE_CHOOSER_RESULT_CODE = 1001;
 
     private WebView webView;
@@ -209,7 +210,7 @@ public class MainActivity extends Activity {
 
     private void loadBuiltInSmartCampus() {
         layoutOffline.setVisibility(View.GONE);
-        tvHeaderTitle.setText("বরইতলী উচ্চ বিদ্যালয়");
+        tvHeaderTitle.setText("স্মার্ট স্কুল ক্যাম্পাস");
         webView.loadDataWithBaseURL(
             "https://bhsedu-e0906.firebaseapp.com/",
             getBuiltInSmartCampusHtml(),
@@ -230,21 +231,22 @@ public class MainActivity extends Activity {
         final EditText input = new EditText(this);
         input.setSingleLine(true);
         String saved = prefs.getString(KEY_SERVER_URL, BUILTIN_MODE);
-        input.setText(BUILTIN_MODE.equals(saved) ? LOCAL_URL : saved);
+        String savedLan = prefs.getString(KEY_CUSTOM_LAN_URL, DEFAULT_LAN_HINT);
+        input.setText(BUILTIN_MODE.equals(saved) ? savedLan : saved);
         input.setSelection(input.getText().length());
 
         new AlertDialog.Builder(this)
             .setTitle("অ্যাপ মোড ও সার্ভার সেটিংস")
-            .setMessage("লোকাল ওয়াইফাই বা ক্লাউড সার্ভার লিঙ্ক দিন অথবা বিল্ট-ইন স্মার্ট অ্যাপ ব্যবহার করুন:")
+            .setMessage("ক্লাউড সার্ভার লিঙ্ক (HTTPS) বা লোকাল ওয়াইফাই লিঙ্ক দিন অথবা বিল্ট-ইন স্মার্ট অ্যাপ ব্যবহার করুন:")
             .setView(input)
             .setPositiveButton("সার্ভার ওপেন", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     String val = input.getText().toString().trim();
                     if (!val.startsWith("http://") && !val.startsWith("https://")) {
-                        val = "http://" + val;
+                        val = "https://" + val;
                     }
-                    prefs.edit().putString(KEY_SERVER_URL, val).apply();
+                    prefs.edit().putString(KEY_SERVER_URL, val).putString(KEY_CUSTOM_LAN_URL, val).apply();
                     Toast.makeText(MainActivity.this, "সার্ভার সংযুক্ত হচ্ছে...", Toast.LENGTH_SHORT).show();
                     webView.loadUrl(val);
                 }
@@ -269,7 +271,7 @@ public class MainActivity extends Activity {
     private String getBuiltInSmartCampusHtml() {
         return "<!DOCTYPE html><html lang='bn'><head><meta charset='utf-8'/>"
             + "<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>"
-            + "<title>বরইতলী উচ্চ বিদ্যালয় - স্মার্ট ক্যাম্পাস</title>"
+            + "<title>স্মার্ট স্কুল ক্যাম্পাস</title>"
             + "<style>"
             + "*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:sans-serif}"
             + "body{background:#f1f5f9;color:#0f172a;padding-bottom:78px}"
@@ -320,17 +322,11 @@ public class MainActivity extends Activity {
             + "<script>"
             + "var bn=['০','১','২','৩','৪','৫','৬','৭','৮','৯'];"
             + "function toBn(n){return String(n==null?'':n).replace(/[0-9]/g,function(d){return bn[parseInt(d,10)]});}"
-            + "var defaultStudents=["
-            + "{id:'st1',name:'তানভীর আহমেদ',roll:'1',grade:'10th',section:'A',group:'Science',gpa:'5.00',attendance:98},"
-            + "{id:'st2',name:'নুসরাত জাহান',roll:'2',grade:'10th',section:'A',group:'Science',gpa:'5.00',attendance:97},"
-            + "{id:'st3',name:'মাহমুদুল হাসান',roll:'1',grade:'9th',section:'A',group:'Science',gpa:'4.88',attendance:95},"
-            + "{id:'st4',name:'সাদিয়া ইসলাম',roll:'1',grade:'8th',section:'A',group:'General',gpa:'5.00',attendance:96},"
-            + "{id:'st5',name:'রাফিউল করিম',roll:'1',grade:'7th',section:'A',group:'General',gpa:'4.75',attendance:94},"
-            + "{id:'st6',name:'তাসনিম তাবাসসুম',roll:'1',grade:'6th',section:'A',group:'General',gpa:'5.00',attendance:99}"
-            + "];"
-            + "var students=JSON.parse(localStorage.getItem('apk_students')||'null')||defaultStudents;"
-            + "var notices=JSON.parse(localStorage.getItem('apk_notices')||'null')||[{title:'২০২৬ শিক্ষাবর্ষের ক্লাস ও পরীক্ষা সংক্রান্ত বিজ্ঞপ্তি',content:'বিদ্যালয়ের সকল শ্রেণির পাঠদান ও ডিজিটাল হাজিরা কার্যক্রম যথানিয়মে চলমান রয়েছে।',publishedAt:'2026-11-10'}];"
-            + "var curStudent=students[0]; var curTab='home';"
+            + "function calcGrade(g){var n=parseFloat(g);if(isNaN(n))return{grade:'নির্ধারিত নয়',passed:false};if(n>=5)return{grade:'A+',passed:true};if(n>=4)return{grade:'A',passed:true};if(n>=3.5)return{grade:'A-',passed:true};if(n>=3)return{grade:'B',passed:true};if(n>=2)return{grade:'C',passed:true};if(n>=1)return{grade:'D',passed:true};return{grade:'F',passed:false};}"
+            + "var students=JSON.parse(localStorage.getItem('apk_students')||'[]');"
+            + "var notices=JSON.parse(localStorage.getItem('apk_notices')||'[]');"
+            + "var verifiedId=sessionStorage.getItem('apk_verified_student_id')||'';"
+            + "var curStudent=students.find(function(s){return s.id===verifiedId;})||null; var curTab='home';"
             + "function parseFsDoc(doc){var f=doc.fields||{};var o={};for(var k in f){var v=f[k];o[k]=v.stringValue!==undefined?v.stringValue:(v.integerValue!==undefined?Number(v.integerValue):(v.doubleValue!==undefined?Number(v.doubleValue):(v.booleanValue!==undefined?v.booleanValue:'')));}return o;}"
             + "function syncFirestore(){"
             + "var stEl=document.getElementById('syncStatus');stEl.innerText='⏳ ক্লাউড থেকে ডাটা সিঙ্ক হচ্ছে...';"
@@ -345,27 +341,51 @@ public class MainActivity extends Activity {
             + "}).catch(function(){});"
             + "}"
             + "function renderStudents(){"
-            + "var g=document.getElementById('gradeSel').value;"
-            + "var list=students.filter(function(s){return !g||String(s.grade||'').indexOf(g.replace('th',''))!==-1;});"
-            + "if(list.length===0)list=students;"
-            + "list.sort(function(a,b){return (parseInt(a.roll,10)||999)-(parseInt(b.roll,10)||999);});"
             + "var sel=document.getElementById('studentSel');sel.innerHTML='';"
-            + "list.forEach(function(s,idx){var opt=document.createElement('option');opt.value=idx;opt.text='রোল '+toBn(s.roll||idx+1)+' - '+(s.name||'শিক্ষার্থী');sel.appendChild(opt);});"
-            + "curStudent=list[0]||students[0]; window._curList=list; renderProfile(); renderTab();"
+            + "var opt0=document.createElement('option');opt0.value='';opt0.text=curStudent?('ভেরিফাইড: '+curStudent.name):'রোল ও মোবাইল দিয়ে যাচাই করুন';sel.appendChild(opt0);"
+            + "curStudent=students.find(function(s){return s.id===verifiedId;})||null;"
+            + "renderProfile(); renderTab();"
             + "}"
-            + "function selectStudent(idx){curStudent=(window._curList||students)[idx]||students[0];renderProfile();renderTab();}"
+            + "function verifyAndSelectStudent(){"
+            + "var g=document.getElementById('gradeSel').value;"
+            + "var rollIn=(document.getElementById('verifyRoll')||{}).value||'';"
+            + "var phIn=((document.getElementById('verifyPhone')||{}).value||'').replace(/\\D/g,'');"
+            + "var errEl=document.getElementById('verifyErr');"
+            + "var found=students.find(function(s){"
+            + "var sg=String(s.grade||'');var gMatch=!g||sg===g||sg.indexOf(g.replace('th',''))!==-1;"
+            + "var rMatch=String(s.roll||'').trim()===rollIn.trim()||String(s.id||'').toLowerCase()===rollIn.trim().toLowerCase();"
+            + "var sph=String(s.mobile||s.phone||s.guardianPhone||'').replace(/\\D/g,'');"
+            + "var pMatch=phIn.length>=4&&sph.length>=4&&(sph===phIn||sph.slice(-4)===phIn.slice(-4));"
+            + "return gMatch&&rMatch&&pMatch;"
+            + "});"
+            + "if(!found){if(errEl)errEl.innerText='তথ্য মেলেনি — সঠিক শ্রেণি, রোল ও অভিভাবকের মোবাইলের শেষ ৪ সংখ্যা দিন।';return;}"
+            + "if(errEl)errEl.innerText='';"
+            + "verifiedId=found.id;sessionStorage.setItem('apk_verified_student_id',verifiedId);curStudent=found;renderStudents();"
+            + "}"
+            + "function logoutStudent(){verifiedId='';sessionStorage.removeItem('apk_verified_student_id');curStudent=null;renderStudents();}"
+            + "function selectStudent(){}"
             + "function renderProfile(){"
-            + "if(!curStudent)return;"
+            + "var cardEl=document.getElementById('profileCard');"
+            + "if(!curStudent){"
+            + "cardEl.innerHTML='<div style=\"font-size:13px;font-weight:900;color:#0f172a;margin-bottom:8px\">🔐 অভিভাবক ও শিক্ষার্থী ভেরিফিকেশন</div>'"
+            + "+'<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">'"
+            + "+'<input id=\"verifyRoll\" placeholder=\"রোল বা আইডি\" style=\"background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1\"/>'"
+            + "+'<input id=\"verifyPhone\" placeholder=\"মোবাইলের শেষ ৪ সংখ্যা\" style=\"background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1\"/>'"
+            + "+'</div><div id=\"verifyErr\" style=\"font-size:11px;color:#dc2626;margin-top:6px;font-weight:700\"></div>'"
+            + "+'<button onclick=\"verifyAndSelectStudent()\" style=\"margin-top:8px;width:100%;padding:10px;border:none;border-radius:12px;background:#059669;color:#fff;font-weight:800;font-size:12px\">তথ্য দেখুন ও যাচাই করুন</button>';"
+            + "return;"
+            + "}"
             + "var ini=(curStudent.name||'শ').trim().slice(0,2);"
-            + "var att=curStudent.attendance||96; var gpa=curStudent.gpa||'5.00';"
-            + "document.getElementById('profileCard').innerHTML="
-            + "'<div class=\"profile\"><div class=\"avatar\">'+ini+'</div><div>'"
+            + "var att=typeof curStudent.attendance==='number'?toBn(curStudent.attendance)+'%':'হালনাগাদ হচ্ছে';"
+            + "var gpaVal=curStudent.gpa?toBn(curStudent.gpa):'অপেক্ষমাণ';"
+            + "cardEl.innerHTML="
+            + "'<div class=\"profile\"><div class=\"avatar\">'+ini+'</div><div style=\"flex:1\">'"
             + "+'<div style=\"font-size:15px;font-weight:900;color:#0f172a\">'+(curStudent.name||'শিক্ষার্থী')+'</div>'"
-            + "+'<div style=\"font-size:12px;color:#475569;margin-top:2px\">শ্রেণি: '+(curStudent.grade||'10th')+' • রোল: '+toBn(curStudent.roll||1)+' • '+(curStudent.group||curStudent.section||'ক')+'</div>'"
-            + "+'</div></div>'"
+            + "+'<div style=\"font-size:12px;color:#475569;margin-top:2px\">শ্রেণি: '+(curStudent.grade||'')+' • রোল: '+toBn(curStudent.roll||'')+' • '+(curStudent.group||curStudent.section||'')+'</div>'"
+            + "+'</div><button onclick=\"logoutStudent()\" style=\"background:#f1f5f9;border:none;border-radius:8px;padding:6px 8px;font-size:10px;font-weight:800;color:#475569\">পরিবর্তন</button></div>'"
             + "+'<div class=\"stats\">'"
-            + "+'<div class=\"stat-box\"><span class=\"stat-lbl\">উপস্থিতি</span><span class=\"stat-val\">'+toBn(att)+'%</span></div>'"
-            + "+'<div class=\"stat-box\"><span class=\"stat-lbl\">সর্বশেষ জিপিএ</span><span class=\"stat-val\">'+toBn(gpa)+'</span></div>'"
+            + "+'<div class=\"stat-box\"><span class=\"stat-lbl\">উপস্থিতি</span><span class=\"stat-val\">'+att+'</span></div>'"
+            + "+'<div class=\"stat-box\"><span class=\"stat-lbl\">সর্বশেষ জিপিএ</span><span class=\"stat-val\">'+gpaVal+'</span></div>'"
             + "+'<div class=\"stat-box\"><span class=\"stat-lbl\">স্ট্যাটাস</span><span class=\"stat-val\">সক্রিয়</span></div>'"
             + "+'</div>';"
             + "}"
@@ -373,7 +393,7 @@ public class MainActivity extends Activity {
             + "function renderTab(){"
             + "var box=document.getElementById('tabContent');"
             + "if(curTab==='home'){"
-            + "var n=notices[0]||{title:'বিদ্যালয়ের নোটিশ',content:'নিয়মিত ক্লাস চলমান রয়েছে।'};"
+            + "var n=notices[0]||{title:'বিদ্যালয়ের নোটিশ',content:'ক্লাউড সিঙ্ক করলে সর্বশেষ নোটিশ দেখতে পাবেন।'};"
             + "box.innerHTML='<div class=\"grid\">'"
             + "+'<button class=\"gbtn\" onclick=\"setTab(\\'att\\')\"><span class=\"gicon\">📅</span><span class=\"gtitle\">ডিজিটাল হাজিরা</span><span class=\"gdesc\">উপস্থিতির বিস্তারিত</span></button>'"
             + "+'<button class=\"gbtn\" onclick=\"setTab(\\'res\\')\"><span class=\"gicon\">🏆</span><span class=\"gtitle\">পরীক্ষার ফলাফল</span><span class=\"gdesc\">মার্কশিট ও গ্রেড</span></button>'"
@@ -383,30 +403,33 @@ public class MainActivity extends Activity {
             + "+'<div class=\"card\" style=\"margin-top:12px\"><div style=\"font-size:13px;font-weight:900;margin-bottom:6px\">📢 সর্বশেষ বিজ্ঞপ্তি</div>'"
             + "+'<div class=\"notice\"><div style=\"font-size:12px;font-weight:800;color:#92400e\">'+(n.title||'')+'</div><div style=\"font-size:11px;color:#78350f;margin-top:4px\">'+(n.content||'')+'</div></div></div>';"
             + "}else if(curTab==='att'){"
-            + "var att=curStudent?curStudent.attendance||96:96;"
+            + "if(!curStudent){box.innerHTML='<div class=\"card\"><div style=\"font-size:12px;color:#64748b;text-align:center\">হাজিরা দেখতে প্রথমে উপরে রোল ও মোবাইলের শেষ ৪ সংখ্যা দিয়ে যাচাই করুন।</div></div>';return;}"
+            + "var hasAtt=typeof curStudent.attendance==='number';"
+            + "var tDays=curStudent.totalDays||null; var pDays=curStudent.presentDays||null;"
             + "box.innerHTML='<div class=\"card\"><div style=\"font-size:14px;font-weight:900;margin-bottom:10px\">📊 ডিজিটাল হাজিরা প্রতিবেদন</div>'"
-            + "+'<div class=\"row\"><span>আজকের স্ট্যাটাস</span><strong style=\"color:#059669\">✅ উপস্থিত (সময়মত)</strong></div>'"
-            + "+'<div class=\"row\"><span>মাসিক উপস্থিতির হার</span><strong>'+toBn(att)+'%</strong></div>'"
-            + "+'<div class=\"row\"><span>মোট কার্যদিবস</span><strong>২৬ দিন</strong></div>'"
-            + "+'<div class=\"row\"><span>উপস্থিত দিন</span><strong style=\"color:#059669\">২৫ দিন</strong></div></div>';"
+            + "+'<div class=\"row\"><span>উপস্থিতির হার</span><strong>'+(hasAtt?toBn(curStudent.attendance)+'%':'ডাটা হালনাগাদ হচ্ছে')+'</strong></div>'"
+            + "+'<div class=\"row\"><span>মোট কার্যদিবস</span><strong>'+(tDays?toBn(tDays)+' দিন':'ওয়েব পোর্টালে দেখুন')+'</strong></div>'"
+            + "+'<div class=\"row\"><span>উপস্থিত দিন</span><strong style=\"color:#059669\">'+(pDays?toBn(pDays)+' দিন':'ওয়েব পোর্টালে দেখুন')+'</strong></div></div>';"
             + "}else if(curTab==='res'){"
-            + "var gpa=curStudent?curStudent.gpa||'5.00':'5.00';"
+            + "if(!curStudent){box.innerHTML='<div class=\"card\"><div style=\"font-size:12px;color:#64748b;text-align:center\">ফলাফল দেখতে প্রথমে উপরে রোল ও মোবাইলের শেষ ৪ সংখ্যা দিয়ে যাচাই করুন।</div></div>';return;}"
+            + "var gInfo=calcGrade(curStudent.gpa);"
             + "box.innerHTML='<div class=\"card\"><div style=\"font-size:14px;font-weight:900;margin-bottom:10px\">🏆 একাডেমিক ফলাফল ও গ্রেডশিট</div>'"
-            + "+'<div class=\"row\"><span>শিক্ষার্থীর নাম</span><strong>'+(curStudent?curStudent.name:'')+'</strong></div>'"
-            + "+'<div class=\"row\"><span>শ্রেণি ও রোল</span><strong>'+(curStudent?curStudent.grade:'')+' (রোল: '+toBn(curStudent?curStudent.roll:1)+')</strong></div>'"
-            + "+'<div class=\"row\"><span>প্রাপ্ত জিপিএ (GPA)</span><strong style=\"color:#2563eb;font-size:14px\">'+toBn(gpa)+' (A+)</strong></div>'"
-            + "+'<div class=\"row\"><span>ফলাফল স্ট্যাটাস</span><strong style=\"color:#059669\">উত্তীর্ণ (Passed)</strong></div></div>';"
+            + "+'<div class=\"row\"><span>শিক্ষার্থীর নাম</span><strong>'+(curStudent.name||'')+'</strong></div>'"
+            + "+'<div class=\"row\"><span>শ্রেণি ও রোল</span><strong>'+(curStudent.grade||'')+' (রোল: '+toBn(curStudent.roll||'')+')</strong></div>'"
+            + "+'<div class=\"row\"><span>প্রাপ্ত জিপিএ (GPA)</span><strong style=\"color:#2563eb;font-size:14px\">'+(curStudent.gpa?toBn(curStudent.gpa)+' ('+gInfo.grade+')':'অপেক্ষমাণ')+'</strong></div>'"
+            + "+'<div class=\"row\"><span>ফলাফল স্ট্যাটাস</span><strong style=\"color:'+(gInfo.passed?'#059669':'#dc2626')+'\">'+(curStudent.gpa?(gInfo.passed?'উত্তীর্ণ (Passed)':'অকৃতকার্য / প্রক্রিয়াধীন'):'অপেক্ষমাণ')+'</strong></div></div>';"
             + "}else if(curTab==='not'){"
             + "var html='<div class=\"card\"><div style=\"font-size:14px;font-weight:900;margin-bottom:10px\">📢 ডিজিটাল নোটিশ বোর্ড</div>';"
-            + "notices.forEach(function(n){html+='<div class=\"notice\"><div style=\"font-size:12px;font-weight:800;color:#92400e\">'+(n.title||'বিজ্ঞপ্তি')+'</div><div style=\"font-size:11px;color:#78350f;margin-top:4px\">'+(n.content||'')+'</div></div>';});"
+            + "(notices.length?notices:[{title:'সর্বশেষ নোটিশ',content:'ক্লাউড থেকে সিঙ্ক করতে উপরে সিঙ্ক বাটনে ক্লিক করুন।'}]).forEach(function(n){html+='<div class=\"notice\"><div style=\"font-size:12px;font-weight:800;color:#92400e\">'+(n.title||'বিজ্ঞপ্তি')+'</div><div style=\"font-size:11px;color:#78350f;margin-top:4px\">'+(n.content||'')+'</div></div>';});"
             + "html+='</div>'; box.innerHTML=html;"
             + "}else if(curTab==='web'){"
+            + "var customLan=localStorage.getItem('apk_lan_url')||'';"
             + "box.innerHTML='<div class=\"card\" style=\"display:flex;flex-direction:column;gap:10px\">'"
             + "+'<div style=\"font-size:14px;font-weight:900\">🌐 ফুল ওয়েব পোর্টাল ও শিক্ষক লগইন</div>'"
-            + "+'<p style=\"font-size:12px;color:#475569\">আপনি যদি বিদ্যালয়ের ওয়াইফাই নেটওয়ার্কে থাকেন তবে লোকাল সার্ভার অথবা ইন্টারনেটে ক্লাউড পোর্টাল ওপেন করুন:</p>'"
-            + "+'<a href=\"http://192.168.0.187:3000/mobile-app\" style=\"background:#059669;color:#fff;text-decoration:none;padding:12px;border-radius:12px;font-weight:800;font-size:13px;text-align:center\">📶 লোকাল ওয়াইফাই অ্যাপ ওপেন করুন (192.168.0.187)</a>'"
-            + "+'<a href=\"http://192.168.0.187:3000/dashboard/teacher-portal\" style=\"background:#0f172a;color:#fff;text-decoration:none;padding:12px;border-radius:12px;font-weight:800;font-size:13px;text-align:center\">👨‍🏫 শিক্ষক ও অ্যাডমিন পোর্টাল (Wi-Fi)</a>'"
+            + "+'<p style=\"font-size:12px;color:#475569\">নিরাপদ ক্লাউড পোর্টাল অথবা কনফিগার করা সার্ভার ওপেন করুন:</p>'"
             + "+'<a href=\"https://school-eta-kohl.vercel.app/mobile-app\" style=\"background:#2563eb;color:#fff;text-decoration:none;padding:12px;border-radius:12px;font-weight:800;font-size:13px;text-align:center\">☁️ ক্লাউড ওয়েব পোর্টাল ওপেন করুন</a>'"
+            + "+'<a href=\"https://school-eta-kohl.vercel.app/dashboard/teacher-portal\" style=\"background:#0f172a;color:#fff;text-decoration:none;padding:12px;border-radius:12px;font-weight:800;font-size:13px;text-align:center\">👨‍🏫 শিক্ষক ও অ্যাডমিন পোর্টাল</a>'"
+            + "+(customLan?'<a href=\"'+customLan+'\" style=\"background:#059669;color:#fff;text-decoration:none;padding:12px;border-radius:12px;font-weight:800;font-size:13px;text-align:center\">📶 সেভ করা ওয়াইফাই সার্ভার ওপেন করুন</a>':'')"
             + "+'</div>';"
             + "}"
             + "}"

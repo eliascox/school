@@ -34,9 +34,7 @@ export default function PublicStats({
   students,
   schoolName = 'বরইতলী উচ্চ বিদ্যালয়'
 }: PublicStatsProps = {}) {
-  if (statsConfig && statsConfig.enabled === false) {
-    return null;
-  }
+  const isDisabled = Boolean(statsConfig && statsConfig.enabled === false);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'classes'>('overview');
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -162,6 +160,7 @@ export default function PublicStats({
   ];
 
   useEffect(() => {
+    if (isDisabled) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimated) {
@@ -215,7 +214,11 @@ export default function PublicStats({
     }
 
     return () => observer.disconnect();
-  }, [hasAnimated, targetEstd, targetTeachers, targetStudents, passRateClean, count10, count9, count8, count7, count6]);
+  }, [isDisabled, hasAnimated, targetEstd, targetTeachers, targetStudents, passRateClean, count10, count9, count8, count7, count6]);
+
+  if (isDisabled) {
+    return null;
+  }
 
   return (
     <section 

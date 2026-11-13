@@ -24,6 +24,7 @@ import {
   Sparkles,
   RotateCcw
 } from 'lucide-react';
+import { showToast } from '@/components/ui/ToastProvider';
 import QRCode from 'qrcode';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
@@ -132,7 +133,10 @@ export default function PublicOnlineAdmissionPage() {
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) return alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।', 'warning');
+        return;
+      }
       const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       setPhoto(compressed);
     }
@@ -245,13 +249,18 @@ export default function PublicOnlineAdmissionPage() {
       appList.unshift(studentData);
       localStorage.setItem('sms_online_applications', JSON.stringify(appList));
       import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
-        firebaseSyncService.syncOnlineApplicationToCloud(studentData).catch(() => {});
+        firebaseSyncService.syncOnlineApplicationToCloud({
+          ...studentData,
+          studentName: studentData.name,
+          appliedClass: studentData.grade,
+          status: 'pending',
+        }).catch(() => {});
       }).catch(() => {});
     }
 
     // 3. 🚀 AUTOMATED CONFIRMATION SMS TRIGGER
     try {
-      const currentSchoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+      const currentSchoolName = schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান';
       const smsRes = await smsService.sendAdmissionConfirmationSMS({
         name: studentData.name,
         appId: autoAppId,
@@ -288,7 +297,7 @@ export default function PublicOnlineAdmissionPage() {
     }
 
     try {
-      const currentSchoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+      const currentSchoolName = schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান';
       const res = await smsService.sendAdmissionConfirmationSMS({
         name: applicationRecord.name,
         appId: applicationRecord.appId,
@@ -356,7 +365,7 @@ export default function PublicOnlineAdmissionPage() {
   // If Online Admission is suspended
   if (schoolSettings && schoolSettings.onlineAdmissionEnabled === false) {
     return (
-      <div className="min-h-screen bg-slate-50 font-sans pb-16 text-slate-900">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans pb-16 text-slate-900 dark:text-white">
         <header className="bg-slate-900 text-white shadow-md sticky top-0 z-40 border-b border-slate-800">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
@@ -373,19 +382,19 @@ export default function PublicOnlineAdmissionPage() {
                 <p className="text-[10px] text-slate-400 font-bold">{schoolAddress}</p>
               </div>
             </Link>
-            <Link href="/" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition">
+            <Link href="/" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition">
               মূল ওয়েবসাইট
             </Link>
           </div>
         </header>
 
         <main className="max-w-lg mx-auto px-4 pt-16 text-center">
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl space-y-4">
-            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl mx-auto flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
+            <div className="w-14 h-14 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl mx-auto flex items-center justify-center">
               <X size={28} className="stroke-[2.5]" />
             </div>
-            <h2 className="text-xl font-black text-slate-900">অনলাইন ভর্তি আবেদন বর্তমানে বন্ধ রয়েছে</h2>
-            <p className="text-slate-600 text-xs sm:text-sm">২০২৬ শিক্ষাবর্ষের নতুন অনলাইন ভর্তি কার্যক্রম বর্তমানে বন্ধ রয়েছে। যেকোনো প্রয়োজনে বিদ্যালয়ে যোগাযোগ করুন।</p>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">অনলাইন ভর্তি আবেদন বর্তমানে বন্ধ রয়েছে</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">২০২৬ শিক্ষাবর্ষের নতুন অনলাইন ভর্তি কার্যক্রম বর্তমানে বন্ধ রয়েছে। যেকোনো প্রয়োজনে বিদ্যালয়ে যোগাযোগ করুন।</p>
             <div className="pt-2">
               <Link href="/" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition">
                 মূল ওয়েবসাইটে ফিরে যান
@@ -399,14 +408,14 @@ export default function PublicOnlineAdmissionPage() {
 
   // ── Modern Sleek Field Classes ──
   const modernInputClass =
-    'w-full px-4 py-2.5 sm:py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 shadow-2xs';
+    'w-full px-4 py-2.5 sm:py-3 bg-slate-50/70 dark:bg-slate-950/70 hover:bg-slate-50 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 shadow-2xs';
   const modernSelectClass =
-    'w-full px-4 py-2.5 sm:py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none transition-all duration-200 shadow-2xs cursor-pointer';
+    'w-full px-4 py-2.5 sm:py-3 bg-slate-50/70 dark:bg-slate-950/70 hover:bg-slate-50 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white outline-none transition-all duration-200 shadow-2xs cursor-pointer';
   const modernLabelClass =
-    'block text-[12px] sm:text-[12.5px] font-bold text-slate-700 mb-1.5 flex items-center gap-1.5';
+    'block text-[12px] sm:text-[12.5px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100/90 via-indigo-50/25 to-slate-100 font-sans pb-20 text-slate-900 print:bg-white print:p-0">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100/90 dark:from-slate-950 via-indigo-50/25 dark:via-indigo-950/30 to-slate-100 dark:to-slate-950 font-sans pb-20 text-slate-900 dark:text-white print:bg-white print:p-0">
       
       {/* ── Top Bar ── */}
       <header className="bg-slate-900 text-white shadow-md sticky top-0 z-40 print:hidden border-b border-slate-800">
@@ -433,7 +442,7 @@ export default function PublicOnlineAdmissionPage() {
           <div className="flex items-center gap-2.5">
             <Link
               href="/"
-              className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition"
+              className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
             >
               মূল ওয়েবসাইট
             </Link>
@@ -445,28 +454,28 @@ export default function PublicOnlineAdmissionPage() {
       <main className="max-w-4xl mx-auto px-4 pt-6 sm:pt-8 space-y-6">
 
         {/* ── HEADER INTRO CARD ── */}
-        <div className="bg-white/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
               <UserPlus size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
                   অনলাইন শিক্ষার্থী ভর্তি আবেদনপত্র
                 </h2>
-                <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-black rounded-full">
+                <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black rounded-full">
                   সেশন ২০২৬
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-bold mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">
                 {schoolName} • ৬ষ্ঠ থেকে ১০ম শ্রেণিতে অনলাইন ভর্তি কার্যক্রম চলমান
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs font-black">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               ভর্তি আবেদন উন্মুক্ত
             </span>
@@ -478,45 +487,45 @@ export default function PublicOnlineAdmissionPage() {
         {/* ═══════════════════════════════════════════════════════ */}
         {isSubmitted && applicationRecord ? (
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-400">
-            <div className="bg-white rounded-3xl border-2 border-emerald-500 p-6 sm:p-8 shadow-xl space-y-5 print:hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-emerald-500 p-6 sm:p-8 shadow-xl space-y-5 print:hidden">
               <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-inner">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-inner">
                   <CheckCircle2 size={32} className="stroke-[2.5]" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <span className="px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black">
+                    <span className="px-3 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 text-xs font-black">
                       আবেদন সফল হয়েছে
                     </span>
-                    <span className="font-mono text-xs font-black text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                    <span className="font-mono text-xs font-black text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md">
                       আইডি: {applicationRecord.appId}
                     </span>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                     অভিনন্দন! আপনার ভর্তি আবেদনটি সফলভাবে গৃহীত হয়েছে
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium">
                     শিক্ষার্থীর নাম: <strong>{applicationRecord.name}</strong> • শ্রেণি: <strong>{classDisplayMap[applicationRecord.grade] || applicationRecord.grade}</strong>
                   </p>
                 </div>
               </div>
 
               {/* 📱 AUTOMATED SMS CONFIRMATION CARD */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border border-emerald-200 shadow-xs space-y-2.5">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 dark:from-emerald-950/50 via-teal-50 dark:via-teal-950/30 to-indigo-50 dark:to-indigo-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-xs space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                       <Send size={15} />
                     </div>
                     <div>
-                      <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+                      <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                         <span>নিশ্চিতকরণ এসএমএস সফলভাবে পাঠানো হয়েছে</span>
                         <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black">
                           SMS Sent
                         </span>
                       </h4>
-                      <p className="text-[11px] text-slate-600">
-                        মোবাইল নম্বর: <strong className="font-mono text-emerald-800">{smsDeliveryStatus?.recipientMobile || applicationRecord.mobile}</strong> • সময়: {smsDeliveryStatus?.timestamp || 'এখনই'}
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        মোবাইল নম্বর: <strong className="font-mono text-emerald-800 dark:text-emerald-200">{smsDeliveryStatus?.recipientMobile || applicationRecord.mobile}</strong> • সময়: {smsDeliveryStatus?.timestamp || 'এখনই'}
                       </p>
                     </div>
                   </div>
@@ -525,14 +534,14 @@ export default function PublicOnlineAdmissionPage() {
                     type="button"
                     onClick={handleResendSMS}
                     disabled={smsDeliveryStatus?.isResending}
-                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-900 font-black text-xs border border-indigo-200 transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-indigo-900 dark:text-indigo-200 font-black text-xs border border-indigo-200 dark:border-indigo-800/60 transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <RefreshCw size={13} className={smsDeliveryStatus?.isResending ? 'animate-spin' : ''} />
                     <span>{smsDeliveryStatus?.isResending ? 'পাঠানো হচ্ছে...' : 'এসএমএস পুনরায় পাঠান'}</span>
                   </button>
                 </div>
 
-                <div className="p-3 bg-white/90 rounded-xl border border-emerald-200 text-xs text-slate-800 font-mono leading-relaxed">
+                <div className="p-3 bg-white/90 dark:bg-slate-900/90 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-xs text-slate-800 dark:text-slate-100 font-mono leading-relaxed">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
                     মোবাইলে প্রেরিত বার্তা:
                   </span>
@@ -554,7 +563,7 @@ export default function PublicOnlineAdmissionPage() {
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-black text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer"
                 >
                   <UserPlus size={16} />
                   <span>নতুন আরেকটি আবেদন করুন</span>
@@ -577,7 +586,7 @@ export default function PublicOnlineAdmissionPage() {
           /* ═══════════════════════════════════════════════════════ */
           /* MODERN PROFESSIONAL SINGLE-PAGE ADMISSION FORM           */
           /* ═══════════════════════════════════════════════════════ */
-          <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-[0_12px_45px_-15px_rgba(0,0,0,0.08)] overflow-hidden print:hidden transition-all">
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-[0_12px_45px_-15px_rgba(0,0,0,0.08)] overflow-hidden print:hidden transition-all">
             
             {/* Top Alert / Guidance */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -602,8 +611,8 @@ export default function PublicOnlineAdmissionPage() {
 
             {/* Error Notice */}
             {errorNotice && (
-              <div className="mx-6 sm:mx-8 mt-6 p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
-                <AlertCircle size={18} className="text-rose-600 shrink-0" />
+              <div className="mx-6 sm:mx-8 mt-6 p-4 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+                <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />
                 <span>{errorNotice}</span>
               </div>
             )}
@@ -615,13 +624,13 @@ export default function PublicOnlineAdmissionPage() {
               {/* SECTION 1: ACADEMIC INFO                    */}
               {/* ═════════════════════════════════════════════ */}
               <section className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center font-black text-xs">
                       ১
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <BookOpen className="text-indigo-600" size={17} />
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <BookOpen className="text-indigo-600 dark:text-indigo-400" size={17} />
                       ভর্তির শ্রেণি ও শাখা সংক্রান্ত তথ্য
                     </h3>
                   </div>
@@ -672,7 +681,7 @@ export default function PublicOnlineAdmissionPage() {
                       value={group} 
                       onChange={(e) => setGroup(e.target.value as any)}
                       disabled={isGroupDisabled}
-                      className={isGroupDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
+                      className={isGroupDisabled ? `${modernSelectClass} bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed` : modernSelectClass}
                     >
                       <option value="সাধারণ">সাধারণ</option>
                       <option value="বিজ্ঞান">বিজ্ঞান (Science)</option>
@@ -690,7 +699,7 @@ export default function PublicOnlineAdmissionPage() {
                       value={optionalSubject} 
                       onChange={(e) => setOptionalSubject(e.target.value)}
                       disabled={isOptionalDisabled}
-                      className={isOptionalDisabled ? `${modernSelectClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernSelectClass}
+                      className={isOptionalDisabled ? `${modernSelectClass} bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed` : modernSelectClass}
                     >
                       {optionalSubjectOptions.map((opt) => (
                         <option key={opt.code || opt.name} value={opt.name}>
@@ -701,7 +710,7 @@ export default function PublicOnlineAdmissionPage() {
                   </div>
 
                   {/* Stipend Card */}
-                  <div className="sm:col-span-2 lg:col-span-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="sm:col-span-2 lg:col-span-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/50 border border-amber-200/90 dark:border-amber-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -710,19 +719,19 @@ export default function PublicOnlineAdmissionPage() {
                         onChange={(e) => setIsStipend(e.target.checked)}
                         className="w-4 h-4 accent-amber-500 rounded cursor-pointer shrink-0"
                       />
-                      <label htmlFor="admissionIsStipend" className="text-xs font-black text-amber-950 cursor-pointer flex items-center gap-1.5">
-                        <Award size={16} className="text-amber-600 shrink-0" />
+                      <label htmlFor="admissionIsStipend" className="text-xs font-black text-amber-950 dark:text-amber-200 cursor-pointer flex items-center gap-1.5">
+                        <Award size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                         <span>শিক্ষার্থী উপবৃত্তি প্রাপ্ত</span>
                       </label>
                     </div>
 
                     {isStipend && (
                       <div className="flex items-center gap-2 shrink-0">
-                        <label className="text-[10.5px] font-black text-amber-900">ক্যাটাগরি:</label>
+                        <label className="text-[10.5px] font-black text-amber-900 dark:text-amber-200">ক্যাটাগরি:</label>
                         <select
                           value={stipendCategory}
                           onChange={(e) => setStipendCategory(e.target.value)}
-                          className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl font-bold text-xs text-amber-900 outline-none shadow-2xs"
+                          className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800/60 rounded-xl font-bold text-xs text-amber-900 dark:text-amber-200 outline-none shadow-2xs"
                         >
                           <option value="সাধারণ উপবৃত্তি">সাধারণ উপবৃত্তি</option>
                           <option value="মেধাভিত্তিক উপবৃত্তি">মেধাভিত্তিক উপবৃত্তি</option>
@@ -738,13 +747,13 @@ export default function PublicOnlineAdmissionPage() {
               {/* SECTION 2: PERSONAL DETAILS & PHOTO           */}
               {/* ═════════════════════════════════════════════ */}
               <section className="space-y-4 pt-2">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center font-black text-xs">
                       ২
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <User className="text-indigo-600" size={17} />
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <User className="text-indigo-600 dark:text-indigo-400" size={17} />
                       শিক্ষার্থীর ব্যক্তিগত তথ্যাবলী
                     </h3>
                   </div>
@@ -786,13 +795,13 @@ export default function PublicOnlineAdmissionPage() {
                     </div>
 
                     {/* Mobile Number with Automated SMS Badge */}
-                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 shadow-2xs">
+                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs">
                       <div className="flex justify-between items-center mb-1.5">
-                        <label className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                          <Phone size={14} className="text-indigo-600" />
+                        <label className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                          <Phone size={14} className="text-indigo-600 dark:text-indigo-400" />
                           <span>অভিভাবকের সচল মোবাইল নম্বর <span className="text-rose-500">*</span></span>
                         </label>
-                        <span className="text-[10px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800/60 flex items-center gap-1">
                           <Send size={10} />
                           <span>এই নম্বরে SMS যাবে</span>
                         </span>
@@ -813,7 +822,7 @@ export default function PublicOnlineAdmissionPage() {
                         <label className={modernLabelClass}>
                           ১৭ ডিজিটের ডিজিটাল জন্ম নিবন্ধন নম্বর <span className="text-rose-500">*</span>
                         </label>
-                        <span className="text-[10px] font-mono text-slate-500 font-bold">
+                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-bold">
                           {birthRegNo.replace(/\D/g, '').length}/১৭
                         </span>
                       </div>
@@ -900,12 +909,12 @@ export default function PublicOnlineAdmissionPage() {
                   </div>
 
                   {/* Right Photo Upload Box */}
-                  <div className="flex flex-col items-center p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3 shadow-2xs">
-                    <span className="text-xs font-black text-slate-800">
+                  <div className="flex flex-col items-center p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200/90 dark:border-slate-800 space-y-3 shadow-2xs">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">
                       পাসপোর্ট সাইজ ছবি
                     </span>
 
-                    <div className="relative w-36 h-44 rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-white flex flex-col items-center justify-center overflow-hidden shadow-inner group transition">
+                    <div className="relative w-36 h-44 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-500 bg-white dark:bg-slate-900 flex flex-col items-center justify-center overflow-hidden shadow-inner group transition">
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -918,7 +927,7 @@ export default function PublicOnlineAdmissionPage() {
                       ) : (
                         <div className="text-center p-3 text-slate-400 group-hover:text-indigo-600 transition">
                           <Camera size={32} className="mx-auto mb-1 text-indigo-400 group-hover:scale-110 transition" />
-                          <span className="text-xs font-black block text-indigo-700">ছবি আপলোড</span>
+                          <span className="text-xs font-black block text-indigo-700 dark:text-indigo-300">ছবি আপলোড</span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">সর্বোচ্চ ২MB</span>
                         </div>
                       )}
@@ -928,13 +937,13 @@ export default function PublicOnlineAdmissionPage() {
                       <button
                         type="button"
                         onClick={() => setPhoto('')}
-                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer transition"
+                        className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 cursor-pointer transition"
                       >
                         <X size={13} />
                         <span>ছবিটি মুছুন</span>
                       </button>
                     ) : (
-                      <p className="text-[10px] text-center text-slate-500">
+                      <p className="text-[10px] text-center text-slate-500 dark:text-slate-400">
                         * সদ্য তোলা স্পষ্ট রঙিন ছবি আপলোড করুন।
                       </p>
                     )}
@@ -947,13 +956,13 @@ export default function PublicOnlineAdmissionPage() {
               {/* SECTION 3: PARENTS DETAILS                   */}
               {/* ═════════════════════════════════════════════ */}
               <section className="space-y-4 pt-2">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center font-black text-xs">
                       ৩
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <Users className="text-indigo-600" size={17} />
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Users className="text-indigo-600 dark:text-indigo-400" size={17} />
                       পিতা ও মাতার বিবরণী
                     </h3>
                   </div>
@@ -963,9 +972,9 @@ export default function PublicOnlineAdmissionPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   
                   {/* Father Details */}
-                  <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
-                    <span className="font-black text-indigo-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                      <User size={15} className="text-indigo-600" /> পিতার তথ্য
+                  <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800 rounded-2xl space-y-3.5 shadow-2xs">
+                    <span className="font-black text-indigo-950 dark:text-indigo-200 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <User size={15} className="text-indigo-600 dark:text-indigo-400" /> পিতার তথ্য
                     </span>
 
                     <div className="space-y-3">
@@ -1012,9 +1021,9 @@ export default function PublicOnlineAdmissionPage() {
                   </div>
 
                   {/* Mother Details */}
-                  <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-3.5 shadow-2xs">
-                    <span className="font-black text-purple-950 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                      <User size={15} className="text-purple-600" /> মাতার তথ্য
+                  <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800 rounded-2xl space-y-3.5 shadow-2xs">
+                    <span className="font-black text-purple-950 dark:text-purple-200 text-xs flex items-center gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <User size={15} className="text-purple-600 dark:text-purple-400" /> মাতার তথ্য
                     </span>
 
                     <div className="space-y-3">
@@ -1067,13 +1076,13 @@ export default function PublicOnlineAdmissionPage() {
               {/* SECTION 4: PREVIOUS SCHOOL & ADDRESS         */}
               {/* ═════════════════════════════════════════════ */}
               <section className="space-y-4 pt-2">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-black text-xs">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center font-black text-xs">
                       ৪
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                      <MapPin className="text-indigo-600" size={17} />
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <MapPin className="text-indigo-600 dark:text-indigo-400" size={17} />
                       পূর্ববর্তী স্কুল ও ঠিকানা বিবরণী
                     </h3>
                   </div>
@@ -1112,13 +1121,13 @@ export default function PublicOnlineAdmissionPage() {
                 {/* Address */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-black text-slate-800 text-xs">ঠিকানা বিস্তারিত:</span>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 select-none">
+                    <span className="font-black text-slate-800 dark:text-slate-100 text-xs">ঠিকানা বিস্তারিত:</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 dark:text-indigo-300 select-none">
                       <input 
                         type="checkbox" 
                         checked={isSameAddress}
                         onChange={(e) => setIsSameAddress(e.target.checked)}
-                        className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
+                        className="rounded text-indigo-600 dark:text-indigo-400 w-4 h-4 cursor-pointer"
                       />
                       <span>বর্তমান ও স্থায়ী ঠিকানা একই</span>
                     </label>
@@ -1150,7 +1159,7 @@ export default function PublicOnlineAdmissionPage() {
                         value={permanentAddress}
                         onChange={(e) => setPermanentAddress(e.target.value)}
                         placeholder={isSameAddress ? 'বর্তমান ঠিকানার অনুরূপ' : 'গ্রাম/রোড, ডাকঘর, উপজেলা, জেলা'}
-                        className={isSameAddress ? `${modernInputClass} bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed` : modernInputClass}
+                        className={isSameAddress ? `${modernInputClass} bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed` : modernInputClass}
                       />
                     </div>
                   </div>
@@ -1163,9 +1172,9 @@ export default function PublicOnlineAdmissionPage() {
               <div className="pt-2 space-y-4">
                 
                 {/* SMS Alert & Declaration Box */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-2.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
-                    <Send size={15} className="text-indigo-600 shrink-0" />
+                <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                    <Send size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                     <span>
                       <strong>স্বয়ংক্রিয় এসএমএস:</strong> আবেদন চূড়ান্ত জমা হওয়ার সাথে সাথে অভিভাবকের মোবাইল নম্বরে ({mobile || '০১৮...'}) নিশ্চিতকরণ এসএমএস চলে যাবে।
                     </span>
@@ -1176,9 +1185,9 @@ export default function PublicOnlineAdmissionPage() {
                       type="checkbox" 
                       checked={declaredCorrect}
                       onChange={(e) => setDeclaredCorrect(e.target.checked)}
-                      className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 cursor-pointer mt-0.5 shrink-0"
+                      className="w-4 h-4 rounded text-indigo-600 dark:text-indigo-400 accent-indigo-600 cursor-pointer mt-0.5 shrink-0"
                     />
-                    <span className="text-xs text-slate-700 font-bold select-none">
+                    <span className="text-xs text-slate-700 dark:text-slate-300 font-bold select-none">
                       আমি নিশ্চয়তা দিচ্ছি যে উপরে প্রদত্ত সকল তথ্য সম্পূর্ণ সত্য ও সঠিক।
                     </span>
                   </label>
@@ -1189,7 +1198,7 @@ export default function PublicOnlineAdmissionPage() {
                   <button
                     type="button"
                     onClick={handleResetForm}
-                    className="w-full sm:w-auto px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer order-2 sm:order-1"
+                    className="w-full sm:w-auto px-5 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer order-2 sm:order-1"
                   >
                     <RotateCcw size={15} />
                     <span>ফর্ম রিসেট করুন</span>

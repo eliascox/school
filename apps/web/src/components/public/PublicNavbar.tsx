@@ -49,10 +49,14 @@ const SECTION_TO_NAV: Record<string, NavKey> = {
   home: 'home',
   services: 'home',
   about: 'about',
+  headmaster: 'academics',
   principal: 'academics',
+  faculty: 'academics',
+  'student-info': 'academics',
   stats: 'academics',
   academic: 'academics',
   teachers: 'academics',
+  smc: 'academics',
   committee: 'academics',
   'best-students': 'academics',
   facilities: 'academics',
@@ -62,6 +66,35 @@ const SECTION_TO_NAV: Record<string, NavKey> = {
   contact: 'contact',
   faq: 'contact',
 };
+
+interface PublicLogoMarkProps {
+  schoolLogo?: string | null;
+  logoError: boolean;
+  onLogoError: () => void;
+  schoolName: string;
+  size?: string;
+}
+
+function PublicLogoMark({
+  schoolLogo,
+  logoError,
+  onLogoError,
+  schoolName,
+  size = 'w-11 h-11',
+}: PublicLogoMarkProps) {
+  return (
+    <div className={`${size} rounded-xl bg-gradient-to-tr from-[#0B5D3B] to-teal-500 p-0.5 shadow-lg shadow-emerald-700/20 group-hover:scale-105 transition-transform duration-300 shrink-0`}>
+      <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
+        {schoolLogo && !logoError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain" onError={onLogoError} />
+        ) : (
+          <i className="fa-solid fa-graduation-cap text-emerald-600 text-lg"></i>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PublicNavbar({ settings, headerConfig, isOverHero = true }: PublicNavbarProps) {
   const [activeSettings, setActiveSettings] = useState<SchoolSettings | null>(settings || null);
@@ -191,19 +224,6 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
         : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
     }`;
 
-  const LogoMark = ({ size = 'w-11 h-11' }: { size?: string }) => (
-    <div className={`${size} rounded-xl bg-gradient-to-tr from-[#0B5D3B] to-teal-500 p-0.5 shadow-lg shadow-emerald-700/20 group-hover:scale-105 transition-transform duration-300 shrink-0`}>
-      <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
-        {schoolLogo && !logoError ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain" onError={() => setLogoError(true)} />
-        ) : (
-          <i className="fa-solid fa-graduation-cap text-emerald-600 text-lg"></i>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div
       className={`sticky top-3 sm:top-4 z-50 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none transition-all duration-300 ${
@@ -218,7 +238,12 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
       >
         {/* School Logo & Title */}
         <Link href="/#home" onClick={handleHomeClick} className="flex items-center gap-3 group shrink-0 min-w-0">
-          <LogoMark />
+          <PublicLogoMark
+            schoolLogo={schoolLogo}
+            logoError={logoError}
+            onLogoError={() => setLogoError(true)}
+            schoolName={schoolName}
+          />
           <div className="min-w-0 leading-tight">
             <span className="block font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white truncate">
               {schoolName}
@@ -342,7 +367,13 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
           <div className="glass-dropdown rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-3 max-h-[75vh] overflow-y-auto">
             {/* Mobile School Brand Header */}
             <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
-              <LogoMark size="w-10 h-10" />
+              <PublicLogoMark
+                schoolLogo={schoolLogo}
+                logoError={logoError}
+                onLogoError={() => setLogoError(true)}
+                schoolName={schoolName}
+                size="w-10 h-10"
+              />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{schoolName}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">

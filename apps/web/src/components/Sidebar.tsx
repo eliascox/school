@@ -243,7 +243,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           iconColor: 'text-indigo-600',
           hoverBg: 'group-hover:bg-indigo-500/20',
           badge: 'Live',
-          badgeColor: 'bg-slate-100 text-slate-700 border border-slate-200',
+          badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
         },
         {
           id: 'people',
@@ -252,22 +252,22 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           subtitle: 'Students, Staff & Faculty',
           subtitleBn: 'শিক্ষার্থী, শিক্ষক ও স্টাফ',
           icon: <Users className="w-4 h-4" />,
-          iconColor: 'text-sky-600',
+          iconColor: 'text-sky-600 dark:text-sky-400',
           hoverBg: 'group-hover:bg-sky-500/20',
           subItems: [
             {
               label: 'All Students',
               labelBn: 'সকল শিক্ষার্থী (Students)',
               href: '/dashboard/students',
-              icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600" />,
+              icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />,
               badge: studentCount,
-              badgeColor: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+              badgeColor: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30',
             },
             {
               label: 'Bulk Student Upload',
               labelBn: 'বাল্ক শিক্ষার্থী আপলোড',
               href: '/dashboard/students/bulk-import',
-              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
+              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
             },
             {
               label: 'Print & Reports',
@@ -279,9 +279,9 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
               label: 'Teachers & Staff (HR)',
               labelBn: 'শিক্ষক ব্যবস্থাপনা (HR)',
               href: '/dashboard/teacher',
-              icon: <Users className="w-3.5 h-3.5 text-emerald-600" />,
+              icon: <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
               badge: teacherCount,
-              badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+              badgeColor: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30',
             },
             {
               label: 'Leave Applications',
@@ -535,19 +535,19 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           iconColor: 'text-orange-600',
           hoverBg: 'group-hover:bg-orange-500/20',
           badge: 'SMS',
-          badgeColor: 'bg-orange-50 text-orange-700 border border-orange-200 font-bold',
+          badgeColor: 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30 font-bold',
           subItems: [
             {
               label: 'SMS Broadcast Hub',
               labelBn: 'এসএমএস ব্রডকাস্ট হাব',
               href: '/dashboard/sms',
-              icon: <Send className="w-3.5 h-3.5 text-orange-600" />,
+              icon: <Send className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />,
             },
             {
               label: 'Notice Board',
               labelBn: 'ডিজিটাল নোটিশ বোর্ড',
               href: '/dashboard/notices',
-              icon: <Bell className="w-3.5 h-3.5 text-amber-600" />,
+              icon: <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
             },
           ],
         },
@@ -558,20 +558,20 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           subtitle: 'Transcripts & Certificates',
           subtitleBn: 'প্রত্যয়ন, টিসি ও প্রশংসাপত্র',
           icon: <FileBadge className="w-4 h-4" />,
-          iconColor: 'text-amber-600',
+          iconColor: 'text-amber-600 dark:text-amber-400',
           hoverBg: 'group-hover:bg-yellow-500/20',
           subItems: [
             {
               label: 'Testimonials & Transcripts',
               labelBn: 'প্রশংসাপত্র ও ট্রান্সক্রিপ্ট',
               href: '/dashboard/ssc-transcript',
-              icon: <Award className="w-3.5 h-3.5 text-amber-600" />,
+              icon: <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
             },
             {
               label: 'Certificates & Documents',
               labelBn: 'প্রত্যয়ন পত্র ব্যবস্থাপনা',
               href: '/dashboard/certificates',
-              icon: <FileCheck className="w-3.5 h-3.5 text-emerald-600" />,
+              icon: <FileCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
             },
           ],
         },
@@ -582,22 +582,22 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           subtitle: 'Public Website Manager',
           subtitleBn: 'স্কুল ওয়েবসাইট কন্ট্রোল',
           icon: <Globe className="w-4 h-4" />,
-          iconColor: 'text-blue-600',
+          iconColor: 'text-blue-600 dark:text-blue-400',
           hoverBg: 'group-hover:bg-blue-500/20',
           subItems: [
             {
               label: 'Landing Page Editor',
               labelBn: 'ওয়েবসাইট কন্টেন্ট এডিটর',
               href: '/dashboard/landing-page',
-              icon: <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" />,
+              icon: <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />,
             },
             {
               label: 'Mobile App & PWA Hub',
               labelBn: 'মোবাইল অ্যাপ ও APK হাব',
               href: '/dashboard/mobile-app',
-              icon: <Smartphone className="w-3.5 h-3.5 text-emerald-600" />,
+              icon: <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
               badge: 'v2.0',
-              badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold',
+              badgeColor: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold',
             },
             {
               label: 'Teacher Mobile Portal',
@@ -658,10 +658,10 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       subtitleBn: 'কমান্ড সেন্টার ও অ্যানালিটিক্স',
       href: '/dashboard/teacher-portal?tab=home',
       icon: <LayoutDashboard className="w-4 h-4" />,
-      iconColor: 'text-indigo-600',
+      iconColor: 'text-indigo-600 dark:text-indigo-400',
       hoverBg: 'group-hover:bg-indigo-500/20',
       badge: 'Live',
-      badgeColor: 'bg-slate-100 text-slate-700 border border-slate-200',
+      badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
     },
     {
       id: 'teacher_mark_entry',
@@ -744,10 +744,10 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
   ];
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-700 border-r border-slate-200 select-none transition-colors duration-200">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 select-none transition-colors duration-200">
       
       {/* ── 1. BRAND HEADER WITH GRADIENT ACCENT ── */}
-      <div className="h-20 px-5 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white">
+      <div className="h-20 px-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-950">
         <Link
           href="/"
           onClick={handleLinkClick}
@@ -755,22 +755,22 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           title="মূল হোমপেজে যান"
         >
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-0.5 shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden">
               {schoolSettings?.schoolLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={schoolSettings.schoolLogo} alt="Logo" className="w-7 h-7 object-contain" />
               ) : (
-                <GraduationCap className="w-6 h-6 text-indigo-600" />
+                <GraduationCap className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               )}
             </div>
           </div>
           <div className="overflow-hidden min-w-0">
-            <h1 className="font-bold text-slate-900 text-sm sm:text-base tracking-tight leading-tight truncate group-hover:text-indigo-600 transition-colors">
-              {schoolSettings?.schoolName || 'Baraitali High School'}
+            <h1 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base tracking-tight leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              {schoolSettings?.schoolName || 'স্মার্ট স্কুল ম্যানেজমেন্ট'}
             </h1>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 truncate">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 flex items-center gap-1.5 truncate">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
-              <span>EIIN: {schoolSettings?.eiin || '106184'} • {schoolSettings?.address ? schoolSettings.address.split(',')[1]?.trim() || 'চকরিয়া' : 'চকরিয়া'}</span>
+              <span>EIIN: {schoolSettings?.eiin || '---'}{schoolSettings?.address ? ` • ${schoolSettings.address.split(',')[1]?.trim() || schoolSettings.address}` : ''}</span>
             </p>
           </div>
         </Link>
@@ -778,7 +778,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
         {onClose && (
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition lg:hidden shrink-0 cursor-pointer"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition lg:hidden shrink-0 cursor-pointer"
             title="মেনু বন্ধ করুন"
           >
             <X className="w-5 h-5" />
@@ -796,7 +796,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           /* ── ADMIN TIERED SECTIONS ── */
           ADMIN_SECTIONS.map((section, idx) => (
             <div key={idx} className="space-y-0.5">
-              <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 {currentLang === 'en' ? section.header : section.headerBn}
               </p>
 
@@ -816,7 +816,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                         className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
                           isDirectActive
                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -824,12 +824,12 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                             className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                               isDirectActive
                                 ? 'bg-white/20 text-white'
-                                : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
+                                : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
                             }`}
                           >
                             {item.icon}
                           </span>
-                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isDirectActive ? 'text-white' : 'text-slate-800'}`}>
+                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isDirectActive ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>
                             {currentLang === 'en' ? item.title : item.titleBn || item.title}
                           </span>
                         </div>
@@ -837,7 +837,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                         {item.badge && (
                           <span
                             className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
-                              item.badgeColor || 'bg-slate-100 text-slate-700 border border-slate-200'
+                              item.badgeColor || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                             }`}
                           >
                             {item.badge}
@@ -859,8 +859,8 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                         onClick={() => toggleGroup(item.id)}
                         className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
                           isGActive
-                            ? 'bg-slate-100 text-slate-900 border border-slate-200/80 font-bold'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            ? 'bg-slate-100 dark:bg-slate-800/90 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700/80 font-bold'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -868,12 +868,12 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                             className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                               isGActive
                                 ? 'bg-indigo-600 text-white shadow-xs'
-                                : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
+                                : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
                             }`}
                           >
                             {item.icon}
                           </span>
-                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 font-bold' : 'text-slate-800'}`}>
+                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-800 dark:text-slate-200'}`}>
                             {currentLang === 'en' ? item.title : item.titleBn || item.title}
                           </span>
                         </div>
@@ -882,7 +882,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                           {item.badge && (
                             <span
                               className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                                item.badgeColor || 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                item.badgeColor || 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
                               }`}
                             >
                               {item.badge}
@@ -890,16 +890,16 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                           )}
 
                           {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-slate-500 transition-transform duration-200" />
+                            <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200" />
                           ) : (
-                            <ChevronRight className="w-4 h-4 text-slate-400 transition-transform duration-200" />
+                            <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200" />
                           )}
                         </div>
                       </button>
 
                       {/* Submenu Children */}
                       {isExpanded && item.subItems && (
-                        <div className="mt-1 ml-6 pl-4 border-l-2 border-slate-200 space-y-1 py-0.5">
+                        <div className="mt-1 ml-6 pl-4 border-l-2 border-slate-200 dark:border-slate-800 space-y-1 py-0.5">
                           {item.subItems.map((sub) => {
                             const subActive = isItemActive(sub.href);
                             return (
@@ -909,8 +909,8 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                                 onClick={handleLinkClick}
                                 className={`flex items-center justify-between py-2 px-3 rounded-xl text-xs transition-all group ${
                                   subActive
-                                    ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 shadow-2xs'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
+                                    ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-500/30 shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
                                 }`}
                               >
                                 <span className="flex items-center gap-2.5 truncate">
@@ -923,7 +923,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                                 {sub.badge !== undefined && sub.badge !== null && (
                                   <span
                                     className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
-                                      sub.badgeColor || 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      sub.badgeColor || 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
                                     }`}
                                   >
                                     {sub.badge}
@@ -931,7 +931,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                                 )}
 
                                 {sub.isExternal && (
-                                  <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-slate-600 shrink-0" />
+                                  <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0" />
                                 )}
                               </Link>
                             );
@@ -947,7 +947,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
         ) : (
           /* ── TEACHER DEDICATED ITEMS ── */
           <div className="space-y-1">
-            <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               {currentLang === 'en' ? 'Teacher Portal' : 'শিক্ষক সেবা ও কার্যক্রম'}
             </p>
 
@@ -962,7 +962,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                     className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
                       active
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -970,12 +970,12 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                         className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                           active
                             ? 'bg-white/20 text-white'
-                            : `bg-slate-100 group-hover:bg-slate-200/80 ${item.iconColor}`
+                            : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
                         }`}
                       >
                         {item.icon}
                       </span>
-                      <span className={`block font-semibold truncate text-xs sm:text-sm ${active ? 'text-white' : 'text-slate-800'}`}>
+                      <span className={`block font-semibold truncate text-xs sm:text-sm ${active ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>
                         {currentLang === 'en' ? item.title : item.titleBn || item.title}
                       </span>
                     </div>
@@ -983,7 +983,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                     {item.badge && (
                       <span
                         className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
-                          item.badgeColor || 'bg-slate-100 text-slate-700 border border-slate-200'
+                          item.badgeColor || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {item.badge}
@@ -1002,8 +1002,8 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       </nav>
 
       {/* ── 4. SIDEBAR FOOTER / USER PROFILE CARD ── */}
-      <div className="p-3.5 border-t border-slate-100 bg-slate-50/70 shrink-0">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+      <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 shrink-0">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative shrink-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow">
@@ -1013,16 +1013,16 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                   ? 'AU'
                   : 'TC'}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-900 truncate">
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                 {session?.teacherName ||
                   (isAdmin
                     ? schoolSettings?.principalName || 'Admin User'
                     : 'Teacher')}
               </p>
-              <p className="text-[11px] text-slate-500 truncate">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                 {isAdmin
                   ? 'প্রধান প্রশাসক • Super Admin'
                   : 'সহকারী শিক্ষক • Faculty'}
@@ -1033,7 +1033,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
           <button
             onClick={handleLogout}
             title="Logout"
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -1059,10 +1059,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar (w-72 matches modern high-end ERP layout) */}
-      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden border-r border-slate-200/90 bg-white">
+      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950">
         <React.Suspense
           fallback={
-            <div className="w-72 bg-white h-screen border-r border-slate-200/90" />
+            <div className="w-72 bg-white dark:bg-slate-950 h-screen border-r border-slate-200/90 dark:border-slate-800" />
           }
         >
           <SidebarContent session={session} />
@@ -1077,20 +1077,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Backdrop */}
         <div
-          className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm transition-opacity duration-300 ${
             isOpen ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={onClose}
         />
         {/* Drawer */}
         <aside
-          className={`absolute left-0 top-0 bottom-0 w-72 shadow-2xl transition-transform duration-300 ease-in-out border-r border-slate-200/90 bg-white ${
+          className={`absolute left-0 top-0 bottom-0 w-72 shadow-2xl transition-transform duration-300 ease-in-out border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <React.Suspense
             fallback={
-              <div className="w-72 bg-white h-full border-r border-slate-200/90" />
+              <div className="w-72 bg-white dark:bg-slate-950 h-full border-r border-slate-200/90 dark:border-slate-800" />
             }
           >
             <SidebarContent session={session} onClose={onClose} />

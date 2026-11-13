@@ -63,7 +63,7 @@ export default function PublicContactSection({ settings }: PublicContactSectionP
                   {schoolName}, {schoolAddress}
                 </p>
                 <span className="inline-block mt-2 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                  Upazila: Chakaria, District: Cox's Bazar
+                  Upazila: Chakaria, District: Cox&apos;s Bazar
                 </span>
               </div>
             </div>

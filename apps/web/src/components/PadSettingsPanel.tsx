@@ -19,6 +19,7 @@ import {
 import { SchoolSettings, settingsService, DEFAULT_PAD_MARGINS, PadMargins } from '@/services/settingsService';
 import { processPadUpload, ProcessedPadResult } from '@/lib/padPdfRenderer';
 import SchoolPadWrapper from './SchoolPadWrapper';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 
 interface PadSettingsPanelProps {
   initialSettings?: SchoolSettings;
@@ -107,8 +108,8 @@ export default function PadSettingsPanel({
   };
 
   // Remove uploaded pad
-  const handleRemovePad = () => {
-    if (!confirm('আপনি কি আপলোডকৃত প্যাডটি মুছে ফেলতে চান?')) return;
+  const handleRemovePad = async () => {
+    if (!(await confirmDialog({ message: 'আপনি কি আপলোডকৃত প্যাডটি মুছে ফেলতে চান?', danger: true, confirmLabel: 'মুছে ফেলুন' }))) return;
     const updatedSettings: SchoolSettings = {
       ...settings,
       uploadedPadTemplateUrl: '',
@@ -183,18 +184,18 @@ export default function PadSettingsPanel({
   const activeMode = settings.activePadMode || (settings.uploadedPadTemplateUrl ? 'uploaded' : 'preprinted');
 
   return (
-    <div className={`pad-settings-container ${isModal ? 'bg-white rounded-3xl p-6 shadow-2xl max-w-6xl w-full max-h-[92vh] overflow-y-auto' : 'space-y-6'}`}>
+    <div className={`pad-settings-container ${isModal ? 'bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl max-w-6xl w-full max-h-[92vh] overflow-y-auto' : 'space-y-6'}`}>
       
       {/* ─── HEADER BAR ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
-            <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <span className="p-2 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl">
               <FileText size={20} />
             </span>
             লেটারহেড প্যাড ও মার্জিন কন্ট্রোল প্যানেল
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             আপনার প্রতিষ্ঠানের তৈরি করা নিজস্ব পিডিএফ বা ছবির প্যাড আপলোড করুন এবং লেখার অবস্থান ও স্বাক্ষরের অটো-স্কেলিং মার্জিন ক্যালিব্রেট করুন।
           </p>
         </div>
@@ -213,7 +214,7 @@ export default function PadSettingsPanel({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               title="বন্ধ করুন"
             >
               <X size={20} />
@@ -227,15 +228,15 @@ export default function PadSettingsPanel({
         <div
           className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 animate-in fade-in ${
             alertMsg.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
+              : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60'
           }`}
         >
           <div className="flex items-center gap-2">
             {alertMsg.type === 'success' ? (
-              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             ) : (
-              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+              <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
             )}
             <span>{alertMsg.text}</span>
           </div>
@@ -247,7 +248,7 @@ export default function PadSettingsPanel({
 
       {/* ─── 1. MODE SELECTOR (2 REAL MODES: UPLOADED VS PRE-PRINTED) ─── */}
       <div className="space-y-2">
-        <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+        <label className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider block">
           প্যাড ব্যবহারের মোড নির্বাচন করুন:
         </label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -257,13 +258,13 @@ export default function PadSettingsPanel({
             onClick={() => handleModeSelect('uploaded')}
             className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
               activeMode === 'uploaded'
-                ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50 shadow-sm'
+                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
             }`}
           >
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="p-2 rounded-xl bg-indigo-100 text-indigo-700">
+                <span className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
                   <Upload size={18} />
                 </span>
                 {activeMode === 'uploaded' && (
@@ -272,12 +273,12 @@ export default function PadSettingsPanel({
                   </span>
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">১. আপলোডকৃত নিজস্ব প্যাড (PDF বা ছবি)</h3>
-              <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">১. আপলোডকৃত নিজস্ব প্যাড (PDF বা ছবি)</h3>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                 আপনার প্রতিষ্ঠানের নিজস্ব প্রেস-প্রিন্টেড প্যাডের স্ক্যান কপি বা ডিজিটাল PDF আপলোড করুন। প্রত্যয়নপত্রের যাবতীয় লেখা স্বয়ংক্রিয়ভাবে এই প্যাডের ভেতর নির্ধারিত মার্জিনে বসে যাবে।
               </p>
             </div>
-            <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-indigo-700">
+            <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
               {settings.uploadedPadTemplateUrl ? '✓ নিজস্ব প্যাড আপলোড করা আছে' : '⚠ প্যাড আপলোড করুন'}
             </div>
           </div>
@@ -287,13 +288,13 @@ export default function PadSettingsPanel({
             onClick={() => handleModeSelect('preprinted')}
             className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
               activeMode === 'preprinted'
-                ? 'border-amber-600 bg-amber-50/50 shadow-sm'
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                ? 'border-amber-600 bg-amber-50/50 dark:bg-amber-950/50 shadow-sm'
+                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
             }`}
           >
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
                   <Printer size={18} />
                 </span>
                 {activeMode === 'preprinted' && (
@@ -302,12 +303,12 @@ export default function PadSettingsPanel({
                   </span>
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">২. ছাপা প্যাড (Pre-printed Paper)</h3>
-              <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">২. ছাপা প্যাড (Pre-printed Paper)</h3>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                 আপনার প্রিন্টারে আগে থেকেই ছাপানো প্যাড পেপার থাকলে এই মোড নির্বাচন করুন। সফটওয়্যারে কোনো ব্যাকগ্রাউন্ড আসবে না, শুধু নির্ধারিত মার্জিনে লেখা প্রিন্ট হবে।
               </p>
             </div>
-            <div className="mt-3 pt-2 border-t border-slate-200/60 text-[10px] font-bold text-amber-700">
+            <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[10px] font-bold text-amber-700 dark:text-amber-300">
               হেডার ও ফুটার ফাঁকা রেখে শুধু টেক্সট প্রিন্ট
             </div>
           </div>
@@ -316,14 +317,14 @@ export default function PadSettingsPanel({
       </div>
 
       {/* ─── 2. TAB NAVIGATION ───────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1">
         <button
           type="button"
           onClick={() => setActiveTab('upload')}
           className={`px-4 py-2.5 rounded-t-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border-b-2 ${
             activeTab === 'upload'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 font-black'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300 bg-indigo-50/50 dark:bg-indigo-950/50 font-black'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Upload size={14} /> প্যাড আপলোড (PDF/ছবি)
@@ -333,8 +334,8 @@ export default function PadSettingsPanel({
           onClick={() => setActiveTab('margins')}
           className={`px-4 py-2.5 rounded-t-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border-b-2 ${
             activeTab === 'margins'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 font-black'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300 bg-indigo-50/50 dark:bg-indigo-950/50 font-black'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Sliders size={14} /> মার্জিন ও টেক্সট স্কেলিং কাস্টমাইজেশন
@@ -349,42 +350,42 @@ export default function PadSettingsPanel({
           
           {/* ═══════ TAB 1: UPLOAD (PDF / IMAGE) ═══════ */}
           {activeTab === 'upload' && (
-            <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+            <div className="space-y-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                    <Upload size={16} className="text-indigo-600" />
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Upload size={16} className="text-indigo-600 dark:text-indigo-400" />
                     লেটারহেড প্যাড ফাইল আপলোড
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     প্রতিষ্ঠানের অফিসিয়াল PDF প্যাড অথবা স্ক্যান করা হাই-রেজ্যুলেশন PNG/JPG ছবি আপলোড করুন।
                   </p>
                 </div>
                 {settings.uploadedPadTemplateUrl && (
-                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg border border-emerald-300">
+                  <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 text-[11px] font-black rounded-lg border border-emerald-300 dark:border-emerald-800/60">
                     প্যাড লোডেড
                   </span>
                 )}
               </div>
 
               {/* Upload Dropzone */}
-              <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-2xl p-6 bg-indigo-50/30 text-center transition">
+              <div className="border-2 border-dashed border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-400 dark:hover:border-indigo-700 rounded-2xl p-6 bg-indigo-50/30 dark:bg-indigo-950/50 text-center transition">
                 {isProcessing ? (
                   <div className="py-6 space-y-3">
-                    <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
-                    <p className="text-xs font-bold text-indigo-900">{processStatus}</p>
-                    <p className="text-[11px] text-slate-500">A4 সাইজে অটো-স্কেলিং করা হচ্ছে...</p>
+                    <RefreshCw className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto" />
+                    <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200">{processStatus}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">A4 সাইজে অটো-স্কেলিং করা হচ্ছে...</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600">
+                    <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400">
                       <FileText size={24} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-900">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
                         আপনার প্রতিষ্ঠানের প্যাড ফাইল নির্বাচন করুন
                       </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         সাপোর্টেড ফরম্যাট: <strong>PDF (.pdf)</strong>, <strong>PNG</strong>, <strong>JPG/JPEG</strong>
                       </p>
                     </div>
@@ -406,17 +407,17 @@ export default function PadSettingsPanel({
 
               {/* Active Pad Details Card */}
               {settings.uploadedPadTemplateUrl && (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-black">
                         {settings.uploadedPadType === 'pdf' ? 'PDF' : 'IMG'}
                       </div>
                       <div>
-                        <p className="text-xs font-black text-slate-900">
+                        <p className="text-xs font-black text-slate-900 dark:text-white">
                           {settings.uploadedPadFileName || 'স্কুল লেটারহেড প্যাড ফাইল'}
                         </p>
-                        <p className="text-[10px] text-slate-500">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
                           {settings.uploadedPadFileSize ? `${Math.round(settings.uploadedPadFileSize / 1024)} KB • ` : ''}
                           {settings.uploadedPadType === 'pdf' ? 'পিডিএফ থেকে কনভার্টকৃত হাই-রেজ্যুলেশন ব্যাকগ্রাউন্ড' : 'ছবি ব্যাকগ্রাউন্ড'}
                         </p>
@@ -426,14 +427,14 @@ export default function PadSettingsPanel({
                     <button
                       type="button"
                       onClick={handleRemovePad}
-                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 size={13} /> প্যাড মুছুন
                     </button>
                   </div>
 
-                  <div className="p-2.5 bg-indigo-50/70 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
-                    <Info size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="p-2.5 bg-indigo-50/70 dark:bg-indigo-950/50 rounded-xl text-[11px] text-indigo-900 dark:text-indigo-200 flex items-start gap-2">
+                    <Info size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                     <span>
                       <strong>অটো লিখা ও মার্জিন:</strong> আপলোড করা প্যাডের হেডারের লেখার নিচে প্রত্যয়নের টেক্সট নিখুঁতভাবে বসানোর জন্য <strong>মার্জিন কাস্টমাইজেশন</strong> ট্যাবে গিয়ে <strong>টপ মার্জিন</strong> এডজাস্ট করুন।
                     </span>
@@ -445,14 +446,14 @@ export default function PadSettingsPanel({
 
           {/* ═══════ TAB 2: MARGIN & TEXT SCALING CONTROLS ═══════ */}
           {activeTab === 'margins' && (
-            <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+            <div className="space-y-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                    <Sliders size={16} className="text-indigo-600" />
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Sliders size={16} className="text-indigo-600 dark:text-indigo-400" />
                     মার্জিন ও টেক্সট স্কেলিং কাস্টমাইজেশন
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     লেখা ও স্বাক্ষরের সঠিক অবস্থান ও ফন্ট সাইজ নির্ধারণ করুন।
                   </p>
                 </div>
@@ -462,7 +463,7 @@ export default function PadSettingsPanel({
                   <button
                     type="button"
                     onClick={() => applyPreset('standard')}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                     title="আদর্শ মার্জিন (Top: 3.0in, Bottom: 1.0in)"
                   >
                     স্ট্যান্ডার্ড (৩.০&quot;)
@@ -470,7 +471,7 @@ export default function PadSettingsPanel({
                   <button
                     type="button"
                     onClick={() => applyPreset('compact')}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                     title="ছোট হেডারের জন্য (Top: 2.0in)"
                   >
                     কম্প্যাক্ট (২.০&quot;)
@@ -478,7 +479,7 @@ export default function PadSettingsPanel({
                   <button
                     type="button"
                     onClick={() => applyPreset('large_header')}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                     title="বড় হেডারের জন্য (Top: 3.5in)"
                   >
                     বড় হেডার (৩.৫&quot;)
@@ -490,11 +491,11 @@ export default function PadSettingsPanel({
               <div className="space-y-3.5 pt-2">
                 
                 {/* 1. TOP MARGIN */}
-                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
+                <div className="p-3.5 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-black text-slate-900">টপ মার্জিন (হেডার স্পেস)</span>
-                      <p className="text-[10px] text-slate-500">
+                      <span className="text-xs font-black text-slate-900 dark:text-white">টপ মার্জিন (হেডার স্পেস)</span>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         আপলোড করা প্যাডের হেডারের লেখার নিচে প্রত্যয়নের মূল বক্তব্য শুরু হওয়ার দূরত্ব
                       </p>
                     </div>
@@ -502,17 +503,17 @@ export default function PadSettingsPanel({
                       <button
                         type="button"
                         onClick={() => stepMargin('top', -0.1)}
-                        className="w-7 h-7 bg-white border border-slate-300 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                        className="w-7 h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                       >
                         -
                       </button>
-                      <span className="w-16 text-center font-mono font-black text-sm text-indigo-700 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                      <span className="w-16 text-center font-mono font-black text-sm text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
                         {currentMargins.top}&quot;
                       </span>
                       <button
                         type="button"
                         onClick={() => stepMargin('top', 0.1)}
-                        className="w-7 h-7 bg-white border border-slate-300 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                        className="w-7 h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                       >
                         +
                       </button>
@@ -529,17 +530,17 @@ export default function PadSettingsPanel({
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                     <span>কম (0.5&quot;)</span>
-                    <span className="text-indigo-600 font-bold">{(currentMargins.top * 25.4).toFixed(0)} mm</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">{(currentMargins.top * 25.4).toFixed(0)} mm</span>
                     <span>বেশি (4.5&quot;)</span>
                   </div>
                 </div>
 
                 {/* 2. BOTTOM MARGIN */}
-                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
+                <div className="p-3.5 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-black text-slate-900">বটম মার্জিন (ফুটার স্পেস)</span>
-                      <p className="text-[10px] text-slate-500">
+                      <span className="text-xs font-black text-slate-900 dark:text-white">বটম মার্জিন (ফুটার স্পেস)</span>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         পৃষ্ঠার নিচ থেকে ন্যূনতম দূরত্ব যাতে প্যাডের ফুটারে লেখা না লাগে
                       </p>
                     </div>
@@ -547,17 +548,17 @@ export default function PadSettingsPanel({
                       <button
                         type="button"
                         onClick={() => stepMargin('bottom', -0.1)}
-                        className="w-7 h-7 bg-white border border-slate-300 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                        className="w-7 h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                       >
                         -
                       </button>
-                      <span className="w-16 text-center font-mono font-black text-sm text-indigo-700 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                      <span className="w-16 text-center font-mono font-black text-sm text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
                         {currentMargins.bottom}&quot;
                       </span>
                       <button
                         type="button"
                         onClick={() => stepMargin('bottom', 0.1)}
-                        className="w-7 h-7 bg-white border border-slate-300 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                        className="w-7 h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-black text-sm flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                       >
                         +
                       </button>
@@ -574,17 +575,17 @@ export default function PadSettingsPanel({
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                     <span>কম (0.5&quot;)</span>
-                    <span className="text-indigo-600 font-bold">{(currentMargins.bottom * 25.4).toFixed(0)} mm</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">{(currentMargins.bottom * 25.4).toFixed(0)} mm</span>
                     <span>বেশি (3.0&quot;)</span>
                   </div>
                 </div>
 
                 {/* 3. LEFT & RIGHT MARGINS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                  <div className="p-3 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">বাম মার্জিন (Left)</span>
-                      <span className="font-mono font-bold text-xs text-indigo-700">{currentMargins.left}&quot;</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">বাম মার্জিন (Left)</span>
+                      <span className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300">{currentMargins.left}&quot;</span>
                     </div>
                     <input
                       type="range"
@@ -597,10 +598,10 @@ export default function PadSettingsPanel({
                     />
                   </div>
 
-                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                  <div className="p-3 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">ডান মার্জিন (Right)</span>
-                      <span className="font-mono font-bold text-xs text-indigo-700">{currentMargins.right}&quot;</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">ডান মার্জিন (Right)</span>
+                      <span className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300">{currentMargins.right}&quot;</span>
                     </div>
                     <input
                       type="range"
@@ -615,17 +616,17 @@ export default function PadSettingsPanel({
                 </div>
 
                 {/* 4. PRINCIPAL SIGNATURE AUTO-SCALING GAP */}
-                <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-200 space-y-2">
+                <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/50 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-black text-indigo-950 flex items-center gap-1">
+                      <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1">
                         প্রধান শিক্ষকের স্বাক্ষরের অটো-স্কেলিং ব্যবধান
                       </span>
-                      <p className="text-[10px] text-indigo-700">
+                      <p className="text-[10px] text-indigo-700 dark:text-indigo-300">
                         বক্তব্য শেষ হবার পর স্বাক্ষরের মধ্যকার স্বয়ংক্রিয় ফাঁকা দূরত্ব
                       </p>
                     </div>
-                    <span className="font-mono font-black text-xs text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-200">
+                    <span className="font-mono font-black text-xs text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60">
                       {settings.padSignatureGap || 2.5} rem
                     </span>
                   </div>
@@ -647,12 +648,12 @@ export default function PadSettingsPanel({
 
                 {/* 5. TYPOGRAPHY SCALING (FONT SIZE & LINE HEIGHT) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                  <div className="p-3 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1">
                         <Type size={12} /> ফন্ট সাইজ
                       </span>
-                      <span className="font-mono font-bold text-xs text-indigo-700">{settings.padFontSize || 14} px</span>
+                      <span className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300">{settings.padFontSize || 14} px</span>
                     </div>
                     <input
                       type="range"
@@ -665,10 +666,10 @@ export default function PadSettingsPanel({
                     />
                   </div>
 
-                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1.5">
+                  <div className="p-3 bg-slate-50/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">লাইন ব্যবধান (Line Height)</span>
-                      <span className="font-mono font-bold text-xs text-indigo-700">{settings.padLineHeight || 2.1}</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">লাইন ব্যবধান (Line Height)</span>
+                      <span className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300">{settings.padLineHeight || 2.1}</span>
                     </div>
                     <input
                       type="range"
@@ -691,11 +692,11 @@ export default function PadSettingsPanel({
         {/* Right Column: Interactive Live Pad Preview (5 Cols) */}
         <div className="lg:col-span-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-              <Eye size={14} className="text-indigo-600" />
+            <span className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5 uppercase tracking-wider">
+              <Eye size={14} className="text-indigo-600 dark:text-indigo-400" />
               লাইভ A4 শিট প্রিভিউ
             </span>
-            <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
               A4 Portrait (210×297mm)
             </span>
           </div>
@@ -743,11 +744,11 @@ export default function PadSettingsPanel({
             </div>
           </div>
 
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-950 space-y-1">
-            <p className="font-bold flex items-center gap-1 text-emerald-800">
-              <CheckCircle2 size={14} className="text-emerald-600" /> অটো-স্কেলিং সিগনেচার ফ্লো:
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-[11px] text-emerald-950 dark:text-emerald-200 space-y-1">
+            <p className="font-bold flex items-center gap-1 text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" /> অটো-স্কেলিং সিগনেচার ফ্লো:
             </p>
-            <p className="text-[10.5px] leading-relaxed text-emerald-900">
+            <p className="text-[10.5px] leading-relaxed text-emerald-900 dark:text-emerald-200">
               বক্তব্যের দৈর্ঘ্য অনুযায়ী প্রধান শিক্ষকের স্বাক্ষর ও ৪-স্তরের পদবী সরাসরি লিখা শেষ হবার পরে স্বয়ংক্রিয়ভাবে ডানপাশে অবস্থান নেয়।
             </p>
           </div>

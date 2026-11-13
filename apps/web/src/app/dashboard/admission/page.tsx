@@ -33,6 +33,7 @@ import { settingsService } from '@/services/settingsService';
 import { curriculumService } from '@/services/curriculumService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { smsService } from '@/services/smsService';
+import { showToast } from '@/components/ui/ToastProvider';
 import { useRouter } from 'next/navigation';
 import { teacherAuthService } from '@/services/teacherAuthService';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
@@ -42,6 +43,10 @@ export default function AdmissionPage() {
   const router = useRouter();
   const [lang, setLang] = useState<AppLanguage>('bn');
   const [schoolSettings, setSchoolSettings] = useState<any>(null);
+  const [showClassSelection, setShowClassSelection] = useState<boolean>(true);
+  const [showSectionSelection, setShowSectionSelection] = useState<boolean>(true);
+  const [showRollInput, setShowRollInput] = useState<boolean>(true);
+  const [printableBlankModal, setPrintableBlankModal] = useState(false);
 
   useEffect(() => {
     const sess = teacherAuthService.getSession();
@@ -195,10 +200,6 @@ export default function AdmissionPage() {
     scanIdLbl: lang === 'bn' ? 'ডিজিটাল স্ক্যান আইডি' : 'Digital Scan ID'
   };
 
-  const [showClassSelection, setShowClassSelection] = useState<boolean>(true);
-  const [showSectionSelection, setShowSectionSelection] = useState<boolean>(true);
-  const [showRollInput, setShowRollInput] = useState<boolean>(true);
-
   // Form Fields
   const [fullName, setFullName] = useState('');
   const [fullNameEn, setFullNameEn] = useState('');
@@ -233,14 +234,6 @@ export default function AdmissionPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [admittedStudent, setAdmittedStudent] = useState<any>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-
-  const [printableBlankModal, setPrintableBlankModal] = useState(false);
-
-  useEffect(() => {
-    const handleOpenBlank = () => setPrintableBlankModal(true);
-    window.addEventListener('open_blank_admission_modal', handleOpenBlank);
-    return () => window.removeEventListener('open_blank_admission_modal', handleOpenBlank);
-  }, []);
 
   useEffect(() => {
     if (admittedStudent && admittedStudent.id) {
@@ -281,7 +274,10 @@ export default function AdmissionPage() {
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) return alert('ছবি সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('ছবি সাইজ সর্বোচ্চ ৫MB হতে পারবে।', 'warning');
+        return;
+      }
       const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);
       setPhoto(compressed);
     }
@@ -290,8 +286,14 @@ export default function AdmissionPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fullName.trim()) return alert('শিক্ষার্থীর নাম অবশ্যই দিতে হবে!');
-    if (!mobile.trim()) return alert('অভিভাবকের মোবাইল নম্বর অবশ্যই দিতে হবে!');
+    if (!fullName.trim()) {
+      showToast('শিক্ষার্থীর নাম অবশ্যই দিতে হবে!', 'warning');
+      return;
+    }
+    if (!mobile.trim()) {
+      showToast('অভিভাবকের মোবাইল নম্বর অবশ্যই দিতে হবে!', 'warning');
+      return;
+    }
 
     const studentData = {
       name: fullName.trim(),
@@ -462,30 +464,30 @@ export default function AdmissionPage() {
                 href="/admission"
                 target="_blank"
                 rel="noreferrer"
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-white/15"
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-white/15"
               >
                 <Globe size={15} className="text-cyan-400" /> অনলাইন আবেদন লিংক ↗
               </a>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xl space-y-6 text-xs print:hidden">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl space-y-6 text-xs print:hidden">
           
           {/* SECTION 1: ACADEMIC */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-900 font-extrabold text-sm">
-              <BookOpen size={18} className="text-indigo-600" />
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-sm">
+              <BookOpen size={18} className="text-indigo-600 dark:text-indigo-400" />
               {t.sec1Title}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-3.5">
               {showClassSelection && (
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.classLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.classLabel}</label>
                   <select 
                     value={selectedClass} 
                     onChange={(e) => setSelectedClass(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="6th">{t.class6}</option>
                     <option value="7th">{t.class7}</option>
@@ -498,24 +500,24 @@ export default function AdmissionPage() {
 
               {showRollInput && (
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.rollLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.rollLabel}</label>
                   <input 
                     type="text" 
                     value={roll} 
                     onChange={(e) => setRoll(e.target.value)}
                     placeholder={t.rollPlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               )}
 
               {showSectionSelection && (
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.sectionLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.sectionLabel}</label>
                   <select 
                     value={section} 
                     onChange={(e) => setSection(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="A">{t.secA}</option>
                     <option value="B">{t.secB}</option>
@@ -525,13 +527,13 @@ export default function AdmissionPage() {
               )}
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.groupLabel}</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.groupLabel}</label>
                 <select 
                   value={group} 
                   onChange={(e) => setGroup(e.target.value as any)}
                   disabled={isGroupDisabled}
                   className={`w-full px-3 py-2 border rounded-xl outline-none font-bold ${
-                    isGroupDisabled ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 text-slate-900 border-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer'
+                    isGroupDisabled ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed' : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer'
                   }`}
                 >
                   <option value="সাধারণ">{t.groupGen}</option>
@@ -542,13 +544,13 @@ export default function AdmissionPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.optionalLabel}</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.optionalLabel}</label>
                 <select 
                   value={optionalSubject} 
                   onChange={(e) => setOptionalSubject(e.target.value)}
                   disabled={isOptionalDisabled}
                   className={`w-full px-3 py-2 border rounded-xl outline-none font-bold ${
-                    isOptionalDisabled ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 text-slate-900 border-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer'
+                    isOptionalDisabled ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed' : 'bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border-slate-300 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer'
                   }`}
                 >
                   {optionalSubjectOptions.map((opt) => (
@@ -569,9 +571,9 @@ export default function AdmissionPage() {
           </div>
 
           {/* SECTION 2: PERSONAL DETAILS */}
-          <div className="space-y-3 pt-3 border-t border-slate-200">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-900 font-extrabold text-sm">
-              <User size={18} className="text-indigo-600" />
+          <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-sm">
+              <User size={18} className="text-indigo-600 dark:text-indigo-400" />
               {t.sec2Title}
             </div>
 
@@ -580,34 +582,34 @@ export default function AdmissionPage() {
                 
                 {/* Full Name BN */}
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.studentNameLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.studentNameLabel}</label>
                   <input 
                     type="text" 
                     required 
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder={t.studentNamePlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 {/* Mobile */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.mobileLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.mobileLabel}</label>
                   <input 
                     type="text" 
                     required 
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
                     placeholder={t.mobilePlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 {/* DOB */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
-                    <Calendar size={12} className="text-indigo-600" />
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                    <Calendar size={12} className="text-indigo-600 dark:text-indigo-400" />
                     {t.dobLabel}
                   </label>
                   <input 
@@ -615,17 +617,17 @@ export default function AdmissionPage() {
                     required 
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 {/* Gender */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.genderLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.genderLabel}</label>
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="পুরুষ">{t.genderMale}</option>
                     <option value="নারী">{t.genderFemale}</option>
@@ -635,11 +637,11 @@ export default function AdmissionPage() {
 
                 {/* Religion */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.religionLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.religionLabel}</label>
                   <select
                     value={religion}
                     onChange={(e) => setReligion(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="ইসলাম">{t.relIslam}</option>
                     <option value="হিন্দু">{t.relHindu}</option>
@@ -651,11 +653,11 @@ export default function AdmissionPage() {
 
                 {/* Blood Group */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.bloodGroupLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.bloodGroupLabel}</label>
                   <select
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="A+">A+ (A Positive)</option>
                     <option value="A-">A- (A Negative)</option>
@@ -670,29 +672,29 @@ export default function AdmissionPage() {
 
                 {/* Birth Reg No */}
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.birthRegLabel}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.birthRegLabel}</label>
                   <input 
                     type="text" 
                     required 
                     value={birthRegNo}
                     onChange={(e) => setBirthRegNo(e.target.value)}
                     placeholder={t.birthRegPlaceholder}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               {/* Photo Box */}
               <div className="flex flex-col items-center space-y-2">
-                <label className="block text-[11px] font-bold text-slate-700">{t.photoLabel}</label>
-                <div className="relative w-32 h-36 border-2 border-dashed border-indigo-300 hover:border-indigo-600 rounded-2xl bg-indigo-50/40 flex flex-col items-center justify-center cursor-pointer overflow-hidden group shadow-inner transition">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">{t.photoLabel}</label>
+                <div className="relative w-32 h-36 border-2 border-dashed border-indigo-300 dark:border-indigo-800/60 hover:border-indigo-600 rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/50 flex flex-col items-center justify-center cursor-pointer overflow-hidden group shadow-inner transition">
                   <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                   {photo ? (
                     <img src={photo} alt="Student" className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-center text-slate-400 p-2">
                       <User size={32} className="mx-auto text-indigo-300 group-hover:scale-110 transition" />
-                      <span className="text-[10px] font-extrabold text-indigo-700 block mt-1">{t.photoUpload}</span>
+                      <span className="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 block mt-1">{t.photoUpload}</span>
                       <span className="text-[8px] text-slate-400 block mt-0.5">{t.passportSubtext}</span>
                     </div>
                   )}
@@ -702,17 +704,17 @@ export default function AdmissionPage() {
           </div>
 
           {/* SECTION 3: PARENTS INFORMATION */}
-          <div className="space-y-3 pt-3 border-t border-slate-200">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-900 font-extrabold text-sm">
-              <Users size={18} className="text-indigo-600" />
+          <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-extrabold text-sm">
+              <Users size={18} className="text-indigo-600 dark:text-indigo-400" />
               {t.sec3Title}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Father Box */}
-              <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2.5">
-                <span className="font-black text-indigo-900 text-xs flex items-center gap-1.5">
-                  <ShieldCheck size={16} className="text-indigo-600" /> {t.fatherTitle}
+              <div className="p-4 bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5">
+                <span className="font-black text-indigo-900 dark:text-indigo-200 text-xs flex items-center gap-1.5">
+                  <ShieldCheck size={16} className="text-indigo-600 dark:text-indigo-400" /> {t.fatherTitle}
                 </span>
                 <div className="space-y-2">
                   <input 
@@ -721,7 +723,7 @@ export default function AdmissionPage() {
                     value={fatherName}
                     onChange={(e) => setFatherName(e.target.value)}
                     placeholder={t.fatherNameLabel}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 text-xs"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white text-xs"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input 
@@ -729,23 +731,23 @@ export default function AdmissionPage() {
                       value={fatherNid}
                       onChange={(e) => setFatherNid(e.target.value)}
                       placeholder={t.fatherNidLabel}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900 text-xs"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white text-xs"
                     />
                     <input 
                       type="text" 
                       value={fatherOcc}
                       onChange={(e) => setFatherOcc(e.target.value)}
                       placeholder={t.fatherOccLabel}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 text-xs"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white text-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Mother Box */}
-              <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2.5">
-                <span className="font-black text-purple-900 text-xs flex items-center gap-1.5">
-                  <ShieldCheck size={16} className="text-purple-600" /> {t.motherTitle}
+              <div className="p-4 bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5">
+                <span className="font-black text-purple-900 dark:text-purple-200 text-xs flex items-center gap-1.5">
+                  <ShieldCheck size={16} className="text-purple-600 dark:text-purple-400" /> {t.motherTitle}
                 </span>
                 <div className="space-y-2">
                   <input 
@@ -754,7 +756,7 @@ export default function AdmissionPage() {
                     value={motherName}
                     onChange={(e) => setMotherName(e.target.value)}
                     placeholder={t.motherNameLabel}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 text-xs"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white text-xs"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input 
@@ -762,14 +764,14 @@ export default function AdmissionPage() {
                       value={motherNid}
                       onChange={(e) => setMotherNid(e.target.value)}
                       placeholder={t.motherNidLabel}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900 text-xs"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white text-xs"
                     />
                     <input 
                       type="text" 
                       value={motherOcc}
                       onChange={(e) => setMotherOcc(e.target.value)}
                       placeholder={t.motherOccLabel}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 text-xs"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white text-xs"
                     />
                   </div>
                 </div>
@@ -778,18 +780,18 @@ export default function AdmissionPage() {
           </div>
 
           {/* SECTION 4 & 5: ADDRESS & PREVIOUS SCHOOL */}
-          <div className="space-y-3 pt-3 border-t border-slate-200">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm">
-                <MapPin size={18} className="text-indigo-600" />
+          <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white font-extrabold text-sm">
+                <MapPin size={18} className="text-indigo-600 dark:text-indigo-400" />
                 {t.sec5Title}
               </div>
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 select-none">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700 dark:text-indigo-300 select-none">
                 <input 
                   type="checkbox" 
                   checked={isSameAddress}
                   onChange={(e) => setIsSameAddress(e.target.checked)}
-                  className="rounded text-indigo-600 w-4 h-4"
+                  className="rounded text-indigo-600 dark:text-indigo-400 w-4 h-4"
                 />
                 {t.sameAddressLabel}
               </label>
@@ -797,30 +799,30 @@ export default function AdmissionPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.prevSchoolName}</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.prevSchoolName}</label>
                 <input 
                   type="text" 
                   value={prevSchoolName}
                   onChange={(e) => setPrevSchoolName(e.target.value)}
                   placeholder={t.prevSchoolPlaceholder}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.currentAddressLabel}</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.currentAddressLabel}</label>
                 <input 
                   type="text" 
                   required 
                   value={currentAddress}
                   onChange={(e) => setCurrentAddress(e.target.value)}
                   placeholder={t.currentAddressPlaceholder}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t.permanentAddressLabel}</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">{t.permanentAddressLabel}</label>
                 <input 
                   type="text" 
                   required={!isSameAddress}
@@ -829,7 +831,7 @@ export default function AdmissionPage() {
                   onChange={(e) => setPermanentAddress(e.target.value)}
                   placeholder={isSameAddress ? t.sameAsCurrentPlaceholder : t.permanentAddressPlaceholder}
                   className={`w-full px-3 py-2 border rounded-xl outline-none font-bold ${
-                    isSameAddress ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500'
+                    isSameAddress ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed' : 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500'
                   }`}
                 />
               </div>
@@ -837,8 +839,8 @@ export default function AdmissionPage() {
           </div>
 
           {/* Form Bottom Actions */}
-          <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[11px] text-slate-500 font-medium">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
               {t.requiredFooter}
             </p>
 
@@ -846,7 +848,7 @@ export default function AdmissionPage() {
               <button 
                 type="button" 
                 onClick={handleReset}
-                className="px-5 py-2.5 font-bold text-slate-600 hover:bg-slate-100 rounded-2xl transition text-xs cursor-pointer"
+                className="px-5 py-2.5 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition text-xs cursor-pointer"
               >
                 {t.resetBtn}
               </button>

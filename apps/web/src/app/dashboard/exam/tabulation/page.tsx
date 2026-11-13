@@ -303,8 +303,8 @@ export default function DynamicTabulationSheetPage() {
     return (
       <div className="max-w-[98%] mx-auto py-16" suppressHydrationWarning>
         <div className="animate-pulse space-y-6">
-          <div className="h-28 bg-slate-200 rounded-3xl" />
-          <div className="h-96 bg-slate-100 rounded-3xl" />
+          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+          <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
         </div>
       </div>
     );
@@ -339,15 +339,15 @@ export default function DynamicTabulationSheetPage() {
       </div>
 
       {/* FILTER CONTROLS */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-bold">
           
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">১. পরীক্ষা (Exam)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">১. পরীক্ষা (Exam)</label>
             <select
               value={selectedExam}
               onChange={(e) => setSelectedExam(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
               <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -357,7 +357,7 @@ export default function DynamicTabulationSheetPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">২. শ্রেণি (Class)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">২. শ্রেণি (Class)</label>
             <select
               value={selectedGrade}
               onChange={(e) => {
@@ -371,7 +371,7 @@ export default function DynamicTabulationSheetPage() {
                   setSelectedGroup('সাধারণ');
                 }
               }}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
               <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -383,7 +383,7 @@ export default function DynamicTabulationSheetPage() {
 
           {/* SECTION OR GROUP SELECTOR */}
           <div>
-            <label className="block text-[10px] font-extrabold text-indigo-700 uppercase mb-1">
+            <label className="block text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase mb-1">
               {isClass9or10 ? '৩. বিভাগ / গ্রুপ (Group)' : '৩. শাখা (Section)'}
             </label>
             <select
@@ -398,7 +398,7 @@ export default function DynamicTabulationSheetPage() {
                   setSelectedGroup('সাধারণ');
                 }
               }}
-              className="w-full px-3 py-2.5 bg-indigo-50/50 border border-indigo-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-indigo-950 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-indigo-50/50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-indigo-950 dark:text-indigo-200 font-bold cursor-pointer"
             >
               {isClass9or10 ? (
                 <>
@@ -418,11 +418,11 @@ export default function DynamicTabulationSheetPage() {
 
           {/* PAGE SIZE SELECTOR FOR LANDSCAPE PRINTING */}
           <div>
-            <label className="block text-[10px] font-extrabold text-amber-700 uppercase mb-1">৪. প্রিন্ট পেইজ সাইজ (Page Size)</label>
+            <label className="block text-[10px] font-extrabold text-amber-700 dark:text-amber-300 uppercase mb-1">৪. প্রিন্ট পেইজ সাইজ (Page Size)</label>
             <select
               value={pageSize}
               onChange={(e) => setPageSize(e.target.value as 'a4' | 'legal')}
-              className="w-full px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl outline-none focus:ring-2 focus:ring-amber-200 text-amber-950 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-amber-200 text-amber-950 dark:text-amber-200 font-bold cursor-pointer"
             >
               <option value="a4">📄 A4 (Landscape 297mm × 210mm)</option>
               <option value="legal">📜 Legal (Landscape 355.6mm × 215.9mm)</option>
@@ -430,14 +430,14 @@ export default function DynamicTabulationSheetPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">৫. খোঁজ করুন (Search)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">৫. খোঁজ করুন (Search)</label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="রোল বা নাম লিখুন..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 font-bold text-slate-900"
+                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 font-bold text-slate-900 dark:text-white"
               />
               <Search className="absolute left-3 top-3 text-slate-400" size={15} />
             </div>
@@ -452,10 +452,10 @@ export default function DynamicTabulationSheetPage() {
         {/* TABULATION HEADER */}
         <div className="text-center border-b-2 border-slate-950 pb-4 space-y-1">
           <h2 className="text-2xl font-black text-slate-950 tracking-tight">
-            {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+            {schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
           </h2>
           <p className="text-xs font-bold text-slate-800">
-            {schoolSettings?.address || 'চকরিয়া, কক্সবাজার।'} | EIIN: {schoolSettings?.eiin || '106184'}
+            {schoolSettings?.address ? `${schoolSettings.address} | ` : ''}EIIN: {schoolSettings?.eiin || '---'}
           </p>
           <div className="pt-1">
             <span className="inline-block px-5 py-1 bg-slate-950 text-white font-black text-xs uppercase tracking-widest">

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import ClientLicenseGuard from "@/components/ClientLicenseGuard";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SchoolPro - স্কুল ম্যানেজমেন্ট",
-  description: "বরইতলী উচ্চ বিদ্যালয় - ডিজিটাল ম্যানেজমেন্ট সিস্টেম",
+  description: "SchoolPro - ডিজিটাল স্কুল ম্যানেজমেন্ট সিস্টেম",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -65,9 +66,11 @@ export default function RootLayout({
             `,
           }}
         />
-        <ClientLicenseGuard>
-          {children}
-        </ClientLicenseGuard>
+        <ToastProvider>
+          <ClientLicenseGuard>
+            {children}
+          </ClientLicenseGuard>
+        </ToastProvider>
         <Script
           id="sw-register"
           strategy="afterInteractive"

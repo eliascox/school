@@ -30,6 +30,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 export interface SubjectCurriculumItem {
   id: string;
@@ -67,7 +68,7 @@ export interface NctbBookItem {
 const base6to8Subjects: Omit<SubjectCurriculumItem, 'id' | 'grade'>[] = [
   { code: 'BAN-601', name: 'বাংলা ১ম পত্র', group: 'সাধারণ', cq: 100, mcq: '-', practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'বাংলা ২য় পত্রের সাথে যৌথ পাস (মোট ৫০/১৫০)', isJointPass: true, jointPassInfo: 'বাংলা ১ম + ২য় যৌথ মোট ৫০ মার্কস', category: 'আবশ্যিক' },
   { code: 'BAN-602', name: 'বাংলা ২য় পত্র', group: 'সাধারণ', cq: 50, mcq: '-', practical: '-', ca: 0, fullMarks: 50, passMarks: 17, passRules: 'বাংলা ১ম পত্রের সাথে যৌথ পাস (মোট ৫০/১৫০)', isJointPass: true, jointPassInfo: 'বাংলা ১ম + ২য় যৌথ মোট ৫০ মার্কস', category: 'আবশ্যিক' },
-  { code: 'ENG-601', name: 'ইংরেজি ১ম পত্র', group: 'সাধারণ', cq: 100, mcq: '-', practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'ইংরেজি ২য় পত্রের সাথে যৌথ পাস (মোট ৬৬/২০০)', isJointPass: true, jointPassInfo: 'ইংরেজি ১ম + ২য় যৌথ মোট ৬৬ মার্কস', category: 'আবশ্যিক' },
+  { code: 'ENG-601', name: 'ইংরেজি ১ম পত্র', group: 'সাধারণ', cq: 100, mcq: '-', practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'ইংরেজি ২য় পত্রের সাথে যৌথ পাস (মোট ৫০/১৫০)', isJointPass: true, jointPassInfo: 'ইংরেজি ১ম + ২য় যৌথ মোট ৫০ মার্কস', category: 'আবশ্যিক' },
   { code: 'ENG-602', name: 'ইংরেজি ২য় পত্র', group: 'সাধারণ', cq: 50, mcq: '-', practical: '-', ca: 0, fullMarks: 50, passMarks: 17, passRules: 'ইংরেজি ১ম পত্রের সাথে যৌথ পাস (মোট ৫০/১৫০)', isJointPass: true, jointPassInfo: 'ইংরেজি ১ম + ২য় যৌথ মোট ৫০ মার্কস', category: 'আবশ্যিক' },
   { code: 'MAT-603', name: 'গণিত (Mathematics)', group: 'সাধারণ', cq: 70, mcq: '-', practical: '-', ca: 30, fullMarks: 100, passMarks: 33, passRules: 'লিখিত ও সিএ-তে আলাদা পাস (৩৩% নম্বর)', isJointPass: false, category: 'আবশ্যিক' },
   { code: 'SCI-604', name: 'বিজ্ঞান (Science)', group: 'সাধারণ', cq: 100, mcq: '-', practical: 0, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'লিখিত ৩৩% নম্বর (৩৩/১০০)', isJointPass: false, category: 'আবশ্যিক' },
@@ -554,8 +555,8 @@ export default function CurriculumClient() {
     setTimeout(() => setAlertMsg(null), 4000);
   };
 
-  const handleResetToNctb = () => {
-    if (confirm('আপনি কি NCTB ২০২৬ এর মানসম্মত পাঠ্যক্রম ও নম্বর বিভাজন ডিফল্ট রিসেট করতে চান? (৬ষ্ঠ-৮ম এবং ৯দশ-১০ম অটো-সিঙ্ক যুক্ত হবে)')) {
+  const handleResetToNctb = async () => {
+    if (await confirmDialog({ title: 'পাঠ্যক্রম রিসেট', message: 'আপনি কি NCTB ২০২৬ এর মানসম্মত পাঠ্যক্রম ও নম্বর বিভাজন ডিফল্ট রিসেট করতে চান? (৬ষ্ঠ-৮ম এবং ৯ম-১০ম অটো-সিঙ্ক যুক্ত হবে)', confirmLabel: 'রিসেট করুন', danger: true })) {
       saveData(DEFAULT_CURRICULUM_DATA);
       showAlert('success', 'NCTB ২০২৬ পাঠ্যক্রম ও নম্বর বিভাজন সফলভাবে রিসেট করা হয়েছে!');
     }
@@ -602,14 +603,14 @@ export default function CurriculumClient() {
     setShowModal(true);
   };
 
-  const handleDeleteSubject = (itemToDelete: SubjectCurriculumItem) => {
+  const handleDeleteSubject = async (itemToDelete: SubjectCurriculumItem) => {
     const isFoundationGroup = ['6th', '7th', '8th'].includes(itemToDelete.grade);
     const targetGrades = isFoundationGroup ? ['6th', '7th', '8th'] : ['9th', '10th'];
     const targetGradeNames = isFoundationGroup ? '৬ষ্ঠ, ৭ম ও ৮ম' : '৯ম ও ১০ম';
 
-    const confirmMsg = `আপনি কি "${itemToDelete.name}" বিষয়টিকে সমমানের সকল শ্রেণি (${targetGradeNames}) থেকে মুছে ফেলতে চান?\n\n- [OK] চাপলে ${targetGradeNames} সকল শ্রেণি থেকে মুছে যাবে।\n- [Cancel] চাপলে মুছে ফেলা বাতিল হবে।`;
+    const confirmMsg = `আপনি কি "${itemToDelete.name}" বিষয়টিকে সমমানের সকল শ্রেণি (${targetGradeNames}) থেকে মুছে ফেলতে চান?`;
 
-    if (confirm(confirmMsg)) {
+    if (await confirmDialog({ title: 'বিষয় মুছে ফেলা', message: confirmMsg, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const updated = curriculumList.filter(item => {
         const isTargetGroup = targetGrades.includes(item.grade);
         const isMatchingSubject = item.name.trim() === itemToDelete.name.trim() || item.code.trim() === itemToDelete.code.trim();
@@ -633,7 +634,7 @@ export default function CurriculumClient() {
       ? (isFoundationGroup ? ['6th', '7th', '8th'] : ['9th', '10th'])
       : [grade];
 
-    let currentList = [...curriculumList];
+    const currentList = [...curriculumList];
 
     targetGrades.forEach(tg => {
       const tgCode = code.trim().toUpperCase();
@@ -734,13 +735,13 @@ export default function CurriculumClient() {
     <div className="space-y-6 pb-12">
       
       {/* 🌟 UNIFIED SINGLE-LINE COMPACT HEADER & CONTROLS TOOLBAR */}
-      <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 print:hidden">
         
         {/* Left: Grade Selector + Group/Department (when 9th/10th) + Subject Count */}
         <div className="flex items-center gap-2 flex-wrap flex-1">
           
           {/* Grade Selector Pills */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
             {[
               { id: '6th', label: '৬ষ্ঠ শ্রেণি' },
               { id: '7th', label: '৭ম শ্রেণি' },
@@ -757,7 +758,7 @@ export default function CurriculumClient() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                   activeTab === 'curriculum' && selectedGrade === g.id
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-700 hover:text-slate-950 hover:bg-slate-200/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
                 }`}
               >
                 {g.label}
@@ -767,7 +768,7 @@ export default function CurriculumClient() {
 
           {/* Department Filter (Only for 9th & 10th) */}
           {activeTab === 'curriculum' && (selectedGrade === '9th' || selectedGrade === '10th') && (
-            <div className="flex items-center bg-amber-50/80 p-1 rounded-xl border border-amber-200/80">
+            <div className="flex items-center bg-amber-50/80 dark:bg-amber-950/50 p-1 rounded-xl border border-amber-200/80 dark:border-amber-800/60">
               {[
                 { id: 'all', label: 'সব বিভাগ' },
                 { id: 'বিজ্ঞান', label: 'বিজ্ঞান' },
@@ -780,7 +781,7 @@ export default function CurriculumClient() {
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                     selectedGroup === grp.id
                       ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                      : 'text-slate-700 hover:text-slate-900 hover:bg-amber-100/60'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-amber-100/60 dark:hover:bg-amber-900/40'
                   }`}
                 >
                   {grp.label}
@@ -791,8 +792,8 @@ export default function CurriculumClient() {
 
           {/* Subject Count Pill */}
           {activeTab === 'curriculum' && (
-            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-800 font-extrabold text-[11px] rounded-lg border border-indigo-100 inline-flex items-center gap-1">
-              <GraduationCap size={13} className="text-indigo-600" />
+            <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-200 font-extrabold text-[11px] rounded-lg border border-indigo-100 dark:border-indigo-800/60 inline-flex items-center gap-1">
+              <GraduationCap size={13} className="text-indigo-600 dark:text-indigo-400" />
               {filteredCurriculum.length}টি বিষয়
             </span>
           )}
@@ -802,12 +803,12 @@ export default function CurriculumClient() {
             onClick={() => setActiveTab(activeTab === 'curriculum' ? 'nctb-books' : 'curriculum')}
             className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'nctb-books'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-black'
-                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-200 font-black'
+                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
             title="NCTB মূল পাঠ্যবই ক্যাটালগ"
           >
-            <Book size={14} className={activeTab === 'nctb-books' ? 'text-indigo-600' : 'text-slate-500'} />
+            <Book size={14} className={activeTab === 'nctb-books' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'} />
             <span>{activeTab === 'nctb-books' ? 'পাঠ্যক্রম টেবিলে ফিরুন' : 'NCTB পাঠ্যবই'}</span>
           </button>
 
@@ -817,10 +818,10 @@ export default function CurriculumClient() {
         <div className="flex items-center gap-2 shrink-0 self-end xl:self-center">
           <button
             onClick={handleResetToNctb}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-bold transition text-slate-800 cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold transition text-slate-800 dark:text-slate-100 cursor-pointer active:scale-95"
             title="NCTB ২০২৬ ডিফল্ট রিসেট"
           >
-            <RotateCcw size={13} className="text-amber-600" />
+            <RotateCcw size={13} className="text-amber-600 dark:text-amber-400" />
             ডিফল্ট রিসেট
           </button>
           
@@ -838,10 +839,10 @@ export default function CurriculumClient() {
       {/* ALERT FEEDBACK */}
       {alertMsg && (
         <div className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border shadow-sm ${
-          alertMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+          alertMsg.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60' : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/60'
         }`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className={alertMsg.type === 'success' ? 'text-emerald-600' : 'text-rose-600'} />
+            <CheckCircle2 size={16} className={alertMsg.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} />
             <span>{alertMsg.text}</span>
           </div>
           <button onClick={() => setAlertMsg(null)} className="text-slate-400 hover:text-slate-600">
@@ -854,13 +855,13 @@ export default function CurriculumClient() {
       {/* TAB 1: CURRICULUM & MARKS BREAKDOWN                               */}
       {/* ═════════════════════════════════════════════════════════════════ */}
       {activeTab === 'curriculum' && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden">
 
             {/* CURRICULUM TABLE */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse font-sans">
                 <thead>
-                  <tr className="bg-slate-100/90 text-slate-800 font-black uppercase text-[11px] border-b border-slate-200">
+                  <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 font-black uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                     <th className="p-3.5">বিষয় কোড ও নাম</th>
                     <th className="p-3.5 text-center">ক্যাটাগরি / গ্রুপ</th>
                     <th className="p-3.5 text-center">CQ (লিখিত)</th>
@@ -868,30 +869,30 @@ export default function CurriculumClient() {
                     <th className="p-3.5 text-center">PRACTICAL</th>
                     <th className="p-3.5 text-center">CA (ধারাবাহিক)</th>
                     <th className="p-3.5 text-center font-black">পূর্ণমান</th>
-                    <th className="p-3.5 text-center font-black text-emerald-700">পাস নম্বর</th>
+                    <th className="p-3.5 text-center font-black text-emerald-700 dark:text-emerald-300">পাস নম্বর</th>
                     <th className="p-3.5">পাস নিয়মাবলী & যৌথ পাস</th>
                     <th className="p-3.5 text-center">অ্যাকশন (এডিট/ডিলিট)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-100">
                   {filteredCurriculum.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-slate-50/80 transition">
+                    <tr key={sub.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
                       
                       {/* Code & Name */}
                       <td className="p-3.5">
                         <div className="flex items-center gap-3">
-                          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 font-black text-[11px] rounded-lg border border-indigo-100 font-mono">
+                          <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-black text-[11px] rounded-lg border border-indigo-100 dark:border-indigo-800/60 font-mono">
                             {sub.code}
                           </span>
                           <div>
-                            <strong className="font-extrabold text-slate-900 text-sm block">{sub.name}</strong>
+                            <strong className="font-extrabold text-slate-900 dark:text-white text-sm block">{sub.name}</strong>
                              <div className="flex items-center gap-1.5 mt-0.5">
                               {sub.category === '৪র্থ বিষয়' ? (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-sm">
-                                  <Award size={11} className="text-amber-700" /> ৪্থ বিষয় (অপশনাল)
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 inline-flex items-center gap-1 shadow-sm">
+                                  <Award size={11} className="text-amber-700 dark:text-amber-300" /> ৪্থ বিষয় (অপশনাল)
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-500 font-bold">{sub.category}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{sub.category}</span>
                               )}
                             </div>
                           </div>
@@ -901,29 +902,29 @@ export default function CurriculumClient() {
                       {/* Group */}
                       <td className="p-3.5 text-center">
                         <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full ${
-                          sub.group === 'বিজ্ঞান' ? 'bg-violet-50 text-violet-700 border border-violet-200' :
-                          sub.group === 'মানবিক' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                          sub.group === 'ব্যবসায় শিক্ষা' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                          'bg-slate-100 text-slate-700'
+                          sub.group === 'বিজ্ঞান' ? 'bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60' :
+                          sub.group === 'মানবিক' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60' :
+                          sub.group === 'ব্যবসায় শিক্ষা' ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60' :
+                          'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}>
                           {sub.group}
                         </span>
                       </td>
 
                       {/* CQ */}
-                      <td className="p-3.5 text-center font-black font-mono text-slate-900 text-sm">
+                      <td className="p-3.5 text-center font-black font-mono text-slate-900 dark:text-white text-sm">
                         {sub.cq}
                       </td>
 
                       {/* MCQ */}
-                      <td className="p-3.5 text-center font-bold font-mono text-slate-600">
+                      <td className="p-3.5 text-center font-bold font-mono text-slate-600 dark:text-slate-400">
                         {sub.mcq}
                       </td>
 
                       {/* Practical */}
                       <td className="p-3.5 text-center">
                         {sub.practical !== '-' && Number(sub.practical) > 0 ? (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black font-mono text-xs rounded">
+                          <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-black font-mono text-xs rounded">
                             {sub.practical}
                           </span>
                         ) : (
@@ -934,7 +935,7 @@ export default function CurriculumClient() {
                       {/* CA */}
                       <td className="p-3.5 text-center">
                         {sub.ca !== '-' && Number(sub.ca) > 0 ? (
-                          <span className="px-2 py-0.5 bg-violet-100 text-violet-800 font-black font-mono text-xs rounded">
+                          <span className="px-2 py-0.5 bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 font-black font-mono text-xs rounded">
                             {sub.ca}
                           </span>
                         ) : (
@@ -943,12 +944,12 @@ export default function CurriculumClient() {
                       </td>
 
                       {/* Full Marks */}
-                      <td className="p-3.5 text-center font-black font-mono text-slate-900 text-base">
+                      <td className="p-3.5 text-center font-black font-mono text-slate-900 dark:text-white text-base">
                         {sub.fullMarks}
                       </td>
 
                       {/* Pass Marks */}
-                      <td className="p-3.5 text-center font-black font-mono text-emerald-700 text-sm">
+                      <td className="p-3.5 text-center font-black font-mono text-emerald-700 dark:text-emerald-300 text-sm">
                         {sub.passMarks}
                       </td>
 
@@ -956,13 +957,13 @@ export default function CurriculumClient() {
                       <td className="p-3.5">
                         {sub.isJointPass ? (
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-900 font-black text-[10px] rounded-md border border-amber-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 font-black text-[10px] rounded-md border border-amber-300 dark:border-amber-800/60">
                               ★ যৌথ পাস
                             </span>
-                            <p className="text-[11px] text-slate-600 font-bold">{sub.passRules}</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-bold">{sub.passRules}</p>
                           </div>
                         ) : (
-                          <p className="text-[11px] text-slate-700 font-bold">{sub.passRules}</p>
+                          <p className="text-[11px] text-slate-700 dark:text-slate-300 font-bold">{sub.passRules}</p>
                         )}
                       </td>
 
@@ -971,14 +972,14 @@ export default function CurriculumClient() {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleOpenEditModal(sub)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 transition rounded-lg hover:bg-indigo-50 border border-slate-200"
+                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-slate-200 dark:border-slate-800"
                             title="এডিট ও সিঙ্ক"
                           >
                             <Pencil size={15} />
                           </button>
                           <button
                             onClick={() => handleDeleteSubject(sub)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 transition rounded-lg hover:bg-rose-50 border border-slate-200"
+                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 transition rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 border border-slate-200 dark:border-slate-800"
                             title="মুছে ফেলুন (সকল সমমানের শ্রেণিতে সিঙ্ক সহ)"
                           >
                             <Trash2 size={15} />
@@ -1002,7 +1003,7 @@ export default function CurriculumClient() {
         <div className="space-y-6">
           
           {/* SEARCH & FILTERS BAR */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
             
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
               <span className="text-[11px] font-black text-slate-400 uppercase mr-1">শ্রেণি ফিল্টার:</span>
@@ -1011,7 +1012,7 @@ export default function CurriculumClient() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
                   bookGradeFilter === 'all'
                     ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 সব বই (All Books)
@@ -1022,7 +1023,7 @@ export default function CurriculumClient() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
                   bookGradeFilter === '6-8'
                     ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 ৬ষ্ঠ - ৮ম শ্রেণি
@@ -1033,7 +1034,7 @@ export default function CurriculumClient() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
                   bookGradeFilter === '9-10'
                     ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 ৯ম - ১০ম শ্রেণি
@@ -1041,14 +1042,14 @@ export default function CurriculumClient() {
             </div>
 
             {/* Search Box */}
-            <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200 w-full sm:w-72">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-72">
               <Search size={16} className="text-slate-400" />
               <input
                 type="text"
                 placeholder="বইয়ের নাম বা কোড দিয়ে খুঁজুন..."
                 value={bookSearchQuery}
                 onChange={(e) => setBookSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 font-bold"
+                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-white font-bold"
               />
             </div>
 
@@ -1059,32 +1060,32 @@ export default function CurriculumClient() {
             {filteredBooks.map((book) => (
               <div
                 key={book.id}
-                className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-3 flex flex-col justify-between"
+                className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition space-y-3 flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 font-black flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 font-black flex items-center justify-center shrink-0">
                         <Book size={20} />
                       </div>
                       <div>
-                        <span className="text-[10px] font-black text-indigo-600 font-mono block">{book.code}</span>
-                        <h3 className="font-extrabold text-slate-900 text-sm leading-tight">{book.titleBn}</h3>
+                        <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 font-mono block">{book.code}</span>
+                        <h3 className="font-extrabold text-slate-900 dark:text-white text-sm leading-tight">{book.titleBn}</h3>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-xs pt-3 font-medium text-slate-600">
+                  <div className="space-y-2 text-xs pt-3 font-medium text-slate-600 dark:text-slate-400">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-bold">ইংরেজি শিরোনাম:</span>
-                      <span className="text-slate-800 font-semibold">{book.titleEn}</span>
+                      <span className="text-slate-800 dark:text-slate-100 font-semibold">{book.titleEn}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-bold">প্রযোজ্য শ্রেণি:</span>
                       <div className="flex gap-1">
                         {book.grades.map(g => (
-                          <span key={g} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-extrabold text-[10px] rounded-md">
+                          <span key={g} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-extrabold text-[10px] rounded-md">
                             {g}
                           </span>
                         ))}
@@ -1093,24 +1094,24 @@ export default function CurriculumClient() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-bold">সংস্করণ & পৃষ্ঠা:</span>
-                      <span className="text-slate-800 font-bold">{book.edition} ({book.pages} পৃষ্ঠা)</span>
+                      <span className="text-slate-800 dark:text-slate-100 font-bold">{book.edition} ({book.pages} পৃষ্ঠা)</span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-bold">প্রকাশক:</span>
-                      <span className="text-slate-700 font-semibold text-[11px]">{book.publisher}</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-semibold text-[11px]">{book.publisher}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-extrabold text-[10px] rounded-full border border-emerald-100">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                  <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-extrabold text-[10px] rounded-full border border-emerald-100 dark:border-emerald-800/60">
                     বোর্ড অনুমোদিত টেক্সটবুক
                   </span>
 
                   <button
-                    onClick={() => alert(`NCTB অফিশিয়াল ডিজিটাল কপি প্রিভিউ: ${book.titleBn}`)}
-                    className="flex items-center gap-1 text-indigo-600 font-bold hover:underline"
+                    onClick={() => showToast(`NCTB অফিশিয়াল ডিজিটাল কপি প্রিভিউ: ${book.titleBn}`, 'info')}
+                    className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
                   >
                     ডিজিটাল বুক নম্বর <ExternalLink size={12} />
                   </button>
@@ -1127,11 +1128,11 @@ export default function CurriculumClient() {
       {/* ═════════════════════════════════════════════════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <Pencil className="text-indigo-600" size={18} />
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <Pencil className="text-indigo-600 dark:text-indigo-400" size={18} />
                 {editingSubject ? 'বিষয় সেটিংস ও পাস নিয়মাবলী সম্পাদনা' : 'নতুন বিষয় সংযুক্তকরণ'}
               </h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
@@ -1140,57 +1141,57 @@ export default function CurriculumClient() {
             </div>
 
             {/* AUTOMATIC CASCADING SYNC BANNER */}
-            <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-between">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="syncEquiv"
                   checked={syncEquivalentGrades}
                   onChange={(e) => setSyncEquivalentGrades(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+                  className="w-4 h-4 text-indigo-600 dark:text-indigo-400 rounded cursor-pointer"
                 />
-                <label htmlFor="syncEquiv" className="text-xs font-black text-indigo-900 cursor-pointer">
+                <label htmlFor="syncEquiv" className="text-xs font-black text-indigo-900 dark:text-indigo-200 cursor-pointer">
                   {['6th', '7th', '8th'].includes(grade)
                     ? '⚡ ৬ষ্ঠ, ৭ম ও ৮ম শ্রেণির বিষয় তালিকায় স্বয়ংক্রিয় সিঙ্ক করুন'
                     : '⚡ ৯দশ ও ১০ম উভয় শ্রেণির বিষয় তালিকায় স্বয়ংক্রিয় সিঙ্ক করুন'}
                 </label>
               </div>
-              <RefreshCw size={14} className="text-indigo-600 animate-spin-slow" />
+              <RefreshCw size={14} className="text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">বিষয় কোড *</label>
+                  <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">বিষয় কোড *</label>
                   <input
                     type="text"
                     required
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold font-mono"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">বিষয়ের নাম *</label>
+                  <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">বিষয়ের নাম *</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">প্রাথমিক শ্রেণি</label>
+                  <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">প্রাথমিক শ্রেণি</label>
                   <select
                     value={grade}
                     onChange={(e) => setGrade(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                   >
                     <option value="6th">৬ষ্ঠ শ্রেণি (সিঙ্ক: ৬, ৭, ৮)</option>
                     <option value="7th">৭ম শ্রেণি (সিঙ্ক: ৬, ৭, ৮)</option>
@@ -1201,11 +1202,11 @@ export default function CurriculumClient() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">গ্রুপ / বিভাগ</label>
+                  <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">গ্রুপ / বিভাগ</label>
                   <select
                     value={group}
                     onChange={(e) => setGroup(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                   >
                     <option value="সাধারণ">সাধারণ (সকলের আবশ্যিক)</option>
                     <option value="বিজ্ঞান">বিজ্ঞান (Science Group)</option>
@@ -1216,7 +1217,7 @@ export default function CurriculumClient() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-extrabold text-indigo-600 uppercase mb-1">বিষয় টাইপ / ক্যাটাগরি *</label>
+                  <label className="block text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase mb-1">বিষয় টাইপ / ক্যাটাগরি *</label>
                   <select
                     value={category}
                     onChange={(e) => {
@@ -1226,7 +1227,7 @@ export default function CurriculumClient() {
                         setPassRules('৪র্থ বিষয়: ২.০০ পয়েন্টের অতিরিক্ত পয়েন্ট মূল GPA-তে যোগ হবে (ফেল কার্যকর নয়)');
                       }
                     }}
-                    className="w-full px-3 py-2 border border-indigo-200 bg-indigo-50/60 rounded-xl outline-none text-indigo-950 font-black"
+                    className="w-full px-3 py-2 border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/60 dark:bg-indigo-950/50 rounded-xl outline-none text-indigo-950 dark:text-indigo-200 font-black"
                   >
                     <option value="আবশ্যিক">আবশ্যিক (Compulsory)</option>
                     <option value="ঐচ্ছিক">ঐচ্ছিক (Elective Group)</option>
@@ -1238,12 +1239,12 @@ export default function CurriculumClient() {
 
               {/* 4TH SUBJECT NCTB RULE CARD */}
               {category === '৪র্থ বিষয়' && (
-                <div className="p-3.5 bg-violet-50 border border-violet-200 rounded-2xl space-y-1.5 text-xs text-violet-950">
-                  <div className="flex items-center gap-2 font-black text-violet-900">
-                    <Award size={16} className="text-violet-700" />
+                <div className="p-3.5 bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800/60 rounded-2xl space-y-1.5 text-xs text-violet-950 dark:text-violet-200">
+                  <div className="flex items-center gap-2 font-black text-violet-900 dark:text-violet-200">
+                    <Award size={16} className="text-violet-700 dark:text-violet-300" />
                     <span>⚡ ৪্থ বিষয় (Optional 4th Subject) বোর্ড রেজাল্ট রুলস:</span>
                   </div>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] font-semibold text-violet-800 pl-1">
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] font-semibold text-violet-800 dark:text-violet-200 pl-1">
                     <li>অর্জিত গ্রেড পয়েন্টের <strong>২.০০ পয়েন্টের অতিরিক্ত (GP - 2.00)</strong> মূল মোট GPA এ যোগ হবে।</li>
                     <li>৪র্থ বিষয়ে অকৃতকার্য (F) হলেও তা মূল ফলাফলে ফেল হিসেবে গণ্য হবে না।</li>
                   </ul>
@@ -1251,69 +1252,69 @@ export default function CurriculumClient() {
               )}
 
               {/* MARKS BREAKDOWN GRID */}
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wider block">নম্বর বিন্যাস (Marks Distribution)</span>
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">নম্বর বিন্যাস (Marks Distribution)</span>
 
                 <div className="grid grid-cols-4 gap-2">
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500">CQ (লিখিত)</label>
+                    <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400">CQ (লিখিত)</label>
                     <input
                       type="text"
                       value={cq}
                       onChange={(e) => setCq(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg font-mono text-center font-bold text-slate-900"
+                      className="w-full px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center font-bold text-slate-900 dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500">MCQ (নৈর্ব্যক্তিক)</label>
+                    <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400">MCQ (নৈর্ব্যক্তিক)</label>
                     <input
                       type="text"
                       value={mcq}
                       onChange={(e) => setMcq(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg font-mono text-center font-bold text-slate-900"
+                      className="w-full px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center font-bold text-slate-900 dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500">Practical</label>
+                    <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400">Practical</label>
                     <input
                       type="text"
                       value={practical}
                       onChange={(e) => setPractical(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg font-mono text-center font-bold text-slate-900"
+                      className="w-full px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center font-bold text-slate-900 dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-500">CA (ধারাবাহিক)</label>
+                    <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400">CA (ধারাবাহিক)</label>
                     <input
                       type="text"
                       value={ca}
                       onChange={(e) => setCa(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg font-mono text-center font-bold text-slate-900"
+                      className="w-full px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-center font-bold text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-800">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500">পূর্ণমান (Full Marks)</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400">পূর্ণমান (Full Marks)</label>
                     <input
                       type="number"
                       value={fullMarks}
                       onChange={(e) => setFullMarks(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-mono font-black text-slate-900"
+                      className="w-full px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-black text-slate-900 dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500">সর্বনিম্ন পাস নম্বর</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400">সর্বনিম্ন পাস নম্বর</label>
                     <input
                       type="number"
                       value={passMarks}
                       onChange={(e) => setPassMarks(Number(e.target.value))}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-mono font-black text-emerald-700"
+                      className="w-full px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-black text-emerald-700 dark:text-emerald-300"
                     />
                   </div>
                 </div>
@@ -1321,17 +1322,17 @@ export default function CurriculumClient() {
 
               {/* PASS RULES & JOINT PASS */}
               <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">পাস নিয়মনীতি বিবরণ</label>
+                <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">পাস নিয়মনীতি বিবরণ</label>
                 <input
                   type="text"
                   value={passRules}
                   onChange={(e) => setPassRules(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                 />
               </div>
 
               {/* 4TH SUBJECT CHECKBOX */}
-              <div className="flex items-center gap-2 p-3 bg-violet-50 rounded-2xl border border-violet-200">
+              <div className="flex items-center gap-2 p-3 bg-violet-50 dark:bg-violet-950/50 rounded-2xl border border-violet-200 dark:border-violet-800/60">
                 <input
                   type="checkbox"
                   id="fourthSubjectChk"
@@ -1343,45 +1344,45 @@ export default function CurriculumClient() {
                       setPassRules('৪র্থ বিষয়: ২.০০ পয়েন্টের অতিরিক্ত পয়েন্ট মূল GPA-তে যোগ হবে (ফেল কার্যকর নয়)');
                     }
                   }}
-                  className="w-4 h-4 text-violet-600 rounded cursor-pointer"
+                  className="w-4 h-4 text-violet-600 dark:text-violet-400 rounded cursor-pointer"
                 />
-                <label htmlFor="fourthSubjectChk" className="text-xs font-black text-violet-950 cursor-pointer flex items-center gap-1.5">
-                  <Award size={15} className="text-violet-600 shrink-0" />
+                <label htmlFor="fourthSubjectChk" className="text-xs font-black text-violet-950 dark:text-violet-200 cursor-pointer flex items-center gap-1.5">
+                  <Award size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
                   <span>৪র্থ বিষয় হলে টিক চিহ্ন দিন (সিস্টেম এটাকে ৪র্থ বিষয় হিসেবে গণনা করবে)</span>
                 </label>
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-2xl border border-amber-200">
+              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/50 rounded-2xl border border-amber-200 dark:border-amber-800/60">
                 <input
                   type="checkbox"
                   id="jointPassChk"
                   checked={isJointPass}
                   onChange={(e) => setIsJointPass(e.target.checked)}
-                  className="w-4 h-4 text-amber-600 rounded"
+                  className="w-4 h-4 text-amber-600 dark:text-amber-400 rounded"
                 />
-                <label htmlFor="jointPassChk" className="text-xs font-bold text-amber-900 cursor-pointer">
+                <label htmlFor="jointPassChk" className="text-xs font-bold text-amber-900 dark:text-amber-200 cursor-pointer">
                   যৌথ পাস (Joint Pass - যেমন: বাংলা ১ম+২য়, ইংরেজি ১ম+২য়)
                 </label>
               </div>
 
               {isJointPass && (
                 <div>
-                  <label className="block text-[10px] font-extrabold text-amber-800 uppercase mb-1">যৌথ পাসের তথ্য</label>
+                  <label className="block text-[10px] font-extrabold text-amber-800 dark:text-amber-200 uppercase mb-1">যৌথ পাসের তথ্য</label>
                   <input
                     type="text"
                     placeholder="যেমন: বাংলা ১ম ও ২য় মিলে মোট ৫০/১৫০ পাস"
                     value={jointPassInfo}
                     onChange={(e) => setJointPassInfo(e.target.value)}
-                    className="w-full px-3 py-2 border border-amber-300 rounded-xl outline-none text-amber-950 font-bold"
+                    className="w-full px-3 py-2 border border-amber-300 dark:border-amber-800/60 rounded-xl outline-none text-amber-950 dark:text-amber-200 font-bold"
                   />
                 </div>
               )}
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer"
                 >
                   বাতিল
                 </button>

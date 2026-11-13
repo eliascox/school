@@ -40,8 +40,10 @@ describe('routeAccess and dashboard layout guard', () => {
     expect(canAccessDashboardRoute('teacher', '/dashboard/students')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/academic/classes')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/sms')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/mobile-app')).toBe(false);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/settings')).toBe(TEACHER_HOME);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/finance')).toBe(TEACHER_HOME);
+    expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/mobile-app')).toBe(TEACHER_HOME);
   });
 
   it('unauthenticated visitor is redirected to /login', () => {

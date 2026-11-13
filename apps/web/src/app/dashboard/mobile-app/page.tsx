@@ -11,6 +11,7 @@ import { firebaseSyncService } from '@/services/firebaseSyncService';
 import { studentService } from '@/services/studentService';
 import { noticeService } from '@/services/noticeService';
 import { teacherRBACService } from '@/services/teacherRBACService';
+import QRCodeLib from 'qrcode';
 
 const toBnDigit = (num: number | string) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -24,9 +25,10 @@ export default function DashboardMobileAppHub() {
   const [syncing, setSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
-  // Smart Host / URL for QR Code so scanning from a phone on Wi-Fi works even when PC is on localhost
-  const [baseOrigin, setBaseOrigin] = useState('http://192.168.0.187:3000');
+  // Smart Host / URL for QR Code so scanning from a phone on Wi-Fi works cleanly
+  const [baseOrigin, setBaseOrigin] = useState('');
   const [qrTarget, setQrTarget] = useState<'app' | 'teacher' | 'apk'>('app');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -39,12 +41,8 @@ export default function DashboardMobileAppHub() {
   useEffect(() => {
     loadStats();
     if (typeof window !== 'undefined') {
-      const { protocol, hostname, port } = window.location;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        setBaseOrigin(`http://192.168.0.187:${port || '3000'}`);
-      } else {
-        setBaseOrigin(window.location.origin);
-      }
+      const savedLanUrl = localStorage.getItem('sms_lan_server_url')?.trim();
+      setBaseOrigin(savedLanUrl || window.location.origin);
 
       const w = window as any;
       if (w.__deferredPwaPrompt) setDeferredPrompt(w.__deferredPwaPrompt);
@@ -58,16 +56,30 @@ export default function DashboardMobileAppHub() {
     }
   }, []);
 
+  const normalizedOrigin = baseOrigin.trim().replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
   const targetUrl =
     qrTarget === 'app'
-      ? `${baseOrigin.replace(/\/$/, '')}/mobile-app`
+      ? `${normalizedOrigin}/mobile-app`
       : qrTarget === 'teacher'
-      ? `${baseOrigin.replace(/\/$/, '')}/dashboard/teacher-portal`
-      : `${baseOrigin.replace(/\/$/, '')}/downloads/school-app.apk`;
+      ? `${normalizedOrigin}/dashboard/teacher-portal`
+      : `${normalizedOrigin}/downloads/school-app.apk`;
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(
-    targetUrl
-  )}`;
+  useEffect(() => {
+    if (!targetUrl || typeof window === 'undefined') return;
+    let active = true;
+    QRCodeLib.toDataURL(targetUrl, {
+      width: 240,
+      margin: 2,
+      color: { dark: '#0f172a', light: '#ffffff' }
+    })
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [targetUrl]);
 
   const handleSyncCloud = async () => {
     setSyncing(true);
@@ -123,7 +135,7 @@ export default function DashboardMobileAppHub() {
           <Link
             href="/mobile-app"
             target="_blank"
-            className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition"
+            className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition"
           >
             <Smartphone className="w-4 h-4" />
             <span>মোবাইল অ্যাপ ওপেন করুন</span>
@@ -132,7 +144,7 @@ export default function DashboardMobileAppHub() {
 
           <Link
             href="/dashboard/teacher-portal"
-            className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white border border-white/20 font-bold text-xs sm:text-sm flex items-center gap-2 transition"
+            className="px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 dark:hover:bg-slate-800 text-white border border-white/20 font-bold text-xs sm:text-sm flex items-center gap-2 transition"
           >
             <ShieldCheck className="w-4 h-4 text-amber-300" />
             <span>শিক্ষক মোবাইল পোর্টাল</span>
@@ -151,49 +163,49 @@ export default function DashboardMobileAppHub() {
 
       {/* Live Sync KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500 block">অ্যাপে সিঙ্ককৃত শিক্ষার্থী</span>
-            <span className="text-2xl font-black text-slate-900 mt-1 block">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">অ্যাপে সিঙ্ককৃত শিক্ষার্থী</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
               {toBnDigit(studentCount)} জন
             </span>
-            <span className="text-[11px] font-semibold text-emerald-600">লাইভ প্রোফাইল ও ফলাফল সক্রিয়</span>
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">লাইভ প্রোফাইল ও ফলাফল সক্রিয়</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500 block">শিক্ষক পোর্টাল একাউন্ট</span>
-            <span className="text-2xl font-black text-slate-900 mt-1 block">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">শিক্ষক পোর্টাল একাউন্ট</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
               {toBnDigit(teacherCount)} জন
             </span>
-            <span className="text-[11px] font-semibold text-emerald-600">মোবাইল হাজিরা ও মার্ক এন্ট্রি</span>
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">মোবাইল হাজিরা ও মার্ক এন্ট্রি</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
             <CalendarCheck2 className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500 block">পুশ নোটিশ ও বিজ্ঞপ্তি</span>
-            <span className="text-2xl font-black text-slate-900 mt-1 block">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">পুশ নোটিশ ও বিজ্ঞপ্তি</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
               {toBnDigit(noticeCount)} টি
             </span>
-            <span className="text-[11px] font-semibold text-amber-600">অ্যাপ নোটিশ বোর্ডে প্রকাশিত</span>
+            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">অ্যাপ নোটিশ বোর্ডে প্রকাশিত</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
             <Bell className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">ক্লাউড ও মোবাইল ডাটা সিঙ্ক</span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">ক্লাউড ও মোবাইল ডাটা সিঙ্ক</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
               সংযুক্ত
             </span>
@@ -215,28 +227,28 @@ export default function DashboardMobileAppHub() {
         
         {/* Left Column: Smart QR Code & APK/PWA Distribution */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-5">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
                 <QrCode className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-black text-slate-900">
+                <h2 className="text-base font-black text-slate-900 dark:text-white">
                   স্মার্ট QR কোড ও ওয়াইফাই অ্যাপ স্ক্যানার
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   ফোনের ক্যামেরা দিয়ে স্ক্যান করে সরাসরি অ্যাপ ওপেন বা ডাউনলোড করুন
                 </p>
               </div>
             </div>
 
             {/* Target Selector Tabs */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-slate-100">
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800">
               <button
                 type="button"
                 onClick={() => setQrTarget('app')}
                 className={`py-2 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  qrTarget === 'app' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600'
+                  qrTarget === 'app' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 📱 স্টুডেন্ট অ্যাপ
@@ -245,7 +257,7 @@ export default function DashboardMobileAppHub() {
                 type="button"
                 onClick={() => setQrTarget('teacher')}
                 className={`py-2 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  qrTarget === 'teacher' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600'
+                  qrTarget === 'teacher' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 👨‍🏫 শিক্ষক পোর্টাল
@@ -254,7 +266,7 @@ export default function DashboardMobileAppHub() {
                 type="button"
                 onClick={() => setQrTarget('apk')}
                 className={`py-2 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  qrTarget === 'apk' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600'
+                  qrTarget === 'apk' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 📦 APK ফাইল
@@ -262,16 +274,20 @@ export default function DashboardMobileAppHub() {
             </div>
 
             {/* QR Code Display */}
-            <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-              <div className="p-3 bg-white rounded-2xl shadow-sm border border-emerald-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrImageUrl}
-                  alt="Mobile App QR Code"
-                  className="w-44 h-44 object-contain rounded-lg"
-                />
+            <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-emerald-200 dark:border-emerald-800/60">
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt="Mobile App QR Code"
+                    className="w-44 h-44 object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="w-44 h-44 flex items-center justify-center text-xs text-slate-400">QR লোড হচ্ছে...</div>
+                )}
               </div>
-              <p className="text-xs font-bold text-slate-700 text-center">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 text-center">
                 {qrTarget === 'app'
                   ? 'স্ক্যান করলে সরাসরি শিক্ষার্থী ও অভিভাবক মোবাইল অ্যাপ চালু হবে'
                   : qrTarget === 'teacher'
@@ -282,26 +298,37 @@ export default function DashboardMobileAppHub() {
 
             {/* Server / LAN IP Configuration */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                  <Wifi className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>সার্ভার / লোকাল ওয়াইফাই ঠিকানা (LAN / Cloud URL):</span>
                 </span>
                 <button
                   type="button"
-                  onClick={() => setBaseOrigin('https://school-eta-kohl.vercel.app')}
-                  className="text-[11px] text-emerald-700 hover:underline font-bold cursor-pointer"
+                  onClick={() => {
+                    const cloud = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+                    setBaseOrigin(cloud);
+                    try { localStorage.setItem('sms_lan_server_url', cloud); } catch {}
+                  }}
+                  className="text-[11px] text-emerald-700 dark:text-emerald-300 hover:underline font-bold cursor-pointer"
                 >
-                  ক্লাউড URL সেট করুন
+                  বর্তমান ডোমেইন সেট করুন
                 </button>
               </label>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={baseOrigin}
-                  onChange={(e) => setBaseOrigin(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-500"
-                  placeholder="http://192.168.0.187:3000"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setBaseOrigin(v);
+                    try {
+                      if (v.trim()) localStorage.setItem('sms_lan_server_url', v.trim());
+                      else localStorage.removeItem('sms_lan_server_url');
+                    } catch {}
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  placeholder="https://your-school-domain.com বা http://<LAN-IP>:3000"
                 />
                 <button
                   type="button"
@@ -312,8 +339,8 @@ export default function DashboardMobileAppHub() {
                   <span>{copied ? 'কপি হয়েছে' : 'লিংক কপি'}</span>
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500">
-                বর্তমান টার্গেট লিংক: <code className="text-emerald-700 font-semibold break-all">{targetUrl}</code>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                বর্তমান টার্গেট লিংক: <code className="text-emerald-700 dark:text-emerald-300 font-semibold break-all">{targetUrl}</code>
               </p>
             </div>
 
@@ -341,18 +368,18 @@ export default function DashboardMobileAppHub() {
         </div>
 
         {/* Right Column: Live Embedded Mobile App Preview */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <h2 className="text-base font-black text-slate-900">
+              <h2 className="text-base font-black text-slate-900 dark:text-white">
                 লাইভ ইন্টারেক্টিভ মোবাইল অ্যাপ প্রিভিউ (সিমুলেটর)
               </h2>
             </div>
             <Link
               href="/mobile-app"
               target="_blank"
-              className="text-xs font-extrabold text-emerald-700 hover:underline flex items-center gap-1"
+              className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
             >
               <span>ফুল-স্ক্রিন মোডে ওপেন করুন</span>
               <ArrowRight className="w-3.5 h-3.5" />

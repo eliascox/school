@@ -26,13 +26,45 @@ export interface UserSession {
   loginAt?: number;
   lastActiveAt?: number;
   expiresAt?: number;
+  mustChangePassword?: boolean;
   sig?: string;
 }
 
-const SESSION_SIGNING_SECRET = 'BHS_SMS_AUTH_INTEGRITY_2026_V2_KEY';
+const SESSION_PEPPER_STORAGE_KEY = 'sms_runtime_session_pepper';
+let ephemeralSessionPepper: string | null = null;
+
+function getSessionSigningSecret(): string {
+  if (ephemeralSessionPepper) return ephemeralSessionPepper;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const existing = window.localStorage.getItem(SESSION_PEPPER_STORAGE_KEY);
+      if (existing && existing.length >= 16) {
+        ephemeralSessionPepper = existing;
+        return existing;
+      }
+    }
+    const bytes = new Uint8Array(16);
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+      globalThis.crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    const generated = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    ephemeralSessionPepper = generated;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(SESSION_PEPPER_STORAGE_KEY, generated);
+    }
+    return generated;
+  } catch {
+    ephemeralSessionPepper = 'ephemeral_session_key_' + Date.now().toString(36);
+    return ephemeralSessionPepper;
+  }
+}
 
 function computeSessionSignature(s: UserSession): string {
-  const payload = `${SESSION_SIGNING_SECRET}|${s.role}|${s.teacherId || 'ROOT'}|${s.loginAt || 0}|${s.expiresAt || 0}`;
+  const payload = `${getSessionSigningSecret()}|${s.role}|${s.teacherId || 'ROOT'}|${s.loginAt || 0}|${s.expiresAt || 0}`;
   let h1 = 0xdeadbeef ^ payload.length;
   let h2 = 0x41c6ce57 ^ payload.length;
   for (let i = 0; i < payload.length; i++) {
@@ -151,9 +183,8 @@ export const teacherAuthService = {
       qualification: t.qualification || 'B.A / B.Sc',
       mobile: t.phone || t.mobile || '',
       phone: t.phone || t.mobile || '',
-      email: t.email || `${t.id.toLowerCase()}@school.edu.bd`,
-      password: t.password || t.passwordHash || '123456',
-      passwordHash: t.passwordHash || t.password || '123456'
+      email: t.email || `${(t.id || 'teacher').toLowerCase()}@school.edu.bd`,
+      passwordHash: t.passwordHash || t.password || ''
     }));
   },
 
@@ -244,7 +275,7 @@ export const teacherAuthService = {
   unifiedLogin: async (
     identifier: string,
     passwordInput: string
-  ): Promise<{ success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount }> => {
+  ): Promise<{ success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount; mustChangePassword?: boolean }> => {
     if (typeof window === 'undefined') return { success: false, message: 'ক্লিপবোর্ড বা ব্রাউজার অনুপস্থিত' };
 
     const cleanInput = identifier.trim();
@@ -302,17 +333,25 @@ export const teacherAuthService = {
             console.error('Failed to migrate admin password to secure hash', e);
           }
         }
-        const session: UserSession = { role: 'admin' };
+        const isUsingDefaultPass = cleanPass === 'admin123';
+        const session: UserSession = { role: 'admin', mustChangePassword: isUsingDefaultPass };
         teacherAuthService.setSession(session);
         auditTrailService.addLog({
           action: 'LOGIN_SUCCESS',
           category: 'Security',
           details: 'প্রধান শিক্ষক / অ্যাডমিন সফলভাবে লগইন করেছেন।',
           performedBy: 'অ্যাডমিন',
-          severity: 'info',
+          severity: isUsingDefaultPass ? 'warning' : 'info',
           status: 'Success'
         });
-        return { success: true, message: 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!', role: 'admin' };
+        return {
+          success: true,
+          message: isUsingDefaultPass
+            ? 'অ্যাডমিন হিসেবে লগইন সফল হয়েছে (নিরাপত্তার জন্য ডিফল্ট পাসওয়ার্ড পরিবর্তন করুন)।'
+            : 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!',
+          role: 'admin',
+          mustChangePassword: isUsingDefaultPass
+        };
       } else {
         // Failed admin password attempt
         const fail = teacherAuthService.recordFailedAttempt(cleanInput);
@@ -360,8 +399,10 @@ export const teacherAuthService = {
     });
 
     if (found) {
-      const storedTeacherPass = found.passwordHash || found.password || '123456';
-      const verification = await verifyPassword(cleanPass, storedTeacherPass);
+      const storedTeacherPass = found.passwordHash || found.password || '';
+      const verification = storedTeacherPass
+        ? await verifyPassword(cleanPass, storedTeacherPass)
+        : { valid: false, needsRehash: false };
       if (verification.valid) {
         // SEC-105: Clear failed attempts on valid login
         teacherAuthService.clearFailedAttempts(cleanInput);
@@ -541,7 +582,7 @@ export const teacherAuthService = {
     }
 
     const schoolSettings = settingsService.getSettings();
-    const schoolName = schoolSettings?.schoolName || 'Boraitoli High School';
+    const schoolName = schoolSettings?.schoolNameEn || schoolSettings?.schoolName || 'Smart School';
 
     try {
       const otpRes = await smsService.sendOTP(cleanDigits, teacher.name, schoolName);
@@ -650,8 +691,8 @@ export const teacherAuthService = {
   getTeacherAllocations: (teacherId: string) => {
     if (typeof window === 'undefined') return { classTeacherOf: [], assignedSubjects: [] };
 
-    let classTeacherOf: { grade: string; branch: string }[] = [];
-    let assignedSubjects: { grade: string; branch: string; subjectName: string }[] = [];
+    const classTeacherOf: { grade: string; branch: string }[] = [];
+    const assignedSubjects: { grade: string; branch: string; subjectName: string }[] = [];
 
     // Scan all keys starting with sms_teacher_allocation_
     Object.keys(localStorage).forEach(key => {

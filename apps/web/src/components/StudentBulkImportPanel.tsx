@@ -30,6 +30,7 @@ import {
   ArrowUpDown,
   GraduationCap
 } from 'lucide-react';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import { studentService, Student } from '@/services/studentService';
 import { 
   bnToEnDigits, 
@@ -423,7 +424,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
     setAlertInfo(null);
 
     try {
-      let rawJsonRows: any[] = [];
+      const rawJsonRows: any[] = [];
 
       if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
         const buffer = await selectedFile.arrayBuffer();
@@ -534,23 +535,29 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
   }, [rolledResult.students, groupTabFilter, searchPreview]);
 
   // ─── 6. SAVE TO DATABASE HANDLER (REQUIREMENT 6) ──────────────────────────
-  const handleSaveToDatabase = () => {
+  const handleSaveToDatabase = async () => {
     if (rolledResult.students.length === 0) return;
 
     if (validationReport && !validationReport.canProceed) {
-      alert(`সতর্কতা: ফাইলে ${validationReport.errorCount} টি গুরুতর ত্রুটি রয়েছে। অনুগ্রহ করে ত্রুটিযুক্ত রো-গুলো সংশোধন করুন।`);
+      showToast(`সতর্কতা: ফাইলে ${validationReport.errorCount} টি গুরুতর ত্রুটি রয়েছে। অনুগ্রহ করে ত্রুটিযুক্ত রো-গুলো সংশোধন করুন।`, 'warning');
       return;
     }
 
     if (selectedSaveMode === 'replace') {
-      const confirmed = window.confirm(
-        `⚠️ চূড়ান্ত সতর্কতা: আপনি "সম্পূর্ণ ডাটাবেজ প্রতিস্থাপন (Replace All)" নির্বাচন করেছেন!\nবিদ্যমান ${currentDbStats.total} জন শিক্ষার্থীর রেকর্ড মুছে নতুন ${rolledResult.students.length} জন শিক্ষার্থী প্রতিস্থাপন করা হবে।\nআপনি কি নিশ্চিত?`
-      );
+      const confirmed = await confirmDialog({
+        title: 'চূড়ান্ত সতর্কতা',
+        message: `আপনি "সম্পূর্ণ ডাটাবেজ প্রতিস্থাপন (Replace All)" নির্বাচন করেছেন!\nবিদ্যমান ${currentDbStats.total} জন শিক্ষার্থীর রেকর্ড মুছে নতুন ${rolledResult.students.length} জন শিক্ষার্থী প্রতিস্থাপন করা হবে।\nআপনি কি নিশ্চিত?`,
+        confirmLabel: 'প্রতিস্থাপন করুন',
+        danger: true,
+      });
       if (!confirmed) return;
     } else if (selectedSaveMode === 'replace_grade') {
-      const confirmed = window.confirm(
-        `সতর্কতা: শুধুমাত্র ৯ম শ্রেণির বিদ্যমান শিক্ষার্থীদের মুছে নতুন তালিকা দিয়ে প্রতিস্থাপন করা হবে। অন্য শ্রেণির রেকর্ড অপরিবর্তিত থাকবে। এগিয়ে যেতে চান?`
-      );
+      const confirmed = await confirmDialog({
+        title: 'শ্রেণি প্রতিস্থাপন নিশ্চিতকরণ',
+        message: `সতর্কতা: শুধুমাত্র ৯ম শ্রেণির বিদ্যমান শিক্ষার্থীদের মুছে নতুন তালিকা দিয়ে প্রতিস্থাপন করা হবে। অন্য শ্রেণির রেকর্ড অপরিবর্তিত থাকবে। এগিয়ে যেতে চান?`,
+        confirmLabel: 'এগিয়ে যান',
+        danger: true,
+      });
       if (!confirmed) return;
     }
 
@@ -644,7 +651,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
               <span className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">প্রস্তাবিত</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Group, Student Name, Gender, Father's Name, Mother's Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile, Optional Subject</span>
+              কলামসমূহ: <span className="font-semibold text-slate-800 dark:text-slate-200">Roll, Group, Student Name, Gender, Father&apos;s Name, Mother&apos;s Name, Religion, Registration Number, SSC Roll, Date of Birth, Address, Mobile, Optional Subject</span>
             </p>
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -1111,7 +1118,7 @@ export default function StudentBulkImportPanel({ onSuccess, compactMode = false 
                     <span className="text-[10px] text-slate-500 font-normal">পিতার নাম</span>
                   </th>
                   <th className="p-3 min-w-[160px]">
-                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Mother's Name</span>
+                    <span className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Mother&apos;s Name</span>
                     <span className="text-[10px] text-slate-500 font-normal">মাতার নাম</span>
                   </th>
                   <th className="p-3 w-24 text-center">

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { clientLicenseService, ClientRegistrationState, HardwareInfo } from '@/services/clientLicenseService';
 import { DIVISIONS, DISTRICTS_MAP } from '@/constants/locations';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 export default function RegisterSchoolPage() {
   const router = useRouter();
@@ -137,7 +138,7 @@ export default function RegisterSchoolPage() {
       const updated = clientLicenseService.getRegistrationState();
       setState(updated);
       if (res.isApproved) {
-        alert('অভিনন্দন! আপনার স্কুল সফলভাবে অনুমোদিত হয়েছে।');
+        showToast('অভিনন্দন! আপনার স্কুল সফলভাবে অনুমোদিত হয়েছে।', 'success');
       }
     } finally {
       setCheckingStatus(false);
@@ -646,8 +647,8 @@ export default function RegisterSchoolPage() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm('আপনি কি পূর্ববর্তী তথ্যে ফিরে যেতে চান?')) {
+                    onClick={async () => {
+                      if (await confirmDialog({ message: 'আপনি কি পূর্ববর্তী তথ্যে ফিরে যেতে চান?', confirmLabel: 'ফিরে যান' })) {
                         setStep(1);
                       }
                     }}

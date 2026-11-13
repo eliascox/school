@@ -32,6 +32,9 @@ interface PublicBlogSectionProps {
 }
 
 export default function PublicBlogSection({ blogConfig }: PublicBlogSectionProps = {}) {
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [showAllModal, setShowAllModal] = useState<boolean>(false);
+
   if (blogConfig && blogConfig.enabled === false) {
     return null;
   }
@@ -94,9 +97,6 @@ export default function PublicBlogSection({ blogConfig }: PublicBlogSectionProps
 
   const sectionTitle = blogConfig?.title || 'সংবাদ ও ব্লগ';
   const sectionSubtitle = blogConfig?.subtitle || 'বিদ্যালয়ের শিক্ষা কার্যক্রম, জাতীয় দিবস উদযাপন, ক্রীড়া প্রতিযোগিতা এবং শিক্ষার্থীদের সাফল্যের হালনাগাদ তথ্যাবলী।';
-
-  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
-  const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
     <section id="blog" className="py-10 sm:py-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">

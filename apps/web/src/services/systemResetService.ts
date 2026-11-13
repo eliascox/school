@@ -99,6 +99,7 @@ export const systemResetService = {
       localStorage.setItem('sms_teachers_list', JSON.stringify([]));
       localStorage.setItem('sms_rbac_subject_assignments', JSON.stringify([]));
       localStorage.setItem('sms_rbac_class_teachers', JSON.stringify([]));
+      localStorage.setItem('sms_teacher_leave_applications', JSON.stringify([]));
       localStorage.setItem('sms_teacher_leaves', JSON.stringify([]));
       let teacherKeysCount = 0;
       allKeys.forEach((key) => {

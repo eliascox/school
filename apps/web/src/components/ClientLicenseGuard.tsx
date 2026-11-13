@@ -190,7 +190,7 @@ export default function ClientLicenseGuard({ children }: { children: React.React
 
           <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-900/50 text-xs text-rose-200 text-left">
             <p>• উইন্ডোজ পিসির তারিখ এবং সময় বর্তমান সঠিক সময়ে নির্ধারণ করুন।</p>
-            <p className="mt-1">• "Set time automatically" অপশন চালু করুন।</p>
+            <p className="mt-1">• &quot;Set time automatically&quot; অপশন চালু করুন।</p>
           </div>
 
           {tamperError && (
@@ -269,24 +269,15 @@ export default function ClientLicenseGuard({ children }: { children: React.React
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <button
-              onClick={() => {
-                clientLicenseService.unlockSchool();
-                refreshState();
-                window.location.reload();
-              }}
-              className="w-full sm:flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-600/30 cursor-pointer"
-            >
-              <span>⚡ সফটওয়্যার সক্রিয় ও আনলক করুন</span>
-            </button>
-
-            <button
               onClick={async () => {
                 setRechecking(true);
                 try {
-                  clientLicenseService.unlockSchool();
-                  await clientLicenseService.sendHeartbeat();
+                  await clientLicenseService.sendHeartbeat(true);
                   refreshState();
-                  window.location.reload();
+                  const latest = clientLicenseService.getRegistrationState();
+                  if (latest?.status === 'APPROVED') {
+                    window.location.reload();
+                  }
                 } finally {
                   setRechecking(false);
                 }

@@ -63,7 +63,14 @@ import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
 import { studentService, Student } from '@/services/studentService';
-import { settingsService, SchoolSettings, CustomPngBorder, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
+import {
+  settingsService,
+  SchoolSettings,
+  CustomPngBorder,
+  DEFAULT_PAD_MARGINS,
+  getEnglishSchoolName as resolveEnglishSchoolName,
+  getEnglishAddress as resolveEnglishAddress,
+} from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
 
 type MainTab = 'single_generator' | 'bulk_generator' | 'batch_print' | 'register' | 'settings' | 'border_manager';
@@ -151,7 +158,7 @@ export function getEnglishPrincipalName(name?: string): string {
   };
   if (bengaliMap[trimmed]) return bengaliMap[trimmed];
   
-  let converted = trimmed
+  const converted = trimmed
     .replace(/মোহাম্মদ/g, 'MOHAMMAD')
     .replace(/মোঃ/g, 'MD.')
     .replace(/মো:/g, 'MD.')
@@ -271,15 +278,11 @@ export function translateBoardToEnglish(board?: string): string {
 }
 
 export function getEnglishSchoolName(nameBn?: string): string {
-  if (!nameBn) return 'BORAITOLI HIGH SCHOOL';
-  if (nameBn.includes('বরইতলী')) return 'BORAITOLI HIGH SCHOOL';
-  return nameBn;
+  return resolveEnglishSchoolName({ schoolName: nameBn }).toUpperCase();
 }
 
 export function getEnglishSchoolAddress(addrBn?: string): string {
-  if (!addrBn) return 'Boraitoli, Chakaria, Cox\'s Bazar';
-  if (addrBn.includes('বরইতলী')) return 'Boraitoli, Chakaria, Cox\'s Bazar';
-  return addrBn;
+  return resolveEnglishAddress({ address: addrBn });
 }
 
 export function formatDobInWords(dobStr?: string): string {
@@ -728,11 +731,11 @@ function SSCTestimonialsContent() {
       dob: dobStr,
       dobWords: formatDobInWords(dobStr),
       gender: studentGender,
-      schoolName: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-      schoolNameEn: getEnglishSchoolName(schoolSettings.schoolName),
-      schoolAddress: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
-      schoolAddressEn: getEnglishSchoolAddress(schoolSettings.address),
-      eiin: schoolSettings.eiin || '106184',
+      schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+      schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
+      schoolAddress: schoolSettings.address || '',
+      schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+      eiin: schoolSettings.eiin || '---',
       boardName: translateBoardToEnglish(currentLang === 'en' ? 'Board of Intermediate and Secondary Education, Chattogram' : 'চট্টগ্রাম মাধ্যমিক ও উচ্চ মাধ্যমিক শিক্ষা বোর্ড'),
       centerName: 'Chakaria-1',
       group: englishGroup,
@@ -947,11 +950,11 @@ function SSCTestimonialsContent() {
             dob: dobVal,
             dobWords: formatDobInWords(dobVal),
             gender: genderVal,
-            schoolName: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-            schoolNameEn: getEnglishSchoolName(schoolSettings.schoolName),
-            schoolAddress: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
-            schoolAddressEn: getEnglishSchoolAddress(schoolSettings.address),
-            eiin: schoolSettings.eiin || '106184',
+            schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+            schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
+            schoolAddress: schoolSettings.address || '',
+            schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+            eiin: schoolSettings.eiin || '---',
             boardName: 'Board of Intermediate and Secondary Education, Chattogram',
             centerName: 'Chakaria-1',
             group: grp,
@@ -1037,11 +1040,11 @@ function SSCTestimonialsContent() {
       dob: singleDob,
       dobWords: formatDobInWords(singleDob),
       gender: singleGender,
-      schoolName: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-      schoolNameEn: getEnglishSchoolName(schoolSettings.schoolName),
-      schoolAddress: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
-      schoolAddressEn: getEnglishSchoolAddress(schoolSettings.address),
-      eiin: schoolSettings.eiin || '106184',
+      schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+      schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
+      schoolAddress: schoolSettings.address || '',
+      schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+      eiin: schoolSettings.eiin || '---',
       boardName: 'Board of Intermediate and Secondary Education, Chattogram',
       centerName: 'Chakaria-1',
       group: translateGroupToEnglish(singleGroup),
@@ -1125,7 +1128,7 @@ function SSCTestimonialsContent() {
   if (!mounted) return null;
 
   return (
-    <div className="space-y-6 print:p-0 print:m-0 print:space-y-0 text-slate-900">
+    <div className="space-y-6 print:p-0 print:m-0 print:space-y-0 text-slate-900 dark:text-white">
       
       {/* ─── STYLISH FONT IMPORTS & PRINT CSS FOR EXACT 9.2in x 8.2in ─── */}
       <style jsx global>{`
@@ -1194,18 +1197,18 @@ function SSCTestimonialsContent() {
       )}
 
       {/* ─── UNIFIED SINGLE-LINE HEADER BAR (একক লাইনে সকল মেন্যু ও একশন) ─── */}
-      <div className="bg-white px-3.5 py-2.5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-wrap xl:flex-nowrap items-center justify-between gap-2.5 print:hidden">
+      <div className="bg-white dark:bg-slate-900 px-3.5 py-2.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap xl:flex-nowrap items-center justify-between gap-2.5 print:hidden">
         
         {/* Left: Branding & Size Badge */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-xs">
             <Award size={18} />
           </div>
           <div className="flex items-center gap-1.5">
-            <h2 className="text-xs sm:text-sm font-black text-slate-950 whitespace-nowrap">
+            <h2 className="text-xs sm:text-sm font-black text-slate-950 dark:text-white whitespace-nowrap">
               এসএসসি প্রশংসাপত্র
             </h2>
-            <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-200/80 text-indigo-700 rounded-md text-[10px] font-mono font-black whitespace-nowrap">
+            <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-mono font-black whitespace-nowrap">
               ৯.২&quot; × ৮.২&quot;
             </span>
           </div>
@@ -1220,7 +1223,7 @@ function SSCTestimonialsContent() {
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'single_generator'
                 ? 'bg-slate-950 text-white shadow-xs ring-1 ring-indigo-400/50'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-800'
             }`}
           >
             <FileText size={13} className={activeTab === 'single_generator' ? 'text-indigo-400' : 'text-slate-400'} />
@@ -1233,7 +1236,7 @@ function SSCTestimonialsContent() {
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'bulk_generator'
                 ? 'bg-slate-950 text-white shadow-xs ring-1 ring-amber-400/50'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-800'
             }`}
           >
             <Award size={13} className={activeTab === 'bulk_generator' ? 'text-amber-400' : 'text-slate-400'} />
@@ -1246,7 +1249,7 @@ function SSCTestimonialsContent() {
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'batch_print'
                 ? 'bg-slate-950 text-white shadow-xs ring-1 ring-emerald-400/50'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-800'
             }`}
           >
             <Layers size={13} className={activeTab === 'batch_print' ? 'text-emerald-400' : 'text-slate-400'} />
@@ -1259,7 +1262,7 @@ function SSCTestimonialsContent() {
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'register'
                 ? 'bg-slate-950 text-white shadow-xs ring-1 ring-sky-400/50'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-800'
             }`}
           >
             <BookOpen size={13} className={activeTab === 'register' ? 'text-sky-400' : 'text-slate-400'} />
@@ -1272,7 +1275,7 @@ function SSCTestimonialsContent() {
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${
               activeTab === 'settings' || activeTab === 'border_manager'
                 ? 'bg-slate-950 text-white shadow-xs ring-1 ring-purple-400/50'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-800'
             }`}
           >
             <SlidersHorizontal size={13} className={activeTab === 'settings' || activeTab === 'border_manager' ? 'text-purple-400' : 'text-slate-400'} />
@@ -1292,8 +1295,8 @@ function SSCTestimonialsContent() {
             />
             <span className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs transition border ${
               activeBorderUrl
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
+                : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}>
               <Upload size={12} />
               {activeBorderUrl ? '✓ বর্ডার সেট' : 'বর্ডার আপলোড'}
@@ -1305,7 +1308,7 @@ function SSCTestimonialsContent() {
               type="button"
               onClick={handleClearBorder}
               title="বর্ডার সরান"
-              className="px-2 py-1.5 rounded-xl font-bold text-xs border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              className="px-2 py-1.5 rounded-xl font-bold text-xs border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition cursor-pointer"
             >
               ✕
             </button>
@@ -1317,8 +1320,8 @@ function SSCTestimonialsContent() {
             onClick={() => setShowLayoutDrawer(!showLayoutDrawer)}
             className={`px-2.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-xs ${
               showLayoutDrawer
-                ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 font-black'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                ? 'bg-amber-500 text-slate-950 dark:text-white ring-2 ring-amber-400 font-black'
+                : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
             }`}
             title="সাইজ ও মার্জিন কন্ট্রোল প্যানেল খুলুন"
           >
@@ -1335,7 +1338,7 @@ function SSCTestimonialsContent() {
                   updateLayoutConfig(DEFAULT_LAYOUT_CONFIG);
                   showAlert('success', 'ডিফল্ট সাইজ ও মার্জিনে রিসেট করা হয়েছে!');
                 }}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
                 title="ডিফল্ট মাপ ও মার্জিনে রিসেট করুন"
               >
                 <RotateCcw size={12} /> রিসেট
@@ -1356,11 +1359,11 @@ function SSCTestimonialsContent() {
                     gender: 'Male',
                     dob: '2009-05-14',
                     dobWords: 'Fourteenth May Two Thousand and Nine',
-                    schoolName: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-                    schoolNameEn: getEnglishSchoolName(schoolSettings.schoolName),
-                    schoolAddress: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
-                    schoolAddressEn: getEnglishSchoolAddress(schoolSettings.address),
-                    eiin: schoolSettings.eiin || '106184',
+                    schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+                    schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
+                    schoolAddress: schoolSettings.address || '',
+                    schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+                    eiin: schoolSettings.eiin || '---',
                     centerName: 'Chakaria-1',
                     group: 'Science',
                     boardRoll: '102931',
@@ -1589,7 +1592,7 @@ function SSCTestimonialsContent() {
                     type="button"
                     onClick={() => updateLayoutConfig({ titleStyle: style })}
                     className={`py-2 rounded-lg text-[10px] font-black transition cursor-pointer capitalize ${
-                      (layoutConfig.titleStyle || 'cinzel') === style ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300' : 'text-slate-400 hover:text-white'
+                      (layoutConfig.titleStyle || 'cinzel') === style ? 'bg-amber-500 text-slate-950 dark:text-white shadow-md ring-2 ring-amber-300' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {style === 'cinzel' ? 'Cinzel রাজকীয়' : style === 'playfair' ? 'Playfair মার্জিত' : 'ক্লাসিক সেরিফ'}
@@ -1612,7 +1615,7 @@ function SSCTestimonialsContent() {
                   onClick={() => handleSelectBorder('none')}
                   className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
                     !activeBorderUrl
-                      ? 'bg-amber-500 text-slate-950 font-black'
+                      ? 'bg-amber-500 text-slate-950 dark:text-white font-black'
                       : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
@@ -1655,14 +1658,14 @@ function SSCTestimonialsContent() {
         <div className="space-y-6 print:hidden">
           
           {/* Top Filter & CSV Action Card */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
+                <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
                   <Award size={20} className="text-amber-500" />
                   এসএসসি পরীক্ষার্থীদের বাল্ক প্রশংসাপত্র জেনারেটর (Official English Testimonials)
                 </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                   নির্ধারিত সাইজ ৯.২&quot; × ৮.২&quot; এবং চারপাশের নিরাপদ মার্জিন অনুযায়ী ইংরেজি প্রশংসাপত্র প্রস্তুত ও বাল্ক প্রিন্ট।
                 </p>
               </div>
@@ -1670,21 +1673,21 @@ function SSCTestimonialsContent() {
               {/* Filters */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-500">পরীক্ষার সন:</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">পরীক্ষার সন:</span>
                   <input
                     type="text"
                     value={passingYearFilter}
                     onChange={(e) => setPassingYearFilter(e.target.value)}
-                    className="w-24 p-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-xs text-center"
+                    className="w-24 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono font-bold text-xs text-center"
                   />
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-500">বিভাগ/গ্রুপ:</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">বিভাগ/গ্রুপ:</span>
                   <select
                     value={groupFilter}
                     onChange={(e) => setGroupFilter(e.target.value)}
-                    className="p-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs cursor-pointer"
+                    className="p-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-xs cursor-pointer"
                   >
                     <option value="all">সকল বিভাগ (All Groups)</option>
                     <option value="Science">বিজ্ঞান (Science)</option>
@@ -1698,17 +1701,17 @@ function SSCTestimonialsContent() {
             {/* 2-Step Action Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               
-              <div className="p-5 bg-emerald-50/70 border border-emerald-200/80 rounded-3xl space-y-3 text-xs font-bold">
+              <div className="p-5 bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 rounded-3xl space-y-3 text-xs font-bold">
                 <div className="flex items-center justify-between">
-                  <span className="text-emerald-950 uppercase text-[10px] block font-black tracking-wider flex items-center gap-1.5">
-                    <FileSpreadsheet size={15} className="text-emerald-700" />
+                  <span className="text-emerald-950 dark:text-emerald-200 uppercase text-[10px] block font-black tracking-wider flex items-center gap-1.5">
+                    <FileSpreadsheet size={15} className="text-emerald-700 dark:text-emerald-300" />
                     ধাপ ১: শিক্ষার্থীর তথ্য ছক এক্সেল নমুনা ফাইল ডাউনলোড
                   </span>
-                  <span className="px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-md text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 bg-emerald-200 text-emerald-900 dark:text-emerald-200 rounded-md text-[10px] font-mono font-bold">
                     Excel .xlsx
                   </span>
                 </div>
-                <p className="text-slate-600 text-xs leading-relaxed font-medium">
+                <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed font-medium">
                   ১০ম শ্রেণির শিক্ষার্থীদের তথ্যসহ (নাম, পিতা-মাতা, সেশন, জন্মতারিখ) এক্সেল ফাইল নামিয়ে বোর্ড রোল ও জিপিএ পূরণ করুন।
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -1723,7 +1726,7 @@ function SSCTestimonialsContent() {
                   <button
                     type="button"
                     onClick={handleDownloadSSCCandidateCSV}
-                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl cursor-pointer shadow-md transition flex items-center justify-center gap-2 text-xs active:scale-95"
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 dark:text-white font-black rounded-2xl cursor-pointer shadow-md transition flex items-center justify-center gap-2 text-xs active:scale-95"
                     title="CSV ফরম্যাটে নমুনা ফাইল ডাউনলোড করুন"
                   >
                     <Download size={15} /> CSV নমুনা ফাইল (.csv)
@@ -1731,17 +1734,17 @@ function SSCTestimonialsContent() {
                 </div>
               </div>
 
-              <div className="p-5 bg-indigo-50/60 border border-indigo-200/80 rounded-3xl space-y-3 text-xs font-bold">
+              <div className="p-5 bg-indigo-50/60 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 rounded-3xl space-y-3 text-xs font-bold">
                 <div className="flex items-center justify-between">
-                  <span className="text-indigo-950 uppercase text-[10px] block font-black tracking-wider flex items-center gap-1.5">
-                    <Upload size={15} className="text-indigo-700" />
+                  <span className="text-indigo-950 dark:text-indigo-200 uppercase text-[10px] block font-black tracking-wider flex items-center gap-1.5">
+                    <Upload size={15} className="text-indigo-700 dark:text-indigo-300" />
                     ধাপ ২: পূরণকৃত Excel / CSV আপলোড ও বাল্ক জেনারেট
                   </span>
-                  <span className="px-2 py-0.5 bg-indigo-200 text-indigo-900 rounded-md text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 bg-indigo-200 text-indigo-900 dark:text-indigo-200 rounded-md text-[10px] font-mono font-bold">
                     .xlsx / .csv
                   </span>
                 </div>
-                <p className="text-slate-600 text-xs leading-relaxed font-medium">
+                <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed font-medium">
                   বোর্ড রোল ও জিপিএ পূরণকৃত Excel (.xlsx) অথবা CSV ফাইল আপলোড করুন। সাথে সাথে সবার প্রশংসাপত্র তৈরি হয়ে যাবে।
                 </p>
                 <label className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl cursor-pointer shadow-md transition flex items-center justify-center gap-2 text-xs active:scale-95 mt-1">
@@ -1760,14 +1763,14 @@ function SSCTestimonialsContent() {
           </div>
 
           {/* Candidates List with Direct 1-Click Actions */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
-                  <Users size={16} className="text-indigo-600" />
+                <h4 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                  <Users size={16} className="text-indigo-600 dark:text-indigo-400" />
                   ১০ম শ্রেণি / এসএসসি পরীক্ষার্থীদের তালিকা ({sscCandidates.length} জন)
                 </h4>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   নিচের যেকোনো পরীক্ষার্থীর জন্য একক প্রশংসাপত্র প্রিভিউ করুন অথবা সবার জন্য একসাথে বাল্ক প্রিন্ট চাপুন।
                 </p>
               </div>
@@ -1780,7 +1783,7 @@ function SSCTestimonialsContent() {
                     placeholder="নাম বা ক্লাস রোল দিয়ে খুঁজুন..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none"
+                    className="pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold outline-none"
                   />
                 </div>
 
@@ -1804,10 +1807,10 @@ function SSCTestimonialsContent() {
             </div>
 
             {/* Candidate Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+            <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
               <table className="w-full text-left border-collapse text-xs font-medium">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-700 font-black border-b border-slate-200">
+                  <tr className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-black border-b border-slate-200 dark:border-slate-800">
                     <th className="p-3">রোল</th>
                     <th className="p-3">শিক্ষার্থীর নাম</th>
                     <th className="p-3">পিতার নাম</th>
@@ -1817,7 +1820,7 @@ function SSCTestimonialsContent() {
                     <th className="p-3 text-right">একশন ও প্রিন্ট</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-bold text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold text-slate-800 dark:text-slate-100">
                   {sscCandidates.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="p-8 text-center text-slate-400">
@@ -1826,17 +1829,17 @@ function SSCTestimonialsContent() {
                     </tr>
                   ) : (
                     sscCandidates.map((s, idx) => (
-                      <tr key={s.id} className="hover:bg-slate-50/80 transition">
-                        <td className="p-3 font-mono font-black text-indigo-700">{s.roll}</td>
-                        <td className="p-3 font-black text-slate-950">{s.name}</td>
-                        <td className="p-3 text-slate-600">{s.fatherName || '—'}</td>
-                        <td className="p-3 text-slate-600">{s.motherName || '—'}</td>
+                      <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
+                        <td className="p-3 font-mono font-black text-indigo-700 dark:text-indigo-300">{s.roll}</td>
+                        <td className="p-3 font-black text-slate-950 dark:text-white">{s.name}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{s.fatherName || '—'}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{s.motherName || '—'}</td>
                         <td className="p-3">
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded-md text-[11px] font-bold">
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-md text-[11px] font-bold">
                             {translateGroupToEnglish(s.group)}
                           </span>
                         </td>
-                        <td className="p-3 font-mono text-slate-600">{s.dob || '—'}</td>
+                        <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{s.dob || '—'}</td>
                         <td className="p-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
@@ -1850,7 +1853,7 @@ function SSCTestimonialsContent() {
                             <button
                               type="button"
                               onClick={() => handleQuickPreviewCandidate(s, idx)}
-                              className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                               title="প্রিভিউ দেখুন"
                             >
                               <Eye size={13} /> প্রিভিউ
@@ -1858,7 +1861,7 @@ function SSCTestimonialsContent() {
                             <button
                               type="button"
                               onClick={() => handleSelectStudentForSingle(s)}
-                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                              className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
                               title="তথ্য পরিবর্তন করুন"
                             >
                               এডিট
@@ -1880,13 +1883,13 @@ function SSCTestimonialsContent() {
       {/* TAB 2: SINGLE TESTIMONIAL GENERATOR                                */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'single_generator' && (
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6 print:hidden">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
-              <FileText size={20} className="text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 print:hidden">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+            <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
+              <FileText size={20} className="text-indigo-600 dark:text-indigo-400" />
               একক প্রশংসাপত্র প্রস্তুতকরণ (Single English Testimonial Generator)
             </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
               সাইজ ৯.২&quot; × ৮.২&quot; ফরম্যাটে নির্দিষ্ট একজন পরীক্ষার্থীর তথ্য প্রদান করে ইংরেজি প্রশংসাপত্র প্রস্তুত করুন।
             </p>
           </div>
@@ -1895,95 +1898,95 @@ function SSCTestimonialsContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-bold">
               
               <div className="space-y-1.5">
-                <label className="text-slate-700">শিক্ষার্থীর নাম (Name in English) *</label>
+                <label className="text-slate-700 dark:text-slate-300">শিক্ষার্থীর নাম (Name in English) *</label>
                 <input
                   type="text"
                   required
                   value={singleStudentName}
                   onChange={(e) => setSingleStudentName(e.target.value)}
                   placeholder="e.g. MOHAMMAD SHIHAB UDDIN"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-black text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">পিতার নাম (Father&apos;s Name) *</label>
+                <label className="text-slate-700 dark:text-slate-300">পিতার নাম (Father&apos;s Name) *</label>
                 <input
                   type="text"
                   required
                   value={singleFatherName}
                   onChange={(e) => setSingleFatherName(e.target.value)}
                   placeholder="e.g. Md. Ibrahim"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">মাতার নাম (Mother&apos;s Name) *</label>
+                <label className="text-slate-700 dark:text-slate-300">মাতার নাম (Mother&apos;s Name) *</label>
                 <input
                   type="text"
                   required
                   value={singleMotherName}
                   onChange={(e) => setSingleMotherName(e.target.value)}
                   placeholder="e.g. Begum Fatema"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">গ্রাম (Village) *</label>
+                <label className="text-slate-700 dark:text-slate-300">গ্রাম (Village) *</label>
                 <input
                   type="text"
                   required
                   value={singleVillage}
                   onChange={(e) => setSingleVillage(e.target.value)}
                   placeholder="e.g. Boraitoli"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">ডাকঘর (Post Office) *</label>
+                <label className="text-slate-700 dark:text-slate-300">ডাকঘর (Post Office) *</label>
                 <input
                   type="text"
                   required
                   value={singlePostOffice}
                   onChange={(e) => setSinglePostOffice(e.target.value)}
                   placeholder="e.g. Boraitoli"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">উপজেলা (Upazilla) *</label>
+                <label className="text-slate-700 dark:text-slate-300">উপজেলা (Upazilla) *</label>
                 <input
                   type="text"
                   required
                   value={singleUpazilla}
                   onChange={(e) => setSingleUpazilla(e.target.value)}
                   placeholder="e.g. Chakaria"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">জেলা (District) *</label>
+                <label className="text-slate-700 dark:text-slate-300">জেলা (District) *</label>
                 <input
                   type="text"
                   required
                   value={singleDistrict}
                   onChange={(e) => setSingleDistrict(e.target.value)}
                   placeholder="e.g. Cox's Bazar"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">লিঙ্গ (Gender for Pronouns) *</label>
+                <label className="text-slate-700 dark:text-slate-300">লিঙ্গ (Gender for Pronouns) *</label>
                 <select
                   value={singleGender}
                   onChange={(e) => setSingleGender(e.target.value as any)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                 >
                   <option value="Male">ছাত্র / Male (son, He, his)</option>
                   <option value="Female">ছাত্রী / Female (daughter, She, her)</option>
@@ -1992,22 +1995,22 @@ function SSCTestimonialsContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">জন্ম তারিখ (Date of Birth) *</label>
+                <label className="text-slate-700 dark:text-slate-300">জন্ম তারিখ (Date of Birth) *</label>
                 <input
                   type="date"
                   required
                   value={singleDob}
                   onChange={(e) => setSingleDob(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">বিভাগ / গ্রুপ (Group in English) *</label>
+                <label className="text-slate-700 dark:text-slate-300">বিভাগ / গ্রুপ (Group in English) *</label>
                 <select
                   value={singleGroup}
                   onChange={(e) => setSingleGroup(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                 >
                   <option value="Science">Science (বিজ্ঞান)</option>
                   <option value="Humanities">Humanities (মানবিক)</option>
@@ -2016,31 +2019,31 @@ function SSCTestimonialsContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">বোর্ড রোল নম্বর (Board Roll) *</label>
+                <label className="text-slate-700 dark:text-slate-300">বোর্ড রোল নম্বর (Board Roll) *</label>
                 <input
                   type="text"
                   required
                   value={singleBoardRoll}
                   onChange={(e) => setSingleBoardRoll(e.target.value)}
                   placeholder="102931"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-black text-indigo-700"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono font-black text-indigo-700 dark:text-indigo-300"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">রেজিস্ট্রেশন নম্বর (Board Reg No) *</label>
+                <label className="text-slate-700 dark:text-slate-300">রেজিস্ট্রেশন নম্বর (Board Reg No) *</label>
                 <input
                   type="text"
                   required
                   value={singleBoardReg}
                   onChange={(e) => setSingleBoardReg(e.target.value)}
                   placeholder="1810293819"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">প্রাপ্ত জিপিএ (GPA Out of 5.00) *</label>
+                <label className="text-slate-700 dark:text-slate-300">প্রাপ্ত জিপিএ (GPA Out of 5.00) *</label>
                 <input
                   type="text"
                   required
@@ -2057,70 +2060,70 @@ function SSCTestimonialsContent() {
                     else setSingleGradeLetter('D');
                   }}
                   placeholder="5.00"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-black text-emerald-700 text-sm"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono font-black text-emerald-700 dark:text-emerald-300 text-sm"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">লেটার গ্রেড (Letter Grade)</label>
+                <label className="text-slate-700 dark:text-slate-300">লেটার গ্রেড (Letter Grade)</label>
                 <input
                   type="text"
                   value={singleGradeLetter}
                   onChange={(e) => setSingleGradeLetter(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-black text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">পরীক্ষার সন (Passing Year)</label>
+                <label className="text-slate-700 dark:text-slate-300">পরীক্ষার সন (Passing Year)</label>
                 <input
                   type="text"
                   value={singlePassingYear}
                   onChange={(e) => setSinglePassingYear(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">স্মারক নম্বর (Ref No)</label>
+                <label className="text-slate-700 dark:text-slate-300">স্মারক নম্বর (Ref No)</label>
                 <input
                   type="text"
                   value={singleRefNo}
                   onChange={(e) => setSingleRefNo(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">ইস্যুর তারিখ (Issue Date)</label>
+                <label className="text-slate-700 dark:text-slate-300">ইস্যুর তারিখ (Issue Date)</label>
                 <input
                   type="date"
                   value={singleIssueDate}
                   onChange={(e) => setSingleIssueDate(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-700">সেশন (Session)</label>
+                <label className="text-slate-700 dark:text-slate-300">সেশন (Session)</label>
                 <input
                   type="text"
                   value={singleSession}
                   onChange={(e) => setSingleSession(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
             </div>
 
             <div className="space-y-1.5 text-xs font-bold">
-              <label className="text-slate-700">চারিত্রিক মন্তব্য (English Character Remarks)</label>
+              <label className="text-slate-700 dark:text-slate-300">চারিত্রিক মন্তব্য (English Character Remarks)</label>
               <input
                 type="text"
                 value={singleRemarks}
                 onChange={(e) => setSingleRemarks(e.target.value)}
                 placeholder="He bears an exemplary moral character."
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-900"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-medium text-slate-900 dark:text-white"
               />
             </div>
 
@@ -2144,18 +2147,18 @@ function SSCTestimonialsContent() {
         <div className={`space-y-6 ${previewTestimonial ? 'print:hidden' : ''}`}>
           
           {/* Top Control Bar (Hidden on print) */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-bold print:hidden">
+          <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-bold print:hidden">
             <div>
               <div className="flex items-center gap-2">
-                <Printer size={18} className="text-emerald-600" />
-                <h3 className="font-black text-slate-950 text-base">
+                <Printer size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <h3 className="font-black text-slate-950 dark:text-white text-base">
                   ব্যাচ প্রিন্ট প্রিভিউ ({batchPrintList.length} জন পরীক্ষার্থী)
                 </h3>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-mono font-bold text-[10px]">
+                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 rounded font-mono font-bold text-[10px]">
                   9.2&quot; × 8.2&quot; A4/Custom
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                 প্রতিটি প্রশংসাপত্র সুনির্দিষ্ট ৯.২ ইঞ্চি প্রস্থ ও ৮.২ ইঞ্চি উচ্চতায় আলাদা পৃষ্ঠায় প্রিন্ট হবে।
               </p>
             </div>
@@ -2164,9 +2167,9 @@ function SSCTestimonialsContent() {
               <button
                 type="button"
                 onClick={() => setShowLayoutDrawer(!showLayoutDrawer)}
-                className="px-3.5 py-2 bg-amber-50 text-amber-950 border border-amber-300 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/50 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <SlidersHorizontal size={14} className="text-amber-700" /> সাইজ/মার্জিন টিউন
+                <SlidersHorizontal size={14} className="text-amber-700 dark:text-amber-300" /> সাইজ/মার্জিন টিউন
               </button>
 
               <button
@@ -2181,9 +2184,9 @@ function SSCTestimonialsContent() {
 
           {/* Printable Batch Sheets Container */}
           {batchPrintList.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-3xl border border-slate-200/80 shadow-sm print:hidden">
+            <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm print:hidden">
               <Layers size={32} className="mx-auto text-slate-300 mb-2" />
-              <h4 className="font-black text-slate-700">কোনো পরীক্ষার্থীর প্রশংসাপত্র তৈরি হয়নি</h4>
+              <h4 className="font-black text-slate-700 dark:text-slate-300">কোনো পরীক্ষার্থীর প্রশংসাপত্র তৈরি হয়নি</h4>
               <p className="text-xs text-slate-400 mt-1">
                 &quot;বাল্ক প্রশংসাপত্র জেনারেটর&quot; ট্যাব থেকে CSV আপলোড করুন অথবা &quot;সবার প্রশংসাপত্র তৈরি ও প্রিন্ট&quot; বাটনে ক্লিক করুন।
               </p>
@@ -2227,7 +2230,7 @@ function SSCTestimonialsContent() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-200/80 p-4 sm:p-8 rounded-3xl flex justify-center overflow-x-auto print:p-0 print:bg-transparent print:rounded-none print:shadow-none print:w-full print:block">
+                  <div className="bg-slate-200/80 dark:bg-slate-800/80 p-4 sm:p-8 rounded-3xl flex justify-center overflow-x-auto print:p-0 print:bg-transparent print:rounded-none print:shadow-none print:w-full print:block">
                     <SSCTestimonialSheetCard
                       record={rec}
                       schoolSettings={schoolSettings}
@@ -2253,14 +2256,14 @@ function SSCTestimonialsContent() {
 
 
           {/* Section 1: PNG Border Slots Manager */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
-                  <ImageIcon size={18} className="text-purple-600" />
+                <h4 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <ImageIcon size={18} className="text-purple-600 dark:text-purple-400" />
                   ১. পিএনজি বর্ডার ফ্রেম ম্যানেজার (PNG Border Slots)
                 </h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                   প্রশংসাপত্রের চারপাশের জন্য (৯.২&quot; × ৮.২&quot;) স্বচ্ছ ট্রান্সপারেন্ট পিএনজি বর্ডার আপলোড করুন। যেকোনো সময় সক্রিয় বা বাদ দিতে পারেন।
                 </p>
               </div>
@@ -2271,8 +2274,8 @@ function SSCTestimonialsContent() {
                   onClick={() => handleSelectBorder('none')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     !activeBorderUrl
-                      ? 'bg-amber-500 text-slate-950 font-black ring-2 ring-amber-300'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-amber-500 text-slate-950 dark:text-white font-black ring-2 ring-amber-300'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   কোনো বর্ডার নয় (No Border)
@@ -2290,10 +2293,10 @@ function SSCTestimonialsContent() {
                     key={slotIdx}
                     className={`p-5 rounded-3xl border-2 transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-300'
+                        ? 'border-indigo-600 bg-indigo-50/40 dark:bg-indigo-950/50 shadow-md ring-2 ring-indigo-300'
                         : border
-                        ? 'border-slate-200 bg-white hover:border-slate-300'
-                        : 'border-dashed border-slate-300 bg-slate-50/50'
+                        ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                        : 'border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50'
                     }`}
                   >
                     <div className="space-y-3">
@@ -2308,7 +2311,7 @@ function SSCTestimonialsContent() {
                         )}
                       </div>
 
-                      <div className="h-52 bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden relative group">
+                      <div className="h-52 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden relative group">
                         {border ? (
                           <>
                             <img
@@ -2343,13 +2346,13 @@ function SSCTestimonialsContent() {
                       </div>
 
                       {border && (
-                        <p className="text-xs font-black text-slate-900 truncate text-center">
+                        <p className="text-xs font-black text-slate-900 dark:text-white truncate text-center">
                           {border.name}
                         </p>
                       )}
                     </div>
 
-                    <div className="pt-4 mt-2 border-t border-slate-100">
+                    <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
                       <label className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs">
                         <Upload size={14} /> {border ? `বর্ডার ${slotIdx + 1} পরিবর্তন করুন` : `বর্ডার ${slotIdx + 1} আপলোড`}
                         <input
@@ -2366,10 +2369,10 @@ function SSCTestimonialsContent() {
             </div>
 
             {/* Border Opacity Controls */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div className="space-y-0.5">
-                <span className="font-black text-slate-800">বর্ডার অপাসিটি (Border Opacity):</span>
-                <p className="text-[11px] text-slate-500">বর্ডার হালকা বা ১০০% গাঢ় করার জন্য স্লাইডার ব্যবহার করুন।</p>
+                <span className="font-black text-slate-800 dark:text-slate-100">বর্ডার অপাসিটি (Border Opacity):</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">বর্ডার হালকা বা ১০০% গাঢ় করার জন্য স্লাইডার ব্যবহার করুন।</p>
               </div>
               <div className="flex items-center gap-3">
                 <input
@@ -2381,7 +2384,7 @@ function SSCTestimonialsContent() {
                   onChange={(e) => updateLayoutConfig({ borderOpacity: parseFloat(e.target.value) })}
                   className="w-36 sm:w-48 accent-indigo-600 cursor-pointer"
                 />
-                <span className="font-mono font-black text-indigo-700 text-xs w-10">
+                <span className="font-mono font-black text-indigo-700 dark:text-indigo-300 text-xs w-10">
                   {Math.round((layoutConfig.borderOpacity ?? 1.0) * 100)}%
                 </span>
               </div>
@@ -2389,18 +2392,18 @@ function SSCTestimonialsContent() {
           </div>
 
           {/* Section 2: Certificate Dimensions & 4-Side Safe Margins */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 pb-4">
+          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <h4 className="font-black text-slate-900 text-base flex items-center gap-2">
-                  <SlidersHorizontal size={18} className="text-emerald-600" />
+                <h4 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <SlidersHorizontal size={18} className="text-emerald-600 dark:text-emerald-400" />
                   ২. প্রশংসাপত্র সাইজ ও ৪ দিকের মার্জিন টিউন (Size & Safe Margins)
                 </h4>
-                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-xl font-mono font-black text-xs">
+                <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 rounded-xl font-mono font-black text-xs">
                   নির্ধারিত সাইজ: ৯.২&quot; (প্রস্থ) × ৮.২&quot; (উচ্চতা)
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                 বর্ডারের ভেতরে লেখা যেন পুরোপুরি সুরক্ষিত থাকে, সেজন্য ৪ দিকের মার্জিন প্রয়োজন অনুযায়ী নিখুঁত করুন।
               </p>
             </div>
@@ -2408,10 +2411,10 @@ function SSCTestimonialsContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
               
               {/* Top Margin */}
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">টপ মার্জিন (Top):</span>
-                  <span className="font-mono text-indigo-600 font-black">{layoutConfig.topMargin}&quot;</span>
+                  <span className="text-slate-700 dark:text-slate-300">টপ মার্জিন (Top):</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-black">{layoutConfig.topMargin}&quot;</span>
                 </div>
                 <input
                   type="range"
@@ -2426,10 +2429,10 @@ function SSCTestimonialsContent() {
               </div>
 
               {/* Bottom Margin */}
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">বটম মার্জিন (Bottom):</span>
-                  <span className="font-mono text-indigo-600 font-black">{layoutConfig.bottomMargin}&quot;</span>
+                  <span className="text-slate-700 dark:text-slate-300">বটম মার্জিন (Bottom):</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-black">{layoutConfig.bottomMargin}&quot;</span>
                 </div>
                 <input
                   type="range"
@@ -2444,10 +2447,10 @@ function SSCTestimonialsContent() {
               </div>
 
               {/* Left Margin */}
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">বাম মার্জিন (Left):</span>
-                  <span className="font-mono text-emerald-600 font-black">{layoutConfig.leftMargin}&quot;</span>
+                  <span className="text-slate-700 dark:text-slate-300">বাম মার্জিন (Left):</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black">{layoutConfig.leftMargin}&quot;</span>
                 </div>
                 <input
                   type="range"
@@ -2462,10 +2465,10 @@ function SSCTestimonialsContent() {
               </div>
 
               {/* Right Margin */}
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">ডান মার্জিন (Right):</span>
-                  <span className="font-mono text-emerald-600 font-black">{layoutConfig.rightMargin}&quot;</span>
+                  <span className="text-slate-700 dark:text-slate-300">ডান মার্জিন (Right):</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black">{layoutConfig.rightMargin}&quot;</span>
                 </div>
                 <input
                   type="range"
@@ -2484,10 +2487,10 @@ function SSCTestimonialsContent() {
             {/* Font Scaling & Line Spacing */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-xs">
               
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">ইংরেজি লেখার ফন্ট স্কেল:</span>
-                  <span className="font-mono text-amber-600 font-black">{layoutConfig.fontScale}%</span>
+                  <span className="text-slate-700 dark:text-slate-300">ইংরেজি লেখার ফন্ট স্কেল:</span>
+                  <span className="font-mono text-amber-600 dark:text-amber-400 font-black">{layoutConfig.fontScale}%</span>
                 </div>
                 <input
                   type="range"
@@ -2506,8 +2509,8 @@ function SSCTestimonialsContent() {
                       onClick={() => updateLayoutConfig({ fontScale: preset })}
                       className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
                         layoutConfig.fontScale === preset
-                          ? 'bg-amber-500 text-slate-950 font-black'
-                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-amber-500 text-slate-950 dark:text-white font-black'
+                          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
                       {preset}%
@@ -2516,16 +2519,16 @@ function SSCTestimonialsContent() {
                 </div>
               </div>
 
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-700 font-bold block">প্যারাগ্রাফ লাইন স্পেসিং:</span>
-                <div className="grid grid-cols-3 gap-1 bg-slate-200/80 p-1 rounded-xl">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="text-slate-700 dark:text-slate-300 font-bold block">প্যারাগ্রাফ লাইন স্পেসিং:</span>
+                <div className="grid grid-cols-3 gap-1 bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-xl">
                   {(['tight', 'normal', 'relaxed'] as const).map((lh) => (
                     <button
                       key={lh}
                       type="button"
                       onClick={() => updateLayoutConfig({ lineHeight: lh })}
                       className={`py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer capitalize ${
-                        layoutConfig.lineHeight === lh ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        layoutConfig.lineHeight === lh ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       {lh === 'tight' ? 'টাইট' : lh === 'normal' ? 'স্বাভাবিক' : 'খোলামেলা'}
@@ -2535,10 +2538,10 @@ function SSCTestimonialsContent() {
                 <p className="text-[10px] text-slate-400">লাইনের মধ্যবর্তী দূরত্ব</p>
               </div>
 
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between items-center font-bold">
-                  <span className="text-slate-700">স্বাক্ষর ব্লকের ফাঁকা স্পেস:</span>
-                  <span className="font-mono text-sky-600 font-black">{layoutConfig.signatureGap}px</span>
+                  <span className="text-slate-700 dark:text-slate-300">স্বাক্ষর ব্লকের ফাঁকা স্পেস:</span>
+                  <span className="font-mono text-sky-600 dark:text-sky-400 font-black">{layoutConfig.signatureGap}px</span>
                 </div>
                 <input
                   type="range"
@@ -2557,31 +2560,31 @@ function SSCTestimonialsContent() {
 
           {/* Section 3: Typography & Mobile Number Settings */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-3">
-              <span className="text-slate-900 font-black text-sm block flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+              <span className="text-slate-900 dark:text-white font-black text-sm block flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500" />
                 TESTIMONIAL টাইটেল ফন্ট স্টাইল:
               </span>
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
                 {(['cinzel', 'playfair', 'classic'] as const).map((style) => (
                   <button
                     key={style}
                     type="button"
                     onClick={() => updateLayoutConfig({ titleStyle: style })}
                     className={`py-2.5 rounded-xl text-xs font-black transition cursor-pointer capitalize ${
-                      (layoutConfig.titleStyle || 'cinzel') === style ? 'bg-slate-900 text-white shadow-md ring-2 ring-amber-400' : 'text-slate-600 hover:text-slate-900'
+                      (layoutConfig.titleStyle || 'cinzel') === style ? 'bg-slate-900 text-white shadow-md ring-2 ring-amber-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {style === 'cinzel' ? 'Cinzel রাজকীয়' : style === 'playfair' ? 'Playfair মার্জিত' : 'ক্লাসিক সেরিফ'}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-500">প্রশংসাপত্রের প্রধান শিরোনামটি রাজকীয় ফন্টে বোল্ড থাকবে।</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">প্রশংসাপত্রের প্রধান শিরোনামটি রাজকীয় ফন্টে বোল্ড থাকবে।</p>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-3">
-              <span className="text-slate-900 font-black text-sm block flex items-center gap-2">
-                <FileText size={16} className="text-indigo-600" />
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+              <span className="text-slate-900 dark:text-white font-black text-sm block flex items-center gap-2">
+                <FileText size={16} className="text-indigo-600 dark:text-indigo-400" />
                 হেডারে স্কুলের মোবাইল নম্বর (Header Mobile No):
               </span>
               <input
@@ -2589,9 +2592,9 @@ function SSCTestimonialsContent() {
                 placeholder="e.g. 01819-000000"
                 value={layoutConfig.customPhone !== undefined && layoutConfig.customPhone !== '' ? layoutConfig.customPhone : (schoolSettings?.phone || '01819-000000')}
                 onChange={(e) => updateLayoutConfig({ customPhone: e.target.value })}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-black text-indigo-700 outline-none"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300 outline-none"
               />
-              <p className="text-[11px] text-slate-500">EIIN ও Established লাইনের ঠিক নিচে Mobile লাইনে প্রদর্শিত হবে।</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">EIIN ও Established লাইনের ঠিক নিচে Mobile লাইনে প্রদর্শিত হবে।</p>
             </div>
           </div>
 
@@ -2602,23 +2605,23 @@ function SSCTestimonialsContent() {
       {/* TAB 4: REGISTER & ARCHIVE (প্রদানকৃত প্রশংসাপত্র রেজিস্টার)        */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'register' && (
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6 print:hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 print:hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
-                <BookOpen size={20} className="text-sky-600" />
+              <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
+                <BookOpen size={20} className="text-sky-600 dark:text-sky-400" />
                 প্রদানকৃত প্রশংসাপত্র রেজিস্টার ও রেকর্ডস ({certificates.filter(c => c.type === 'ssc_testimonial').length} টি)
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                 পূর্বে ইস্যুকৃত এসএসসি প্রশংসাপত্রের ইতিহাস, যাচাই ও পুনরায় প্রিন্ট সুবিধা।
               </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-100">
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
             <table className="w-full text-left border-collapse text-xs font-medium">
               <thead>
-                <tr className="bg-slate-50 text-slate-700 font-black border-b border-slate-200">
+                <tr className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-black border-b border-slate-200 dark:border-slate-800">
                   <th className="p-3">স্মারক নম্বর</th>
                   <th className="p-3">শিক্ষার্থীর নাম</th>
                   <th className="p-3">বোর্ড রোল</th>
@@ -2629,7 +2632,7 @@ function SSCTestimonialsContent() {
                   <th className="p-3 text-right">একশন</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-bold text-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold text-slate-800 dark:text-slate-100">
                 {certificates.filter(c => c.type === 'ssc_testimonial').length === 0 ? (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-slate-400">
@@ -2640,14 +2643,14 @@ function SSCTestimonialsContent() {
                   certificates
                     .filter(c => c.type === 'ssc_testimonial')
                     .map((cert) => (
-                      <tr key={cert.id} className="hover:bg-slate-50/80 transition">
-                        <td className="p-3 font-mono font-black text-indigo-700">{cert.refNo}</td>
-                        <td className="p-3 font-black text-slate-950">{cert.studentName}</td>
+                      <tr key={cert.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
+                        <td className="p-3 font-mono font-black text-indigo-700 dark:text-indigo-300">{cert.refNo}</td>
+                        <td className="p-3 font-black text-slate-950 dark:text-white">{cert.studentName}</td>
                         <td className="p-3 font-mono">{cert.boardRoll || '—'}</td>
                         <td className="p-3 font-mono">{cert.boardReg || '—'}</td>
                         <td className="p-3">{cert.passingYear} ({cert.session})</td>
-                        <td className="p-3 font-mono font-black text-emerald-700">{cert.gpa || '—'}</td>
-                        <td className="p-3 text-slate-600">{cert.issueDate}</td>
+                        <td className="p-3 font-mono font-black text-emerald-700 dark:text-emerald-300">{cert.gpa || '—'}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{cert.issueDate}</td>
                         <td className="p-3 text-right">
                           <button
                             type="button"
@@ -2665,11 +2668,11 @@ function SSCTestimonialsContent() {
                                 gender: 'Male',
                                 dob: cert.dob || '2009-01-01',
                                 dobWords: formatDobInWords(cert.dob || '2009-01-01'),
-                                schoolName: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-                                schoolNameEn: getEnglishSchoolName(schoolSettings.schoolName),
-                                schoolAddress: schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
-                                schoolAddressEn: getEnglishSchoolAddress(schoolSettings.address),
-                                eiin: schoolSettings.eiin || '106184',
+                                schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
+                                schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
+                                schoolAddress: schoolSettings.address || '',
+                                schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+                                eiin: schoolSettings.eiin || '---',
                                 centerName: 'Chakaria-1',
                                 group: translateGroupToEnglish(cert.group || 'Science'),
                                 boardRoll: cert.boardRoll || '—',
@@ -2706,35 +2709,35 @@ function SSCTestimonialsContent() {
       {/* ══════════════════════════════════════════════════════════════════ */}
       {previewTestimonial && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-          <div className="bg-white rounded-3xl max-w-5xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto print:max-w-none print:p-0 print:h-auto print:overflow-visible print:border-none print:shadow-none">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full p-6 space-y-4 max-h-[95vh] overflow-y-auto print:max-w-none print:p-0 print:h-auto print:overflow-visible print:border-none print:shadow-none">
             
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
               <div className="flex items-center gap-2">
                 <Award size={20} className="text-amber-500" />
-                <h3 className="font-black text-slate-950 text-sm">
+                <h3 className="font-black text-slate-950 dark:text-white text-sm">
                   অফিশিয়াল প্রশংসাপত্র প্রিভিউ (৯.২&quot; × ৮.২&quot;) • {previewTestimonial.studentName}
                 </h3>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Quick Live Font Size Adjuster inside Modal */}
-                <div className="flex items-center gap-1 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
-                  <span className="text-slate-600 mr-1">ফন্ট সাইজ:</span>
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+                  <span className="text-slate-600 dark:text-slate-400 mr-1">ফন্ট সাইজ:</span>
                   <button
                     type="button"
                     onClick={() => updateLayoutConfig({ fontScale: Math.max(75, layoutConfig.fontScale - 5) })}
-                    className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-900 font-black flex items-center justify-center border border-slate-300 cursor-pointer"
+                    className="w-6 h-6 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-black flex items-center justify-center border border-slate-300 dark:border-slate-700 cursor-pointer"
                     title="ফন্ট ছোট করুন"
                   >
                     −
                   </button>
-                  <span className="font-mono font-black text-indigo-700 px-1.5 min-w-[44px] text-center">
+                  <span className="font-mono font-black text-indigo-700 dark:text-indigo-300 px-1.5 min-w-[44px] text-center">
                     {layoutConfig.fontScale}%
                   </span>
                   <button
                     type="button"
                     onClick={() => updateLayoutConfig({ fontScale: Math.min(175, layoutConfig.fontScale + 5) })}
-                    className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-900 font-black flex items-center justify-center border border-slate-300 cursor-pointer"
+                    className="w-6 h-6 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-black flex items-center justify-center border border-slate-300 dark:border-slate-700 cursor-pointer"
                     title="ফন্ট বড় করুন"
                   >
                     +
@@ -2749,7 +2752,7 @@ function SSCTestimonialsContent() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     onChange={handleDirectBorderUpload}
                   />
-                  <span className="px-3 py-2 rounded-xl font-bold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5 transition">
+                  <span className="px-3 py-2 rounded-xl font-bold text-xs bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 flex items-center gap-1.5 transition">
                     <Upload size={13} />
                     {activeBorderUrl ? 'বর্ডার পরিবর্তন' : 'বর্ডার যোগ করুন'}
                   </span>
@@ -2765,7 +2768,7 @@ function SSCTestimonialsContent() {
                 <button
                   type="button"
                   onClick={() => setPreviewTestimonial(null)}
-                  className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 cursor-pointer"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 cursor-pointer"
                 >
                   <X size={18} />
                 </button>

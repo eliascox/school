@@ -1,4 +1,5 @@
 // ─── ENTERPRISE SMS GATEWAY SERVICE ──────────────────────────────────
+import { settingsService } from './settingsService';
 
 export interface GatewayPreset {
   apiKey: string;
@@ -42,20 +43,20 @@ export interface SMSTemplate {
 const DEFAULT_CONFIG: SMSGatewayConfig = {
   provider: 'bulksmsdhaka',
   apiKey: '',
-  senderId: '1234',
-  brandName: 'Boraitoli High School',
-  balance: 100.0,
+  senderId: '',
+  brandName: '',
+  balance: 0,
   isMasking: false,
   savedGateways: {
     bulksmsdhaka: {
       apiKey: '',
-      senderId: '1234',
-      balance: 100.0
+      senderId: '',
+      balance: 0
     },
     bulksmsbd: {
-      apiKey: '5zVaXEuUgZq5gyX23ujq',
-      senderId: '8809617613435',
-      balance: 105.20
+      apiKey: '',
+      senderId: '',
+      balance: 0
     }
   }
 };
@@ -310,15 +311,20 @@ class SMSService {
       } else if (config.provider === 'bulksmsbd') {
         // BulkSMSBD API (https://bulksmsbd.net/api/smsapi)
         const targetNumber = formatRecipientNumber(r.mobile, 'bulksmsbd');
-        const apiKey = config.apiKey || '5zVaXEuUgZq5gyX23ujq';
-        const senderId = config.senderId || '8809617613435';
-        const isUnicode = /[\u0980-\u09FF]/.test(r.text);
-        const typeParam = isUnicode ? 'unicode' : 'text';
+        const apiKey = (config.apiKey || '').trim();
+        const senderId = (config.senderId || '').trim();
+        if (!apiKey || !senderId) {
+          responseMsg = 'BulkSMSBD API Key এবং Sender ID কনফিগার করা হয়নি।';
+          isSuccess = false;
+        } else {
+          const isUnicode = /[\u0980-\u09FF]/.test(r.text);
+          const typeParam = isUnicode ? 'unicode' : 'text';
 
-        const apiUrl = `https://bulksmsbd.net/api/smsapi?api_key=${encodeURIComponent(apiKey)}&type=${typeParam}&number=${encodeURIComponent(targetNumber)}&senderid=${encodeURIComponent(senderId)}&message=${encodeURIComponent(r.text)}`;
-        const res = await fetchSMSGateway(apiUrl);
-        responseMsg = `BulkSMSBD: ${res.text.slice(0, 120)}`;
-        isSuccess = res.success;
+          const apiUrl = `https://bulksmsbd.net/api/smsapi?api_key=${encodeURIComponent(apiKey)}&type=${typeParam}&number=${encodeURIComponent(targetNumber)}&senderid=${encodeURIComponent(senderId)}&message=${encodeURIComponent(r.text)}`;
+          const res = await fetchSMSGateway(apiUrl);
+          responseMsg = `BulkSMSBD: ${res.text.slice(0, 120)}`;
+          isSuccess = res.success;
+        }
       } else if (config.provider === 'greenweb') {
         responseMsg = `Greenweb API Sent (TrxID: GW-${Math.floor(100000 + Math.random() * 900000)})`;
       } else if (config.provider === 'demo_mode') {
@@ -385,8 +391,11 @@ class SMSService {
       return { success: false, gatewayResponse: 'কোনো বৈধ মোবাইল নম্বর পাওয়া যায়নি' };
     }
 
-    const apiKey = config.apiKey || '5zVaXEuUgZq5gyX23ujq';
-    const senderId = config.senderId || '8809617613435';
+    const apiKey = (config.apiKey || '').trim();
+    const senderId = (config.senderId || '').trim();
+    if (!apiKey || !senderId) {
+      return { success: false, gatewayResponse: 'BulkSMSBD API Key এবং Sender ID সেটিংস থেকে কনফিগার করুন।' };
+    }
     const isUnicode = /[\u0980-\u09FF]/.test(text);
     const typeParam = isUnicode ? 'unicode' : 'text';
 
@@ -414,13 +423,14 @@ class SMSService {
   async sendOTP(
     mobile: string,
     recipientName = 'ব্যবহারকারী',
-    brandName = 'Boraitoli High School'
+    brandName?: string
   ): Promise<{ success: boolean; otp: string; message: string; gatewayResponse?: string }> {
     const config = this.getConfig();
+    const schoolSettings = settingsService.getSettings();
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Ensure company name fits and strictly complies with <= 70 character limit
-    const schoolBrand = brandName || config.brandName || 'Boraitoli HS';
+    const schoolBrand = brandName || config.brandName || schoolSettings?.schoolNameEn || schoolSettings?.schoolName || 'School';
     let otpMessage = `Your ${schoolBrand} OTP is ${otp}`;
     if (otpMessage.length > 70) {
       const trimmedBrand = schoolBrand.slice(0, 70 - 24).trim();
@@ -755,7 +765,8 @@ class SMSService {
     const config = this.getConfig();
     if (config.provider === 'bulksmsbd') {
       try {
-        const apiKey = config.apiKey || '5zVaXEuUgZq5gyX23ujq';
+        const apiKey = (config.apiKey || '').trim();
+        if (!apiKey) return config.balance;
         const url = `https://bulksmsbd.net/api/getBalanceApi?api_key=${encodeURIComponent(apiKey)}`;
         const res = await fetchSMSGateway(url);
         if (res.success) {

@@ -59,6 +59,7 @@ import {
   Minus,
   ArrowRight
 } from 'lucide-react';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 import { noticeService, Notice } from '@/services/noticeService';
 import { settingsService, SchoolSettings, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
 import SchoolPadWrapper from '@/components/SchoolPadWrapper';
@@ -605,13 +606,13 @@ ${generateClassFeeString(classFees)}
     }
   };
 
-  const handleDeleteNotice = (id: string, noticeTitle: string, e?: React.MouseEvent) => {
+  const handleDeleteNotice = async (id: string, noticeTitle: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!isAdmin) {
       showAlert('error', 'সহকারী শিক্ষকদের নোটিশ মুছে ফেলার অনুমতি নেই। এটি শুধুমাত্র প্রধান শিক্ষক/অ্যাডমিনের জন্য সংরক্ষিত।');
       return;
     }
-    if (confirm(`আপনি কি নিশ্চিতভাবে '${noticeTitle}' নোটিশটি মুছে ফেলতে চান?`)) {
+    if (await confirmDialog({ title: 'নোটিশ মুছে ফেলা', message: `আপনি কি নিশ্চিতভাবে '${noticeTitle}' নোটিশটি মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const res = noticeService.deleteNotice(id);
       if (res.success) {
         showAlert('success', res.message);
@@ -627,12 +628,12 @@ ${generateClassFeeString(classFees)}
     }
   };
 
-  const handleClearAllNotices = () => {
+  const handleClearAllNotices = async () => {
     if (!isAdmin) {
       showAlert('error', 'সহকারী শিক্ষকদের নোটিশ মুছে ফেলার অনুমতি নেই।');
       return;
     }
-    if (confirm('আপনি কি নিশ্চিতভাবে সকল নোটিশ স্থায়ীভাবে মুছে ফেলতে চান?')) {
+    if (await confirmDialog({ title: 'সকল নোটিশ মুছে ফেলা', message: 'আপনি কি নিশ্চিতভাবে সকল নোটিশ স্থায়ীভাবে মুছে ফেলতে চান?', confirmLabel: 'সব মুছে ফেলুন', danger: true })) {
       const res = noticeService.clearAllNotices();
       if (res.success) {
         showAlert('success', res.message);
@@ -695,13 +696,13 @@ ${generateClassFeeString(classFees)}
     );
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (!isAdmin) {
       showAlert('error', 'সহকারী শিক্ষকদের নোটিশ মুছে ফেলার অনুমতি নেই।');
       return;
     }
     if (!selectedNoticeIds.length) return;
-    if (confirm(`আপনি কি নির্বাচিত ${selectedNoticeIds.length} টি নোটিশ মুছে ফেলতে চান?`)) {
+    if (await confirmDialog({ title: 'নির্বাচিত নোটিশ মুছে ফেলা', message: `আপনি কি নির্বাচিত ${selectedNoticeIds.length} টি নোটিশ মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       selectedNoticeIds.forEach(id => noticeService.deleteNotice(id));
       setSelectedNoticeIds([]);
       loadNotices();
@@ -742,30 +743,30 @@ ${generateClassFeeString(classFees)}
   const getCategoryBadge = (cat: Notice['category']) => {
     switch (cat) {
       case 'exam':
-        return <span className="px-2.5 py-0.5 bg-amber-50 text-amber-900 border border-amber-300/80 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📝 পরীক্ষা</span>;
+        return <span className="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-800/60 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📝 পরীক্ষা</span>;
       case 'emergency':
-        return <span className="px-2.5 py-0.5 bg-rose-50 text-rose-900 border border-rose-300/80 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🚨 জরুরি</span>;
+        return <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border border-rose-300/80 dark:border-rose-800/60 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🚨 জরুরি</span>;
       case 'holiday':
-        return <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-950 border border-emerald-300/80 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🌴 ছুটি</span>;
+        return <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-950 dark:text-emerald-200 border border-emerald-300/80 dark:border-emerald-800/60 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🌴 ছুটি</span>;
       case 'academic':
-        return <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-950 border border-indigo-300/80 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📚 একাডেমিক</span>;
+        return <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-950 dark:text-indigo-200 border border-indigo-300/80 dark:border-indigo-800/60 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📚 একাডেমিক</span>;
       case 'events':
-        return <span className="px-2.5 py-0.5 bg-purple-50 text-purple-950 border border-purple-300/80 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🎉 অনুষ্ঠান</span>;
+        return <span className="px-2.5 py-0.5 bg-purple-50 dark:bg-purple-950/50 text-purple-950 dark:text-purple-200 border border-purple-300/80 dark:border-purple-800/60 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">🎉 অনুষ্ঠান</span>;
       default:
-        return <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 border border-slate-300 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📢 সাধারণ</span>;
+        return <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-md text-[11px] font-black inline-flex items-center gap-1 shadow-2xs">📢 সাধারণ</span>;
     }
   };
 
   const getTargetAudienceBadge = (aud: Notice['targetAudience']) => {
     switch (aud) {
       case 'teachers':
-        return <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[10px] font-extrabold">👨‍🏫 শিক্ষকবৃন্দ</span>;
+        return <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800/60 rounded text-[10px] font-extrabold">👨‍🏫 শিক্ষকবৃন্দ</span>;
       case 'parents':
-        return <span className="px-2 py-0.5 bg-pink-50 text-pink-800 border border-pink-200 rounded text-[10px] font-extrabold">👨‍👩‍👧‍👦 অভিভাবক</span>;
+        return <span className="px-2 py-0.5 bg-pink-50 dark:bg-pink-950/50 text-pink-800 dark:text-pink-200 border border-pink-200 dark:border-pink-800/60 rounded text-[10px] font-extrabold">👨‍👩‍👧‍👦 অভিভাবক</span>;
       case 'students':
-        return <span className="px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded text-[10px] font-extrabold">🎓 শিক্ষার্থী</span>;
+        return <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800/60 rounded text-[10px] font-extrabold">🎓 শিক্ষার্থী</span>;
       default:
-        return <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-bold">🌐 সকলে</span>;
+        return <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded text-[10px] font-bold">🌐 সকলে</span>;
     }
   };
 
@@ -779,7 +780,7 @@ ${generateClassFeeString(classFees)}
   };
 
   return (
-    <div className="w-full space-y-6 pb-12 font-sans text-slate-900">
+    <div className="w-full space-y-6 pb-12 font-sans text-slate-900 dark:text-white">
       
       {/* ─── NATIVE PRINT CSS FOR ACCURATE A4 & ZERO BORDER ─── */}
       <style jsx global>{`
@@ -843,7 +844,7 @@ ${generateClassFeeString(classFees)}
                 <button
                   type="button"
                   onClick={handleClearAllNotices}
-                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Trash2 size={14} /> সকল নোটিশ মুছুন
                 </button>
@@ -853,7 +854,7 @@ ${generateClassFeeString(classFees)}
                 <button
                   type="button"
                   onClick={() => setShowBlankPadModal(true)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Printer size={15} /> ফাঁকা স্কুল প্যাড প্রিন্ট
                 </button>
@@ -872,43 +873,43 @@ ${generateClassFeeString(classFees)}
 
             {/* Live Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs">
-                <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
                   <span>মোট প্রকাশিত নোটিশ</span>
-                  <FileText size={14} className="text-indigo-600" />
+                  <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <strong className="text-2xl font-black text-slate-900 block mt-1">{notices.length} <span className="text-xs font-bold text-slate-500 font-normal">টি</span></strong>
+                <strong className="text-2xl font-black text-slate-900 dark:text-white block mt-1">{notices.length} <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-normal">টি</span></strong>
               </div>
 
-              <div className="p-3.5 bg-white rounded-2xl border border-amber-200 shadow-xs">
-                <div className="flex items-center justify-between text-amber-700 text-[11px] font-bold">
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-xs">
+                <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 text-[11px] font-bold">
                   <span>পিনকৃত গুরুত্বপূর্ণ</span>
                   <Pin size={14} className="text-amber-500 fill-amber-500" />
                 </div>
-                <strong className="text-2xl font-black text-amber-900 block mt-1">
-                  {notices.filter(n => n.isPinned).length} <span className="text-xs font-bold text-amber-700 font-normal">টি</span>
+                <strong className="text-2xl font-black text-amber-900 dark:text-amber-200 block mt-1">
+                  {notices.filter(n => n.isPinned).length} <span className="text-xs font-bold text-amber-700 dark:text-amber-300 font-normal">টি</span>
                 </strong>
               </div>
 
-              <div className="p-3.5 bg-white rounded-2xl border border-rose-200 shadow-xs">
-                <div className="flex items-center justify-between text-rose-700 text-[11px] font-bold">
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-800/60 shadow-xs">
+                <div className="flex items-center justify-between text-rose-700 dark:text-rose-300 text-[11px] font-bold">
                   <span>জরুরি নির্দেশিকা</span>
                   <AlertTriangle size={14} className="text-rose-500" />
                 </div>
-                <strong className="text-2xl font-black text-rose-900 block mt-1">
-                  {notices.filter(n => n.priority === 'urgent').length} <span className="text-xs font-bold text-rose-700 font-normal">টি</span>
+                <strong className="text-2xl font-black text-rose-900 dark:text-rose-200 block mt-1">
+                  {notices.filter(n => n.priority === 'urgent').length} <span className="text-xs font-bold text-rose-700 dark:text-rose-300 font-normal">টি</span>
                 </strong>
               </div>
 
-              <div className="p-3.5 bg-white rounded-2xl border border-emerald-200 shadow-xs">
-                <div className="flex items-center justify-between text-emerald-700 text-[11px] font-bold">
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+                <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
                   <span>জারিকারক কর্মকর্তা</span>
-                  <Award size={14} className="text-emerald-600" />
+                  <Award size={14} className="text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <strong className="text-xs font-black text-emerald-950 truncate block mt-2">
+                <strong className="text-xs font-black text-emerald-950 dark:text-emerald-200 truncate block mt-2">
                   {schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
                 </strong>
-                <span className="text-[10px] text-emerald-700 font-medium block">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium block">
                   {schoolSettings.principalTitle || 'প্রধান শিক্ষক'}
                 </span>
               </div>
@@ -918,10 +919,10 @@ ${generateClassFeeString(classFees)}
           {/* ALERT NOTIFICATION */}
           {alertMsg && (
             <div className={`p-4 rounded-2xl font-bold text-xs flex items-center justify-between border shadow-sm print:hidden animate-in fade-in ${
-              alertMsg.type === 'success' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200'
+              alertMsg.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60' : 'bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800/60'
             }`}>
               <div className="flex items-center gap-2">
-                {alertMsg.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <AlertTriangle size={16} className="text-rose-600" />}
+                {alertMsg.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" /> : <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400" />}
                 <span>{alertMsg.text}</span>
               </div>
               <button onClick={() => setAlertMsg(null)} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">✕</button>
@@ -929,7 +930,7 @@ ${generateClassFeeString(classFees)}
           )}
 
           {/* SEARCH, CATEGORY TABS & MULTI-FILTER BAR */}
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm print:hidden space-y-3.5">
+          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden space-y-3.5">
             
             <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
               
@@ -940,7 +941,7 @@ ${generateClassFeeString(classFees)}
                   placeholder="নোটিশের শিরোনাম, স্মারক নম্বর বা বিবরণ দিয়ে তাৎক্ষণিক খুঁজুন..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-300 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                  className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition"
                 />
                 {searchQuery && (
                   <button
@@ -956,7 +957,7 @@ ${generateClassFeeString(classFees)}
                 <select
                   value={selectedPriority}
                   onChange={(e) => setSelectedPriority(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="all">সকল অগ্রাধিকার</option>
                   <option value="urgent">🚨 শুধু জরুরি</option>
@@ -967,7 +968,7 @@ ${generateClassFeeString(classFees)}
                 <select
                   value={selectedTarget}
                   onChange={(e) => setSelectedTarget(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="all">সকল প্রাপক</option>
                   <option value="students">🎓 শিক্ষার্থী</option>
@@ -975,12 +976,12 @@ ${generateClassFeeString(classFees)}
                   <option value="parents">👨‍👩‍👧‍👦 অভিভাবক</option>
                 </select>
 
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setListLayout('table')}
                     className={`p-1.5 rounded-lg transition cursor-pointer ${
-                      listLayout === 'table' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      listLayout === 'table' ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-200 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                     }`}
                     title="তালিকা ভিউ (Table View)"
                   >
@@ -990,7 +991,7 @@ ${generateClassFeeString(classFees)}
                     type="button"
                     onClick={() => setListLayout('cards')}
                     className={`p-1.5 rounded-lg transition cursor-pointer ${
-                      listLayout === 'cards' ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      listLayout === 'cards' ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-200 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                     }`}
                     title="কার্ড ভিউ (Card View)"
                   >
@@ -1001,7 +1002,7 @@ ${generateClassFeeString(classFees)}
 
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 dark:border-slate-800">
               {[
                 { key: 'all', label: 'সকল নোটিশ', count: categoryCounts.all },
                 { key: 'exam', label: 'পরীক্ষা', count: categoryCounts.exam },
@@ -1016,12 +1017,12 @@ ${generateClassFeeString(classFees)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                     selectedCategory === c.key 
                       ? 'bg-slate-900 text-white shadow-sm font-black' 
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                      : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                   }`}
                 >
                   <span>{c.label}</span>
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                    selectedCategory === c.key ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-700'
+                    selectedCategory === c.key ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}>
                     {c.count}
                   </span>
@@ -1033,26 +1034,26 @@ ${generateClassFeeString(classFees)}
 
           {/* PUBLISHED NOTICES TABLE LIST */}
           {listLayout === 'table' ? (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden print:hidden space-y-0">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden print:hidden space-y-0">
               
-              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold">
                     <FileText size={16} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-900">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
                       প্রকাশিত নোটিশ রেজিস্টার
                     </h3>
-                    <span className="text-[11px] font-bold text-slate-500">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                       মোট {filteredNotices.length} টি নোটিশ প্রদর্শিত হচ্ছে
                     </span>
                   </div>
                 </div>
 
                 {selectedNoticeIds.length > 0 && (
-                  <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-2xl border border-indigo-200 animate-in fade-in">
-                    <span className="text-xs font-black text-indigo-900">
+                  <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1.5 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 animate-in fade-in">
+                    <span className="text-xs font-black text-indigo-900 dark:text-indigo-200">
                       {selectedNoticeIds.length} টি নির্বাচিত
                     </span>
                     <button
@@ -1068,30 +1069,30 @@ ${generateClassFeeString(classFees)}
 
               {filteredNotices.length === 0 ? (
                 <div className="p-16 text-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-3xl shadow-inner">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto text-3xl shadow-inner">
                     📢
                   </div>
-                  <h4 className="text-base font-bold text-slate-700">কোনো নোটিশ পাওয়া যায়নি</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">কোনো নোটিশ পাওয়া যায়নি</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                     আপনার নির্বাচিত ফিল্টার বা সার্চে কোনো নোটিশ মেলেনি। নতুন নোটিশ তৈরি করতে ওপরের বাটনে ক্লিক করুন।
                   </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-slate-800 border-collapse">
+                  <table className="w-full text-left text-xs text-slate-800 dark:text-slate-100 border-collapse">
                     
-                    <thead className="bg-slate-100/90 text-slate-700 font-extrabold uppercase text-[11px] border-b border-slate-200 select-none">
+                    <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800 select-none">
                       <tr>
                         <th className="py-3.5 px-4 w-12 text-center">
                           {isAdmin ? (
                             <button
                               type="button"
                               onClick={handleSelectAll}
-                              className="text-slate-500 hover:text-indigo-600 cursor-pointer"
+                              className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 cursor-pointer"
                               title="সকল সিলেক্ট করুন"
                             >
                               {selectedNoticeIds.length === filteredNotices.length && filteredNotices.length > 0 ? (
-                                <CheckSquare size={16} className="text-indigo-600" />
+                                <CheckSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
                               ) : (
                                 <Square size={16} />
                               )}
@@ -1109,7 +1110,7 @@ ${generateClassFeeString(classFees)}
                       </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {filteredNotices.map((notice, idx) => {
                         const isSelected = selectedNoticeIds.includes(notice.id);
 
@@ -1118,12 +1119,12 @@ ${generateClassFeeString(classFees)}
                             key={notice.id} 
                             className={`group transition-colors duration-150 ${
                               isSelected 
-                                ? 'bg-indigo-50/50' 
+                                ? 'bg-indigo-50/50 dark:bg-indigo-950/50' 
                                 : notice.isPinned 
-                                  ? 'bg-amber-50/30 hover:bg-amber-50/60' 
+                                  ? 'bg-amber-50/30 dark:bg-amber-950/50 hover:bg-amber-50/60 dark:hover:bg-amber-950/50' 
                                   : idx % 2 === 0 
-                                    ? 'bg-white hover:bg-slate-50/80' 
-                                    : 'bg-slate-50/30 hover:bg-slate-50/80'
+                                    ? 'bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800' 
+                                    : 'bg-slate-50/30 hover:bg-slate-50/80 dark:hover:bg-slate-800'
                             }`}
                           >
                             
@@ -1136,7 +1137,7 @@ ${generateClassFeeString(classFees)}
                                     className="text-slate-400 hover:text-indigo-600 cursor-pointer"
                                   >
                                     {isSelected ? (
-                                      <CheckSquare size={16} className="text-indigo-600" />
+                                      <CheckSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
                                     ) : (
                                       <Square size={16} />
                                     )}
@@ -1157,10 +1158,10 @@ ${generateClassFeeString(classFees)}
 
                             <td className="py-4 px-4 align-middle whitespace-nowrap">
                               <div className="space-y-1">
-                                <span className="font-mono font-extrabold text-[11px] text-indigo-900 bg-indigo-50/80 border border-indigo-200/80 px-2 py-0.5 rounded-md inline-block">
+                                <span className="font-mono font-extrabold text-[11px] text-indigo-900 dark:text-indigo-200 bg-indigo-50/80 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 px-2 py-0.5 rounded-md inline-block">
                                   {notice.refNo || 'বউবি/নোটিশ/২০২৬'}
                                 </span>
-                                <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                   <Calendar size={12} className="text-slate-400" />
                                   <span>{formatDate(notice.publishedAt)}</span>
                                 </div>
@@ -1183,12 +1184,12 @@ ${generateClassFeeString(classFees)}
 
                                 <h4 
                                   onClick={() => handleOpenQuickView(notice)}
-                                  className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug cursor-pointer"
+                                  className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors leading-snug cursor-pointer"
                                 >
                                   {notice.title}
                                 </h4>
 
-                                <p className="text-xs text-slate-500 line-clamp-1 leading-relaxed font-normal">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed font-normal">
                                   {notice.content}
                                 </p>
 
@@ -1201,10 +1202,10 @@ ${generateClassFeeString(classFees)}
                                   ম
                                 </div>
                                 <div className="leading-tight">
-                                  <strong className="text-xs font-black text-slate-900 block truncate max-w-[130px]">
+                                  <strong className="text-xs font-black text-slate-900 dark:text-white block truncate max-w-[130px]">
                                     {notice.publisherName || schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
                                   </strong>
-                                  <span className="text-[10px] text-indigo-700 font-bold">
+                                  <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
                                     {notice.publisherRole || 'প্রধান শিক্ষক'}
                                   </span>
                                 </div>
@@ -1217,7 +1218,7 @@ ${generateClassFeeString(classFees)}
                                 <button
                                   type="button"
                                   onClick={() => handleOpenQuickView(notice)}
-                                  className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 hover:border-indigo-600 cursor-pointer shadow-2xs active:scale-95"
+                                  className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-600 cursor-pointer shadow-2xs active:scale-95"
                                   title="নোটিশটি বিস্তারিত দেখুন ও পড়ুন"
                                 >
                                   <Eye size={14} /> বিস্তারিত পড়ুন
@@ -1227,7 +1228,7 @@ ${generateClassFeeString(classFees)}
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPrintPreview(notice)}
-                                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-emerald-200 hover:border-emerald-600 cursor-pointer shadow-2xs active:scale-95"
+                                    className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-600 cursor-pointer shadow-2xs active:scale-95"
                                     title="অফিসিয়াল A4 প্যাডে প্রিন্ট বা PDF সংরক্ষণ"
                                   >
                                     <Printer size={14} /> প্রিন্ট
@@ -1239,7 +1240,7 @@ ${generateClassFeeString(classFees)}
                                     <button
                                       type="button"
                                       onClick={() => handleOpenCreateComposer(notice)}
-                                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-400 text-amber-900 hover:text-slate-950 rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-amber-200 hover:border-amber-400 cursor-pointer shadow-2xs active:scale-95"
+                                      className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-400 text-amber-900 dark:text-amber-200 hover:text-slate-950 dark:hover:text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-700 cursor-pointer shadow-2xs active:scale-95"
                                       title="নোটিশ সম্পাদনা করুন (ইন-পেইজ স্টুডিও)"
                                     >
                                       <Edit3 size={14} /> এডিট
@@ -1248,7 +1249,7 @@ ${generateClassFeeString(classFees)}
                                     <button
                                       type="button"
                                       onClick={(e) => handleDeleteNotice(notice.id, notice.title, e)}
-                                      className="p-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl text-xs font-bold transition flex items-center border border-rose-200 hover:border-rose-600 cursor-pointer shadow-2xs active:scale-95"
+                                      className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white rounded-xl text-xs font-bold transition flex items-center border border-rose-200 dark:border-rose-800/60 hover:border-rose-600 cursor-pointer shadow-2xs active:scale-95"
                                       title="নোটিশ মুছে ফেলুন"
                                     >
                                       <Trash2 size={15} />
@@ -1260,7 +1261,7 @@ ${generateClassFeeString(classFees)}
                                       className={`p-1.5 rounded-xl text-xs font-bold transition flex items-center border cursor-pointer shadow-2xs active:scale-95 ${
                                         notice.isPinned 
                                           ? 'bg-amber-400 text-slate-950 border-amber-500 hover:bg-amber-500' 
-                                          : 'bg-slate-50 hover:bg-slate-200 text-slate-500 border-slate-200'
+                                          : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'
                                       }`}
                                       title={notice.isPinned ? 'আনপিন করুন' : 'শীর্ষে পিন করুন'}
                                     >
@@ -1315,23 +1316,23 @@ ${generateClassFeeString(classFees)}
         <div className="space-y-6 print:hidden animate-in fade-in">
           
           {/* Top Control Bar */}
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setActiveView('list')}
-                className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition cursor-pointer"
               >
                 <ArrowLeft size={16} /> নোটিশ তালিকায় ফিরুন
               </button>
               
               <div>
-                <h2 className="text-base sm:text-lg font-black text-slate-950 flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
                   <Sparkles size={18} className="text-amber-500" />
                   {editingNotice ? 'নোটিশ সম্পাদনা স্টুডিও' : 'নতুন প্রাতিষ্ঠানিক নোটিশ ড্রাফটার'}
                 </h2>
-                <p className="text-[11px] text-slate-500 font-medium">বাম পাশে লিখুন — ডান পাশে রিয়েল-টাইম অফিসিয়াল প্যাডে সরাসরি লাইভ রূপ দেখুন</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">বাম পাশে লিখুন — ডান পাশে রিয়েল-টাইম অফিসিয়াল প্যাডে সরাসরি লাইভ রূপ দেখুন</p>
               </div>
             </div>
 
@@ -1343,7 +1344,7 @@ ${generateClassFeeString(classFees)}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-black transition border cursor-pointer ${
                   showColorController 
                     ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' 
-                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                    : 'bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60'
                 }`}
               >
                 <Palette size={15} /> প্যাড স্টাইল
@@ -1362,15 +1363,15 @@ ${generateClassFeeString(classFees)}
 
           {/* Color controller dropdown banner if active */}
           {showColorController && (
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border border-indigo-200 rounded-3xl animate-in fade-in space-y-4 shadow-sm">
-              <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
-                <span className="text-xs font-black text-indigo-950 flex items-center gap-2">
-                  <Palette size={15} className="text-indigo-600" /> প্যাডের কালার, ২-লাইন কালার, লোগো ও স্বাক্ষর পজিশন
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 dark:from-slate-900 via-indigo-50/40 dark:via-indigo-950/30 to-slate-50 dark:to-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-3xl animate-in fade-in space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-800/60 pb-2">
+                <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                  <Palette size={15} className="text-indigo-600 dark:text-indigo-400" /> প্যাডের কালার, ২-লাইন কালার, লোগো ও স্বাক্ষর পজিশন
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowColorController(false)}
-                  className="w-6 h-6 rounded-full bg-white hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xs cursor-pointer"
+                  className="w-6 h-6 rounded-full bg-white dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold text-xs cursor-pointer"
                 >
                   ✕
                 </button>
@@ -1378,10 +1379,10 @@ ${generateClassFeeString(classFees)}
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {/* 1. School Name Color */}
-                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
                     <span>স্কুলের নাম কালার</span>
-                    <span className="text-[10px] font-mono text-slate-500">{schoolNameColor}</span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{schoolNameColor}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <input
@@ -1394,16 +1395,16 @@ ${generateClassFeeString(classFees)}
                       type="text"
                       value={schoolNameColor}
                       onChange={(e) => saveColorsToStorage(e.target.value, topLineColor, bottomLineColor)}
-                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 border rounded"
+                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 dark:bg-slate-950 border rounded"
                     />
                   </div>
                 </div>
 
                 {/* 2. Top Line (3px) */}
-                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
                     <span>১ম লাইন কালার (৩px)</span>
-                    <span className="text-[10px] font-mono text-slate-500">{topLineColor}</span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{topLineColor}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <input
@@ -1416,16 +1417,16 @@ ${generateClassFeeString(classFees)}
                       type="text"
                       value={topLineColor}
                       onChange={(e) => saveColorsToStorage(schoolNameColor, e.target.value, bottomLineColor)}
-                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 border rounded"
+                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 dark:bg-slate-950 border rounded"
                     />
                   </div>
                 </div>
 
                 {/* 3. Bottom Line (1px) */}
-                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
                     <span>২য় লাইন কালার (১px)</span>
-                    <span className="text-[10px] font-mono text-slate-500">{bottomLineColor}</span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{bottomLineColor}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <input
@@ -1438,16 +1439,16 @@ ${generateClassFeeString(classFees)}
                       type="text"
                       value={bottomLineColor}
                       onChange={(e) => saveColorsToStorage(schoolNameColor, topLineColor, e.target.value)}
-                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 border rounded"
+                      className="w-full px-2 py-1 text-[11px] font-mono font-bold bg-slate-50 dark:bg-slate-950 border rounded"
                     />
                   </div>
                 </div>
 
                 {/* 4. Logo Left Offset */}
-                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                   <div className="flex justify-between text-xs font-black">
                     <span>লোগোর অবস্থান</span>
-                    <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-1 rounded">{logoLeftOffset}px</span>
+                    <span className="text-[10px] font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-1 rounded">{logoLeftOffset}px</span>
                   </div>
                   <input 
                     type="range" 
@@ -1469,15 +1470,15 @@ ${generateClassFeeString(classFees)}
             {/* ═══════════════════════════════════════════════════════════════ */}
             {/* 👈 বাম পাশ: সম্পূর্ণ নোটিশ ড্রাফট ফর্ম ও শ্রেণি ফি প্যানেল        */}
             {/* ═══════════════════════════════════════════════════════════════ */}
-            <div className="lg:col-span-6 space-y-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="lg:col-span-6 space-y-5 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
               
               {/* 1. Quick Ready-Made Templates Bar */}
-              <div className="bg-gradient-to-r from-amber-50/90 via-indigo-50/50 to-amber-50/90 border border-amber-200/80 p-3.5 rounded-2xl space-y-2">
+              <div className="bg-gradient-to-r from-amber-50/90 dark:from-amber-950/50 via-indigo-50/50 dark:via-indigo-950/30 to-amber-50/90 dark:to-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 p-3.5 rounded-2xl space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-600" /> প্রাতিষ্ঠানিক স্ট্যান্ডার্ড টেমপ্লেট নির্বাচন করুন:
+                  <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-100 uppercase flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-600 dark:text-amber-400" /> প্রাতিষ্ঠানিক স্ট্যান্ডার্ড টেমপ্লেট নির্বাচন করুন:
                   </span>
-                  <span className="text-[10px] text-indigo-700 font-bold bg-white px-2 py-0.5 rounded-md border border-indigo-100">
+                  <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800/60">
                     ১-ক্লিকে লোড ও অটো-সিঙ্ক
                   </span>
                 </div>
@@ -1488,7 +1489,7 @@ ${generateClassFeeString(classFees)}
                       key={tmpl.id}
                       type="button"
                       onClick={() => handleApplyTemplate(tmpl)}
-                      className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-slate-900 border border-amber-300/80 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-1 active:scale-95"
+                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-slate-900 dark:text-white border border-amber-300/80 dark:border-amber-800/60 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-1 active:scale-95"
                     >
                       {tmpl.name}
                     </button>
@@ -1497,29 +1498,29 @@ ${generateClassFeeString(classFees)}
               </div>
 
               {/* 2. 💰 শ্রেণি ভিত্তিক ফি ম্যাট্রিক্স (অর্থ আদায় সেকশন হতে লাইভ সিঙ্ক) */}
-              <div className="bg-slate-50 border border-indigo-200/80 p-4 rounded-2xl space-y-3.5 shadow-2xs">
+              <div className="bg-slate-50 dark:bg-slate-950 border border-indigo-200/80 dark:border-indigo-800/60 p-4 rounded-2xl space-y-3.5 shadow-2xs">
                 
                 {/* Header with Title, Live Badge & Link to Finance Settings */}
-                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-indigo-100/70 pb-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-indigo-100/70 dark:border-indigo-800/60 pb-2.5">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                       <Coins size={15} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                      <h4 className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
                         অর্থ আদায় সেকশন হতে শ্রেণি ভিত্তিক ফি
-                        <span className="px-2 py-0.2 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-md text-[9px] font-bold">
+                        <span className="px-2 py-0.2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60 rounded-md text-[9px] font-bold">
                           🟢 লাইভ সিঙ্ক
                         </span>
                       </h4>
-                      <p className="text-[10px] text-slate-500 font-medium">নিচের ফি সরাসরি অর্থ আদায় (Finance) মডিউল থেকে আসছে</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">নিচের ফি সরাসরি অর্থ আদায় (Finance) মডিউল থেকে আসছে</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Link
                       href="/dashboard/finance"
-                      className="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-2xs cursor-pointer"
+                      className="px-2.5 py-1 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-2xs cursor-pointer"
                       title="অর্থ আদায় সেকশনে ফি কনফিগার করুন"
                     >
                       <SlidersHorizontal size={12} /> অর্থ আদায় সেটিংস
@@ -1529,7 +1530,7 @@ ${generateClassFeeString(classFees)}
 
                 {/* Sector Switcher Tabs */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase mr-1">খাত নির্বাচন:</span>
+                  <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mr-1">খাত নির্বাচন:</span>
                   {[
                     { id: 'exam', label: '📝 পরীক্ষার ফি' },
                     { id: 'registration', label: '📋 রেজিস্ট্রেশন ফি' },
@@ -1543,7 +1544,7 @@ ${generateClassFeeString(classFees)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                         selectedFeeSector === sec.id
                           ? 'bg-indigo-600 text-white font-black shadow-xs'
-                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                          : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       {sec.label}
@@ -1554,9 +1555,9 @@ ${generateClassFeeString(classFees)}
                 {/* Class Fee Items Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-1">
                   {classFees.map((feeItem, idx) => (
-                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs space-y-1 relative group">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                        <span className="font-extrabold text-slate-900">{feeItem.className}</span>
+                    <div key={idx} className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1 relative group">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        <span className="font-extrabold text-slate-900 dark:text-white">{feeItem.className}</span>
                       </div>
 
                       <div className="flex items-center gap-1">
@@ -1565,18 +1566,18 @@ ${generateClassFeeString(classFees)}
                           value={feeItem.examFee}
                           onChange={(e) => handleUpdateClassFee(idx, e.target.value)}
                           placeholder="ফি"
-                          className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black font-mono text-indigo-950 text-right outline-none focus:border-indigo-500 focus:bg-white"
+                          className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-black font-mono text-indigo-950 dark:text-indigo-200 text-right outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
                         />
-                        <span className="text-[10px] font-bold text-slate-500">৳</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">৳</span>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* 1-Click Insert Button */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                  <span className="text-[10px] text-slate-500">
-                    বর্তমান খাত: <strong className="text-slate-900">{selectedFeeSector === 'exam' ? 'পরীক্ষার ফি' : selectedFeeSector === 'registration' ? 'রেজিস্ট্রেশন ফি' : selectedFeeSector === 'farewell' ? 'বিদায় অনুষ্ঠান ফি' : 'মাসিক বেতন'}</strong>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    বর্তমান খাত: <strong className="text-slate-900 dark:text-white">{selectedFeeSector === 'exam' ? 'পরীক্ষার ফি' : selectedFeeSector === 'registration' ? 'রেজিস্ট্রেশন ফি' : selectedFeeSector === 'farewell' ? 'বিদায় অনুষ্ঠান ফি' : 'মাসিক বেতন'}</strong>
                   </span>
                   
                   <button
@@ -1591,17 +1592,17 @@ ${generateClassFeeString(classFees)}
               </div>
 
               {/* 3. Main Form Inputs */}
-              <form onSubmit={handleSubmitNotice} className="space-y-4 text-xs font-medium text-slate-700">
+              <form onSubmit={handleSubmitNotice} className="space-y-4 text-xs font-medium text-slate-700 dark:text-slate-300">
                 
                 {/* Title & Auto-Sync Switch */}
-                <div className="space-y-1.5 bg-indigo-50/30 p-3.5 rounded-2xl border border-indigo-100">
+                <div className="space-y-1.5 bg-indigo-50/30 dark:bg-indigo-950/50 p-3.5 rounded-2xl border border-indigo-100 dark:border-indigo-800/60">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-slate-900 flex items-center gap-1">
+                    <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1">
                       <span>নোটিশের শিরোনাম / বিষয়</span>
                       <span className="text-rose-500">*</span>
                     </label>
 
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 cursor-pointer select-none">
+                    <label className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={autoSyncTitle}
@@ -1618,18 +1619,18 @@ ${generateClassFeeString(classFees)}
                     placeholder="যেমন: অর্ধবার্ষিক পরীক্ষা, শ্রেণি ভিত্তিক পরীক্ষার ফি ও বকেয়া বেতন পরিশোধ সংক্রান্ত বিজ্ঞপ্তি"
                     value={title}
                     onChange={(e) => handleTitleChange(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl font-black text-sm text-slate-950 outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-black text-sm text-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
                   />
                 </div>
 
                 {/* Category, Priority & Target Audience */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">ক্যাটাগরি</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">ক্যাটাগরি</label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="exam">📝 পরীক্ষা সংক্রান্ত (Exam)</option>
                       <option value="holiday">🌴 ছুটি সংক্রান্ত (Holiday)</option>
@@ -1641,11 +1642,11 @@ ${generateClassFeeString(classFees)}
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">অগ্রাধিকার</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">অগ্রাধিকার</label>
                     <select
                       value={priority}
                       onChange={(e) => setPriority(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="urgent">🚨 জরুরি (Urgent)</option>
                       <option value="important">⭐ গুরুত্বপূর্ণ (Important)</option>
@@ -1654,11 +1655,11 @@ ${generateClassFeeString(classFees)}
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">উদ্দিষ্ট প্রাপক</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">উদ্দিষ্ট প্রাপক</label>
                     <select
                       value={targetAudience}
                       onChange={(e) => setTargetAudience(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="all">🌐 সকলের জন্য (All)</option>
                       <option value="students">🎓 শিক্ষার্থীগণ</option>
@@ -1671,22 +1672,22 @@ ${generateClassFeeString(classFees)}
                 {/* Ref No & Publish Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">স্মারক নম্বর (Ref No)</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">স্মারক নম্বর (Ref No)</label>
                     <input
                       type="text"
                       placeholder="বউবি/নোটিশ/২০২৬/১০৪"
                       value={refNo}
                       onChange={(e) => setRefNo(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">প্রকাশের তারিখ</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">প্রকাশের তারিখ</label>
                     <input
                       type="date"
                       value={publishedDate}
                       onChange={(e) => setPublishedDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
@@ -1694,7 +1695,7 @@ ${generateClassFeeString(classFees)}
                 {/* Detailed Content & Smart Snippet Toolbar */}
                 <div className="space-y-1.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <label className="text-xs font-bold text-slate-900">
+                    <label className="text-xs font-bold text-slate-900 dark:text-white">
                       নোটিশের বিস্তারিত বিবরণ ও নির্দেশনাবলী <span className="text-rose-500">*</span>
                     </label>
 
@@ -1708,7 +1709,7 @@ ${generateClassFeeString(classFees)}
                           setContent(prev => prev.trim() + `\n\nশ্রেণি ভিত্তিক পরীক্ষার ফি তালিকা:\n${generateClassFeeString(fees)}`);
                           showAlert('success', 'পরীক্ষার ফি তালিকা সফলভাবে যোগ করা হয়েছে!');
                         }}
-                        className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded font-black cursor-pointer shadow-2xs"
+                        className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 rounded font-black cursor-pointer shadow-2xs"
                         title="শ্রেণি ভিত্তিক পরীক্ষার ফি তালিকা যোগ করুন"
                       >
                         + পরীক্ষার ফি
@@ -1720,7 +1721,7 @@ ${generateClassFeeString(classFees)}
                           setContent(prev => prev.trim() + `\n\nশ্রেণি ভিত্তিক রেজিস্ট্রেশন ফি বিবরণ:\n${generateClassFeeString(fees)}`);
                           showAlert('success', 'রেজিস্ট্রেশন ফি তালিকা সফলভাবে যোগ করা হয়েছে!');
                         }}
-                        className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded font-black cursor-pointer shadow-2xs"
+                        className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded font-black cursor-pointer shadow-2xs"
                         title="রেজিস্ট্রেশন ফি তালিকা যোগ করুন"
                       >
                         + রেজিস্ট্রেশন ফি
@@ -1732,7 +1733,7 @@ ${generateClassFeeString(classFees)}
                           setContent(prev => prev.trim() + `\n\nশ্রেণি ভিত্তিক বিদায় অনুষ্ঠান ফি তালিকা:\n${generateClassFeeString(fees)}`);
                           showAlert('success', 'বিদায় অনুষ্ঠান ফি তালিকা সফলভাবে যোগ করা হয়েছে!');
                         }}
-                        className="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded font-black cursor-pointer shadow-2xs"
+                        className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-900 dark:text-purple-200 border border-purple-200 dark:border-purple-800/60 rounded font-black cursor-pointer shadow-2xs"
                         title="বিদায় অনুষ্ঠান ফি তালিকা যোগ করুন"
                       >
                         + বিদায় ফি
@@ -1744,7 +1745,7 @@ ${generateClassFeeString(classFees)}
                           setContent(prev => prev.trim() + `\n\nশ্রেণি ভিত্তিক মাসিক বেতন তালিকা:\n${generateClassFeeString(fees)}`);
                           showAlert('success', 'মাসিক বেতন তালিকা সফলভাবে যোগ করা হয়েছে!');
                         }}
-                        className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded font-black cursor-pointer shadow-2xs"
+                        className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 rounded font-black cursor-pointer shadow-2xs"
                         title="মাসিক বেতন তালিকা যোগ করুন"
                       >
                         + মাসিক বেতন
@@ -1752,7 +1753,7 @@ ${generateClassFeeString(classFees)}
                       <button
                         type="button"
                         onClick={() => handleInsertSnippet('fee_due_rules')}
-                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded cursor-pointer"
+                        className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded cursor-pointer"
                         title="বকেয়া বেতন ও ফি পরিশোধের নিয়ম যোগ করুন"
                       >
                         + ফি ও এডমিট শর্ত
@@ -1760,7 +1761,7 @@ ${generateClassFeeString(classFees)}
                       <button
                         type="button"
                         onClick={() => handleInsertSnippet('exam_rules')}
-                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded cursor-pointer"
+                        className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded cursor-pointer"
                         title="পরীক্ষার হলের নির্দেশনাবলী যোগ করুন"
                       >
                         + পরীক্ষার নিয়ম
@@ -1768,7 +1769,7 @@ ${generateClassFeeString(classFees)}
                       <button
                         type="button"
                         onClick={() => handleInsertSnippet('holiday_dates')}
-                        className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 rounded cursor-pointer"
+                        className="px-2 py-0.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 rounded cursor-pointer"
                         title="ছুটি ও খোলার তারিখ"
                       >
                         + ছুটি
@@ -1782,28 +1783,28 @@ ${generateClassFeeString(classFees)}
                     placeholder="নোটিশের পূর্ণাঙ্গ প্রাতিষ্ঠানিক বিবরণ লিখুন..."
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-normal text-slate-900 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-sans"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-normal text-slate-900 dark:text-white text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 font-sans"
                   />
                 </div>
 
                 {/* Publisher / Signatory Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">জারিকারকের নাম</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">জারিকারকের নাম</label>
                     <input
                       type="text"
                       value={publisherName}
                       onChange={(e) => setPublisherName(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">পদবী</label>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">পদবী</label>
                     <input
                       type="text"
                       value={publisherRole}
                       onChange={(e) => setPublisherRole(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
@@ -1816,17 +1817,17 @@ ${generateClassFeeString(classFees)}
                     onChange={(e) => setIsPinned(e.target.checked)}
                     className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
                   />
-                  <span className="text-xs font-bold text-slate-900">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
                     📌 নোটিশ বোর্ডের শীর্ষে পিন করে রাখুন (Pin to Top)
                   </span>
                 </label>
 
                 {/* Bottom Submit Toolbar */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setActiveView('list')}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition cursor-pointer"
+                    className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition cursor-pointer"
                   >
                     বাতিল
                   </button>
@@ -1848,17 +1849,17 @@ ${generateClassFeeString(classFees)}
             <div className="lg:col-span-6 space-y-3 sticky top-4">
               
               {/* Studio Canvas Header */}
-              <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+              <div className="bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-xs font-black text-slate-900">রিয়েল-টাইম A4 প্যাড লাইভ ভিউ</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white">রিয়েল-টাইম A4 প্যাড লাইভ ভিউ</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleCopyNoticeText}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition flex items-center gap-1 cursor-pointer"
                   >
                     <Copy size={13} /> কপি
                   </button>
@@ -1889,8 +1890,8 @@ ${generateClassFeeString(classFees)}
               </div>
 
               {/* Scaled Mini-Pad Preview */}
-              <div className="bg-slate-200/80 p-3 sm:p-5 rounded-3xl overflow-hidden border border-slate-300 flex justify-center shadow-inner">
-                <div className="bg-white text-slate-950 relative shadow-xl rounded-sm p-6 sm:p-8 w-full max-w-[540px] min-h-[640px] space-y-3 text-xs">
+              <div className="bg-slate-200/80 dark:bg-slate-800/80 p-3 sm:p-5 rounded-3xl overflow-hidden border border-slate-300 dark:border-slate-700 flex justify-center shadow-inner">
+                <div className="bg-white dark:bg-slate-900 text-slate-950 dark:text-white relative shadow-xl rounded-sm p-6 sm:p-8 w-full max-w-[540px] min-h-[640px] space-y-3 text-xs">
                   
                   {/* Background Watermark */}
                   {showWatermark && (
@@ -1925,13 +1926,13 @@ ${generateClassFeeString(classFees)}
                         >
                           {schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
                         </h1>
-                        <p className="text-[10px] font-bold text-slate-800 mt-0.5">
+                        <p className="text-[10px] font-bold text-slate-800 dark:text-slate-100 mt-0.5">
                           {schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
                         </p>
-                        <p className="text-[9px] font-bold text-slate-600 font-mono">
+                        <p className="text-[9px] font-bold text-slate-600 dark:text-slate-400 font-mono">
                           EIIN: {schoolSettings.eiin || '106184'} , স্থাপিত: {schoolSettings.estdYear || '1969'} খ্রি .
                         </p>
-                        <p className="text-[9px] font-bold text-slate-600 font-mono">
+                        <p className="text-[9px] font-bold text-slate-600 dark:text-slate-400 font-mono">
                           মোবাইল: {schoolSettings.phone || '01819-000000'}
                         </p>
                       </div>
@@ -1944,7 +1945,7 @@ ${generateClassFeeString(classFees)}
                     </div>
 
                     {/* Ref & Date */}
-                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-900 pt-0 pb-0.5">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-900 dark:text-white pt-0 pb-0.5">
                       <div>
                         <span>স্মারক নং: </span>
                         <span className="font-mono">{refNo || 'বউবি/নোটিশ'}</span>
@@ -1957,14 +1958,14 @@ ${generateClassFeeString(classFees)}
 
                     {/* Title */}
                     <div className="text-center pt-2 pb-1">
-                      <h3 className="text-xs font-bold text-slate-950 underline underline-offset-4 tracking-wider">
+                      <h3 className="text-xs font-bold text-slate-950 dark:text-white underline underline-offset-4 tracking-wider">
                         বিজ্ঞপ্তি / নোটিশ
                       </h3>
                     </div>
 
                     {/* Content */}
                     <div 
-                      className="text-slate-950 leading-relaxed text-justify whitespace-pre-line font-normal bg-slate-50/50 p-3 rounded-lg border border-slate-100"
+                      className="text-slate-950 dark:text-white leading-relaxed text-justify whitespace-pre-line font-normal bg-slate-50/50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800"
                       style={{ fontSize: `${Math.max(11, contentFontSize - 2)}px` }}
                     >
                       {content || '(বাম পাশে নোটিশের বিবরণ টাইপ করুন...)'}
@@ -1972,10 +1973,10 @@ ${generateClassFeeString(classFees)}
 
                     {/* Footer Signature */}
                     <div 
-                      className="flex justify-between items-end text-slate-900"
+                      className="flex justify-between items-end text-slate-900 dark:text-white"
                       style={{ paddingTop: `${Math.min(30, signatureTopGap / 2)}px` }}
                     >
-                      <div className="text-[8px] text-slate-600 space-y-0.5">
+                      <div className="text-[8px] text-slate-600 dark:text-slate-400 space-y-0.5">
                         <p className="font-bold underline">অনুলিপি:</p>
                         <p>১. নোটিশ বোর্ড</p>
                         <p>২. শিক্ষক মিলনায়তন</p>
@@ -1984,9 +1985,9 @@ ${generateClassFeeString(classFees)}
 
                       <div className="text-center space-y-0.5 min-w-[140px]">
                         <div className="w-28 border-b border-slate-900 mx-auto mb-0.5"></div>
-                        <p className="font-black text-[10px] text-slate-950">{publisherName}</p>
-                        <p className="text-[9px] font-bold text-slate-700">{publisherRole}</p>
-                        <p className="text-[8px] font-semibold text-slate-600">{schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}</p>
+                        <p className="font-black text-[10px] text-slate-950 dark:text-white">{publisherName}</p>
+                        <p className="text-[9px] font-bold text-slate-700 dark:text-slate-300">{publisherRole}</p>
+                        <p className="text-[8px] font-semibold text-slate-600 dark:text-slate-400">{schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}</p>
                       </div>
                     </div>
 
@@ -2008,26 +2009,26 @@ ${generateClassFeeString(classFees)}
       {mounted && activeView === 'preview' && selectedNoticeForPrint && (
         <div className="space-y-6">
           
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm print:hidden space-y-4">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               
               <div className="flex items-center gap-2.5 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setActiveView('list')}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition cursor-pointer"
                 >
                   <ArrowLeft size={16} /> নোটিশ তালিকায় ফিরুন
                 </button>
 
-                <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setPrintMode('full')}
                     className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                       printMode === 'full' 
-                        ? 'bg-white text-indigo-950 shadow-sm font-black' 
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm font-black' 
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     🏫 ফুল হেডারসহ প্রিন্ট
@@ -2037,17 +2038,17 @@ ${generateClassFeeString(classFees)}
                     onClick={() => setPrintMode('pad')}
                     className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                       printMode === 'pad' 
-                        ? 'bg-white text-emerald-950 shadow-sm font-black' 
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white dark:bg-slate-900 text-emerald-950 dark:text-emerald-200 shadow-sm font-black' 
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                     title="বিদ্যালয়ের নিজস্ব প্রিন্টেড প্যাডের জন্য উপরে ৩ ইঞ্চি ফাঁকা রাখবে"
                   >
-                    📄 প্যাডে প্রিন্ট (উপরে ৩" ফাঁকা)
+                    📄 প্যাডে প্রিন্ট (উপরে ৩&quot; ফাঁকা)
                   </button>
                 </div>
 
-                <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-                  <span className="px-2 text-slate-500 font-bold text-[11px]">ফন্ট সাইজ:</span>
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+                  <span className="px-2 text-slate-500 dark:text-slate-400 font-bold text-[11px]">ফন্ট সাইজ:</span>
                   {[12, 13, 14, 15, 16].map(size => (
                     <button
                       key={size}
@@ -2055,8 +2056,8 @@ ${generateClassFeeString(classFees)}
                       onClick={() => updateFontSize(size)}
                       className={`px-2.5 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
                         contentFontSize === size 
-                          ? 'bg-white text-indigo-950 font-black shadow-xs' 
-                          : 'text-slate-600 hover:text-slate-950'
+                          ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 font-black shadow-xs' 
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
                       }`}
                       title={size === 14 ? 'স্ট্যান্ডার্ড ফন্ট সাইজ (১৪px)' : `${size}px`}
                     >
@@ -2065,7 +2066,7 @@ ${generateClassFeeString(classFees)}
                   ))}
                 </div>
 
-                <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 cursor-pointer">
+                <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={showWatermark}
@@ -2080,7 +2081,7 @@ ${generateClassFeeString(classFees)}
                 <button
                   type="button"
                   onClick={handleCopyNoticeText}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition border border-slate-200 cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition border border-slate-200 dark:border-slate-800 cursor-pointer"
                 >
                   <Copy size={15} /> টেক্সট কপি
                 </button>
@@ -2088,7 +2089,7 @@ ${generateClassFeeString(classFees)}
                 <button
                   type="button"
                   onClick={() => handleOpenCreateComposer(selectedNoticeForPrint)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-2xl font-black text-xs transition border border-indigo-200 cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-2xl font-black text-xs transition border border-indigo-200 dark:border-indigo-800/60 cursor-pointer"
                 >
                   <Edit3 size={15} /> এডিট
                 </button>
@@ -2106,7 +2107,7 @@ ${generateClassFeeString(classFees)}
           </div>
 
           {/* Centered A4 Canvas */}
-          <div className="bg-slate-200/80 p-4 sm:p-8 rounded-3xl flex justify-center overflow-x-auto print:p-0 print:bg-transparent print:rounded-none print:shadow-none print:w-full print:block">
+          <div className="bg-slate-200/80 dark:bg-slate-800/80 p-4 sm:p-8 rounded-3xl flex justify-center overflow-x-auto print:p-0 print:bg-transparent print:rounded-none print:shadow-none print:w-full print:block">
             <div 
               style={{
                 transform: `scale(${previewZoom / 100})`,
@@ -2165,64 +2166,64 @@ ${generateClassFeeString(classFees)}
       {/* ═══════════════════════════════════════════════════════════ */}
       {viewingNoticeModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto print:hidden">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-5 animate-in fade-in my-8 max-h-[90vh] overflow-y-auto border border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-5 animate-in fade-in my-8 max-h-[90vh] overflow-y-auto border border-slate-100 dark:border-slate-800">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-black">
                   <Eye size={20} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{viewingNoticeModal.refNo || 'বউবি/নোটিশ'}</span>
+                    <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{viewingNoticeModal.refNo || 'বউবি/নোটিশ'}</span>
                     {getCategoryBadge(viewingNoticeModal.category)}
                     {getTargetAudienceBadge(viewingNoticeModal.targetAudience)}
                   </div>
-                  <h3 className="text-base font-black text-slate-950 mt-0.5">নোটিশ প্রিভিউ ও বিবরণ</h3>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white mt-0.5">নোটিশ প্রিভিউ ও বিবরণ</h3>
                 </div>
               </div>
 
               <button
                 onClick={() => setViewingNoticeModal(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold cursor-pointer"
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-slate-50/70 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex justify-between items-center text-xs font-bold text-slate-500 border-b border-slate-200 pb-2">
-                <span>স্মারক: <strong className="text-slate-900 font-mono">{viewingNoticeModal.refNo || 'N/A'}</strong></span>
-                <span>প্রকাশ: <strong className="text-slate-900">{formatDate(viewingNoticeModal.publishedAt)}</strong></span>
+            <div className="bg-slate-50/70 dark:bg-slate-950/70 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
+                <span>স্মারক: <strong className="text-slate-900 dark:text-white font-mono">{viewingNoticeModal.refNo || 'N/A'}</strong></span>
+                <span>প্রকাশ: <strong className="text-slate-900 dark:text-white">{formatDate(viewingNoticeModal.publishedAt)}</strong></span>
               </div>
 
               <div>
-                <h4 className="text-base font-black text-slate-900 leading-snug">
+                <h4 className="text-base font-black text-slate-900 dark:text-white leading-snug">
                   {viewingNoticeModal.title}
                 </h4>
               </div>
 
-              <div className="text-[14px] text-slate-900 leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+              <div className="text-[14px] text-slate-900 dark:text-white leading-relaxed whitespace-pre-line bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
                 {viewingNoticeModal.content}
               </div>
 
               <div className="flex justify-between items-end pt-2 text-xs">
-                <div className="text-slate-500 text-[11px]">
+                <div className="text-slate-500 dark:text-slate-400 text-[11px]">
                   <span>উদ্দিষ্ট প্রাপক: </span>
-                  <strong className="text-slate-800">{getTargetAudienceBadge(viewingNoticeModal.targetAudience)}</strong>
+                  <strong className="text-slate-800 dark:text-slate-100">{getTargetAudienceBadge(viewingNoticeModal.targetAudience)}</strong>
                 </div>
                 <div className="text-right">
-                  <strong className="text-xs font-black text-slate-950 block">{viewingNoticeModal.publisherName || schoolSettings.principalName}</strong>
-                  <span className="text-[11px] text-indigo-700 font-bold">{viewingNoticeModal.publisherRole || 'প্রধান শিক্ষক'}</span>
+                  <strong className="text-xs font-black text-slate-950 dark:text-white block">{viewingNoticeModal.publisherName || schoolSettings.principalName}</strong>
+                  <span className="text-[11px] text-indigo-700 dark:text-indigo-300 font-bold">{viewingNoticeModal.publisherRole || 'প্রধান শিক্ষক'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setViewingNoticeModal(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer"
               >
                 বন্ধ করুন
               </button>
@@ -2234,7 +2235,7 @@ ${generateClassFeeString(classFees)}
                     setViewingNoticeModal(null);
                     handleOpenCreateComposer(n);
                   }}
-                  className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Edit3 size={14} /> এডিট করুন
                 </button>
@@ -2261,14 +2262,14 @@ ${generateClassFeeString(classFees)}
       {/* 🖨️ BLANK SCHOOL PAD MODAL */}
       {showBlankPadModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 print:p-0 print:bg-white print:relative print:z-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
               <div>
-                <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
-                  <Printer className="text-emerald-600" size={18} />
+                <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
+                  <Printer className="text-emerald-600 dark:text-emerald-400" size={18} />
                   ফাঁকা স্কুল প্যাড প্রিন্ট প্রিভিউ (Blank School Letterhead)
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   মার্জিন: উপরে {schoolSettings?.padMargins?.top ?? 0.5}&quot; | বামে {schoolSettings?.padMargins?.left ?? 0.5}&quot; | ডানে {schoolSettings?.padMargins?.right ?? 0.5}&quot; | নিচে {schoolSettings?.padMargins?.bottom ?? 0.5}&quot;
                 </p>
               </div>
@@ -2283,7 +2284,7 @@ ${generateClassFeeString(classFees)}
                 <button
                   type="button"
                   onClick={() => setShowBlankPadModal(false)}
-                  className="p-2 hover:bg-slate-100 text-slate-500 rounded-xl cursor-pointer"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -2339,11 +2340,11 @@ function NoticeCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`bg-white rounded-3xl border transition-all duration-200 shadow-sm hover:shadow-md p-5 sm:p-6 space-y-4 print:hidden ${
-      notice.isPinned ? 'border-amber-300 ring-2 ring-amber-400/20 bg-amber-50/10' : 'border-slate-200'
+    <div className={`bg-white dark:bg-slate-900 rounded-3xl border transition-all duration-200 shadow-sm hover:shadow-md p-5 sm:p-6 space-y-4 print:hidden ${
+      notice.isPinned ? 'border-amber-300 dark:border-amber-800/60 ring-2 ring-amber-400/20 bg-amber-50/10 dark:bg-amber-950/50' : 'border-slate-200 dark:border-slate-800'
     }`}>
       
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           {notice.isPinned && (
             <span className="px-2.5 py-0.5 bg-amber-400 text-slate-950 rounded-full font-black text-[10px] uppercase flex items-center gap-1 shadow-sm">
@@ -2360,8 +2361,8 @@ function NoticeCard({
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 font-bold">
-          {notice.refNo && <span className="hidden sm:inline bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{notice.refNo}</span>}
+        <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500 dark:text-slate-400 font-bold">
+          {notice.refNo && <span className="hidden sm:inline bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">{notice.refNo}</span>}
           <span className="flex items-center gap-1"><Calendar size={13} /> {formatDate(notice.publishedAt)}</span>
         </div>
       </div>
@@ -2369,42 +2370,42 @@ function NoticeCard({
       <div>
         <h3 
           onClick={onView}
-          className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug hover:text-indigo-600 transition cursor-pointer"
+          className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-snug hover:text-indigo-600 transition cursor-pointer"
         >
           {notice.title}
         </h3>
       </div>
 
-      <div className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-line bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+      <div className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-line bg-slate-50/80 dark:bg-slate-950/80 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
         {expanded ? notice.content : (
           notice.content.length > 220 ? `${notice.content.substring(0, 220)}...` : notice.content
         )}
         {notice.content.length > 220 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-indigo-600 hover:text-indigo-800 font-bold ml-2 underline inline-block cursor-pointer"
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold ml-2 underline inline-block cursor-pointer"
           >
             {expanded ? 'সংক্ষিপ্ত করুন' : 'আরও পড়ুন...'}
           </button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
         
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-indigo-900 text-white flex items-center justify-center font-black text-xs shadow">
             ম
           </div>
           <div>
-            <strong className="font-extrabold text-slate-900 block leading-tight">{notice.publisherName}</strong>
-            <span className="text-[10px] text-indigo-600 font-bold">{notice.publisherRole}</span>
+            <strong className="font-extrabold text-slate-900 dark:text-white block leading-tight">{notice.publisherName}</strong>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">{notice.publisherRole}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
           <button
             onClick={onView}
-            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
             title="নোটিশটি বিস্তারিত দেখুন"
           >
             <Eye size={13} /> বিস্তারিত ভিউ
@@ -2413,7 +2414,7 @@ function NoticeCard({
           {isAdmin && (
             <button
               onClick={onPrint}
-              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl font-bold text-[11px] transition flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white rounded-xl font-bold text-[11px] transition flex items-center gap-1 cursor-pointer"
               title="অফিসিয়াল ই-প্যাডে দেখুন ও প্রিন্ট করুন"
             >
               <Printer size={13} /> প্রিন্ট
@@ -2424,7 +2425,7 @@ function NoticeCard({
             <>
               <button
                 onClick={onEdit}
-                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition cursor-pointer"
+                className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition cursor-pointer"
                 title="এডিট করুন"
               >
                 <Edit3 size={14} />
@@ -2432,7 +2433,7 @@ function NoticeCard({
 
               <button
                 onClick={(e) => onDelete(notice.id, notice.title, e)}
-                className="p-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl font-bold transition cursor-pointer"
+                className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white rounded-xl font-bold transition cursor-pointer"
                 title="মুছে ফেলুন"
               >
                 <Trash2 size={14} />
@@ -2441,7 +2442,7 @@ function NoticeCard({
               <button
                 onClick={(e) => onPin(notice.id, e)}
                 className={`p-1.5 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer ${
-                  notice.isPinned ? 'bg-amber-100 text-amber-900 hover:bg-amber-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  notice.isPinned ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 hover:bg-amber-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
                 title={notice.isPinned ? 'আনপিন করুন' : 'পিন করুন'}
               >

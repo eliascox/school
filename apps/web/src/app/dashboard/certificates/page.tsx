@@ -18,6 +18,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 import {
   Award,
   FileText,
@@ -84,8 +85,8 @@ const ALL_CERT_TYPES: {
     desc: 'বর্তমান ও নিয়মিত অধ্যয়নরত শিক্ষার্থীর পরিচয় ও প্রত্যয়ন',
     icon: FileText,
     defaultLayout: 'pad',
-    color: 'text-emerald-700',
-    bgColor: 'bg-emerald-50'
+    color: 'text-emerald-700 dark:text-emerald-300',
+    bgColor: 'bg-emerald-50 dark:bg-emerald-950/50'
   },
   {
     id: 'character_certificate',
@@ -93,8 +94,8 @@ const ALL_CERT_TYPES: {
     desc: 'নৈতিক চরিত্র, আচরণ ও স্বভাব সম্পর্কিত প্রত্যয়ন',
     icon: Award,
     defaultLayout: 'pad',
-    color: 'text-sky-700',
-    bgColor: 'bg-sky-50'
+    color: 'text-sky-700 dark:text-sky-300',
+    bgColor: 'bg-sky-50 dark:bg-sky-950/50'
   },
   {
     id: 'transfer_certificate',
@@ -102,8 +103,8 @@ const ALL_CERT_TYPES: {
     desc: 'বিদ্যালয় ছাড়পত্র ও ট্রান্সফার প্রত্যয়ন সনদ',
     icon: ShieldCheck,
     defaultLayout: 'pad',
-    color: 'text-rose-700',
-    bgColor: 'bg-rose-50'
+    color: 'text-rose-700 dark:text-rose-300',
+    bgColor: 'bg-rose-50 dark:bg-rose-950/50'
   },
   {
     id: 'student_verification',
@@ -111,8 +112,8 @@ const ALL_CERT_TYPES: {
     desc: 'পাসপোর্ট, ব্যাংক বা সরকারি কাজে প্রাতিষ্ঠানিক তথ্য যাচাই',
     icon: UserCheck,
     defaultLayout: 'pad',
-    color: 'text-teal-700',
-    bgColor: 'bg-teal-50'
+    color: 'text-teal-700 dark:text-teal-300',
+    bgColor: 'bg-teal-50 dark:bg-teal-950/50'
   },
   {
     id: 'custom_certificate',
@@ -120,8 +121,8 @@ const ALL_CERT_TYPES: {
     desc: 'বিদ্যালয় কর্তৃপক্ষের যেকোনো বিশেষ উদ্দেশ্যের প্রত্যয়ন পত্র',
     icon: FileCheck,
     defaultLayout: 'pad',
-    color: 'text-slate-700',
-    bgColor: 'bg-slate-50'
+    color: 'text-slate-700 dark:text-slate-300',
+    bgColor: 'bg-slate-50 dark:bg-slate-950'
   }
 ];
 
@@ -156,10 +157,10 @@ export default function CertificatesPage() {
   const [studentNameEn, setStudentNameEn] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [motherName, setMotherName] = useState('');
-  const [village, setVillage] = useState('বরইতলী');
-  const [postOffice, setPostOffice] = useState('বরইতলী');
-  const [upazila, setUpazila] = useState('চকরিয়া');
-  const [district, setDistrict] = useState('কক্সবাজার');
+  const [village, setVillage] = useState('');
+  const [postOffice, setPostOffice] = useState('');
+  const [upazila, setUpazila] = useState('');
+  const [district, setDistrict] = useState('');
   const [dob, setDob] = useState('2010-05-15');
   const [grade, setGrade] = useState('10th');
   const [roll, setRoll] = useState('01');
@@ -251,30 +252,33 @@ export default function CertificatesPage() {
         .replace(/ডাকঘর\s*[:ঃ]?\s*/gi, '')
         .replace(/উপজেলা\s*[:ঃ]?\s*/gi, '')
         .replace(/জেলা\s*[:ঃ]?\s*/gi, '');
+      const schoolAddrParts = (schoolSettings.address || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+      const fallbackUpazila = schoolAddrParts[1] || schoolAddrParts[0] || '';
+      const fallbackDistrict = schoolAddrParts[2] || schoolAddrParts[schoolAddrParts.length - 1] || '';
       const parts = cleanAddr.split(',').map((p: string) => p.trim()).filter(Boolean);
       if (parts.length >= 4) {
-        setVillage(parts[0] || 'বরইতলী');
-        setPostOffice(parts[1] || 'বরইতলী');
-        setUpazila(parts[2] || 'চকরিয়া');
-        setDistrict(parts[3] || 'কক্সবাজার');
+        setVillage(parts[0] || '');
+        setPostOffice(parts[1] || '');
+        setUpazila(parts[2] || fallbackUpazila);
+        setDistrict(parts[3] || fallbackDistrict);
       } else if (parts.length === 3) {
-        setVillage(parts[0] || 'বরইতলী');
-        setPostOffice(parts[0] || 'বরইতলী');
-        setUpazila(parts[1] || 'চকরিয়া');
-        setDistrict(parts[2] || 'কক্সবাজার');
+        setVillage(parts[0] || '');
+        setPostOffice(parts[0] || '');
+        setUpazila(parts[1] || fallbackUpazila);
+        setDistrict(parts[2] || fallbackDistrict);
       } else if (parts.length === 2) {
-        setVillage(parts[0] || 'বরইতলী');
-        setPostOffice(parts[0] || 'বরইতলী');
-        setUpazila(parts[1] || 'চকরিয়া');
-        setDistrict('কক্সবাজার');
+        setVillage(parts[0] || '');
+        setPostOffice(parts[0] || '');
+        setUpazila(parts[1] || fallbackUpazila);
+        setDistrict(fallbackDistrict);
       } else if (parts.length === 1 && parts[0]) {
         setVillage(parts[0]);
       }
     } else {
-      setVillage('বরইতলী');
-      setPostOffice('বরইতলী');
-      setUpazila('চকরিয়া');
-      setDistrict('কক্সবাজার');
+      setVillage('');
+      setPostOffice('');
+      setUpazila('');
+      setDistrict('');
     }
 
     setSession(selectedStudent.session || '২০২৬');
@@ -305,7 +309,7 @@ export default function CertificatesPage() {
         post_office: postOffice,
         upazila,
         district,
-        school_name: schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
+        school_name: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
         gpa,
         board_roll: boardRoll,
         board_reg: boardReg,
@@ -462,8 +466,8 @@ export default function CertificatesPage() {
   };
 
   // Delete Action
-  const handleDeleteCert = (id: string) => {
-    if (confirm('আপনি কি নিশ্চিতভাবে এই সনদপত্র রেকর্ডটি স্থায়ীভাবে মুছে ফেলতে চান?')) {
+  const handleDeleteCert = async (id: string) => {
+    if (await confirmDialog({ title: 'সনদপত্র মুছে ফেলা', message: 'আপনি কি নিশ্চিতভাবে এই সনদপত্র রেকর্ডটি স্থায়ীভাবে মুছে ফেলতে চান?', confirmLabel: 'মুছে ফেলুন', danger: true })) {
       certificateService.deleteCertificate(id);
       loadData();
       showAlert('success', 'সনদ রেকর্ডটি মুছে ফেলা হয়েছে!');
@@ -482,77 +486,77 @@ export default function CertificatesPage() {
   const cancelledCerts = certificates.filter((c) => c.status === 'cancelled').length;
 
   return (
-    <div className="w-full space-y-6 pb-24 font-sans text-slate-800" suppressHydrationWarning>
+    <div className="w-full space-y-6 pb-24 font-sans text-slate-800 dark:text-slate-100" suppressHydrationWarning>
       
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* 1. TOP METRIC DASHBOARD                                             */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 print:hidden">
         {/* Card 1: Total */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">মোট প্রত্যয়ন</p>
-              <p className="text-2xl font-black text-slate-900 mt-1 tabular-nums">{totalCerts}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1 tabular-nums">{totalCerts}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">সর্বমোট ইস্যুকৃত প্রত্যয়ন</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <FileCheck size={20} />
             </div>
           </div>
         </div>
 
         {/* Card 2: Today */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">আজকে ইস্যু</p>
-              <p className="text-2xl font-black text-emerald-600 mt-1 tabular-nums">{issuedToday}</p>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">{issuedToday}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">আজকে প্রস্তুতকৃত</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <CalendarDays size={20} />
             </div>
           </div>
         </div>
 
         {/* Card 3: This Month */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">চলতি মাস</p>
-              <p className="text-2xl font-black text-sky-600 mt-1 tabular-nums">{issuedThisMonth}</p>
+              <p className="text-2xl font-black text-sky-600 dark:text-sky-400 mt-1 tabular-nums">{issuedThisMonth}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">এই মাসে প্রস্তুতকৃত</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center">
               <FileText size={20} />
             </div>
           </div>
         </div>
 
         {/* Card 4: Valid */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">সক্রিয় প্রত্যয়ন</p>
-              <p className="text-2xl font-black text-teal-600 mt-1 tabular-nums">{validCerts}</p>
-              <p className="text-[10px] text-emerald-600 font-bold mt-0.5">বৈধ ও সক্রিয়</p>
+              <p className="text-2xl font-black text-teal-600 dark:text-teal-400 mt-1 tabular-nums">{validCerts}</p>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">বৈধ ও সক্রিয়</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
               <CheckCircle2 size={20} />
             </div>
           </div>
         </div>
 
         {/* Card 5: Cancelled */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition col-span-2 lg:col-span-1">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">বাতিলকৃত প্রত্যয়ন</p>
-              <p className="text-2xl font-black text-rose-600 mt-1 tabular-nums">{cancelledCerts}</p>
+              <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 tabular-nums">{cancelledCerts}</p>
               <p className="text-[10px] text-rose-500 font-medium mt-0.5">কার্যকারিতাহীন</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center">
               <Ban size={20} />
             </div>
           </div>
@@ -562,7 +566,7 @@ export default function CertificatesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* 2. TAB NAVIGATION BAR                                               */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 print:hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-1 overflow-x-auto">
           {[
             { id: 'register', label: 'প্রত্যয়ন রেজিস্টার ও তালিকা', icon: BookOpen },
@@ -580,7 +584,7 @@ export default function CertificatesPage() {
                 className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <Icon size={15} className={isActive ? 'text-amber-400' : ''} />
@@ -607,15 +611,15 @@ export default function CertificatesPage() {
         <div
           className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 print:hidden animate-in fade-in slide-in-from-top-1 ${
             alertMsg.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
+              : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60'
           }`}
         >
           <div className="flex items-center gap-2">
             {alertMsg.type === 'success' ? (
-              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             ) : (
-              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+              <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
             )}
             <span>{alertMsg.text}</span>
           </div>
@@ -632,7 +636,7 @@ export default function CertificatesPage() {
         <div className="space-y-4 print:hidden">
           
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {/* Search */}
               <div className="relative">
@@ -641,7 +645,7 @@ export default function CertificatesPage() {
                   value={listSearch}
                   onChange={(e) => setListSearch(e.target.value)}
                   placeholder="নাম, সনদ নং, আইডি বা রোল দিয়ে খুঁজুন..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white transition"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900 transition"
                 />
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
@@ -651,7 +655,7 @@ export default function CertificatesPage() {
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
+                  className="w-full py-2 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900"
                 >
                   <option value="all">সনদের ধরন: সকল ধরন</option>
                   {ALL_CERT_TYPES.map((t) => (
@@ -667,7 +671,7 @@ export default function CertificatesPage() {
                 <select
                   value={filterClass}
                   onChange={(e) => setFilterClass(e.target.value)}
-                  className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
+                  className="w-full py-2 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900"
                 >
                   <option value="all">শ্রেণি: সকল শ্রেণি</option>
                   <option value="6th">৬ষ্ঠ শ্রেণি (6th)</option>
@@ -683,7 +687,7 @@ export default function CertificatesPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
+                  className="w-full py-2 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900"
                 >
                   <option value="all">অবস্থা: সকল অবস্থা</option>
                   <option value="valid">শুধুমাত্র সক্রিয় ও বৈধ</option>
@@ -692,8 +696,8 @@ export default function CertificatesPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-              <span>মোট ফিল্টারকৃত সনদ: <strong className="text-slate-900 font-mono">{filteredCerts.length}</strong> টি</span>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+              <span>মোট ফিল্টারকৃত সনদ: <strong className="text-slate-900 dark:text-white font-mono">{filteredCerts.length}</strong> টি</span>
               {(listSearch || filterType !== 'all' || filterClass !== 'all' || filterStatus !== 'all') && (
                 <button
                   onClick={() => {
@@ -702,7 +706,7 @@ export default function CertificatesPage() {
                     setFilterClass('all');
                     setFilterStatus('all');
                   }}
-                  className="text-indigo-600 hover:underline font-bold cursor-pointer"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
                 >
                   ফিল্টার রিসেট করুন
                 </button>
@@ -711,11 +715,11 @@ export default function CertificatesPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <tr className="bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider">
                     <th className="px-4 py-3.5">ক্রমিক</th>
                     <th className="px-4 py-3.5">সনদ নম্বর ও স্মারক</th>
                     <th className="px-4 py-3.5">শিক্ষার্থীর তথ্য</th>
@@ -725,39 +729,39 @@ export default function CertificatesPage() {
                     <th className="px-4 py-3.5 text-right">অ্যাকশন</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredCerts.map((c, idx) => {
                     const typeConfig = ALL_CERT_TYPES.find((t) => t.id === c.type);
                     const isValid = c.status === 'valid';
 
                     return (
-                      <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={c.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-slate-400 font-semibold">{idx + 1}</td>
                         <td className="px-4 py-3.5">
-                          <span className="font-mono font-bold text-indigo-700 block">{c.id}</span>
+                          <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 block">{c.id}</span>
                           <span className="text-[10px] text-slate-400 font-mono">{c.refNo || '—'}</span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <p className="font-bold text-slate-900">{c.studentName}</p>
-                          <p className="text-[10px] text-slate-500">
+                          <p className="font-bold text-slate-900 dark:text-white">{c.studentName}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
                             রোল: {c.roll} | শ্রেণি: {c.grade} ({c.section}) | আইডি: {c.studentId}
                           </p>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`px-2.5 py-1 rounded-lg font-bold text-[10px] inline-flex items-center gap-1 ${
-                            typeConfig?.bgColor || 'bg-slate-100'
-                          } ${typeConfig?.color || 'text-slate-700'}`}>
+                            typeConfig?.bgColor || 'bg-slate-100 dark:bg-slate-800'
+                          } ${typeConfig?.color || 'text-slate-700 dark:text-slate-300'}`}>
                             {typeConfig?.title || c.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 font-mono text-slate-600">{c.issueDate}</td>
+                        <td className="px-4 py-3.5 font-mono text-slate-600 dark:text-slate-400">{c.issueDate}</td>
                         <td className="px-4 py-3.5">
                           {isValid ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 w-max">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1 w-max">
                               <CheckCircle2 size={11} /> বৈধ
                             </span>
                           ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1 w-max" title={c.cancellationReason}>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800/60 flex items-center gap-1 w-max" title={c.cancellationReason}>
                               <Ban size={11} /> বাতিলকৃত
                             </span>
                           )}
@@ -780,7 +784,7 @@ export default function CertificatesPage() {
                             <Link
                               href={`/verify-certificate?id=${c.id}`}
                               target="_blank"
-                              className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition"
                               title="অনলাইন যাচাইকরণ লিংক"
                             >
                               <QrIcon size={14} />
@@ -789,7 +793,7 @@ export default function CertificatesPage() {
                             {/* Audit Trail Modal */}
                             <button
                               onClick={() => setAuditModalCert(c)}
-                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer"
                               title="অডিট ট্রেইল ও ইতিহাস"
                             >
                               <History size={14} />
@@ -802,7 +806,7 @@ export default function CertificatesPage() {
                                   setCancelModalCert(c);
                                   setCancelReasonInput('');
                                 }}
-                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition cursor-pointer"
                                 title="সনদটি বাতিল করুন"
                               >
                                 <Ban size={14} />
@@ -812,7 +816,7 @@ export default function CertificatesPage() {
                             {/* Delete (Admin only) */}
                             <button
                               onClick={() => handleDeleteCert(c.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
                               title="মুছে ফেলুন"
                             >
                               <Trash2 size={14} />
@@ -827,7 +831,7 @@ export default function CertificatesPage() {
                     <tr>
                       <td colSpan={7} className="px-4 py-12 text-center text-slate-400 space-y-2">
                         <FileText size={32} className="mx-auto text-slate-300" />
-                        <p className="font-semibold text-xs text-slate-500">কোনো সনদপত্র পাওয়া যায়নি</p>
+                        <p className="font-semibold text-xs text-slate-500 dark:text-slate-400">কোনো সনদপত্র পাওয়া যায়নি</p>
                         <p className="text-[11px] text-slate-400">নতুন সনদপত্র তৈরি করতে &quot;নতুন প্রত্যয়ন প্রস্তুত&quot; ট্যাবে যান।</p>
                       </td>
                     </tr>
@@ -850,9 +854,9 @@ export default function CertificatesPage() {
           <div className="lg:col-span-4 space-y-4">
             
             {/* Step 1: Certificate Type Selector */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">১</span>
                   প্রত্যয়নের ধরন নির্বাচন করুন
                 </span>
@@ -870,7 +874,7 @@ export default function CertificatesPage() {
                       className={`p-2.5 rounded-xl border transition cursor-pointer flex items-center gap-2.5 ${
                         isSelected
                           ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                          : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-800'
+                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100'
                       }`}
                     >
                       <div
@@ -894,13 +898,13 @@ export default function CertificatesPage() {
             </div>
 
             {/* Step 2: Student Database Selector */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">২</span>
                   ডাটাবেস থেকে শিক্ষার্থী নির্বাচন
                 </span>
-                <span className="text-[10px] font-bold text-indigo-600 font-mono bg-indigo-50 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-mono bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md">
                   {students.length} জন শিক্ষার্থী
                 </span>
               </div>
@@ -912,7 +916,7 @@ export default function CertificatesPage() {
                     value={studentSearch}
                     onChange={(e) => setStudentSearch(e.target.value)}
                     placeholder="নাম, রোল, শ্রেণি বা আইডি দিয়ে খুঁজুন..."
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
@@ -927,7 +931,7 @@ export default function CertificatesPage() {
                         className={`p-2 rounded-xl border text-xs transition cursor-pointer flex items-center justify-between ${
                           isSelected
                             ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
-                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-800'
+                            : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100'
                         }`}
                       >
                         <div>
@@ -948,13 +952,13 @@ export default function CertificatesPage() {
             </div>
 
             {/* Pad Format Info */}
-            <div className="bg-indigo-50/70 rounded-2xl border border-indigo-200/80 p-4 shadow-sm flex items-center gap-3">
+            <div className="bg-indigo-50/70 dark:bg-indigo-950/50 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 p-4 shadow-sm flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
                 <FileText size={18} />
               </div>
               <div className="text-xs">
-                <p className="font-bold text-indigo-950">অফিশিয়াল স্কুল লেটারহেড প্যাড</p>
-                <p className="text-[11px] text-indigo-700 mt-0.5">সকল প্রত্যয়ন পত্র স্কুলের প্রাতিষ্ঠানিক লেটারহেড প্যাডে মুদ্রিত হবে।</p>
+                <p className="font-bold text-indigo-950 dark:text-indigo-200">অফিশিয়াল স্কুল লেটারহেড প্যাড</p>
+                <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">সকল প্রত্যয়ন পত্র স্কুলের প্রাতিষ্ঠানিক লেটারহেড প্যাডে মুদ্রিত হবে।</p>
               </div>
             </div>
 
@@ -963,11 +967,11 @@ export default function CertificatesPage() {
           {/* ── RIGHT PANEL: Auto-Populated Form & Live Text (8 Cols) ───── */}
           <div className="lg:col-span-8 space-y-4">
             
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles size={16} className="text-indigo-600" />
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sparkles size={16} className="text-indigo-600 dark:text-indigo-400" />
                     শিক্ষার্থী তথ্য ও প্রত্যয়ন বিবরণী
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">
@@ -976,12 +980,12 @@ export default function CertificatesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5 cursor-pointer">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={isAlumni}
                       onChange={(e) => setIsAlumni(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500"
                     />
                     <span>সাবেক শিক্ষার্থী (Ex-Student)</span>
                   </label>
@@ -991,202 +995,202 @@ export default function CertificatesPage() {
               {/* Grid 1: Basic Identifiers */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">স্মারক নম্বর (Ref No)</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">স্মারক নম্বর (Ref No)</label>
                   <input
                     type="text"
                     value={refNo}
                     onChange={(e) => setRefNo(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">ইস্যুর তারিখ</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ইস্যুর তারিখ</label>
                   <input
                     type="date"
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">সনদের শিরোনাম</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">সনদের শিরোনাম</label>
                   <input
                     type="text"
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
                     placeholder="যেমন: অধ্যয়নরত প্রত্যয়ন পত্র"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
               </div>
 
               {/* Grid 2: Student & Parents */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">শিক্ষার্থীর নাম (বাংলায়) *</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষার্থীর নাম (বাংলায়) *</label>
                   <input
                     type="text"
                     value={studentName}
                     onChange={(e) => setStudentName(e.target.value)}
                     required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">শিক্ষার্থীর নাম (English)</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষার্থীর নাম (English)</label>
                   <input
                     type="text"
                     value={studentNameEn}
                     onChange={(e) => setStudentNameEn(e.target.value)}
                     placeholder="e.g. MOHAMMAD SAIF"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-serif focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-serif focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">জন্ম তারিখ</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">জন্ম তারিখ</label>
                   <input
                     type="text"
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
                     placeholder="YYYY-MM-DD"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">পিতার নাম *</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">পিতার নাম *</label>
                   <input
                     type="text"
                     value={fatherName}
                     onChange={(e) => setFatherName(e.target.value)}
                     required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">মাতার নাম *</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">মাতার নাম *</label>
                   <input
                     type="text"
                     value={motherName}
                     onChange={(e) => setMotherName(e.target.value)}
                     required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">শিক্ষাবর্ষ / সেশন</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষাবর্ষ / সেশন</label>
                   <input
                     type="text"
                     value={session}
                     onChange={(e) => setSession(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
               </div>
 
               {/* Grid 3: Class, Section, Roll */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">শ্রেণি</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শ্রেণি</label>
                   <input
                     type="text"
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">শাখা (Section)</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শাখা (Section)</label>
                   <input
                     type="text"
                     value={section}
                     onChange={(e) => setSection(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">রোল নম্বর</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">রোল নম্বর</label>
                   <input
                     type="text"
                     value={roll}
                     onChange={(e) => setRoll(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">গ্রুপ / বিভাগ</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">গ্রুপ / বিভাগ</label>
                   <input
                     type="text"
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
               </div>
 
               {/* Grid 4: Address Details */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">গ্রাম</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">গ্রাম</label>
                   <input
                     type="text"
                     value={village}
                     onChange={(e) => setVillage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">ডাকঘর</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ডাকঘর</label>
                   <input
                     type="text"
                     value={postOffice}
                     onChange={(e) => setPostOffice(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">উপজেলা</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">উপজেলা</label>
                   <input
                     type="text"
                     value={upazila}
                     onChange={(e) => setUpazila(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">জেলা</label>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">জেলা</label>
                   <input
                     type="text"
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
               </div>
 
               {/* Editable Body Text */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
                   সনদপত্রের মূল বিবরণী (Dynamic Certificate Body)
                 </label>
                 <textarea
                   rows={6}
                   value={customBody}
                   onChange={(e) => setCustomBody(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-serif leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-serif leading-relaxed text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setActiveTab('register')}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                 >
                   বাতিল করুন
                 </button>
@@ -1209,7 +1213,7 @@ export default function CertificatesPage() {
       {/* TAB: প্রাতিষ্ঠানিক লেটারহেড প্যাড ও মার্জিন কন্ট্রোল প্যানেল         */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'pad-settings' && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm print:hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm print:hidden">
           <PadSettingsPanel
             initialSettings={schoolSettings}
             onSaved={(updated) => setSchoolSettings(updated)}
@@ -1222,26 +1226,26 @@ export default function CertificatesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'templates' && (
         <div className="space-y-4 print:hidden">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Settings2 size={16} className="text-indigo-600" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <Settings2 size={16} className="text-indigo-600 dark:text-indigo-400" />
                 সনদপত্র টেমপ্লেট ব্যবস্থাপনা
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 প্রত্যেকটি সনদের জন্য ডিফল্ট বয়ান ও ডায়নামিক ভ্যারিয়েবল কাস্টমাইজ করুন।
               </p>
             </div>
 
             <button
-              onClick={() => {
-                if (confirm('আপনি কি সকল টেমপ্লেট সিস্টেম ডিফল্টে রিসেট করতে চান?')) {
+              onClick={async () => {
+                if (await confirmDialog({ title: 'টেমপ্লেট রিসেট', message: 'আপনি কি সকল টেমপ্লেট সিস্টেম ডিফল্টে রিসেট করতে চান?', confirmLabel: 'রিসেট করুন', danger: true })) {
                   const resetList = certificateService.resetTemplates();
                   setTemplates(resetList);
                   showAlert('success', 'সকল টেমপ্লেট সফলভাবে রিসেট করা হয়েছে!');
                 }
               }}
-              className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold transition cursor-pointer self-start sm:self-auto"
+              className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition cursor-pointer self-start sm:self-auto"
             >
               ডিফল্ট রিসেট
             </button>
@@ -1249,25 +1253,25 @@ export default function CertificatesPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((tmpl) => (
-              <div key={tmpl.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 flex flex-col justify-between hover:border-indigo-300 transition">
+              <div key={tmpl.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3 flex flex-col justify-between hover:border-indigo-300 dark:hover:border-indigo-700 transition">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded-full">
+                    <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold text-[10px] rounded-full">
                       {tmpl.type}
                     </span>
                     <span className="text-[10px] font-mono text-slate-400">
                       {tmpl.layoutStyle === 'royal_border' ? 'Royal Border' : 'Pad'}
                     </span>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-xs">{tmpl.name}</h4>
-                  <p className="text-[11px] text-slate-600 line-clamp-4 font-serif bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs">{tmpl.name}</h4>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-4 font-serif bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                     {tmpl.bodyTemplate}
                   </p>
                 </div>
 
                 <button
                   onClick={() => setSelectedTemplateToEdit(tmpl)}
-                  className="w-full py-2 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-700 dark:hover:text-indigo-300 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   টেমপ্লেট সম্পাদন করুন
                 </button>
@@ -1278,9 +1282,9 @@ export default function CertificatesPage() {
           {/* Edit Template Modal */}
           {selectedTemplateToEdit && (
             <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-bold text-slate-900">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     টেমপ্লেট এডিটর: {selectedTemplateToEdit.name}
                   </h3>
                   <button onClick={() => setSelectedTemplateToEdit(null)} className="p-1 text-slate-400 hover:text-slate-600">
@@ -1290,19 +1294,19 @@ export default function CertificatesPage() {
 
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">টেমপ্লেটের নাম</label>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">টেমপ্লেটের নাম</label>
                     <input
                       type="text"
                       value={selectedTemplateToEdit.name}
                       onChange={(e) =>
                         setSelectedTemplateToEdit({ ...selectedTemplateToEdit, name: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">ডিফল্ট লেআউট</label>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ডিফল্ট লেআউট</label>
                     <select
                       value={selectedTemplateToEdit.layoutStyle}
                       onChange={(e) =>
@@ -1311,7 +1315,7 @@ export default function CertificatesPage() {
                           layoutStyle: e.target.value as CertificateLayoutStyle
                         })
                       }
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
                     >
                       <option value="pad">স্কুল লেটারহেড প্যাড (Institutional Pad)</option>
                       <option value="royal_border">রয়্যাল সনদ বর্ডার (Royal Certificate Border)</option>
@@ -1347,7 +1351,7 @@ export default function CertificatesPage() {
                               bodyTemplate: selectedTemplateToEdit.bodyTemplate + ' ' + v
                             });
                           }}
-                          className="px-2 py-1 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-800 rounded-md font-mono text-[10px] transition cursor-pointer"
+                          className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-800 dark:hover:text-indigo-300 rounded-md font-mono text-[10px] transition cursor-pointer"
                         >
                           {v}
                         </button>
@@ -1356,22 +1360,22 @@ export default function CertificatesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">টেমপ্লেট টেক্সট বডি</label>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">টেমপ্লেট টেক্সট বডি</label>
                     <textarea
                       rows={8}
                       value={selectedTemplateToEdit.bodyTemplate}
                       onChange={(e) =>
                         setSelectedTemplateToEdit({ ...selectedTemplateToEdit, bodyTemplate: e.target.value })
                       }
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-serif text-xs leading-relaxed"
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-serif text-xs leading-relaxed"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => setSelectedTemplateToEdit(null)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                    className="px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                   >
                     বাতিল
                   </button>
@@ -1398,14 +1402,14 @@ export default function CertificatesPage() {
       {/* TAB 4: অডিট লগ ও হিস্ট্রি (AUDIT TRAIL)                              */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'audit' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4 print:hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-4 print:hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <History size={16} className="text-indigo-600" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <History size={16} className="text-indigo-600 dark:text-indigo-400" />
                 সনদপত্র কার্যক্রম অডিট ট্রেইল ও লগ
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 প্রত্যেকটি সনদপত্র তৈরি, সম্পাদন, প্রিন্ট ও বাতিলের নির্ভরযোগ্য লগ হিস্ট্রি
               </p>
             </div>
@@ -1426,18 +1430,18 @@ export default function CertificatesPage() {
               .map((item) => (
                 <div
                   key={item.uniqueKey}
-                  className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/60 flex items-start justify-between gap-4 text-xs"
+                  className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/60 flex items-start justify-between gap-4 text-xs"
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                         item.action === 'CREATED'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                           : item.action === 'CANCELLED'
-                          ? 'bg-rose-100 text-rose-700'
+                          ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300'
                           : item.action === 'PRINTED'
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : 'bg-amber-100 text-amber-700'
+                          ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
+                          : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                       }`}
                     >
                       {item.action === 'CREATED' ? (
@@ -1452,11 +1456,11 @@ export default function CertificatesPage() {
                     </div>
 
                     <div>
-                      <p className="font-bold text-slate-900">
-                        {item.note || item.action} — <span className="font-mono text-indigo-600">{item.certId}</span> ({item.studentName})
+                      <p className="font-bold text-slate-900 dark:text-white">
+                        {item.note || item.action} — <span className="font-mono text-indigo-600 dark:text-indigo-400">{item.certId}</span> ({item.studentName})
                       </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        সম্পাদনকারী: <strong className="text-slate-700">{item.performedBy}</strong>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        সম্পাদনকারী: <strong className="text-slate-700 dark:text-slate-300">{item.performedBy}</strong>
                       </p>
                     </div>
                   </div>
@@ -1479,32 +1483,32 @@ export default function CertificatesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {showPrintModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto print:p-0 print:bg-white print:relative print:z-auto print:block">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[96vh] overflow-y-auto print:overflow-visible print:shadow-none print:max-w-none print:rounded-none">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[96vh] overflow-y-auto print:overflow-visible print:shadow-none print:max-w-none print:rounded-none">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-20 print:hidden">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 print:hidden">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Printer size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                     প্রত্যয়ন পত্র প্রিন্ট ও ভিউয়ার
                   </h3>
-                  <p className="text-[11px] text-slate-500">
-                    {showPrintModal.studentName} — সনদ নং: <span className="font-mono text-indigo-600">{showPrintModal.id}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {showPrintModal.studentName} — সনদ নং: <span className="font-mono text-indigo-600 dark:text-indigo-400">{showPrintModal.id}</span>
                   </p>
                 </div>
               </div>
 
               {/* Pad Mode Toggle & Print Action */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setPadPrintMode('full_pad')}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-                      padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      padPrintMode === 'full_pad' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                     title="আপলোডকৃত প্রাতিষ্ঠানিক লেটারহেড প্যাড ব্যাকগ্রাউন্ডে থাকবে"
                   >
@@ -1514,7 +1518,7 @@ export default function CertificatesPage() {
                     type="button"
                     onClick={() => setPadPrintMode('preprinted')}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
-                      padPrintMode === 'preprinted' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      padPrintMode === 'preprinted' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                     title="স্কুলের ছাপা প্যাডের জন্য (হেডার ফাঁকা রেখে প্রিন্ট)"
                   >
@@ -1526,7 +1530,7 @@ export default function CertificatesPage() {
                 <button
                   type="button"
                   onClick={() => setShowPadSettingsModal(true)}
-                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800/60 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   title="প্যাড আপলোড ও মার্জিন সেটিংস প্যানেল"
                 >
                   <Sliders size={13} /> প্যাড সেটিংস
@@ -1544,7 +1548,7 @@ export default function CertificatesPage() {
 
                 <button
                   onClick={() => setShowPrintModal(null)}
-                  className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -1586,23 +1590,23 @@ export default function CertificatesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {cancelModalCert && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center">
                 <Ban size={22} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">সনদপত্র বাতিলকরণ</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">সনদপত্র বাতিলকরণ</h3>
                 <p className="text-[11px] text-slate-400">সনদ নম্বর: {cancelModalCert.id}</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600">
-              আপনি কি নিশ্চিতভাবে <strong className="text-slate-900">{cancelModalCert.studentName}</strong> এর এই সনদপত্রটি বাতিল করতে চান? বাতিলকৃত সনদ অনলাইনে যাচাই করলে বাতিল হিসেবে প্রদর্শিত হবে।
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              আপনি কি নিশ্চিতভাবে <strong className="text-slate-900 dark:text-white">{cancelModalCert.studentName}</strong> এর এই সনদপত্রটি বাতিল করতে চান? বাতিলকৃত সনদ অনলাইনে যাচাই করলে বাতিল হিসেবে প্রদর্শিত হবে।
             </p>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                 বাতিলকরণের কারণ *
               </label>
               <textarea
@@ -1610,14 +1614,14 @@ export default function CertificatesPage() {
                 value={cancelReasonInput}
                 onChange={(e) => setCancelReasonInput(e.target.value)}
                 placeholder="যেমন: ভুল রোল প্রদান করায় বা পুনঃইস্যুর কারণে বাতিল করা হলো..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-200"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setCancelModalCert(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                className="px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
               >
                 ফিরে যান
               </button>
@@ -1637,14 +1641,14 @@ export default function CertificatesPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {auditModalCert && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <History size={18} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">সনদ অডিট ট্রেইল ও টাইমলাইন</h3>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">সনদ অডিট ট্রেইল ও টাইমলাইন</h3>
                   <p className="text-[11px] text-slate-400">সনদ নং: {auditModalCert.id}</p>
                 </div>
               </div>
@@ -1655,18 +1659,18 @@ export default function CertificatesPage() {
 
             <div className="space-y-2.5 max-h-72 overflow-y-auto">
               {(auditModalCert.auditTrail || []).map((audit, i) => (
-                <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                <div key={i} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 text-xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800">{audit.action}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-100">{audit.action}</span>
                     <span className="text-[10px] font-mono text-slate-400">{audit.timestamp}</span>
                   </div>
-                  <p className="text-[11px] text-slate-600">{audit.note}</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">{audit.note}</p>
                   <p className="text-[10px] text-slate-400">সম্পাদনকারী: {audit.performedBy}</p>
                 </div>
               ))}
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setAuditModalCert(null)}
                 className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"

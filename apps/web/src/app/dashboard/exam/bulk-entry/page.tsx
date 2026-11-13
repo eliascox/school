@@ -465,7 +465,7 @@ export default function BulkMarkEntryPage() {
 
   // Download Sample CSV / Excel Template
   const handleDownloadCsvTemplate = (type: 'breakdown' | 'total' = 'breakdown') => {
-    let headerCols: string[] = ['Roll', 'Name', 'Religion'];
+    const headerCols: string[] = ['Roll', 'Name', 'Religion'];
 
     if (type === 'breakdown') {
       subjects.forEach(s => {
@@ -630,11 +630,11 @@ export default function BulkMarkEntryPage() {
     <div className="space-y-6 pb-12 print:p-0 print:space-y-0">
 
       {/* 🔗 DIRECT MODULE NAVIGATION LINKS BAR */}
-      <div className="flex items-center justify-between gap-2 p-2 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-black overflow-x-auto print:hidden">
+      <div className="flex items-center justify-between gap-2 p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black overflow-x-auto print:hidden">
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/exam/mark-entry"
-            className="px-3.5 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 rounded-xl transition flex items-center gap-1.5 border border-slate-200"
+            className="px-3.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-xl transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-800"
           >
             <Edit3 size={14} /> বিষয়ভিত্তিক নম্বর এন্ট্রি (CQ/MCQ/Pr) ↗
           </Link>
@@ -643,13 +643,13 @@ export default function BulkMarkEntryPage() {
           </span>
           <Link
             href="/dashboard/exam/tabulation"
-            className="px-3.5 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 rounded-xl transition flex items-center gap-1.5 border border-slate-200"
+            className="px-3.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-xl transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-800"
           >
             <FileText size={14} /> টেবুলেশন শীট ↗
           </Link>
           <Link
             href="/dashboard/exam/rank-result"
-            className="px-3.5 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 rounded-xl transition flex items-center gap-1.5 border border-slate-200"
+            className="px-3.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-xl transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-800"
           >
             <Award size={14} /> মেধা তালিকা ↗
           </Link>
@@ -660,7 +660,7 @@ export default function BulkMarkEntryPage() {
       <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
         <button
           onClick={() => handleDownloadCsvTemplate('breakdown')}
-          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs border border-slate-200 transition cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-800 transition cursor-pointer"
           title="CQ, MCQ & Pr সহ বিস্তারিত নমুনা ফাইল ডাউনলোড"
         >
           <Download size={14} /> CQ/MCQ/Pr CSV
@@ -668,13 +668,13 @@ export default function BulkMarkEntryPage() {
 
         <button
           onClick={() => handleDownloadCsvTemplate('total')}
-          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs border border-slate-200 transition cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-800 transition cursor-pointer"
           title="সাধারণ মোট নম্বর নমুনা ফাইল ডাউনলোড"
         >
           <Download size={14} /> মোট নম্বর CSV
         </button>
 
-        <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs cursor-pointer transition">
+        <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-xl font-bold text-xs cursor-pointer transition">
           <Upload size={14} /> CSV আপলোড
           <input type="file" accept=".csv" onChange={handleCsvFileUpload} className="hidden" />
         </label>
@@ -688,15 +688,15 @@ export default function BulkMarkEntryPage() {
       </div>
 
       {/* FILTER & SELECTOR CONTROLS */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
 
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">১. পরীক্ষা (Exam)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">১. পরীক্ষা (Exam)</label>
             <select
               value={selectedExam}
               onChange={(e) => setSelectedExam(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
               <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -705,11 +705,11 @@ export default function BulkMarkEntryPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">২. শ্রেণি (Class)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">২. শ্রেণি (Class)</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
               <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -720,13 +720,13 @@ export default function BulkMarkEntryPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-extrabold text-indigo-700 uppercase mb-1">
+            <label className="block text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase mb-1">
               {isClass9or10 ? '৩. বিভাগ / গ্রুপ (Department / Group)' : '৩. শাখা (Section)'}
             </label>
             <select
               value={isClass9or10 ? selectedGroup : selectedBranch}
               onChange={(e) => handleGroupBranchChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-indigo-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-950 font-extrabold cursor-pointer shadow-xs"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-950 dark:text-white font-extrabold cursor-pointer shadow-xs"
             >
               {isClass9or10 ? (
                 <>
@@ -748,27 +748,27 @@ export default function BulkMarkEntryPage() {
       </div>
 
       {/* SPREADSHEET MATRIX TABLE */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-5 print:hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden space-y-4 p-5 print:hidden">
 
         {/* Table Top Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-              <BookOpen className="text-indigo-600" size={18} />
-              {gradeNameBn} ({selectedBranch}) — <span className="text-indigo-600">বাল্ক এন্ট্রি ম্যাট্রিক্স</span>
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <BookOpen className="text-indigo-600 dark:text-indigo-400" size={18} />
+              {gradeNameBn} ({selectedBranch}) — <span className="text-indigo-600 dark:text-indigo-400">বাল্ক এন্ট্রি ম্যাট্রিক্স</span>
             </h3>
             <p className="text-xs text-slate-400 font-medium">মোট বিষয়: {subjects.length}টি | পরীক্ষা: {selectedExam}</p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             {/* Mode Switcher Toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
               <button
                 onClick={() => setEntryMode('breakdown')}
                 className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 ${
                   entryMode === 'breakdown'
                     ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Layers size={14} /> 📝 CQ, MCQ & Practical আলাদা ঘর
@@ -778,21 +778,21 @@ export default function BulkMarkEntryPage() {
                 className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 ${
                   entryMode === 'total'
                     ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <SlidersHorizontal size={14} /> 📊 মোট নম্বর এন্ট্রি
               </button>
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
               <Search size={14} className="text-slate-400" />
               <input
                 type="text"
                 placeholder="রোল বা নাম খুঁজুন..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-xs text-slate-800 font-medium w-28 sm:w-36"
+                className="bg-transparent border-none outline-none text-xs text-slate-800 dark:text-slate-100 font-medium w-28 sm:w-36"
               />
             </div>
           </div>
@@ -840,33 +840,33 @@ export default function BulkMarkEntryPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan={subjects.length * 4 + 5} className="py-14 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
                         <UserX className="w-8 h-8 text-indigo-300" />
                       </div>
-                      <p className="text-slate-700 font-bold text-sm">এই শ্রেণি ও শাখায় কোনো শিক্ষার্থী নেই</p>
+                      <p className="text-slate-700 dark:text-slate-300 font-bold text-sm">এই শ্রেণি ও শাখায় কোনো শিক্ষার্থী নেই</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 filteredRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50/80 transition">
+                  <tr key={row.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
                     {/* Roll - Sticky */}
-                    <td className="p-2.5 text-center font-black font-mono text-slate-900 bg-white sticky left-0 z-10 border-r border-slate-100">
+                    <td className="p-2.5 text-center font-black font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 sticky left-0 z-10 border-r border-slate-100 dark:border-slate-800">
                       {row.roll}
                     </td>
 
                     {/* Student Name & Religion Badge - Sticky */}
-                    <td className="p-2.5 font-extrabold text-slate-900 bg-white sticky left-14 z-10 border-r border-slate-100">
+                    <td className="p-2.5 font-extrabold text-slate-900 dark:text-white bg-white dark:bg-slate-900 sticky left-14 z-10 border-r border-slate-100 dark:border-slate-800">
                       <div className="truncate max-w-[180px]">{row.name}</div>
                       <span className={`inline-block mt-0.5 text-[8px] font-bold px-1.5 py-0.2 rounded-full ${
                         row.religion === 'Hindu'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                          : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                       }`}>
                         {row.religion === 'Hindu' ? '🕉️ হিন্দু' : '☪️ মুসলিম'}
                       </span>
@@ -884,7 +884,7 @@ export default function BulkMarkEntryPage() {
                         return (
                           <React.Fragment key={sub.code}>
                             {/* CQ Input */}
-                            <td className={`p-1 text-center border-l border-slate-200 ${isAllowed ? 'bg-slate-50/40' : 'bg-slate-100/80 opacity-60'}`}>
+                            <td className={`p-1 text-center border-l border-slate-200 dark:border-slate-800 ${isAllowed ? 'bg-slate-50/40 dark:bg-slate-950/40' : 'bg-slate-100/80 dark:bg-slate-800/80 opacity-60'}`}>
                               <input
                                 type="number"
                                 min={0}
@@ -895,7 +895,7 @@ export default function BulkMarkEntryPage() {
                                 onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
                                 onChange={(e) => handleBreakdownCellMarkChange(row.id, sub.code, subFull, 'cq', Number(e.target.value))}
                                 className={`w-10 px-1 py-1 border rounded-lg text-center font-bold text-xs font-mono outline-none ${
-                                  isAllowed ? 'border-slate-200 bg-white focus:ring-2 focus:ring-indigo-300' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                  isAllowed ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-300' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                 }`}
                                 title={isAllowed ? `CQ max ${sub.cq || 70}` : 'এই বিষয়টি আপনার বরাদ্দকৃত নয় (লকড)'}
                               />
@@ -903,7 +903,7 @@ export default function BulkMarkEntryPage() {
 
                             {/* MCQ Input */}
                             {hasMcq && (
-                              <td className={`p-1 text-center ${isAllowed ? 'bg-slate-50/40' : 'bg-slate-100/80 opacity-60'}`}>
+                              <td className={`p-1 text-center ${isAllowed ? 'bg-slate-50/40 dark:bg-slate-950/40' : 'bg-slate-100/80 dark:bg-slate-800/80 opacity-60'}`}>
                                 <input
                                   type="number"
                                   min={0}
@@ -914,7 +914,7 @@ export default function BulkMarkEntryPage() {
                                   onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
                                   onChange={(e) => handleBreakdownCellMarkChange(row.id, sub.code, subFull, 'mcq', Number(e.target.value))}
                                   className={`w-10 px-1 py-1 border rounded-lg text-center font-bold text-xs font-mono outline-none ${
-                                    isAllowed ? 'border-slate-200 bg-white focus:ring-2 focus:ring-amber-300' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    isAllowed ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-amber-300' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                   }`}
                                   title={isAllowed ? `MCQ max ${sub.mcq || 30}` : 'এই বিষয়টি আপনার বরাদ্দকৃত নয় (লকড)'}
                                 />
@@ -923,7 +923,7 @@ export default function BulkMarkEntryPage() {
 
                             {/* Practical Input */}
                             {hasPr && (
-                              <td className={`p-1 text-center ${isAllowed ? 'bg-slate-50/40' : 'bg-slate-100/80 opacity-60'}`}>
+                              <td className={`p-1 text-center ${isAllowed ? 'bg-slate-50/40 dark:bg-slate-950/40' : 'bg-slate-100/80 dark:bg-slate-800/80 opacity-60'}`}>
                                 <input
                                   type="number"
                                   min={0}
@@ -934,7 +934,7 @@ export default function BulkMarkEntryPage() {
                                   onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
                                   onChange={(e) => handleBreakdownCellMarkChange(row.id, sub.code, subFull, 'practical', Number(e.target.value))}
                                   className={`w-10 px-1 py-1 border rounded-lg text-center font-bold text-xs font-mono outline-none ${
-                                    isAllowed ? 'border-slate-200 bg-white focus:ring-2 focus:ring-emerald-300' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    isAllowed ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-emerald-300' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                   }`}
                                   title={isAllowed ? `Practical max ${sub.practical || 25}` : 'এই বিষয়টি আপনার বরাদ্দকৃত নয় (লকড)'}
                                 />
@@ -942,7 +942,7 @@ export default function BulkMarkEntryPage() {
                             )}
 
                             {/* Calculated Total Cell */}
-                            <td className="p-1 text-center font-black font-mono text-indigo-700 text-xs bg-indigo-50/60 border-r border-slate-200 w-10">
+                            <td className="p-1 text-center font-black font-mono text-indigo-700 dark:text-indigo-300 text-xs bg-indigo-50/60 dark:bg-indigo-950/50 border-r border-slate-200 dark:border-slate-800 w-10">
                               {bd.total}
                             </td>
                           </React.Fragment>
@@ -950,7 +950,7 @@ export default function BulkMarkEntryPage() {
                       } else {
                         // Total Only Input
                         return (
-                          <td key={sub.code} className={`p-2 text-center border-l border-slate-100 ${isAllowed ? '' : 'bg-slate-100/80 opacity-60'}`}>
+                          <td key={sub.code} className={`p-2 text-center border-l border-slate-100 dark:border-slate-800 ${isAllowed ? '' : 'bg-slate-100/80 dark:bg-slate-800/80 opacity-60'}`}>
                             <input
                               type="number"
                               min={0}
@@ -962,12 +962,12 @@ export default function BulkMarkEntryPage() {
                               onChange={(e) => handleCellMarkChange(row.id, sub.code, subFull, Number(e.target.value))}
                               className={`w-20 px-1.5 py-1.5 border rounded-xl text-center font-bold text-xs font-mono outline-none transition ${
                                 !isAllowed
-                                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
                                   : (row.marks[sub.code] || 0) === 0
-                                  ? 'bg-slate-50 border-slate-200 text-slate-400 focus:ring-2 focus:ring-indigo-300'
+                                  ? 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 focus:ring-2 focus:ring-indigo-300'
                                   : (row.marks[sub.code] || 0) < subFull * 0.33
-                                  ? 'bg-rose-50 border-rose-300 text-rose-700 focus:ring-2 focus:ring-indigo-300'
-                                  : 'bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-indigo-300'
+                                  ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 focus:ring-2 focus:ring-indigo-300'
+                                  : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-300'
                               }`}
                               title={isAllowed ? undefined : 'এই বিষয়টি আপনার বরাদ্দকৃত নয় (লকড)'}
                             />
@@ -977,13 +977,13 @@ export default function BulkMarkEntryPage() {
                     })}
 
                     {/* Total Obtained */}
-                    <td className="p-2.5 text-center font-black font-mono text-indigo-700 text-xs border-l border-slate-100 bg-indigo-50/40">
+                    <td className="p-2.5 text-center font-black font-mono text-indigo-700 dark:text-indigo-300 text-xs border-l border-slate-100 dark:border-slate-800 bg-indigo-50/40 dark:bg-indigo-950/50">
                       {row.totalObtained}
                     </td>
 
                     {/* GPA */}
                     <td className={`p-2.5 text-center font-black font-mono text-xs ${
-                      row.hasFailed ? 'text-rose-600 bg-rose-50/50' : 'text-emerald-700 bg-emerald-50/50'
+                      row.hasFailed ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/50' : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/50'
                     }`}>
                       {row.gpa.toFixed(2)}
                     </td>
@@ -991,7 +991,7 @@ export default function BulkMarkEntryPage() {
                     {/* Grade */}
                     <td className="p-2.5 text-center font-black">
                       <span className={`px-2 py-0.5 rounded-lg text-xs ${
-                        row.hasFailed ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        row.hasFailed ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200'
                       }`}>
                         {row.grade}
                       </span>
@@ -1004,9 +1004,9 @@ export default function BulkMarkEntryPage() {
         </div>
 
         {/* Bottom Save Bar */}
-        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <p className="text-slate-500 font-medium">
-            💡 টিপস: বিষয়ভিত্তিক বিস্তারিত CQ, MCQ ও Practical নম্বরের জন্য <Link href="/dashboard/exam/mark-entry" className="text-indigo-600 font-bold underline">বিষয়ভিত্তিক মার্ক এন্ট্রি পেজ ↗</Link> এ ব্যবহার করতে পারেন।
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            💡 টিপস: বিষয়ভিত্তিক বিস্তারিত CQ, MCQ ও Practical নম্বরের জন্য <Link href="/dashboard/exam/mark-entry" className="text-indigo-600 dark:text-indigo-400 font-bold underline">বিষয়ভিত্তিক মার্ক এন্ট্রি পেজ ↗</Link> এ ব্যবহার করতে পারেন।
           </p>
 
           <button

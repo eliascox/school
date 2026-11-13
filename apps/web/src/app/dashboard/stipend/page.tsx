@@ -352,7 +352,7 @@ export default function StipendPage() {
       selectedGrade === '10th' ? '১০ম শ্রেণি' : selectedGrade;
 
     return (
-      <div className="min-h-screen bg-slate-100 p-2 sm:p-6 print:p-0 print:bg-white font-sans">
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-800 p-2 sm:p-6 print:p-0 print:bg-white font-sans">
         
         {/* ─── SCREEN-ONLY TOP ACTION TOOLBAR ───────────────────────────────── */}
         <div className="max-w-[297mm] mx-auto mb-4 bg-slate-900 text-white p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg print:hidden">
@@ -364,7 +364,7 @@ export default function StipendPage() {
               <ArrowLeft size={14} /> ড্যাশবোর্ডে ফিরুন
             </button>
 
-            <span className="px-2.5 py-1 bg-amber-500 text-slate-950 text-xs font-black rounded-lg flex items-center gap-1">
+            <span className="px-2.5 py-1 bg-amber-500 text-slate-950 dark:text-white text-xs font-black rounded-lg flex items-center gap-1">
               <Printer size={14} /> উপবৃত্তি তালিকা প্রিন্ট প্রিভিউ
             </span>
           </div>
@@ -426,7 +426,7 @@ export default function StipendPage() {
 
             <button
               onClick={triggerPrint}
-              className="px-5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl shadow transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+              className="px-5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black rounded-xl shadow transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
             >
               <Printer size={15} /> {currentLang === 'en' ? 'Print List' : 'প্রিন্ট করুন'}
             </button>
@@ -615,9 +615,17 @@ export default function StipendPage() {
         {/* ─── PRINT MEDIA CSS OVERRIDES ─────────────────────────────────────── */}
         <style jsx global>{`
           @media print {
-            body {
+            @page {
+              size: auto;
+              margin: 0.45in;
+            }
+            html, body {
               background: #fff !important;
               color: #000 !important;
+              height: auto !important;
+              overflow: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .stipend-print-document {
               box-shadow: none !important;
@@ -629,6 +637,13 @@ export default function StipendPage() {
             table {
               border-collapse: collapse !important;
               width: 100% !important;
+            }
+            thead {
+              display: table-header-group !important;
+            }
+            tr {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
             }
             th, td {
               border: 1px solid #000 !important;
@@ -652,28 +667,28 @@ export default function StipendPage() {
       {alertMsg && (
         <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-sm animate-in fade-in ${
           alertMsg.type === 'success' 
-            ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
-            : 'bg-rose-50 text-rose-900 border-rose-300'
+            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800/60' 
+            : 'bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border-rose-300 dark:border-rose-800/60'
         }`}>
           <div className="flex items-center gap-2">
-            {alertMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-rose-600" />}
+            {alertMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />}
             <span>{alertMsg.text}</span>
           </div>
-          <button onClick={() => setAlertMsg(null)} className="text-slate-400 hover:text-slate-700">✕</button>
+          <button onClick={() => setAlertMsg(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">✕</button>
         </div>
       )}
 
       {/* ─── TOP TOOLBAR & QUICK ACTIONS ────────────────────────────────────── */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         
         {/* Left: Quick overview badge */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 dark:text-white flex items-center justify-center font-black shadow-xs">
             <Award size={18} />
           </div>
           <div>
-            <h2 className="text-sm font-black text-slate-900">উপবৃত্তি ব্যবস্থাপনা ও মূল্যায়ন</h2>
-            <p className="text-[11px] text-slate-500 font-semibold">৪৫% প্রাপ্ত নম্বর ও ৭৫% উপস্থিতি নীতিমালা অনুযায়ী</p>
+            <h2 className="text-sm font-black text-slate-900 dark:text-white">উপবৃত্তি ব্যবস্থাপনা ও মূল্যায়ন</h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">৪৫% প্রাপ্ত নম্বর ও ৭৫% উপস্থিতি নীতিমালা অনুযায়ী</p>
           </div>
         </div>
 
@@ -690,7 +705,7 @@ export default function StipendPage() {
 
           <button
             onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <Download size={13} />
             CSV এক্সপোর্ট
@@ -710,69 +725,69 @@ export default function StipendPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Stipend Beneficiaries */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">মোট উপবৃত্তিভোগী</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
               <Award size={16} />
             </div>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-slate-900 font-mono">{toBnDigit(totalCount)}</span>
-            <span className="text-xs text-slate-500 font-bold ml-1">জন</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{toBnDigit(totalCount)}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold ml-1">জন</span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] font-bold text-slate-500 flex items-center justify-between">
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between">
             <span>৬ষ্ঠ - ১০ম শ্রেণি</span>
-            <span className="text-amber-700 font-mono">মাসিক {toBnDigit(totalMonthlyBudget)}৳</span>
+            <span className="text-amber-700 dark:text-amber-300 font-mono">মাসিক {toBnDigit(totalMonthlyBudget)}৳</span>
           </div>
         </div>
 
         {/* Active Eligible */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">যোগ্য (উপবৃত্তি সক্রিয়)</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">যোগ্য (উপবৃত্তি সক্রিয়)</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black">
               <CheckCircle2 size={16} />
             </div>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-emerald-900 font-mono">{toBnDigit(eligibleCount)}</span>
-            <span className="text-xs text-emerald-600 font-bold ml-1">জন</span>
+            <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">{toBnDigit(eligibleCount)}</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold ml-1">জন</span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] font-bold text-emerald-700">
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
             উপস্থিতি ≥৭৫% ও নম্বর ≥৪৫%
           </div>
         </div>
 
         {/* Suspended / Unmet Criteria */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-rose-600 uppercase tracking-wider">স্থগিত (শর্ত অসম্পূর্ণ)</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-black">
+            <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">স্থগিত (শর্ত অসম্পূর্ণ)</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-black">
               <AlertTriangle size={16} />
             </div>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-rose-900 font-mono">{toBnDigit(suspendedCount)}</span>
-            <span className="text-xs text-rose-600 font-bold ml-1">জন</span>
+            <span className="text-2xl font-black text-rose-900 dark:text-rose-200 font-mono">{toBnDigit(suspendedCount)}</span>
+            <span className="text-xs text-rose-600 dark:text-rose-400 font-bold ml-1">জন</span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] font-bold text-rose-700">
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-rose-700 dark:text-rose-300">
             উপস্থিতি &lt;৭৫% অথবা নম্বর &lt;৪৫%
           </div>
         </div>
 
         {/* Avg Attendance */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">গড় উপস্থিতি হার</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">গড় উপস্থিতি হার</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
               <TrendingUp size={16} />
             </div>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-indigo-900 font-mono">{toBnDigit(avgAttendance)}%</span>
+            <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200 font-mono">{toBnDigit(avgAttendance)}%</span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] font-bold text-indigo-600">
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
             উপবৃত্তিভোগীদের ক্লাসে গড় উপস্থিতি
           </div>
         </div>
@@ -780,14 +795,14 @@ export default function StipendPage() {
       </div>
 
       {/* ─── GOVERNMENT COMPLIANCE RULES CARD ────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-200/80 rounded-2xl p-4 shadow-xs space-y-2">
-        <div className="flex items-center gap-2.5 text-amber-900">
+      <div className="bg-gradient-to-r from-amber-50 dark:from-amber-950/50 via-orange-50/60 dark:via-orange-950/30 to-amber-50 dark:to-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-2xl p-4 shadow-xs space-y-2">
+        <div className="flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
           <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0">
             <ShieldAlert size={15} />
           </div>
           <div>
             <h3 className="font-black text-xs">সরকারি উপবৃত্তি নীতিমালা ও স্বয়ংক্রিয় মূল্যায়ন শর্ত</h3>
-            <p className="text-[11px] text-amber-800 font-medium">
+            <p className="text-[11px] text-amber-800 dark:text-amber-200 font-medium">
               ১. পরীক্ষার প্রাপ্ত নম্বর ন্যূনতম ৪৫% এবং ২. ক্লাসে উপস্থিতি ন্যূনতম ৭৫% না থাকলে উপবৃত্তি স্বয়ংক্রিয়ভাবে স্থগিত গণ্য হয়।
             </p>
           </div>
@@ -795,7 +810,7 @@ export default function StipendPage() {
       </div>
 
       {/* ─── UNIFIED FILTER BAR ──────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-sm space-y-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-3.5 shadow-sm space-y-3">
         
         {/* Grade Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -814,7 +829,7 @@ export default function StipendPage() {
               className={`px-3 py-1.5 rounded-xl font-black text-xs transition cursor-pointer shrink-0 ${
                 selectedGrade === tab.key
                   ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
             >
               {tab.label} {tab.key !== 'all' && 'শ্রেণি'}
@@ -823,7 +838,7 @@ export default function StipendPage() {
         </div>
 
         {/* Section, Category, Status & Search */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1 border-t border-slate-100 dark:border-slate-800">
           
           {/* Search Box */}
           <div className="relative w-full sm:w-72">
@@ -833,7 +848,7 @@ export default function StipendPage() {
               placeholder="নাম, আইডি, রোল বা মোবাইল..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-800 focus:bg-white focus:border-indigo-500 transition"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition"
             />
           </div>
 
@@ -842,7 +857,7 @@ export default function StipendPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-800 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer"
             >
               <option value="all">সকল উপবৃত্তি ক্যাটাগরি</option>
               {STIPEND_CATEGORIES.map(c => (
@@ -853,7 +868,7 @@ export default function StipendPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold text-slate-800 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer"
             >
               <option value="all">সকল স্থিতি (Active/Suspended)</option>
               <option value="eligible">✅ শুধু সক্রিয় (যোগ্য)</option>
@@ -866,16 +881,16 @@ export default function StipendPage() {
       </div>
 
       {/* ─── STIPEND BENEFICIARIES TABLE ─────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-3 p-4 sm:p-5">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden space-y-3 p-4 sm:p-5">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <Award className="text-indigo-600" size={18} />
-            <h3 className="font-black text-slate-900 text-sm">
+            <Award className="text-indigo-600 dark:text-indigo-400" size={18} />
+            <h3 className="font-black text-slate-900 dark:text-white text-sm">
               উপবৃত্তি প্রাপ্ত শিক্ষার্থী তালিকা ({toBnDigit(filteredBeneficiaries.length)} জন)
             </h3>
           </div>
 
-          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-black text-xs rounded-full border border-indigo-100">
+          <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-black text-xs rounded-full border border-indigo-100 dark:border-indigo-800/60">
             বর্তমান প্রদর্শন: {toBnDigit(filteredBeneficiaries.length)} জন
           </span>
         </div>
@@ -883,7 +898,7 @@ export default function StipendPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse font-sans">
             <thead>
-              <tr className="bg-slate-100/90 text-slate-800 font-black uppercase text-[11px] border-b border-slate-200">
+              <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 font-black uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                 <th className="p-3 w-12 text-center">রোল</th>
                 <th className="p-3">শিক্ষার্থী আইডি ও নাম</th>
                 <th className="p-3 text-center">শ্রেণি ও শাখা</th>
@@ -895,7 +910,7 @@ export default function StipendPage() {
                 <th className="p-3 text-right">অ্যাকশন</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-100">
               {filteredBeneficiaries.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="p-8 text-center text-slate-400 font-bold">
@@ -904,33 +919,33 @@ export default function StipendPage() {
                 </tr>
               ) : (
                 filteredBeneficiaries.map((st) => (
-                  <tr key={st.id} className="hover:bg-slate-50/80 transition">
+                  <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
                     {/* Roll */}
-                    <td className="p-3 text-center font-mono font-black text-slate-900 text-sm">
+                    <td className="p-3 text-center font-mono font-black text-slate-900 dark:text-white text-sm">
                       {st.roll || '-'}
                     </td>
 
                     {/* Name & ID */}
                     <td className="p-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 font-black text-xs flex items-center justify-center shrink-0">
                           {st.name.charAt(0)}
                         </div>
                         <div>
-                          <strong className="font-extrabold text-slate-900 text-sm block">{st.name}</strong>
+                          <strong className="font-extrabold text-slate-900 dark:text-white text-sm block">{st.name}</strong>
                           <span className="text-[11px] text-slate-400 font-mono">আইডি: {st.id} | {st.mobile || 'ফোন নেই'}</span>
                         </div>
                       </div>
                     </td>
 
                     {/* Grade & Section */}
-                    <td className="p-3 text-center font-bold text-slate-700 whitespace-nowrap">
+                    <td className="p-3 text-center font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                       {st.gradeBn || st.grade} ({st.section || st.branch || 'A'})
                     </td>
 
                     {/* Category */}
-                    <td className="p-3 font-bold text-slate-800">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded-md text-[11px] border border-slate-200">
+                    <td className="p-3 font-bold text-slate-800 dark:text-slate-100">
+                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-md text-[11px] border border-slate-200 dark:border-slate-800">
                         {st.stipendCategory || 'সাধারণ উপবৃত্তি'}
                       </span>
                     </td>
@@ -939,8 +954,8 @@ export default function StipendPage() {
                     <td className="p-3 text-center">
                       <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
                         st.attRate >= 75
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                          : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
                       }`}>
                         {st.attRate >= 75 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
                         {st.attRate}%
@@ -951,8 +966,8 @@ export default function StipendPage() {
                     <td className="p-3 text-center">
                       <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
                         st.examScore >= 45
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                          : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
                       }`}>
                         {st.examScore >= 45 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
                         {st.examScore}%
@@ -960,24 +975,24 @@ export default function StipendPage() {
                     </td>
 
                     {/* Monthly Amount */}
-                    <td className="p-3 text-center font-mono font-bold text-slate-900">
+                    <td className="p-3 text-center font-mono font-bold text-slate-900 dark:text-white">
                       {toBnDigit(st.monthlyAmount)} ৳
                     </td>
 
                     {/* Eligibility Status */}
                     <td className="p-3 text-center">
                       {st.isEligible ? (
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-black text-[11px] inline-flex items-center gap-1">
+                        <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-lg font-black text-[11px] inline-flex items-center gap-1">
                           <CheckCircle2 size={12} />
                           সক্রিয় (Active)
                         </span>
                       ) : (
                         <div className="space-y-0.5">
-                          <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg font-black text-[10px] inline-flex items-center gap-1">
+                          <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-lg font-black text-[10px] inline-flex items-center gap-1">
                             <XCircle size={11} />
                             স্থগিত (Suspended)
                           </span>
-                          <div className="text-[10px] text-rose-600 font-bold">
+                          <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
                             {st.disqualifyReasons.join(' | ')}
                           </div>
                         </div>
@@ -992,14 +1007,14 @@ export default function StipendPage() {
                             setEditingStudent(st);
                             setShowEditModal(true);
                           }}
-                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg border border-slate-200 dark:border-slate-800 transition cursor-pointer"
                           title="ক্যাটাগরি বা তথ্য পরিবর্তন করুন"
                         >
                           <Pencil size={13} />
                         </button>
                         <button
                           onClick={() => handleToggleStipend(st.id, true)}
-                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg border border-slate-200 dark:border-slate-800 transition cursor-pointer"
                           title="উপবৃত্তি তালিকা থেকে বাদ দিন"
                         >
                           <Trash2 size={13} />
@@ -1019,38 +1034,38 @@ export default function StipendPage() {
       {/* ─── ADD STIPEND CANDIDATE MODAL ─────────────────────────────────────── */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black">
                   <Award size={18} />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-base">উপবৃত্তি শিক্ষার্থী যোগ করুন</h3>
+                  <h3 className="font-black text-slate-900 dark:text-white text-base">উপবৃত্তি শিক্ষার্থী যোগ করুন</h3>
                   <p className="text-xs text-slate-400 font-semibold">সাধারণ তালিকা থেকে শিক্ষার্থী নির্বাচন করুন</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs cursor-pointer"
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-bold text-xs cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Selection Mode Switch */}
-            <div className="flex bg-slate-100 p-1 rounded-xl gap-1 text-xs font-bold">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setAddModalMode('single')}
-                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'single' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'single' ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 একক শিক্ষার্থী
               </button>
               <button
                 type="button"
                 onClick={() => setAddModalMode('bulk')}
-                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'bulk' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex-1 py-1.5 rounded-lg transition ${addModalMode === 'bulk' ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 একত্রে একাধিক / বাল্ক নির্বাচন {bulkSelectedIds.size > 0 ? `(${bulkSelectedIds.size})` : ''}
               </button>
@@ -1059,13 +1074,13 @@ export default function StipendPage() {
             {addModalMode === 'single' ? (
               <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
                     শিক্ষার্থী নির্বাচন করুন *
                   </label>
                   <select
                     value={candidateStudentId}
                     onChange={(e) => setCandidateStudentId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900 focus:bg-white focus:border-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500"
                   >
                     <option value="">-- শিক্ষার্থী বেছে নিন ({nonStipendCandidates.length} জন উপলব্ধ) --</option>
                     {nonStipendCandidates.map((st) => (
@@ -1077,13 +1092,13 @@ export default function StipendPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
                     উপবৃত্তি ক্যাটাগরি
                   </label>
                   <select
                     value={candidateCategory}
                     onChange={(e) => setCandidateCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
                   >
                     {STIPEND_CATEGORIES.map((c) => (
                       <option key={c.name} value={c.name}>
@@ -1101,7 +1116,7 @@ export default function StipendPage() {
                     placeholder="নাম বা রোল দিয়ে খুঁজুন..."
                     value={bulkCandidateSearch}
                     onChange={(e) => setBulkCandidateSearch(e.target.value)}
-                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-indigo-500"
+                    className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500"
                   />
                   <button
                     type="button"
@@ -1111,20 +1126,20 @@ export default function StipendPage() {
                         .map(st => st.id);
                       handleBulkSelectAll(filtered);
                     }}
-                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer shrink-0"
+                    className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer shrink-0"
                   >
                     {bulkSelectedIds.size === nonStipendCandidates.length ? 'সব বাদ' : 'সকল নির্বাচন'}
                   </button>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
                     উপবৃত্তি ক্যাটাগরি
                   </label>
                   <select
                     value={bulkCategory}
                     onChange={(e) => setBulkCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
                   >
                     {STIPEND_CATEGORIES.map((c) => (
                       <option key={c.name} value={c.name}>
@@ -1134,20 +1149,20 @@ export default function StipendPage() {
                   </select>
                 </div>
 
-                <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 rounded-xl p-2 bg-slate-50">
+                <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50 dark:bg-slate-950">
                   {nonStipendCandidates
                     .filter(st => !bulkCandidateSearch || st.name.toLowerCase().includes(bulkCandidateSearch.toLowerCase()) || (st.roll || '').includes(bulkCandidateSearch))
                     .map(st => (
-                      <label key={st.id} className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-100 hover:border-indigo-200 cursor-pointer text-xs font-bold text-slate-800">
+                      <label key={st.id} className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-700 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-100">
                         <input
                           type="checkbox"
                           checked={bulkSelectedIds.has(st.id)}
                           onChange={() => handleBulkToggleSelect(st.id)}
-                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                          className="rounded text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500"
                         />
                         <div className="flex-1 flex items-center justify-between">
                           <span>{st.name} ({st.gradeBn || st.grade})</span>
-                          <span className="text-slate-500 text-[11px] font-mono">রোল: {st.roll || '-'}</span>
+                          <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">রোল: {st.roll || '-'}</span>
                         </div>
                       </label>
                     ))}
@@ -1158,11 +1173,11 @@ export default function StipendPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs cursor-pointer"
               >
                 বাতিল
               </button>
@@ -1192,12 +1207,12 @@ export default function StipendPage() {
       {/* ─── EDIT STIPEND CANDIDATE MODAL ────────────────────────────────────── */}
       {showEditModal && editingStudent && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base">উপবৃত্তি তথ্য সম্পাদনা</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base">উপবৃত্তি তথ্য সম্পাদনা</h3>
               <button 
                 onClick={() => setShowEditModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs cursor-pointer"
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center font-bold text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -1206,12 +1221,12 @@ export default function StipendPage() {
             <div className="space-y-3">
               <div>
                 <span className="text-[11px] font-bold text-slate-400">শিক্ষার্থী:</span>
-                <p className="font-black text-slate-900 text-sm">{editingStudent.name} (রোল: {editingStudent.roll})</p>
-                <p className="text-xs text-slate-500 font-mono">আইডি: {editingStudent.id}</p>
+                <p className="font-black text-slate-900 dark:text-white text-sm">{editingStudent.name} (রোল: {editingStudent.roll})</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">আইডি: {editingStudent.id}</p>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
                   উপবৃত্তি ক্যাটাগরি
                 </label>
                 <select
@@ -1220,7 +1235,7 @@ export default function StipendPage() {
                     ...editingStudent,
                     stipendCategory: e.target.value
                   })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
                 >
                   {STIPEND_CATEGORIES.map((c) => (
                     <option key={c.name} value={c.name}>
@@ -1231,10 +1246,10 @@ export default function StipendPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs cursor-pointer"
               >
                 বাতিল
               </button>

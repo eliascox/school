@@ -70,9 +70,13 @@ export default function OfficialAdmissionForm({
   onClose,
   onPrint,
 }: OfficialAdmissionFormProps) {
-  const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const schoolAddress = settings?.address || 'ডাকঘর: বরইতলী, উপজেলা: চকরিয়া, জেলা: কক্সবাজার।';
-  const eiin = settings?.eiin || '108234';
+  const schoolName = settings?.schoolName || 'স্মার্ট স্কুল';
+  const schoolNameEn = settings?.schoolNameEn || '';
+  const schoolAddress = settings?.address || '';
+  const eiin = settings?.eiin || '';
+  const estdYear = settings?.estdYear || '';
+  const phone = settings?.phone || '';
+  const email = settings?.email || '';
   const schoolLogo = settings?.schoolLogo;
 
   const handlePrint = () => {
@@ -103,7 +107,8 @@ export default function OfficialAdmissionForm({
             background: #ffffff !important;
             color: #000000 !important;
             width: 210mm !important;
-            height: 297mm !important;
+            height: auto !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -116,22 +121,19 @@ export default function OfficialAdmissionForm({
           .printable-admission-container {
             width: 210mm !important;
             max-width: 210mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
-            height: 297mm !important;
+            min-height: 296mm !important;
+            height: auto !important;
             margin: 0 auto !important;
-            padding: 0.5in !important;
+            padding: 0.45in !important;
             border: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+            page-break-after: auto !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: space-between !important;
-            overflow: hidden !important;
+            overflow: visible !important;
           }
         }
       `}</style>
@@ -182,13 +184,19 @@ export default function OfficialAdmissionForm({
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight">
                 {schoolName}
               </h1>
-              <h2 className="text-xs sm:text-sm font-extrabold text-indigo-900 uppercase tracking-widest mt-0.5">
-                BARAITALI HIGH SCHOOL
-              </h2>
+              {schoolNameEn && (
+                <h2 className="text-xs sm:text-sm font-extrabold text-indigo-900 uppercase tracking-widest mt-0.5">
+                  {schoolNameEn}
+                </h2>
+              )}
               <p className="text-[11px] font-bold text-slate-700 mt-1">
-                {schoolAddress} | EIIN: {toBnDigit(eiin)} | স্থাপিত: ১৯৬৫ খ্রিঃ
+                {[schoolAddress, eiin ? `EIIN: ${toBnDigit(eiin)}` : '', estdYear ? `স্থাপিত: ${toBnDigit(estdYear)} খ্রিঃ` : ''].filter(Boolean).join(' | ')}
               </p>
-              <p className="text-[10px] text-slate-500 font-medium">ফোন: ০১৮১২-০০০১০৯ | ইমেইল: info@baraitalihs.edu.bd</p>
+              {(phone || email) && (
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {[phone ? `ফোন: ${phone}` : '', email ? `ইমেইল: ${email}` : ''].filter(Boolean).join(' | ')}
+                </p>
+              )}
             </div>
 
             {/* Right: Student Passport Photo Frame (Top Right) */}

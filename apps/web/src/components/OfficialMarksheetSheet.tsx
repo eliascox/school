@@ -8,6 +8,11 @@ import {
 import { getUniversalStudentMark } from '@/lib/markStorageUtils';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
 import { studentService } from '@/services/studentService';
+import {
+  getEnglishSchoolName as resolveEnglishSchoolName,
+  getEnglishAddress as resolveEnglishAddress,
+  getSchoolInitials,
+} from '@/services/settingsService';
 
 export interface StudentProfile {
   id: string;
@@ -505,50 +510,14 @@ export function MarksheetSheetCard({
   };
 
   // ── School Name & Address in English ──
-  const getEnglishSchoolName = (name: string | undefined): string => {
-    if (!name) return 'BARAITOLI HIGH SCHOOL';
-    if (/[\u0980-\u09FF]/.test(name)) {
-      if (name.includes('বরইতলী') || name.includes('বড়াইতলী')) {
-        return 'BARAITOLI HIGH SCHOOL';
-      }
-      return name
-        .replace(/উচ্চ\s*বিদ্যালয়|উচ্চ\s*বিদ্যালয়/g, 'HIGH SCHOOL')
-        .replace(/মাধ্যমিক\s*বিদ্যালয়|মাধ্যমিক\s*বিদ্যালয়/g, 'SECONDARY SCHOOL')
-        .replace(/মডেল\s*স্কুল/g, 'MODEL SCHOOL')
-        .replace(/কলেজ/g, 'COLLEGE')
-        .replace(/মাদ্রাসা|মাদরাসা/g, 'MADRASAH')
-        .replace(/সরকারি/g, 'GOVT.')
-        .trim();
-    }
-    return name.toUpperCase();
-  };
+  const getEnglishSchoolName = (name: string | undefined): string =>
+    resolveEnglishSchoolName({ ...settings, schoolName: name || settings?.schoolName }).toUpperCase();
 
-  const getEnglishAddress = (addr: string | undefined): string => {
-    if (!addr) return "Baraitoli, Chakaria, Cox's Bazar.";
-    if (/[\u0980-\u09FF]/.test(addr)) {
-      if (addr.includes('বরইতলী') || addr.includes('চকরিয়া') || addr.includes('কক্সবাজার')) {
-        return "Baraitoli, Chakaria, Cox's Bazar.";
-      }
-      return addr;
-    }
-    return addr;
-  };
+  const getEnglishAddress = (addr: string | undefined): string =>
+    resolveEnglishAddress({ ...settings, address: addr || settings?.address });
 
-  // Dynamic institutional abbreviation for crest/watermark fallback (Never hardcoded to BHS)
-  const schoolInitials = (() => {
-    const raw = settings?.schoolName ? getEnglishSchoolName(settings.schoolName) : '';
-    if (!raw || raw === 'BARAITOLI HIGH SCHOOL') {
-      if (settings?.schoolName && !settings.schoolName.includes('বরইতলী')) {
-        return settings.schoolName.slice(0, 3).toUpperCase();
-      }
-      return 'BHS';
-    }
-    const words = raw.split(/\s+/).filter(Boolean);
-    if (words.length >= 2) {
-      return words.map((w: string) => w[0]).join('').slice(0, 4).toUpperCase();
-    }
-    return raw.slice(0, 3).toUpperCase();
-  })();
+  // Dynamic institutional abbreviation for crest/watermark fallback
+  const schoolInitials = getSchoolInitials(settings);
 
   // ── Format Class / Grade ──
   const formatGrade = (grade: string, gradeBn: string): string => {
@@ -732,20 +701,20 @@ export function MarksheetSheetCard({
 
                 {/* School Name Centered */}
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-sans uppercase leading-snug">
-                  {isEn ? getEnglishSchoolName(settings?.schoolName) : (settings?.schoolName || 'BARAITOLI HIGH SCHOOL')}
+                  {isEn ? getEnglishSchoolName(settings?.schoolName) : (settings?.schoolName || 'SMART SCHOOL MANAGEMENT')}
                 </h1>
               </div>
 
               {/* Location */}
               <p className="text-xs sm:text-sm font-bold text-slate-900 font-sans">
-                {isEn ? getEnglishAddress(settings?.address) : (settings?.address || "Baraitoli, Chakaria, Cox's Bazar.")}
+                {isEn ? getEnglishAddress(settings?.address) : (settings?.address || '')}
               </p>
 
               {/* Estd & EIIN */}
               <p className="text-[11px] font-bold text-slate-800 font-mono">
                 {isEn
-                  ? `Estd: ${toEnNumber(settings?.estdYear || '1969')} | EIIN: ${toEnNumber(settings?.eiin || '106184')}`
-                  : `স্থাপিত: ${settings?.estdYear || '1969'} খ্রি. । EIIN: ${settings?.eiin || '106184'}`
+                  ? `${settings?.estdYear ? `Estd: ${toEnNumber(settings.estdYear)} | ` : ''}EIIN: ${toEnNumber(settings?.eiin || '---')}`
+                  : `${settings?.estdYear ? `স্থাপিত: ${settings.estdYear} খ্রি. । ` : ''}EIIN: ${settings?.eiin || '---'}`
                 }
               </p>
             </div>
@@ -1134,9 +1103,9 @@ export function MarksheetSheetCard({
             margin: 0mm !important;
             padding: 0mm !important;
             width: 210mm !important;
-            height: 100% !important;
-            max-height: 100% !important;
-            overflow: hidden !important;
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;

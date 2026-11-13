@@ -24,6 +24,8 @@ import {
 import { ledgerService, LedgerRecord, LedgerFilterOptions } from '@/services/ledgerService';
 import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import { SystemPurgeReport } from '@/services/systemResetService';
+import { settingsService } from '@/services/settingsService';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 export default function LedgerDashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -156,7 +158,7 @@ export default function LedgerDashboardPage() {
     e.preventDefault();
     const amountNum = parseFloat(formAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      alert('অনুগ্রহ করে সঠিক টাকার পরিমাণ লিখুন!');
+      showToast('অনুগ্রহ করে সঠিক টাকার পরিমাণ লিখুন!', 'warning');
       return;
     }
 
@@ -197,8 +199,8 @@ export default function LedgerDashboardPage() {
   };
 
   // Delete Record
-  const handleDeleteRecord = (id: string) => {
-    if (confirm('আপনি কি নিশ্চিত যে এই লেজার এন্ট্রিটি মুছে ফেলতে চান?')) {
+  const handleDeleteRecord = async (id: string) => {
+    if (await confirmDialog({ title: 'লেজার এন্ট্রি মুছে ফেলা', message: 'আপনি কি নিশ্চিত যে এই লেজার এন্ট্রিটি মুছে ফেলতে চান?', confirmLabel: 'মুছে ফেলুন', danger: true })) {
       ledgerService.deleteRecord(id);
       setAlertMessage('লেজার এন্ট্রি সফলভাবে মুছে ফেলা হয়েছে!');
       refreshData();
@@ -230,7 +232,7 @@ export default function LedgerDashboardPage() {
   if (!mounted) return null;
 
   return (
-    <div className="w-full space-y-6 pb-20 font-sans text-slate-900" suppressHydrationWarning>
+    <div className="w-full space-y-6 pb-20 font-sans text-slate-900 dark:text-white" suppressHydrationWarning>
       
       {/* LANDSCAPE PRINT STYLING */}
       <style jsx global>{`
@@ -293,8 +295,8 @@ export default function LedgerDashboardPage() {
 
       {/* ALERT MESSAGE */}
       {alertMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold rounded-2xl flex items-center gap-2 shadow-sm animate-fade-in print:hidden">
-          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 text-xs font-bold rounded-2xl flex items-center gap-2 shadow-sm animate-fade-in print:hidden">
+          <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>{alertMessage}</span>
         </div>
       )}
@@ -347,16 +349,16 @@ export default function LedgerDashboardPage() {
       </div>
 
       {/* VIEW MODE & FILTER CONTROL BAR */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
         
         {/* Top Controls: View Mode Tabs & Export */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setViewMode('statement')}
               className={`px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2 cursor-pointer transition ${
-                viewMode === 'statement' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 hover:text-slate-900'
+                viewMode === 'statement' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <PieChart size={15} /> 📊 পাশাপাশি আয়-ব্যয় বিবরণী (Side-by-Side Landscape)
@@ -366,7 +368,7 @@ export default function LedgerDashboardPage() {
               type="button"
               onClick={() => setViewMode('detailed')}
               className={`px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2 cursor-pointer transition ${
-                viewMode === 'detailed' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 hover:text-slate-900'
+                viewMode === 'detailed' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <ListFilter size={15} /> 📑 বিস্তারিত লেনদেন মাস্টার (Master Records)
@@ -377,7 +379,7 @@ export default function LedgerDashboardPage() {
             <button
               type="button"
               onClick={handleExportCSV}
-              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 flex items-center gap-1.5 transition cursor-pointer"
+              className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-xl border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1.5 transition cursor-pointer"
             >
               <FileSpreadsheet size={15} /> CSV ডাউনলোড
             </button>
@@ -396,11 +398,11 @@ export default function LedgerDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs font-bold pt-1">
           {/* Time Period Filter */}
           <div>
-            <label className="block text-slate-600 mb-1">সময়সীমা (Time Period) *</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1">সময়সীমা (Time Period) *</label>
             <select
               value={filterPeriod}
               onChange={(e) => setFilterPeriod(e.target.value as any)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="all">সকল সময় (All Records)</option>
               <option value="today">আজকের বিবরণী (Daily / Today)</option>
@@ -412,11 +414,11 @@ export default function LedgerDashboardPage() {
 
           {/* Class Filter */}
           <div>
-            <label className="block text-slate-600 mb-1">শ্রেণি (Class Filter) *</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1">শ্রেণি (Class Filter) *</label>
             <select
               value={filterGrade}
               onChange={(e) => setFilterGrade(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">সকল শ্রেণি (All Classes)</option>
               <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
@@ -429,11 +431,11 @@ export default function LedgerDashboardPage() {
 
           {/* Transaction Type */}
           <div>
-            <label className="block text-slate-600 mb-1">লেনদেনের ধরন *</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1">লেনদেনের ধরন *</label>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">সকল লেনদেন (Income & Expense)</option>
               <option value="Income">শুধুমাত্র আয় (Income Only)</option>
@@ -443,14 +445,14 @@ export default function LedgerDashboardPage() {
 
           {/* Search Input */}
           <div>
-            <label className="block text-slate-600 mb-1">খুঁজুন (Search)</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1">খুঁজুন (Search)</label>
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="ভাউচার, নাম বা তথ্য..."
-                className="w-full p-2.5 pl-8 bg-slate-50 border border-slate-300 rounded-xl outline-none text-slate-900"
+                className="w-full p-2.5 pl-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
               />
               <Search size={14} className="absolute left-2.5 top-3 text-slate-400" />
             </div>
@@ -459,23 +461,23 @@ export default function LedgerDashboardPage() {
 
         {/* Custom Date Range Picker */}
         {filterPeriod === 'custom' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs font-bold">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-bold">
             <div>
-              <label className="block text-slate-600 mb-1">প্রারম্ভিক তারিখ (From Date)</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1">প্রারম্ভিক তারিখ (From Date)</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-slate-600 mb-1">শেষ তারিখ (To Date)</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1">শেষ তারিখ (To Date)</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -484,8 +486,12 @@ export default function LedgerDashboardPage() {
 
       {/* PRINTABLE OFFICIAL HEADER (Shown only when printing) */}
       <div className="hidden print:block text-center border-b-2 border-slate-900 pb-3 mb-4">
-        <h1 className="text-2xl font-black text-slate-900">বরইতলী উচ্চ বিদ্যালয়</h1>
-        <p className="text-xs text-slate-700 font-bold">বরইতলী, চকরিয়া, কক্সবাজার | শ্রেণিভিত্তিক আয় ও প্রাতিষ্ঠানিক সকল ব্যয়ের ল্যান্ডস্কেপ সমাপনী বিবরণী</p>
+        <h1 className="text-2xl font-black text-slate-900">
+          {(mounted ? settingsService.getSettings().schoolName : '') || 'শিক্ষা প্রতিষ্ঠান'}
+        </h1>
+        <p className="text-xs text-slate-700 font-bold">
+          {(mounted ? settingsService.getSettings().address : '') ? `${settingsService.getSettings().address} | ` : ''}শ্রেণিভিত্তিক আয় ও প্রাতিষ্ঠানিক সকল ব্যয়ের ল্যান্ডস্কেপ সমাপনী বিবরণী
+        </p>
         <div className="mt-2 text-xs font-black flex justify-between px-2 text-slate-800">
           <span>রিপোর্ট প্রকাশের তারিখ: {new Date().toLocaleDateString('bn-BD')}</span>
           <span>সময়কাল: {filterPeriod === 'today' ? 'আজকের' : filterPeriod === 'weekly' ? 'চলতি সপ্তাহ' : filterPeriod === 'monthly' ? 'চলতি মাস' : 'সকল সময়'}</span>
@@ -496,7 +502,7 @@ export default function LedgerDashboardPage() {
       {records.length === 0 && (
         <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-xs font-bold rounded-2xl flex items-center justify-between gap-3 shadow-2xs print:hidden animate-fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>বর্তমানে কোনো ডেমো বা বাস্তব লেনদেনের ডাটা নেই (সম্পূর্ণ ফ্রেশ ও খালি খতিয়ান — সর্বমোট আয় ও ব্যয় ৳০)। নতুন আয় বা ব্যয়ের এন্ট্রি দিতে উপরের বাটন ব্যবহার করুন।</span>
           </div>
         </div>
@@ -742,7 +748,7 @@ export default function LedgerDashboardPage() {
       {/* ADD / EDIT TRANSACTION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in print:hidden">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden space-y-4">
             
             {/* Modal Header */}
             <div className={`p-5 text-white flex items-center justify-between ${formType === 'Income' ? 'bg-emerald-700' : 'bg-rose-700'}`}>
@@ -766,14 +772,14 @@ export default function LedgerDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setFormType('Income')}
-                  className={`py-2 rounded-xl font-black text-xs cursor-pointer transition ${formType === 'Income' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-700'}`}
+                  className={`py-2 rounded-xl font-black text-xs cursor-pointer transition ${formType === 'Income' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
                 >
                   ▲ আয় (Income)
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormType('Expense')}
-                  className={`py-2 rounded-xl font-black text-xs cursor-pointer transition ${formType === 'Expense' ? 'bg-rose-600 text-white shadow' : 'bg-slate-100 text-slate-700'}`}
+                  className={`py-2 rounded-xl font-black text-xs cursor-pointer transition ${formType === 'Expense' ? 'bg-rose-600 text-white shadow' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
                 >
                   ▼ ব্যয় (Expense)
                 </button>
@@ -782,12 +788,12 @@ export default function LedgerDashboardPage() {
               {/* Category & Grade */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 mb-1">ক্যাটাগরি / ব্যয় দফা *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">ক্যাটাগরি / ব্যয় দফা *</label>
                   {formType === 'Income' ? (
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                     >
                       <option value="মাসিক বেতন">মাসিক বেতন (Tuition Fee)</option>
                       <option value="ভর্তি ফি">ভর্তি ফি (Admission Fee)</option>
@@ -800,7 +806,7 @@ export default function LedgerDashboardPage() {
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                     >
                       <option value="শিক্ষক বেতন">শিক্ষক ও কর্মচারী বেতন</option>
                       <option value="বিদ্যুৎ বিল">বিদ্যুৎ ও ইউটিলিটি বিল</option>
@@ -814,11 +820,11 @@ export default function LedgerDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 mb-1">শ্রেণি (Class) *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">শ্রেণি (Class) *</label>
                   <select
                     value={formGrade}
                     onChange={(e) => setFormGrade(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                   >
                     <option value="all">সকল শ্রেণি (General / Common)</option>
                     <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
@@ -833,7 +839,7 @@ export default function LedgerDashboardPage() {
               {/* Amount & Voucher No */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 mb-1">পরিমাণ (টাকা/৳) *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">পরিমাণ (টাকা/৳) *</label>
                   <input
                     type="number"
                     required
@@ -841,43 +847,43 @@ export default function LedgerDashboardPage() {
                     value={formAmount}
                     onChange={(e) => setFormAmount(e.target.value)}
                     placeholder="যেমন: 1500"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-mono text-slate-900 text-sm font-black"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white text-sm font-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 mb-1">ভাউচার / রশিদ নম্বর</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">ভাউচার / রশিদ নম্বর</label>
                   <input
                     type="text"
                     value={formVoucherNo}
                     onChange={(e) => setFormVoucherNo(e.target.value)}
                     placeholder="খালি রাখলে অটো জেনারেট হবে"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* Student Name & Roll */}
               {formType === 'Income' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-indigo-50/50 dark:bg-indigo-950/50 p-3 rounded-2xl border border-indigo-100 dark:border-indigo-800/60">
                   <div>
-                    <label className="block text-slate-700 mb-1">শিক্ষার্থীর নাম (ঐচ্ছিক)</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">শিক্ষার্থীর নাম (ঐচ্ছিক)</label>
                     <input
                       type="text"
                       value={formStudentName}
                       onChange={(e) => setFormStudentName(e.target.value)}
                       placeholder="যেমন: আরিফুল ইসলাম"
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl outline-none text-slate-900"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 mb-1">শ্রেণি রোল (ঐচ্ছিক)</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">শ্রেণি রোল (ঐচ্ছিক)</label>
                     <input
                       type="text"
                       value={formStudentRoll}
                       onChange={(e) => setFormStudentRoll(e.target.value)}
                       placeholder="যেমন: 101"
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
@@ -886,22 +892,22 @@ export default function LedgerDashboardPage() {
               {/* Date & Payment Method */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 mb-1">তারিখ *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">তারিখ *</label>
                   <input
                     type="date"
                     required
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 mb-1">পেমেন্ট মাধ্যম *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">পেমেন্ট মাধ্যম *</label>
                   <select
                     value={formPaymentMethod}
                     onChange={(e) => setFormPaymentMethod(e.target.value as any)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer"
                   >
                     <option value="Cash">ক্যাশ (Cash)</option>
                     <option value="bKash">বিকাশ (bKash)</option>
@@ -913,23 +919,23 @@ export default function LedgerDashboardPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-slate-700 mb-1">বিবরণ / রিমার্কস *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">বিবরণ / রিমার্কস *</label>
                 <textarea
                   rows={2}
                   required
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="লেনদেনের সংক্ষিপ্ত বিবরণ লিখুন..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none text-slate-900"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs cursor-pointer transition"
+                  className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-100 font-bold rounded-xl text-xs cursor-pointer transition"
                 >
                   বাতিল
                 </button>

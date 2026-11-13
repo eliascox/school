@@ -15,12 +15,12 @@ try {
 }
 const { spawn } = require('child_process');
 
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.API_URL || 'http://localhost:4000';
 
 /**
  * 1. Check for Software Updates from Central Server
  */
-async function checkForUpdates(currentVersion = '1.0.0', schoolId = 'SCH-106184') {
+async function checkForUpdates(currentVersion = '1.0.0', schoolId = 'SCH-DEFAULT') {
   try {
     const url = `${API_BASE_URL}/api/v1/updates/check`;
     const payload = JSON.stringify({

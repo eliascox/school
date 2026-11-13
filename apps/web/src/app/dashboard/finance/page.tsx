@@ -93,6 +93,8 @@ import { teacherAuthService } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { smsService } from '@/services/smsService';
 import { auditTrailService } from '@/services/auditTrailService';
+import { settingsService } from '@/services/settingsService';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 // Main Finance Tab Types
 type FinanceTab = 'student_fees' | 'payroll' | 'expenses' | 'cash_bank' | 'waivers_refunds' | 'reports';
@@ -181,10 +183,10 @@ function FinanceContent() {
   const [feeSectors, setFeeSectors] = useState<FeeSector[]>([]);
   const [teachersList, setTeachersList] = useState<any[]>([]);
   const [schoolInfo, setSchoolInfo] = useState({
-    nameBn: 'বরইতলী উচ্চ বিদ্যালয়',
-    eiin: '106184',
-    address: 'বরইতলী, চকরিয়া, কক্সবাজার',
-    established: '১৯৬৯',
+    nameBn: 'শিক্ষা প্রতিষ্ঠান',
+    eiin: '---',
+    address: '',
+    established: '',
     session: '২০২৬'
   });
   // Filter states for Payroll & Expenses
@@ -248,6 +250,13 @@ function FinanceContent() {
     classRates: { '6th': 200, '7th': 200, '8th': 200, '9th': 200, '10th': 200 }
   });
 
+  const [financeSettings, setFinanceSettings] = useState<FinanceSettings>(DEFAULT_FINANCE_SETTINGS);
+  const [goLiveStartMonth, setGoLiveStartMonth] = useState<string>('জানুয়ারি');
+  const [goLiveStartYear, setGoLiveStartYear] = useState<number>(2026);
+  const [goLivePreStartMode, setGoLivePreStartMode] = useState<'settled' | 'waived' | 'due'>('settled');
+  const [invoices, setInvoices] = useState<FeeInvoice[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
   // Load all finance data
   const loadAllData = () => {
     const loadedStudents = studentService.getAllStudents();
@@ -259,17 +268,16 @@ function FinanceContent() {
       setTeachersList([]);
     }
     try {
+      const s = settingsService.getSettings();
       const rawSettings = localStorage.getItem('sms_school_settings');
-      if (rawSettings) {
-        const parsed = JSON.parse(rawSettings);
-        setSchoolInfo({
-          nameBn: parsed.schoolNameBn || parsed.name || 'বরইতলী উচ্চ বিদ্যালয়',
-          eiin: parsed.eiin || '106184',
-          address: parsed.addressBn || parsed.address || 'বরইতলী, চকরিয়া, কক্সবাজার',
-          established: parsed.establishedYear || '১৯৬৯',
-          session: parsed.academicSession || '২০২৬'
-        });
-      }
+      const parsed = rawSettings ? JSON.parse(rawSettings) : {};
+      setSchoolInfo({
+        nameBn: s.schoolName || parsed.schoolNameBn || parsed.name || 'শিক্ষা প্রতিষ্ঠান',
+        eiin: s.eiin || parsed.eiin || '---',
+        address: s.address || parsed.addressBn || parsed.address || '',
+        established: s.estdYear || parsed.establishedYear || '',
+        session: (s as any).academicSession || parsed.academicSession || '২০২৬'
+      });
     } catch (e) {}
     const activeClassFees = financeService.getClassFeesConfig();
     setClassFees(activeClassFees);
@@ -351,10 +359,6 @@ function FinanceContent() {
   const [paymentHistorySearch, setPaymentHistorySearch] = useState<string>('');
 
   // ─── 🚩 GO-LIVE & OPENING DUE STATES ──────────────────────────────
-  const [financeSettings, setFinanceSettings] = useState<FinanceSettings>(DEFAULT_FINANCE_SETTINGS);
-  const [goLiveStartMonth, setGoLiveStartMonth] = useState<string>('জানুয়ারি');
-  const [goLiveStartYear, setGoLiveStartYear] = useState<number>(2026);
-  const [goLivePreStartMode, setGoLivePreStartMode] = useState<'settled' | 'waived' | 'due'>('settled');
   const [openingDueSearch, setOpeningDueSearch] = useState<string>('');
   const [openingDueGradeFilter, setOpeningDueGradeFilter] = useState<string>('all');
   const [openingDueInputs, setOpeningDueInputs] = useState<Record<string, number | string>>({});
@@ -362,7 +366,6 @@ function FinanceContent() {
   const [goLiveAlert, setGoLiveAlert] = useState<string | null>(null);
 
   // ─── 🧾 INVOICE HUB STATES ─────────────────────────────────────────
-  const [invoices, setInvoices] = useState<FeeInvoice[]>([]);
   const [invoiceGradeFilter, setInvoiceGradeFilter] = useState<string>('all');
   const [invoiceMonthFilter, setInvoiceMonthFilter] = useState<string>('all');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
@@ -376,7 +379,6 @@ function FinanceContent() {
   const [invoicePayAlert, setInvoicePayAlert] = useState<string | null>(null);
 
   // ─── 🛡️ AUDIT TRAIL STATES ─────────────────────────────────────────
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditSearch, setAuditSearch] = useState<string>('');
 
   // ─── 📱 DEFAULTER SMS NOTIFICATIONS STATE ──────────────────────────
@@ -618,7 +620,7 @@ function FinanceContent() {
     if (!selectedStudent) return;
 
     if (actualPaidAmount <= 0 && currentNetPayable > 0 && discountAmount === 0) {
-      alert('অনুগ্রহ করে প্রাপ্ত অর্থের সঠিক পরিমাণ লিখুন!');
+      showToast('অনুগ্রহ করে প্রাপ্ত অর্থের সঠিক পরিমাণ লিখুন!', 'warning');
       return;
     }
 
@@ -702,7 +704,7 @@ function FinanceContent() {
       try {
         smsService.sendSMS({
           recipient: selectedStudent.mobile,
-          message: `বরইতলী উচ্চ বিদ্যালয়: শিক্ষার্থী ${selectedStudent.name}-এর ফি বাবদ ৳${actualPaidAmount} গ্রহণ করা হয়েছে। রসিদ নং: ${receiptNum}। বর্তমান অবশিষ্ট বকেয়া: ৳${updatedLedger.totalDue}। ধন্যবাদ।`,
+          message: `${schoolInfo.nameBn}: শিক্ষার্থী ${selectedStudent.name}-এর ফি বাবদ ৳${actualPaidAmount} গ্রহণ করা হয়েছে। রসিদ নং: ${receiptNum}। বর্তমান অবশিষ্ট বকেয়া: ৳${updatedLedger.totalDue}। ধন্যবাদ।`,
           type: 'fee_reminder',
           targetAudience: 'individual',
           recipientName: selectedStudent.name,
@@ -748,25 +750,25 @@ function FinanceContent() {
       setGoLiveAlert(`সফটওয়্যার শুরুর মাস '${goLiveStartMonth} ${goLiveStartYear}' সফলভাবে সমন্বয় ও কার্যকর করা হয়েছে!`);
       setTimeout(() => setGoLiveAlert(null), 6000);
     } catch (e: any) {
-      alert('সফটওয়্যার শুরুর মাস সমন্বয় করতে সমস্যা হয়েছে: ' + (e.message || ''));
+      showToast('সফটওয়্যার শুরুর মাস সমন্বয় করতে সমস্যা হয়েছে: ' + (e.message || ''), 'error');
     }
   };
 
   const handleSaveOpeningDue = (studentId: string) => {
     const rawAmt = openingDueInputs[studentId];
     if (rawAmt === undefined || rawAmt === '') {
-      alert('অনুগ্রহ করে পূর্ববর্তী বকেয়ার সঠিক টাকার পরিমাণ লিখুন!');
+      showToast('অনুগ্রহ করে পূর্ববর্তী বকেয়ার সঠিক টাকার পরিমাণ লিখুন!', 'warning');
       return;
     }
     const amount = Number(rawAmt);
     if (isNaN(amount) || amount < 0) {
-      alert('টাকার পরিমাণ ০ বা তদুর্ধ্ব হতে হবে!');
+      showToast('টাকার পরিমাণ ০ বা তদুর্ধ্ব হতে হবে!', 'warning');
       return;
     }
     const note = openingDueNotes[studentId] || 'সফটওয়্যার শুরুর পূর্বে পূর্ববর্তী বকেয়া';
     financeService.setStudentOpeningDue(studentId, amount, note, 'অ্যাডমিন');
     loadAllData();
-    alert(`শিক্ষার্থীর পূর্ববর্তী বকেয়া (৳${amount}) সফলভাবে সংরক্ষণ করা হয়েছে!`);
+    showToast(`শিক্ষার্থীর পূর্ববর্তী বকেয়া (৳${amount}) সফলভাবে সংরক্ষণ করা হয়েছে!`, 'success');
   };
 
   // ─── 🧾 INVOICE ACTIONS ───────────────────────────────────────────
@@ -777,7 +779,7 @@ function FinanceContent() {
       generateInvoiceGrade
     );
     loadAllData();
-    alert(`${generateInvoiceMonth} মাসের জন্য মোট ${res.generated} টি নতুন ফি ইনভয়েস সফলভাবে প্রস্তুত হয়েছে!`);
+    showToast(`${generateInvoiceMonth} মাসের জন্য মোট ${res.generated} টি নতুন ফি ইনভয়েস সফলভাবে প্রস্তুত হয়েছে!`, 'success');
   };
 
   const handlePayInvoiceSubmit = (e: React.FormEvent) => {
@@ -785,11 +787,11 @@ function FinanceContent() {
     if (!selectedInvoiceForPayment) return;
     const payAmt = Number(invoicePayAmount);
     if (!payAmt || payAmt <= 0) {
-      alert('অনুগ্রহ করে পরিশোধের সঠিক টাকার পরিমাণ লিখুন!');
+      showToast('অনুগ্রহ করে পরিশোধের সঠিক টাকার পরিমাণ লিখুন!', 'warning');
       return;
     }
     if (payAmt > selectedInvoiceForPayment.dueAmount) {
-      alert(`পরিশোধের পরিমাণ বকেয়া (৳${selectedInvoiceForPayment.dueAmount}) থেকে বেশি হতে পারবে না!`);
+      showToast(`পরিশোধের পরিমাণ বকেয়া (৳${selectedInvoiceForPayment.dueAmount}) থেকে বেশি হতে পারবে না!`, 'warning');
       return;
     }
 
@@ -807,7 +809,7 @@ function FinanceContent() {
         try {
           smsService.sendSMS({
             recipient: res.invoice.mobile,
-            message: `বরইতলী উচ্চ বিদ্যালয়: শিক্ষার্থী ${res.invoice.studentName}-এর ইনভয়েস #${res.invoice.invoiceNo || res.invoice.invoiceId} বাবদ ৳${payAmt} গ্রহণ করা হয়েছে। বর্তমান ইনভয়েস বকেয়া: ৳${res.invoice.dueAmount}। ধন্যবাদ।`,
+            message: `${schoolInfo.nameBn}: শিক্ষার্থী ${res.invoice.studentName}-এর ইনভয়েস #${res.invoice.invoiceNo || res.invoice.invoiceId} বাবদ ৳${payAmt} গ্রহণ করা হয়েছে। বর্তমান ইনভয়েস বকেয়া: ৳${res.invoice.dueAmount}। ধন্যবাদ।`,
             type: 'fee_reminder',
             targetAudience: 'individual',
             recipientName: res.invoice.studentName,
@@ -822,16 +824,16 @@ function FinanceContent() {
       setSelectedInvoiceForPayment(null);
       setInvoicePayAmount('');
       setInvoiceTrxId('');
-      alert(`ইনভয়েস #${res.invoice.invoiceNo || res.invoice.invoiceId}-এ ৳${payAmt} সফলভাবে জমা হয়েছে! রসিদ নং: ${res.receiptId}`);
+      showToast(`ইনভয়েস #${res.invoice.invoiceNo || res.invoice.invoiceId}-এ ৳${payAmt} সফলভাবে জমা হয়েছে! রসিদ নং: ${res.receiptId}`, 'success');
     } catch (e: any) {
-      alert('ইনভয়েস পেমেন্ট সংরক্ষণে ত্রুটি: ' + (e.message || ''));
+      showToast('ইনভয়েস পেমেন্ট সংরক্ষণে ত্রুটি: ' + (e.message || ''), 'error');
     }
   };
 
   // ─── 📱 BULK DEFAULTER SMS NOTIFICATIONS ──────────────────────────
   const handleSendDueSMSBulk = () => {
     if (selectedDueStudentsForSMS.length === 0) {
-      alert('অনুগ্রহ করে অন্তত একজন শিক্ষার্থী নির্বাচন করুন!');
+      showToast('অনুগ্রহ করে অন্তত একজন শিক্ষার্থী নির্বাচন করুন!', 'warning');
       return;
     }
 
@@ -849,7 +851,7 @@ function FinanceContent() {
         try {
           smsService.sendSMS({
             recipient: phone,
-            message: `সম্মানিত অভিভাবক, বরইতলী উচ্চ বিদ্যালয়ে আপনার সন্তান ${student.name} (শ্রেণি: ${student.grade}, রোল: ${student.roll})-এর সর্বমোট বকেয়া ৳${due}। দ্রুত বকেয়া পরিশোধের জন্য অনুরোধ করা হলো।`,
+            message: `সম্মানিত অভিভাবক, ${schoolInfo.nameBn}-এ আপনার সন্তান ${student.name} (শ্রেণি: ${student.grade}, রোল: ${student.roll})-এর সর্বমোট বকেয়া ৳${due}। দ্রুত বকেয়া পরিশোধের জন্য অনুরোধ করা হলো।`,
             type: 'fee_reminder',
             targetAudience: 'individual',
             recipientName: student.name,
@@ -1019,7 +1021,7 @@ function FinanceContent() {
   const handleSaveBankModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankModalForm.bankName.trim()) {
-      alert('অনুগ্রহ করে ব্যাংকের নাম প্রদান করুন');
+      showToast('অনুগ্রহ করে ব্যাংকের নাম প্রদান করুন', 'warning');
       return;
     }
     financeService.addOrUpdateBankAccount({
@@ -1038,7 +1040,7 @@ function FinanceContent() {
   const handleDeleteBank = (id: string, name: string) => {
     const comment = prompt(`"${name}" ব্যাংক হিসাবটি ডিলিট করতে নিরাপত্তা কমেন্ট লিখুন (যেমন: DELETE):`);
     if (!comment || !comment.trim()) {
-      alert('কমেন্ট প্রদান না করায় ব্যাংক হিসাব ডিলিট বাতিল করা হয়েছে।');
+      showToast('কমেন্ট প্রদান না করায় ব্যাংক হিসাব ডিলিট বাতিল করা হয়েছে।', 'info');
       return;
     }
     financeService.deleteBankAccount(id);
@@ -1048,12 +1050,12 @@ function FinanceContent() {
   const handleResetAllBankBalances = () => {
     const comment = prompt('সকল ব্যাংকের স্থিতি ও ডেমো টাকা ৳০ করতে নিরাপত্তা কমেন্ট লিখুন (যেমন: RESET অথবা ০):');
     if (!comment || !comment.trim()) {
-      alert('নিরাপত্তা কমেন্ট প্রদান না করায় ব্যালেন্স রিসেট বাতিল করা হয়েছে।');
+      showToast('নিরাপত্তা কমেন্ট প্রদান না করায় ব্যালেন্স রিসেট বাতিল করা হয়েছে।', 'info');
       return;
     }
     financeService.resetAllBankBalancesToZero();
     loadAllData();
-    alert(`সকল ব্যাংক হিসাবের ব্যালেন্স সফলভাবে ৳০ করা হয়েছে! (কমেন্ট: "${comment.trim()}")`);
+    showToast(`সকল ব্যাংক হিসাবের ব্যালেন্স সফলভাবে ৳০ করা হয়েছে! (কমেন্ট: "${comment.trim()}")`, 'success');
   };
 
   const handleSaveBankTransfer = (e: React.FormEvent) => {
@@ -1168,7 +1170,7 @@ function FinanceContent() {
   const handleSaveManualVoucher = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isVoucherBalanced) {
-      alert('ভাউচারের মোট ডেবিট ও মোট ক্রেডিট সমান হতে হবে!');
+      showToast('ভাউচারের মোট ডেবিট ও মোট ক্রেডিট সমান হতে হবে!', 'warning');
       return;
     }
     const prefix = voucherFormType === 'Receipt' ? 'RV' : voucherFormType === 'Payment' ? 'PV' : voucherFormType === 'Contra' ? 'CV' : 'JV';
@@ -1216,7 +1218,7 @@ function FinanceContent() {
   const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountForm.code || !accountForm.nameBn) {
-      alert('অ্যাকাউন্ট কোড ও শিরোনাম বাধ্যতামূলক!');
+      showToast('অ্যাকাউন্ট কোড ও শিরোনাম বাধ্যতামূলক!', 'warning');
       return;
     }
     financeService.addOrUpdateAccount(accountForm);
@@ -1235,17 +1237,22 @@ function FinanceContent() {
 
   const handleApplySectorRateToAll = (sectorId: string, amount: number, sectorName: string) => {
     if (isNaN(amount) || amount < 0) {
-      alert('সঠিক টাকার পরিমাণ লিখুন!');
+      showToast('সঠিক টাকার পরিমাণ লিখুন!', 'warning');
       return;
     }
     const updated = financeService.applyFeeRateToAllClasses(sectorId, amount);
     setClassFees(updated);
     setAllStudentLedgers(financeService.getAllStudentLedgers());
-    alert(`'${sectorName}' সফলভাবে সকল শ্রেণিতে ৳${amount} টাকা নির্ধারণ করা হয়েছে!`);
+    showToast(`'${sectorName}' সফলভাবে সকল শ্রেণিতে ৳${amount} টাকা নির্ধারণ করা হয়েছে!`, 'success');
   };
 
-  const handleRemoveClassFee = (gradeId: string, sectorId: string, sectorName: string) => {
-    if (confirm(`এই শ্রেণি থেকে '${sectorName}' ফি খাতটি কি সরাতে চান?`)) {
+  const handleRemoveClassFee = async (gradeId: string, sectorId: string, sectorName: string) => {
+    if (await confirmDialog({
+      title: 'ফি খাত সরান',
+      message: `এই শ্রেণি থেকে '${sectorName}' ফি খাতটি কি সরাতে চান?`,
+      confirmLabel: 'সরিয়ে ফেলুন',
+      danger: true,
+    })) {
       const updated = financeService.removeClassFeeFromGrade(gradeId, sectorId);
       setClassFees(updated);
       setAllStudentLedgers(financeService.getAllStudentLedgers());
@@ -1257,13 +1264,13 @@ function FinanceContent() {
     const { gradeId, isCreatingNewSector, selectedSectorId, customAmount, newSectorName, newSectorAccountCode, newSectorFrequency } = classQuickAddModal;
     
     if (customAmount < 0 || isNaN(customAmount)) {
-      alert('সঠিক টাকার পরিমাণ লিখুন!');
+      showToast('সঠিক টাকার পরিমাণ লিখুন!', 'warning');
       return;
     }
 
     if (isCreatingNewSector) {
       if (!newSectorName.trim()) {
-        alert('ফি খাতের নাম লিখুন!');
+        showToast('ফি খাতের নাম লিখুন!', 'warning');
         return;
       }
       const res = financeService.addClassFeeHead({
@@ -1277,17 +1284,17 @@ function FinanceContent() {
       setFeeSectors(res.sectors);
       setClassFees(res.classFees);
       setAllStudentLedgers(financeService.getAllStudentLedgers());
-      alert(`'${newSectorName}' সফলভাবে তৈরি করে ${classQuickAddModal.gradeName}-এ যোগ করা হয়েছে!`);
+      showToast(`'${newSectorName}' সফলভাবে তৈরি করে ${classQuickAddModal.gradeName}-এ যোগ করা হয়েছে!`, 'success');
     } else {
       if (!selectedSectorId) {
-        alert('ফি খাত নির্বাচন করুন!');
+        showToast('ফি খাত নির্বাচন করুন!', 'warning');
         return;
       }
       const updated = financeService.setSingleClassFeeRate(gradeId, selectedSectorId, customAmount);
       setClassFees(updated);
       setAllStudentLedgers(financeService.getAllStudentLedgers());
       const sName = feeSectors.find(s => s.id === selectedSectorId)?.name || selectedSectorId;
-      alert(`'${sName}' (৳${customAmount}) সফলভাবে ${classQuickAddModal.gradeName}-এ যোগ করা হয়েছে!`);
+      showToast(`'${sName}' (৳${customAmount}) সফলভাবে ${classQuickAddModal.gradeName}-এ যোগ করা হয়েছে!`, 'success');
     }
 
     setClassQuickAddModal(prev => ({ ...prev, isOpen: false, newSectorName: '', customAmount: 200 }));
@@ -1296,7 +1303,7 @@ function FinanceContent() {
   const handleAddNewSectorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSectorForm.name.trim()) {
-      alert('ফি খাতের নাম লিখুন!');
+      showToast('ফি খাতের নাম লিখুন!', 'warning');
       return;
     }
 
@@ -1329,7 +1336,7 @@ function FinanceContent() {
     setClassFees(res.classFees);
     setAllStudentLedgers(financeService.getAllStudentLedgers());
 
-    alert(`'${name.trim()}' ফি খাত সফলভাবে তৈরি ও নির্ধারিত শ্রেণিসমূহে কার্যকর করা হয়েছে!`);
+    showToast(`'${name.trim()}' ফি খাত সফলভাবে তৈরি ও নির্ধারিত শ্রেণিসমূহে কার্যকর করা হয়েছে!`, 'success');
     setNewSectorForm({
       name: '',
       nameEn: '',
@@ -1346,25 +1353,35 @@ function FinanceContent() {
     setFeeSetupSubView('matrix');
   };
 
-  const handleDeleteFeeSector = (sectorId: string, sectorName: string) => {
-    if (confirm(`'${sectorName}' ফি খাতটি কি নিশ্চিতভাবে মুছে ফেলতে চান?`)) {
+  const handleDeleteFeeSector = async (sectorId: string, sectorName: string) => {
+    if (await confirmDialog({
+      title: 'ফি খাত মুছে ফেলুন',
+      message: `'${sectorName}' ফি খাতটি কি নিশ্চিতভাবে মুছে ফেলতে চান?`,
+      confirmLabel: 'মুছে ফেলুন',
+      danger: true,
+    })) {
       try {
         const updated = financeService.deleteFeeSector(sectorId);
         setFeeSectors(updated);
         setAllStudentLedgers(financeService.getAllStudentLedgers());
       } catch (err: any) {
-        alert(err.message || 'খাতটি মুছে ফেলা সম্ভব হয়নি');
+        showToast(err.message || 'খাতটি মুছে ফেলা সম্ভব হয়নি', 'error');
       }
     }
   };
 
-  const handleResetClassFeesToDefault = () => {
-    if (confirm('আপনি কি সকল শ্রেণির ফি কাঠামো সিস্টেমের মূল ডিফল্ট মানে রিসেট করতে চান?')) {
+  const handleResetClassFeesToDefault = async () => {
+    if (await confirmDialog({
+      title: 'ফি কাঠামো রিসেট',
+      message: 'আপনি কি সকল শ্রেণির ফি কাঠামো সিস্টেমের মূল ডিফল্ট মানে রিসেট করতে চান?',
+      confirmLabel: 'রিসেট করুন',
+      danger: true,
+    })) {
       const def = financeService.resetClassFeesToDefault();
       setClassFees(def);
       setFeeSectors(financeService.getFeeSectors());
       setAllStudentLedgers(financeService.getAllStudentLedgers());
-      alert('সকল শ্রেণির ফি কাঠামো সফলভাবে ডিফল্ট মানে রিসেট করা হয়েছে!');
+      showToast('সকল শ্রেণির ফি কাঠামো সফলভাবে ডিফল্ট মানে রিসেট করা হয়েছে!', 'success');
     }
   };
 
@@ -1617,7 +1634,7 @@ function FinanceContent() {
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight">শিক্ষার্থী ফি ও বকেয়া ব্যবস্থাপনা</h2>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">বরইতলী উচ্চ বিদ্যালয় • EIIN: 106184 • সেশন ২০২৬</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{schoolInfo.nameBn} • EIIN: {schoolInfo.eiin} • সেশন {schoolInfo.session}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -2369,7 +2386,7 @@ function FinanceContent() {
                             {filteredInvoices.length === 0 ? (
                               <tr>
                                 <td colSpan={9} className="p-8 text-center text-slate-500 text-xs">
-                                  কোনো ইনভয়েস পাওয়া যায়নি। উপরের 'ইনভয়েস জেনারেট করুন' বোতামে ক্লিক করে নতুন ইনভয়েস প্রস্তুত করুন।
+                                  কোনো ইনভয়েস পাওয়া যায়নি। উপরের &apos;ইনভয়েস জেনারেট করুন&apos; বোতামে ক্লিক করে নতুন ইনভয়েস প্রস্তুত করুন।
                                 </td>
                               </tr>
                             ) : (
@@ -2429,7 +2446,7 @@ function FinanceContent() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          alert(`ইনভয়েস #${inv.invoiceNo || inv.invoiceId || inv.id} বিস্তারিত:\nশিক্ষার্থী: ${inv.studentName}\nশ্রেণি: ${inv.grade}\nমাস: ${inv.month}\nমোট প্রদেয়: ৳${inv.totalPayable ?? inv.netPayable ?? 0}\nপরিশোধ: ৳${inv.totalPaid ?? inv.paidAmount ?? 0}\nঅবশিষ্ট বকেয়া: ৳${inv.dueAmount ?? 0}`);
+                                          showToast(`ইনভয়েস #${inv.invoiceNo || inv.invoiceId || inv.id}: ${inv.studentName} (${inv.grade}) • ${inv.month} • প্রদেয়: ৳${inv.totalPayable ?? inv.netPayable ?? 0} • পরিশোধ: ৳${inv.totalPaid ?? inv.paidAmount ?? 0} • বকেয়া: ৳${inv.dueAmount ?? 0}`, { type: 'info', durationMs: 7000 });
                                         }}
                                         className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-[11px] cursor-pointer"
                                       >
@@ -3564,7 +3581,7 @@ function FinanceContent() {
                       গুরুত্বপূর্ণ নির্দেশিকা:
                     </p>
                     <p>
-                      যদি আপনার বিদ্যালয় সেপ্টেম্বর মাস থেকে এই সফটওয়্যারে হিসাব শুরু করে, তবে শুরুর মাস হিসেবে <strong>'সেপ্টেম্বর'</strong> নির্বাচন করুন এবং প্রাক-মাস ব্যবস্থা হিসেবে <strong>'স্বয়ংক্রিয় পরিশোধিত'</strong> রাখুন। এর ফলে জানুয়ারি থেকে আগস্ট পর্যন্ত শিক্ষার্থীদের ওপর কোনো কৃত্রিম বা ভুয়া বকেয়া চাপবে না। শুধুমাত্র সেপ্টেম্বর মাস থেকে যথারীতি নতুন বিলিং ও ইনভয়েস প্রযোজ্য হবে।
+                      যদি আপনার বিদ্যালয় সেপ্টেম্বর মাস থেকে এই সফটওয়্যারে হিসাব শুরু করে, তবে শুরুর মাস হিসেবে <strong>&apos;সেপ্টেম্বর&apos;</strong> নির্বাচন করুন এবং প্রাক-মাস ব্যবস্থা হিসেবে <strong>&apos;স্বয়ংক্রিয় পরিশোধিত&apos;</strong> রাখুন। এর ফলে জানুয়ারি থেকে আগস্ট পর্যন্ত শিক্ষার্থীদের ওপর কোনো কৃত্রিম বা ভুয়া বকেয়া চাপবে না। শুধুমাত্র সেপ্টেম্বর মাস থেকে যথারীতি নতুন বিলিং ও ইনভয়েস প্রযোজ্য হবে।
                     </p>
                   </div>
 
@@ -3773,8 +3790,8 @@ function FinanceContent() {
                 <div className="space-y-4">
                   {/* Print Header for Class-wise Due Report */}
                   <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
-                    <h1 className="text-xl font-black tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h1>
-                    <p className="text-xs text-gray-700 font-medium">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
+                    <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+                    <p className="text-xs text-gray-700 font-medium">{schoolInfo.address ? `${schoolInfo.address} • ` : ''}EIIN: {schoolInfo.eiin}{schoolInfo.established ? ` • স্থাপিত: ${schoolInfo.established}` : ''}</p>
                     <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
                       শ্রেণিভিত্তিক শিক্ষার্থী ফি বকেয়া বিবরণী ও তলব তালিকা
                     </div>
@@ -4071,8 +4088,8 @@ function FinanceContent() {
                 <div className="space-y-4">
                   {/* Print Header for Monthly Analysis */}
                   <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
-                    <h1 className="text-xl font-black tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h1>
-                    <p className="text-xs text-gray-700 font-medium">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
+                    <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+                    <p className="text-xs text-gray-700 font-medium">{schoolInfo.address ? `${schoolInfo.address} • ` : ''}EIIN: {schoolInfo.eiin}{schoolInfo.established ? ` • স্থাপিত: ${schoolInfo.established}` : ''}</p>
                     <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
                       মাসওয়ারি ফি আদায় ও বার্ষিক আর্থিক রাজস্ব বিশ্লেষণ প্রতিবেদন
                     </div>
@@ -4511,8 +4528,13 @@ function FinanceContent() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (confirm(`'${pay.teacherName}'-এর পে-রোল রেকর্ডটি মুছে ফেলতে চান?`)) {
+                                  onClick={async () => {
+                                    if (await confirmDialog({
+                                      title: 'পে-রোল রেকর্ড মুছুন',
+                                      message: `'${pay.teacherName}'-এর পে-রোল রেকর্ডটি মুছে ফেলতে চান?`,
+                                      confirmLabel: 'মুছে ফেলুন',
+                                      danger: true,
+                                    })) {
                                       financeService.deletePayrollRecord(pay.id);
                                       loadAllData();
                                     }
@@ -4765,8 +4787,13 @@ function FinanceContent() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (confirm(`ভাউচার #${exp.voucherNo} (৳${exp.amount}) মুছে ফেলতে চান?`)) {
+                                  onClick={async () => {
+                                    if (await confirmDialog({
+                                      title: 'ব্যয় ভাউচার মুছুন',
+                                      message: `ভাউচার #${exp.voucherNo} (৳${exp.amount}) মুছে ফেলতে চান?`,
+                                      confirmLabel: 'মুছে ফেলুন',
+                                      danger: true,
+                                    })) {
                                       financeService.deleteExpense(exp.id);
                                       loadAllData();
                                     }
@@ -5086,7 +5113,7 @@ function FinanceContent() {
                       <div className="p-10 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
                         <Percent className="w-6 h-6 text-purple-400 mx-auto" />
                         <p className="font-bold text-slate-700 dark:text-slate-300">কোনো বৃত্তি বা ফি মওকুফ রেকর্ড নথিভুক্ত নেই</p>
-                        <p className="text-[11px]">উপরের "+ মওকুফ অনুমোদন" বাটনে ক্লিক করে শিক্ষার্থীর ফি ছাড় যুক্ত করুন।</p>
+                        <p className="text-[11px]">উপরের &quot;+ মওকুফ অনুমোদন&quot; বাটনে ক্লিক করে শিক্ষার্থীর ফি ছাড় যুক্ত করুন।</p>
                       </div>
                     ) : (
                       waivers.map((w, idx) => (
@@ -5108,8 +5135,13 @@ function FinanceContent() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm(`'${w.studentName}'-এর ফি মওকুফ রেকর্ডটি বাতিল করতে চান?`)) {
+                              onClick={async () => {
+                                if (await confirmDialog({
+                                  title: 'ফি মওকুফ বাতিল',
+                                  message: `'${w.studentName}'-এর ফি মওকুফ রেকর্ডটি বাতিল করতে চান?`,
+                                  confirmLabel: 'বাতিল করুন',
+                                  danger: true,
+                                })) {
                                   financeService.deleteWaiver(w.id);
                                   loadAllData();
                                 }
@@ -5170,8 +5202,13 @@ function FinanceContent() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm(`'${r.studentName}'-এর রিফান্ড রেকর্ডটি মুছে ফেলতে চান?`)) {
+                              onClick={async () => {
+                                if (await confirmDialog({
+                                  title: 'রিফান্ড রেকর্ড মুছুন',
+                                  message: `'${r.studentName}'-এর রিফান্ড রেকর্ডটি মুছে ফেলতে চান?`,
+                                  confirmLabel: 'মুছে ফেলুন',
+                                  danger: true,
+                                })) {
                                   if ((financeService as any).deleteRefund) {
                                     (financeService as any).deleteRefund(r.id);
                                   }
@@ -5232,8 +5269,8 @@ function FinanceContent() {
 
             {/* ─── PRINT HEADER COMPONENT (Shows only on print) ─────── */}
             <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4 text-black">
-              <h1 className="text-xl font-black tracking-tight">বরইতলী উচ্চ বিদ্যালয়</h1>
-              <p className="text-xs text-gray-700 font-medium">বরইতলী, চকরিয়া, কক্সবাজার • EIIN: 106184 • স্থাপিত: ১৯৬৯</p>
+              <h1 className="text-xl font-black tracking-tight">{schoolInfo.nameBn}</h1>
+              <p className="text-xs text-gray-700 font-medium">{schoolInfo.address ? `${schoolInfo.address} • ` : ''}EIIN: {schoolInfo.eiin}{schoolInfo.established ? ` • স্থাপিত: ${schoolInfo.established}` : ''}</p>
               <div className="mt-2 inline-block border border-black px-3 py-1 rounded text-xs font-black uppercase">
                 {reportSubTab === 'income_statement' ? 'আর্থিক আয় ও ব্যয় বিবরণী (Statement of Income & Expenditure)' :
                  reportSubTab === 'balance_sheet' ? 'আর্থিক অবস্থার বিবরণী / উদ্বৃত্তপত্র (Balance Sheet)' :
@@ -5261,7 +5298,7 @@ function FinanceContent() {
                       <PieChart className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                       আর্থিক আয় ও ব্যয় বিবরণী (Statement of Income & Expenditure)
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">চলতি অর্থবছর ২০২৬ • বরইতলী উচ্চ বিদ্যালয়</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">চলতি অর্থবছর {schoolInfo.session} • {schoolInfo.nameBn}</p>
                   </div>
                   <button
                     onClick={() => window.print()}
@@ -5960,8 +5997,13 @@ function FinanceContent() {
                               <span className="text-[10px] text-slate-400">কোর সিস্টেম</span>
                             ) : (
                               <button
-                                onClick={() => {
-                                  if (confirm(`'${acc.nameBn}' অ্যাকাউন্টটি মুছে ফেলতে চান?`)) {
+                                onClick={async () => {
+                                  if (await confirmDialog({
+                                    title: 'অ্যাকাউন্ট মুছুন',
+                                    message: `'${acc.nameBn}' অ্যাকাউন্টটি মুছে ফেলতে চান?`,
+                                    confirmLabel: 'মুছে ফেলুন',
+                                    danger: true,
+                                  })) {
                                     financeService.deleteAccount(acc.code);
                                     loadAllData();
                                   }
@@ -6402,7 +6444,7 @@ function FinanceContent() {
                 </label>
                 <input
                   type="text"
-                  placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয় সাধারণ তহবিল"
+                  placeholder="যেমন: বিদ্যালয় সাধারণ তহবিল"
                   value={bankModalForm.accountName}
                   onChange={e => setBankModalForm({ ...bankModalForm, accountName: e.target.value })}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500"
@@ -6471,7 +6513,7 @@ function FinanceContent() {
               <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                 <span>
-                  ডেমো ডাটা মুছে ফেলার পর যদি কোনো ডেমো ব্যালেন্স অবশিষ্ট থাকে, তবে এখানে <strong>০ (শূন্য)</strong> লিখে সেভ করুন অথবা উপরের "ব্যালেন্স রিসেট (৳০)" বাটনে ক্লিক করুন।
+                  ডেমো ডাটা মুছে ফেলার পর যদি কোনো ডেমো ব্যালেন্স অবশিষ্ট থাকে, তবে এখানে <strong>০ (শূন্য)</strong> লিখে সেভ করুন অথবা উপরের &quot;ব্যালেন্স রিসেট (৳০)&quot; বাটনে ক্লিক করুন।
                 </span>
               </div>
 
@@ -7116,7 +7158,7 @@ function FinanceContent() {
                           const sectorId = select?.value || 'tuition';
                           const amt = Number(input?.value);
                           if (isNaN(amt) || amt < 0 || input?.value.trim() === '') {
-                            alert('অনুগ্রহ করে সঠিক টাকার পরিমাণ লিখুন!');
+                            showToast('অনুগ্রহ করে সঠিক টাকার পরিমাণ লিখুন!', 'warning');
                             return;
                           }
                           const updated = financeService.applyFeeRateToAllClasses(sectorId, amt);
@@ -7124,7 +7166,7 @@ function FinanceContent() {
                           const updatedLedgers = financeService.getAllStudentLedgers();
                           setAllStudentLedgers(updatedLedgers);
                           const sectorName = (feeSectors.length > 0 ? feeSectors : DEFAULT_FEE_SECTORS).find(s => s.id === sectorId)?.name || sectorId;
-                          alert(`সকল শ্রেণির জন্য '${sectorName}' সফলভাবে ৳${amt} টাকা নির্ধারণ করা হয়েছে!`);
+                          showToast(`সকল শ্রেণির জন্য '${sectorName}' সফলভাবে ৳${amt} টাকা নির্ধারণ করা হয়েছে!`, 'success');
                           input.value = '';
                         }}
                         className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1"
@@ -7160,7 +7202,7 @@ function FinanceContent() {
                       const updated = financeService.applyFeeRateToAllClasses(secId, val);
                       setClassFees(updated);
                       setAllStudentLedgers(financeService.getAllStudentLedgers());
-                      alert(`'${name}' ৳${val} টাকা সকল শ্রেণিতে (৬ষ্ঠ-১০ম) প্রয়োগ করা হয়েছে!`);
+                      showToast(`'${name}' ৳${val} টাকা সকল শ্রেণিতে (৬ষ্ঠ-১০ম) প্রয়োগ করা হয়েছে!`, 'success');
                     };
 
                     return (
@@ -7356,7 +7398,7 @@ function FinanceContent() {
                       isSameRateForAll: true,
                       classRates: { '6th': 200, '7th': 200, '8th': 200, '9th': 200, '10th': 200 }
                     });
-                    alert(`'${newSector.name}' ফি খাত সফলভাবে যোগ করা হয়েছে!`);
+                    showToast(`'${newSector.name}' ফি খাত সফলভাবে যোগ করা হয়েছে!`, 'success');
                   }}
                   className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border-2 border-indigo-200 dark:border-indigo-800/60 space-y-3 shadow-xs"
                 >
@@ -7466,7 +7508,7 @@ function FinanceContent() {
                                 const updated = financeService.applyFeeRateToAllClasses(s.id, s.defAmount);
                                 setClassFees(updated);
                                 setAllStudentLedgers(financeService.getAllStudentLedgers());
-                                alert(`'${s.name}' এর ডিফল্ট রেট (৳${s.defAmount}) সকল শ্রেণিতে সফলভাবে প্রয়োগ করা হয়েছে!`);
+                                showToast(`'${s.name}' এর ডিফল্ট রেট (৳${s.defAmount}) সকল শ্রেণিতে সফলভাবে প্রয়োগ করা হয়েছে!`, 'success');
                               }}
                               className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold border border-indigo-200 dark:border-indigo-800 cursor-pointer"
                               title="এই রেট সব ক্লাসে প্রয়োগ করুন"
@@ -7481,14 +7523,19 @@ function FinanceContent() {
                             {/* Delete Button for ANY Sector */}
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm(`'${s.name}' ফি খাতটি কি নিশ্চিতভাবে মুছে ফেলতে চান?`)) {
+                              onClick={async () => {
+                                if (await confirmDialog({
+                                  title: 'ফি খাত মুছে ফেলুন',
+                                  message: `'${s.name}' ফি খাতটি কি নিশ্চিতভাবে মুছে ফেলতে চান?`,
+                                  confirmLabel: 'মুছে ফেলুন',
+                                  danger: true,
+                                })) {
                                   try {
                                     const updated = financeService.deleteFeeSector(s.id);
                                     setFeeSectors(updated);
                                     setAllStudentLedgers(financeService.getAllStudentLedgers());
                                   } catch (err: any) {
-                                    alert(err.message);
+                                    showToast(err.message || 'খাতটি মুছে ফেলা সম্ভব হয়নি', 'error');
                                   }
                                 }
                               }}

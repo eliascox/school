@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   StyleSheet,
@@ -9,9 +9,60 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+import {
+  getStoredAuthToken,
+  pingCentralApi,
+} from './services/mobileApiClient';
+import { getOfflineQueue, syncMobileQueue } from './services/offlineSync';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'results' | 'fees'>('home');
+  const [isOnline, setIsOnline] = useState<boolean>(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string>('সার্ভার সংযোগ যাচাই করা হচ্ছে...');
+
+  const refreshSyncState = useCallback(async () => {
+    const [{ online }, queue] = await Promise.all([
+      pingCentralApi(),
+      getOfflineQueue(),
+    ]);
+    setIsOnline(online);
+    setPendingSyncCount(queue.length);
+    if (online && queue.length === 0) {
+      setSyncMessage('রিয়েল-টাইম সার্ভার সংযুক্ত ও আপডেটেড');
+    } else if (online) {
+      setSyncMessage(`${queue.length}টি পেন্ডিং তথ্য সিঙ্কের জন্য প্রস্তুত`);
+    } else {
+      setSyncMessage('অফলাইন মোড সক্রিয় — নেটওয়ার্ক ফিরলে স্বয়ংক্রিয় সিঙ্ক হবে');
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSyncState();
+  }, [refreshSyncState]);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const token = await getStoredAuthToken();
+      const result = await syncMobileQueue(token);
+      setIsOnline(result.online);
+      setPendingSyncCount(result.remaining);
+      if (!result.online) {
+        setSyncMessage('অফলাইন মোড — কেন্দ্রীয় সার্ভার পাওয়া যায়নি');
+        Alert.alert('অফলাইন', 'ইন্টারনেট বা সার্ভার সংযোগ না থাকায় ডাটা লোকাল কিউতে সংরক্ষিত আছে।');
+      } else if (result.synced > 0) {
+        setSyncMessage(`${result.synced}টি তথ্য সফলভাবে সার্ভারে সিঙ্ক হয়েছে`);
+        Alert.alert('সিঙ্ক সম্পন্ন', `${result.synced}টি অফলাইন তথ্য সার্ভারে আপডেট হয়েছে।`);
+      } else {
+        setSyncMessage('রিয়েল-টাইম সার্ভার সংযুক্ত ও আপডেটেড');
+        Alert.alert('সিঙ্ক স্ট্যাটাস', 'সকল তথ্য ইতিমধ্যেই আপডেটেড রয়েছে।');
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const schoolName = 'বরইতলী উচ্চ বিদ্যালয়';
   const student = {
@@ -217,13 +268,24 @@ export default function App() {
         </View>
 
         {/* Offline Sync Status Badge */}
-        <View style={styles.syncStatusCard}>
-          <Text style={styles.syncStatusIcon}>⚡</Text>
+        <TouchableOpacity
+          style={styles.syncStatusCard}
+          onPress={handleManualSync}
+          disabled={isSyncing}
+        >
+          <Text style={styles.syncStatusIcon}>{isOnline ? '⚡' : '📡'}</Text>
           <View style={styles.syncStatusTextWrapper}>
-            <Text style={styles.syncStatusTitle}>রিয়েল-টাইম সিঙ্ক সংযুক্ত</Text>
-            <Text style={styles.syncStatusDesc}>ইন্টারনেট ছাড়াও জরুরি তথ্যসমূহ অফলাইনে দেখতে পারবেন।</Text>
+            <Text style={styles.syncStatusTitle}>
+              {isSyncing
+                ? 'সিঙ্ক হচ্ছে...'
+                : isOnline
+                  ? 'অনলাইন সিঙ্ক সংযুক্ত'
+                  : 'অফলাইন ক্যাশ সক্রিয়'}
+              {pendingSyncCount > 0 ? ` (${pendingSyncCount} পেন্ডিং)` : ''}
+            </Text>
+            <Text style={styles.syncStatusDesc}>{syncMessage}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
@@ -484,12 +546,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noticeCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffdf5',
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
     borderColor: '#fde68a',
-    backgroundColor: '#fffdf5',
   },
   noticeHeader: {
     flexDirection: 'row',

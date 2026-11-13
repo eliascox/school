@@ -27,6 +27,8 @@ import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, ClassTeacherAssignment } from '@/services/teacherRBACService';
 import { auditTrailService } from '@/services/auditTrailService';
 import { attendanceService, StudentAttendanceRecord } from '@/services/attendanceService';
+import { settingsService } from '@/services/settingsService';
+import { showToast } from '@/components/ui/ToastProvider';
 
 type AttendanceTab = 'register' | 'absentee_panel' | 'reports';
 
@@ -51,7 +53,7 @@ export default function AttendancePage() {
   // RBAC Session & Class Teacher Resolution
   useEffect(() => {
     const s = teacherAuthService.getSession();
-    setSession(s || { role: 'admin' });
+    setSession(s);
     if (s?.role === 'teacher') {
       const teacherId = s.teacherId || s.teacherName || '';
       const ctAssignments = teacherRBACService.getTeacherClassTeacherAssignments(teacherId);
@@ -69,10 +71,12 @@ export default function AttendancePage() {
   const classKey = `${selectedGrade}-${selectedBranch}`;
   const isClass9or10 = selectedGrade === '9th' || selectedGrade === '10th';
 
+  const isAdminRole = session?.role === 'admin';
   const isTeacherRole = session?.role === 'teacher';
+  const canTakeAttendance = isAdminRole || isTeacherRole;
   const isCurrentClassTeacher = isTeacherRole
     ? myClassTeacherAssignments.some(ct => ct.classId === classKey || ct.classId === `${selectedGrade}-${selectedBranch}`)
-    : true;
+    : isAdminRole;
 
   useEffect(() => {
     if (isTeacherRole && printScope !== 'single') {
@@ -120,6 +124,7 @@ export default function AttendancePage() {
 
   // Save current class attendance
   const saveAttendance = (updatedList: StudentAttendanceRecord[]) => {
+    if (!canTakeAttendance) return;
     setStudents(updatedList);
     attendanceService.saveAttendance({
       date: selectedDate,
@@ -190,8 +195,8 @@ export default function AttendancePage() {
 
   // Printable students logic helper inside inline preview
   const printableList = useMemo(() => {
-    // 🛡️ Teachers are strictly restricted to their assigned class report only
-    if (isTeacherRole || printScope === 'single') {
+    // 🛡️ Teachers (and non-admins) are strictly restricted to single-class report only
+    if (!isAdminRole || printScope === 'single') {
       if (printReportType === 'absent') {
         return students.filter(s => s.status === 'Absent' || s.status === 'Leave');
       } else if (printReportType === 'present') {
@@ -240,12 +245,12 @@ export default function AttendancePage() {
     }
 
     return students;
-  }, [isTeacherRole, printScope, printReportType, students, centralAbsenteeList]);
+  }, [isAdminRole, printScope, printReportType, students, centralAbsenteeList]);
 
   if (!mounted) return null;
 
   return (
-    <div className="w-full space-y-5 pb-16 font-sans text-slate-900" suppressHydrationWarning>
+    <div className="w-full space-y-5 pb-16 font-sans text-slate-900 dark:text-white" suppressHydrationWarning>
       
       {/* TOP ACTIONS & STATS ROW (Clean & Compact) */}
       <div className="space-y-4 print:hidden">
@@ -261,32 +266,32 @@ export default function AttendancePage() {
 
         {/* Dynamic Mini counters in clean white cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-center">
-            <span className="text-xl font-black text-slate-900 font-mono leading-none block">{totalCount} জন</span>
-            <p className="text-[10px] font-bold text-slate-500 mt-1">শ্রেণির মোট শিক্ষার্থী</p>
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
+            <span className="text-xl font-black text-slate-900 dark:text-white font-mono leading-none block">{totalCount} জন</span>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1">শ্রেণির মোট শিক্ষার্থী</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white border border-emerald-200 shadow-xs text-center">
-            <span className="text-xl font-black text-emerald-700 font-mono leading-none block">{presentCount} জন</span>
-            <p className="text-[10px] font-bold text-emerald-600 mt-1">আজকের উপস্থিত (Present)</p>
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xs text-center">
+            <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 font-mono leading-none block">{presentCount} জন</span>
+            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">আজকের উপস্থিত (Present)</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white border border-rose-200 shadow-xs text-center">
-            <span className="text-xl font-black text-rose-700 font-mono leading-none block">{absentCount + leaveCount} জন</span>
-            <p className="text-[10px] font-bold text-rose-600 mt-1">অনুপস্থিত ও ছুটি</p>
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/60 shadow-xs text-center">
+            <span className="text-xl font-black text-rose-700 dark:text-rose-300 font-mono leading-none block">{absentCount + leaveCount} জন</span>
+            <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mt-1">অনুপস্থিত ও ছুটি</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white border border-indigo-200 shadow-xs text-center">
-            <span className="text-xl font-black text-indigo-700 font-mono leading-none block">{centralAbsenteeList.length} জন</span>
-            <p className="text-[10px] font-bold text-indigo-600 mt-1">সর্বমোট অনুপস্থিত</p>
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 shadow-xs text-center">
+            <span className="text-xl font-black text-indigo-700 dark:text-indigo-300 font-mono leading-none block">{centralAbsenteeList.length} জন</span>
+            <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">সর্বমোট অনুপস্থিত</p>
           </div>
         </div>
       </div>
 
       {/* ─── TAB NAVIGATION ─────────────────────────────────────── */}
-      <div className="bg-slate-200/60 rounded-2xl border border-slate-200 p-1.5 shadow-sm print:hidden flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 shadow-sm print:hidden flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           <button
             onClick={() => setActiveTab('register')}
             className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold ${
-              activeTab === 'register' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'register' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <UserCheck size={15} />
@@ -296,7 +301,7 @@ export default function AttendancePage() {
           <button
             onClick={() => setActiveTab('absentee_panel')}
             className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold ${
-              activeTab === 'absentee_panel' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'absentee_panel' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <UserX size={15} />
@@ -306,7 +311,7 @@ export default function AttendancePage() {
           <button
             onClick={() => setActiveTab('reports')}
             className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold ${
-              activeTab === 'reports' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'reports' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Printer size={15} />
@@ -316,7 +321,7 @@ export default function AttendancePage() {
 
         {/* Date Selector */}
         <div className="flex items-center gap-2 text-xs font-bold print:hidden">
-          <div className="flex items-center gap-1 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl">
             <CalendarIcon size={13} className="text-slate-400" />
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent border-none outline-none font-mono" />
           </div>
@@ -329,12 +334,18 @@ export default function AttendancePage() {
       {activeTab === 'register' && (
         <div className="space-y-4">
 
+          {!canTakeAttendance && (
+            <div className="p-4 rounded-3xl border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 text-xs font-bold print:hidden">
+              ⚠️ অনুগ্রহ করে অ্যাডমিন বা শিক্ষক অ্যাকাউন্ট দিয়ে লগইন করুন — অনুমোদন ছাড়া উপস্থিতি পরিবর্তন সংরক্ষণ করা যাবে না।
+            </div>
+          )}
+
           {/* 🛡️ CLASS TEACHER STATUS BANNER FOR LOGGED-IN TEACHERS */}
           {isTeacherRole && (
             <div className={`p-4 rounded-3xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs print:hidden ${
               isCurrentClassTeacher
-                ? 'bg-gradient-to-r from-teal-50 to-emerald-50 border-teal-200 text-teal-950'
-                : 'bg-amber-50 border-amber-200 text-amber-950'
+                ? 'bg-gradient-to-r from-teal-50 dark:from-teal-950/50 to-emerald-50 dark:to-emerald-950/40 border-teal-200 dark:border-teal-800/60 text-teal-950 dark:text-teal-200'
+                : 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800/60 text-amber-950 dark:text-amber-200'
             }`}>
               <div className="flex items-center gap-2.5">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 ${
@@ -376,11 +387,11 @@ export default function AttendancePage() {
           )}
           
           {/* Selection controls */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold print:hidden">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold print:hidden">
             <div>
-              <label className="block text-slate-500 mb-1">শ্রেণি নির্বাচন (Grade)</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1">শ্রেণি নির্বাচন (Grade)</label>
               <select value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer">
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none cursor-pointer">
                 <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
                 <option value="7th">৭ম শ্রেণি (Class 7)</option>
                 <option value="8th">৮ম শ্রেণি (Class 8)</option>
@@ -390,11 +401,11 @@ export default function AttendancePage() {
             </div>
             
             <div>
-              <label className="block text-slate-500 mb-1">
+              <label className="block text-slate-500 dark:text-slate-400 mb-1">
                 {isClass9or10 ? 'বিভাগ / সেকশন (Department / Group)' : 'শাখা / সেকশন (Section)'}
               </label>
               <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer font-extrabold text-slate-900">
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none cursor-pointer font-extrabold text-slate-900 dark:text-white">
                 {isClass9or10 ? (
                   <>
                     <option value="Science">🧪 বিজ্ঞান বিভাগ (Science Group)</option>
@@ -413,27 +424,27 @@ export default function AttendancePage() {
           </div>
 
           {/* Main mark attendance sheet */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
                   {gradeNameBn} ({branchNameBn}) - হাজিরা শীট
                 </h3>
                 <p className="text-xs text-slate-400">তারিখ: {selectedDate}</p>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" onClick={() => handleMarkAll('Present')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold text-[11px] transition">
+                <button type="button" onClick={() => handleMarkAll('Present')} className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl font-bold text-[11px] transition">
                   ✓ সকলকে উপস্থিত দেখান
                 </button>
-                <button type="button" onClick={() => handleMarkAll('Absent')} className="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl font-bold text-[11px] transition">
+                <button type="button" onClick={() => handleMarkAll('Absent')} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl font-bold text-[11px] transition">
                   ✗ সকলকে অনুপস্থিত দেখান
                 </button>
               </div>
             </div>
 
             {saveSuccessMsg && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 rounded-xl text-xs font-bold">
                 উপস্থিতি রেকর্ড সফলভাবে সংরক্ষণ করা হয়েছে!
               </div>
             )}
@@ -445,35 +456,35 @@ export default function AttendancePage() {
               ) : (
                 filteredStudents.map((st) => (
                   <div key={st.id} className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                    st.status === 'Present' ? 'border-emerald-200 bg-emerald-50/10' :
-                    st.status === 'Absent' ? 'border-rose-200 bg-rose-50/10' : 'border-amber-200 bg-amber-50/10'
+                    st.status === 'Present' ? 'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/10 dark:bg-emerald-950/50' :
+                    st.status === 'Absent' ? 'border-rose-200 dark:border-rose-800/60 bg-rose-50/10 dark:bg-rose-950/50' : 'border-amber-200 dark:border-amber-800/60 bg-amber-50/10 dark:bg-amber-950/50'
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-mono font-black text-xs flex items-center justify-center">
                         {st.roll}
                       </div>
                       <div>
-                        <strong className="font-extrabold text-slate-900 block">{st.name}</strong>
-                        <span className="text-[10px] text-slate-500 font-semibold">পিতা/অভিভাবক: {st.guardian} | {st.mobile}</span>
+                        <strong className="font-extrabold text-slate-900 dark:text-white block">{st.name}</strong>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">পিতা/অভিভাবক: {st.guardian} | {st.mobile}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 self-end sm:self-auto">
                       <button type="button" onClick={() => handleStatusChange(st.id, 'Present')}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
-                          st.status === 'Present' ? 'bg-emerald-600 text-white shadow-sm font-black' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                          st.status === 'Present' ? 'bg-emerald-600 text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         উপস্থিত
                       </button>
                       <button type="button" onClick={() => handleStatusChange(st.id, 'Absent')}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
-                          st.status === 'Absent' ? 'bg-rose-600 text-white shadow-sm font-black' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                          st.status === 'Absent' ? 'bg-rose-600 text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         অনুপস্থিত
                       </button>
                       <button type="button" onClick={() => handleStatusChange(st.id, 'Leave')}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
-                          st.status === 'Leave' ? 'bg-amber-500 text-slate-950 shadow-sm font-black' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                          st.status === 'Leave' ? 'bg-amber-500 text-slate-950 dark:text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         ছুটি
                       </button>
@@ -481,9 +492,9 @@ export default function AttendancePage() {
 
                     {(st.status === 'Absent' || st.status === 'Leave') && (
                       <div className="w-full sm:w-auto flex items-center gap-1 border-t sm:border-t-0 pt-2 sm:pt-0">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase shrink-0">কারণ:</span>
+                        <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase shrink-0">কারণ:</span>
                         <input type="text" value={st.reason || ''} onChange={(e) => handleReasonChange(st.id, e.target.value)}
-                          placeholder="অনুপস্থিতির কারণ..." className="w-full sm:w-36 p-1 bg-white border border-slate-200 rounded text-[10px]" />
+                          placeholder="অনুপস্থিতির কারণ..." className="w-full sm:w-36 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px]" />
                       </div>
                     )}
                   </div>
@@ -498,14 +509,14 @@ export default function AttendancePage() {
       {/* TAB 2: অনুপস্থিত কেন্দ্রীয় প্যানেল                          */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'absentee_panel' && (
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <UserX size={16} className="text-rose-600" />
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <UserX size={16} className="text-rose-600 dark:text-rose-400" />
                 অনুপস্থিত ও ছুটিপ্রাপ্ত শিক্ষার্থীদের কেন্দ্রীয় প্যানেল
               </h3>
-              <p className="text-xs text-slate-500">বিদ্যালয়ের সকল ক্লাসের আজকের ({selectedDate}) অনুপস্থিতির তালিকা।</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">বিদ্যালয়ের সকল ক্লাসের আজকের ({selectedDate}) অনুপস্থিতির তালিকা।</p>
             </div>
             
             <button
@@ -523,7 +534,7 @@ export default function AttendancePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-100 text-slate-900 font-extrabold border-b border-slate-200 uppercase text-[9.5px]">
+                <tr className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-extrabold border-b border-slate-200 dark:border-slate-800 uppercase text-[9.5px]">
                   <th className="p-2.5">শ্রেণি ও শাখা</th>
                   <th className="p-2.5">রোল</th>
                   <th className="p-2.5">শিক্ষার্থীর নাম</th>
@@ -533,7 +544,7 @@ export default function AttendancePage() {
                   <th className="p-2.5 text-center">অ্যাকশন</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {centralAbsenteeList.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold">আজকে কোনো শিক্ষার্থী অনুপস্থিত নেই!</td>
@@ -542,26 +553,26 @@ export default function AttendancePage() {
                   centralAbsenteeList.map((st) => {
                     const gradeName = st.grade === '6th' ? '৬ষ্ঠ শ্রেণি' : st.grade === '7th' ? '৭ম শ্রেণি' : st.grade === '8th' ? '৮ম শ্রেণি' : st.grade === '9th' ? '৯ম শ্রেণি' : '১০ম শ্রেণি';
                     return (
-                      <tr key={st.id} className="hover:bg-slate-50 transition text-[11px]">
-                        <td className="p-2.5 font-bold text-slate-900">{gradeName} ({formatBranchName(st.grade, st.branch)})</td>
-                        <td className="p-2.5 font-mono font-bold text-indigo-700">#{st.roll}</td>
-                        <td className="p-2.5 font-black text-slate-900">{st.name}</td>
+                      <tr key={st.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 transition text-[11px]">
+                        <td className="p-2.5 font-bold text-slate-900 dark:text-white">{gradeName} ({formatBranchName(st.grade, st.branch)})</td>
+                        <td className="p-2.5 font-mono font-bold text-indigo-700 dark:text-indigo-300">#{st.roll}</td>
+                        <td className="p-2.5 font-black text-slate-900 dark:text-white">{st.name}</td>
                         <td className="p-2.5">
                           <span className="font-semibold block">{st.guardian}</span>
                           <span className="font-mono text-[9px] text-slate-400">{st.mobile}</span>
                         </td>
                         <td className="p-2.5 text-center">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            st.status === 'Absent' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+                            st.status === 'Absent' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-100 dark:border-rose-800/60' : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-800/60'
                           }`}>
                             {st.status === 'Absent' ? 'অনুপস্থিত' : 'ছুটি'}
                           </span>
                         </td>
-                        <td className="p-2.5 text-slate-600 italic">{st.reason || 'উল্লেখ নেই'}</td>
+                        <td className="p-2.5 text-slate-600 dark:text-slate-400 italic">{st.reason || 'উল্লেখ নেই'}</td>
                         <td className="p-2.5 text-center">
                           <button
-                            onClick={() => alert(`${st.guardian} (${st.mobile}) নম্বরে অনুপস্থিত নোটিশ পাঠানো হয়েছে!`)}
-                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg transition cursor-pointer"
+                            onClick={() => showToast(`${st.guardian} (${st.mobile}) নম্বরে অনুপস্থিত নোটিশ পাঠানো হয়েছে!`, 'success')}
+                            className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-lg transition cursor-pointer"
                           >
                             SMS পাঠান
                           </button>
@@ -583,26 +594,26 @@ export default function AttendancePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           
           {/* Report configuration card */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-xs font-bold print:hidden">
-            <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b border-slate-100 pb-2">
-              <Filter size={15} className="text-indigo-600" />
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs font-bold print:hidden">
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <Filter size={15} className="text-indigo-600 dark:text-indigo-400" />
               রিপোর্ট প্রিন্ট সেটিংস
             </h3>
 
             {/* Scope selection */}
             <div className="space-y-1.5">
-              <label className="block text-slate-500">রিপোর্ট পরিসর (Scope)</label>
-              {!isTeacherRole ? (
-                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl">
+              <label className="block text-slate-500 dark:text-slate-400">রিপোর্ট পরিসর (Scope)</label>
+              {isAdminRole ? (
+                <div className="grid grid-cols-2 gap-1 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl">
                   <button type="button" onClick={() => setPrintScope('single')}
                     className={`py-1.5 rounded-lg text-center transition cursor-pointer ${
-                      printScope === 'single' ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-600 hover:text-slate-900'
+                      printScope === 'single' ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}>
                     শুধু {gradeNameBn}
                   </button>
                   <button type="button" onClick={() => setPrintScope('all')}
                     className={`py-1.5 rounded-lg text-center transition cursor-pointer ${
-                      printScope === 'all' ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-600 hover:text-slate-900'
+                      printScope === 'all' ? 'bg-slate-900 text-white shadow-sm font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}>
                     সকল শ্রেণির হাজিরা
                   </button>
@@ -626,9 +637,9 @@ export default function AttendancePage() {
 
             {/* Report type selector */}
             <div className="space-y-1.5">
-              <label className="block text-slate-500">তালিকার ধরণ (List Type)</label>
+              <label className="block text-slate-500 dark:text-slate-400">তালিকার ধরণ (List Type)</label>
               <select value={printReportType} onChange={(e) => setPrintReportType(e.target.value as any)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer">
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none cursor-pointer">
                 <option value="absent">অনুপস্থিত ও ছুটিপ্রাপ্ত তালিকা (Absent List)</option>
                 <option value="present">উপস্থিত তালিকা (Present List)</option>
                 <option value="all">সম্পূর্ণ হাজিরা বিবরণী শীট (Complete Sheet)</option>
@@ -648,17 +659,21 @@ export default function AttendancePage() {
           <div className="lg:col-span-2 space-y-4">
             
             {/* White paper card */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-md text-slate-950 font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
+            <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md text-slate-950 dark:text-white font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
               
               {/* Document Header */}
               <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
                 <div className="flex items-center justify-center gap-2">
-                  <Building2 className="w-7 h-7 text-slate-900" />
-                  <h2 className="text-2xl font-black tracking-tight text-slate-950 font-sans">
-                    বরইতলী উচ্চ বিদ্যালয়
+                  <Building2 className="w-7 h-7 text-slate-900 dark:text-white" />
+                  <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white font-sans">
+                    {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
                   </h2>
                 </div>
-                <p className="text-[10px] font-bold text-slate-600 font-sans">চকরিয়া, কক্সবাজার | EIIN: ১০৮২৩৪ | স্থাপিত: ১৯৬৫</p>
+                <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 font-sans">
+                  {mounted
+                    ? `${settingsService.getSettings().address || ''}${settingsService.getSettings().eiin ? ` | EIIN: ${settingsService.getSettings().eiin}` : ''}${settingsService.getSettings().estdYear ? ` | স্থাপিত: ${settingsService.getSettings().estdYear}` : ''}`
+                    : ''}
+                </p>
                 
                 <div className="pt-2">
                   <span className="inline-block px-4 py-1 bg-slate-950 text-white font-black text-[9px] rounded uppercase tracking-wider font-sans">
@@ -668,8 +683,8 @@ export default function AttendancePage() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700 pt-3 px-1 font-sans">
-                  <span>শ্রেণি পরিসর: {(!isTeacherRole && printScope === 'all') ? 'সকল শ্রেণি (৬ষ্ঠ - ১০ম)' : `${gradeNameBn} (${branchNameBn})`}</span>
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700 dark:text-slate-300 pt-3 px-1 font-sans">
+                  <span>শ্রেণি পরিসর: {(isAdminRole && printScope === 'all') ? 'সকল শ্রেণি (৬ষ্ঠ - ১০ম)' : `${gradeNameBn} (${branchNameBn})`}</span>
                   <span>তারিখ: {selectedDate}</span>
                   <span>মোট ডাটা সংখ্যা: {printableList.length} জন</span>
                 </div>
@@ -679,7 +694,7 @@ export default function AttendancePage() {
               <div className="overflow-hidden border border-slate-950 rounded-lg">
                 <table className="w-full text-left text-xs border-collapse font-sans">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-950 font-black border-b border-slate-950 text-[10px] uppercase">
+                    <tr className="bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white font-black border-b border-slate-950 text-[10px] uppercase">
                       <th className="p-2 border-r border-slate-950 w-28">শ্রেণি ও বিভাগ</th>
                       <th className="p-2 text-center border-r border-slate-950 w-12">রোল</th>
                       <th className="p-2 border-r border-slate-950">শিক্ষার্থীর নাম</th>
@@ -689,10 +704,10 @@ export default function AttendancePage() {
                       {printReportType === 'all' && <th className="p-2">মন্তব্য / কারণ</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-950 text-slate-950 font-medium">
+                  <tbody className="divide-y divide-slate-950 text-slate-950 dark:text-white font-medium">
                     {printableList.length === 0 ? (
                       <tr>
-                        <td colSpan={printReportType === 'all' ? 7 : 6} className="p-4 text-center text-slate-500 font-bold italic">
+                        <td colSpan={printReportType === 'all' ? 7 : 6} className="p-4 text-center text-slate-500 dark:text-slate-400 font-bold italic">
                           কোনো শিক্ষার্থীর ডাটা রেকর্ড পাওয়া যায়নি।
                         </td>
                       </tr>
@@ -714,12 +729,12 @@ export default function AttendancePage() {
                             <td className="p-2 border-r border-slate-950">{st.guardian}</td>
                             <td className="p-2 font-mono font-bold border-r border-slate-950 text-[11px]">{st.mobile}</td>
                             <td className="p-2 text-center border-r border-slate-950 font-bold text-[10px]">
-                              <span className={st.status === 'Present' ? 'text-emerald-700' : st.status === 'Absent' ? 'text-rose-700' : 'text-amber-600'}>
+                              <span className={st.status === 'Present' ? 'text-emerald-700 dark:text-emerald-300' : st.status === 'Absent' ? 'text-rose-700 dark:text-rose-300' : 'text-amber-600 dark:text-amber-400'}>
                                 {st.status === 'Present' ? 'উপস্থিত' : st.status === 'Absent' ? 'অনুপস্থিত' : 'ছুটি'}
                               </span>
                             </td>
                             {printReportType === 'all' && (
-                              <td className="p-2 italic text-slate-600 text-[10px]">
+                              <td className="p-2 italic text-slate-600 dark:text-slate-400 text-[10px]">
                                 {st.reason || '-'}
                               </td>
                             )}
@@ -732,7 +747,7 @@ export default function AttendancePage() {
               </div>
 
               {/* Signatures */}
-              <div className="pt-8 flex justify-between items-end text-center text-xs font-bold text-slate-950 font-sans">
+              <div className="pt-8 flex justify-between items-end text-center text-xs font-bold text-slate-950 dark:text-white font-sans">
                 <div className="space-y-1">
                   <div className="w-36 border-b border-slate-950 mx-auto"></div>
                   <p>শ্রেণি শিক্ষক / প্রস্তুতকারক</p>

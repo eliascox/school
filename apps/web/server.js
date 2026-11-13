@@ -315,6 +315,15 @@ function startServers() {
       return;
     }
 
+const ALLOWED_SMS_PROXY_HOSTS = new Set([
+  'bulksmsdhaka.net',
+  'www.bulksmsdhaka.net',
+  'bulksmsbd.net',
+  'www.bulksmsbd.net',
+  'portal.bulksmsbd.com',
+  'api.greenweb.com.bd'
+]);
+
     // ─── SMS API GATEWAY PROXY (SSRF Guarded & Prevents CORS Errors) ─────────────
     if (req.url.startsWith('/api/sms-proxy')) {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -341,8 +350,23 @@ function startServers() {
 
       try {
         const urlObj = new URL(targetUrl);
+        if (!ALLOWED_SMS_PROXY_HOSTS.has(urlObj.hostname.toLowerCase())) {
+          sendResponse(res, 403, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+          }, JSON.stringify({ success: false, error: 'Forbidden SMS gateway hostname' }));
+          return;
+        }
+        // Optional server-managed API key injection
+        if (urlObj.hostname.toLowerCase().endsWith('bulksmsbd.net') && !urlObj.searchParams.get('api_key') && process.env.BULKSMSBD_API_KEY) {
+          urlObj.searchParams.set('api_key', process.env.BULKSMSBD_API_KEY);
+        }
+        if (urlObj.hostname.toLowerCase().endsWith('bulksmsdhaka.net') && !urlObj.searchParams.get('api_key') && process.env.BULKSMSDHAKA_API_KEY) {
+          urlObj.searchParams.set('api_key', process.env.BULKSMSDHAKA_API_KEY);
+        }
+        const safeTargetUrl = urlObj.toString();
         const client = urlObj.protocol === 'http:' ? http : https;
-        const proxyReq = client.get(targetUrl, { timeout: 8000 }, (proxyRes) => {
+        const proxyReq = client.get(safeTargetUrl, { timeout: 8000 }, (proxyRes) => {
           const proxyHeaders = {
             ...SECURITY_HEADERS,
             'Content-Type': proxyRes.headers['content-type'] || 'application/json; charset=utf-8',

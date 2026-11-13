@@ -6,7 +6,7 @@ const {
 const axios = require('axios');
 const crypto = require('crypto');
 
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.API_URL || 'http://localhost:4000';
 
 let isSyncRunning = false;
 let retryBackoffMs = 5000;

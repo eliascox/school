@@ -782,13 +782,13 @@ function PrintPageContent() {
 
               <div className="text-center flex-1 pr-16">
                 <h1 className="text-2xl sm:text-[22pt] font-black text-slate-950 font-serif leading-tight">
-                  {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                  {settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
                 </h1>
                 <p className="text-[11pt] font-bold text-slate-800 mt-1">
-                  {settings?.address || 'বরইতলী , চকরিয়া , কক্সবাজার।'}
+                  {settings?.address || ''}
                 </p>
                 <p className="text-[9.5pt] font-semibold text-slate-700 mt-0.5">
-                  EIIN: {settings?.eiin || '106184'} , স্থাপিত: {settings?.estdYear || '1969'} খ্রি .
+                  EIIN: {settings?.eiin || '---'}{settings?.estdYear ? ` , স্থাপিত: ${settings.estdYear} খ্রি .` : ''}
                 </p>
               </div>
             </div>
@@ -895,7 +895,7 @@ function PrintPageContent() {
               <div className="w-52 border-b-[1.5px] border-slate-900 mx-auto"></div>
               <p className="font-extrabold text-slate-950 text-sm">প্রধান শিক্ষক</p>
               <p className="text-[10pt] text-slate-700 font-bold">
-                {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, {settings?.address?.split(' ')[1] || 'চকরিয়া'}
+                {settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}{settings?.address ? `, ${settings.address}` : ''}
               </p>
             </div>
           </div>
@@ -951,13 +951,13 @@ function PrintPageContent() {
 
                         <div className="text-center flex-1 pr-14">
                           <h1 className="text-xl sm:text-[20pt] font-black text-slate-950 font-serif leading-tight">
-                            {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                            {settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
                           </h1>
                           <p className="text-[10.5pt] font-bold text-slate-800 mt-0.5">
-                            {settings?.address || 'বরইতলী , চকরিয়া , কক্সবাজার।'}
+                            {settings?.address || ''}
                           </p>
                           <p className="text-[9pt] font-semibold text-slate-700">
-                            EIIN: {settings?.eiin || '106184'} , স্থাপিত: {settings?.estdYear || '1969'} খ্রি .
+                            EIIN: {settings?.eiin || '---'}{settings?.estdYear ? ` , স্থাপিত: ${settings.estdYear} খ্রি .` : ''}
                           </p>
                         </div>
                       </div>
@@ -1004,7 +1004,7 @@ function PrintPageContent() {
                     <div className="flex items-center justify-between border-b-[1.5px] border-black pb-2 mb-2.5 text-[9.5pt] font-bold text-slate-900">
                       <div className="flex items-center gap-2">
                         <span className="font-serif font-black text-[11pt] text-slate-950">
-                          {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                          {settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
                         </span>
                         <span className="text-slate-500">|</span>
                         <span>শিক্ষার্থী তালিকা — {bnYear} (পূর্ববর্তী পৃষ্ঠার পর)</span>
@@ -1154,7 +1154,7 @@ function PrintPageContent() {
                         <div className="w-48 border-b border-slate-900 mx-auto"></div>
                         <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
                         <p className="text-[9pt] text-slate-600 font-bold">
-                          {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                          {settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
                         </p>
                       </div>
                     </div>
@@ -1169,7 +1169,7 @@ function PrintPageContent() {
 
                   {totalDetailedPages > 1 && (
                     <div className="pt-2 mt-1 border-t border-slate-300 flex items-center justify-between text-[8.5pt] font-semibold text-slate-600">
-                      <span>{settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'} — অফিশিয়াল শিক্ষার্থী ডিরেক্টরি</span>
+                      <span>{settings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'} — অফিশিয়াল শিক্ষার্থী ডিরেক্টরি</span>
                       <span>
                         পৃষ্ঠা: <strong>{toBn(sheet.pageNumber)}</strong> / <strong>{toBn(totalDetailedPages)}</strong>
                       </span>

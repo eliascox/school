@@ -99,7 +99,10 @@ class TeacherRBACService {
       return { success: false, message: `ফোন নম্বর/ইউজারনেম '${data.phone}' ইতিমধ্যে রেজিস্টার করা আছে!` };
     }
 
-    const rawPassword = data.passwordHash || '123456';
+    const rawPassword = data.passwordHash?.trim();
+    if (!rawPassword || rawPassword.length < 6) {
+      return { success: false, message: 'অনুগ্রহ করে কমপক্ষে ৬ অক্ষরের প্রাথমিক পাসওয়ার্ড প্রদান করুন!' };
+    }
     const secureHash = rawPassword.startsWith('pbkdf2:') ? rawPassword : await hashPassword(rawPassword);
 
     const newTeacher: TeacherRecord = {
@@ -123,7 +126,6 @@ class TeacherRBACService {
       mobile: t.phone,
       phone: t.phone,
       email: `${t.id.toLowerCase()}@school.edu.bd`,
-      password: t.passwordHash,
       passwordHash: t.passwordHash,
       dob: t.dob,
       mustChangePassword: t.mustChangePassword
@@ -152,7 +154,6 @@ class TeacherRBACService {
       mobile: t.phone,
       phone: t.phone,
       email: `${t.id.toLowerCase()}@school.edu.bd`,
-      password: t.passwordHash,
       passwordHash: t.passwordHash,
       dob: t.dob,
       mustChangePassword: t.mustChangePassword
@@ -162,7 +163,7 @@ class TeacherRBACService {
     return { success: true, message: 'পাসওয়ার্ড রিসেট সফল হয়েছে! প্রথম লগইনে পরিবর্তনের ফ্ল্যাগ অ্যাক্টিভ হয়েছে।' };
   }
 
-  updateTeacher(id: string, data: Partial<TeacherRecord> & { password?: string }): { success: boolean; message: string } {
+  async updateTeacher(id: string, data: Partial<TeacherRecord> & { password?: string }): Promise<{ success: boolean; message: string }> {
     if (typeof window === 'undefined') return { success: false, message: 'Browser environment missing' };
     
     const teachers = this.getTeachers();
@@ -176,11 +177,17 @@ class TeacherRBACService {
       }
     }
 
+    let nextPasswordHash = teachers[idx].passwordHash;
+    if (data.password && data.password.trim()) {
+      const cleanPass = data.password.trim();
+      nextPasswordHash = cleanPass.startsWith('pbkdf2:') ? cleanPass : await hashPassword(cleanPass);
+    }
+
     const updatedTeacher: TeacherRecord = {
       ...teachers[idx],
       ...data,
       phone: data.phone ? data.phone.trim() : teachers[idx].phone,
-      passwordHash: data.password && data.password.trim() ? data.password.trim() : teachers[idx].passwordHash
+      passwordHash: nextPasswordHash
     };
 
     teachers[idx] = updatedTeacher;
@@ -195,7 +202,6 @@ class TeacherRBACService {
       mobile: t.phone,
       phone: t.phone,
       email: `${t.id.toLowerCase()}@school.edu.bd`,
-      password: t.passwordHash,
       passwordHash: t.passwordHash,
       dob: t.dob,
       mustChangePassword: t.mustChangePassword
@@ -326,6 +332,7 @@ class TeacherRBACService {
     localStorage.setItem('sms_teachers_list', JSON.stringify([]));
     localStorage.setItem('sms_rbac_subject_assignments', JSON.stringify([]));
     localStorage.setItem('sms_rbac_class_teachers', JSON.stringify([]));
+    localStorage.setItem('sms_teacher_leave_applications', JSON.stringify([]));
     localStorage.setItem('sms_teacher_leaves', JSON.stringify([]));
     
     // Also remove any teacher auth lockout keys & attendance

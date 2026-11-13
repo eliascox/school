@@ -25,6 +25,7 @@ import Link from 'next/link';
 
 import { studentService } from '@/services/studentService';
 import { examService, ExamItem } from '@/services/examService';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 
 export default function ExamPage() {
   const [exams, setExams] = useState<ExamItem[]>([]);
@@ -149,8 +150,8 @@ export default function ExamPage() {
   };
 
   // Delete Exam
-  const handleDeleteExam = (id: string, title: string) => {
-    if (confirm(`আপনি কি নিশ্চিত যে "${title}" পরীক্ষাটি মুছে ফেলতে চান?`)) {
+  const handleDeleteExam = async (id: string, title: string) => {
+    if (await confirmDialog({ title: 'পরীক্ষা মুছে ফেলা', message: `আপনি কি নিশ্চিত যে "${title}" পরীক্ষাটি মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       examService.deleteExam(id);
       showToast(`"${title}" পরীক্ষাটি মুছে ফেলা হয়েছে!`);
     }

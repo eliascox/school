@@ -85,6 +85,7 @@ import { processPadUpload } from '@/lib/padPdfRenderer';
 import { validateAndSanitizeImage } from '@/lib/securityUtils';
 import StudentBulkImportPanel from '@/components/StudentBulkImportPanel';
 import FirebaseCloudSyncPanel from '@/components/dashboard/FirebaseCloudSyncPanel';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 // ─── TAB CONFIG ───────────────────────────────────────────────
 type SettingsTab = 'identity' | 'committee' | 'facilities' | 'pad' | 'bulk-student' | 'security' | 'appearance' | 'academic' | 'sms' | 'data' | 'system';
@@ -100,17 +101,17 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: 'identity', label: 'Identity', labelBn: 'প্রতিষ্ঠান', icon: <School className="w-4 h-4" />, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
-  { id: 'committee', label: 'Managing Committee', labelBn: 'ম্যানেজিং কমিটি', icon: <Users className="w-4 h-4" />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
-  { id: 'facilities', label: 'Campus Facilities', labelBn: 'ক্যাম্পাস সুবিধাসমূহ', icon: <Building2 className="w-4 h-4" />, color: 'text-teal-600', bgColor: 'bg-teal-50', borderColor: 'border-teal-200' },
-  { id: 'pad', label: 'School Pad', labelBn: 'স্কুল প্যাড', icon: <Printer className="w-4 h-4" />, color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-200' },
-  { id: 'bulk-student', label: 'Bulk Student Upload', labelBn: 'বাল্ক শিক্ষার্থী তথ্য', icon: <FileSpreadsheet className="w-4 h-4" />, color: 'text-violet-600', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
-  { id: 'security', label: 'Security', labelBn: 'নিরাপত্তা', icon: <Shield className="w-4 h-4" />, color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
-  { id: 'appearance', label: 'Appearance', labelBn: 'ডিজাইন', icon: <Palette className="w-4 h-4" />, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
-  { id: 'academic', label: 'Academic', labelBn: 'একাডেমিক', icon: <GraduationCap className="w-4 h-4" />, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
-  { id: 'sms', label: 'SMS Gateway', labelBn: 'এসএমএস গেটওয়ে', icon: <MessageSquare className="w-4 h-4" />, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-  { id: 'data', label: 'Data & Backup', labelBn: 'ডাটা ও ব্যাকআপ', icon: <Database className="w-4 h-4" />, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
-  { id: 'system', label: 'System', labelBn: 'সিস্টেম', icon: <Cpu className="w-4 h-4" />, color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-200' },
+  { id: 'identity', label: 'Identity', labelBn: 'প্রতিষ্ঠান', icon: <School className="w-4 h-4" />, color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-50 dark:bg-indigo-950/50', borderColor: 'border-indigo-200' },
+  { id: 'committee', label: 'Managing Committee', labelBn: 'ম্যানেজিং কমিটি', icon: <Users className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-50 dark:bg-emerald-950/50', borderColor: 'border-emerald-200' },
+  { id: 'facilities', label: 'Campus Facilities', labelBn: 'ক্যাম্পাস সুবিধাসমূহ', icon: <Building2 className="w-4 h-4" />, color: 'text-teal-600 dark:text-teal-400', bgColor: 'bg-teal-50 dark:bg-teal-950/50', borderColor: 'border-teal-200' },
+  { id: 'pad', label: 'School Pad', labelBn: 'স্কুল প্যাড', icon: <Printer className="w-4 h-4" />, color: 'text-sky-600 dark:text-sky-400', bgColor: 'bg-sky-50 dark:bg-sky-950/50', borderColor: 'border-sky-200' },
+  { id: 'bulk-student', label: 'Bulk Student Upload', labelBn: 'বাল্ক শিক্ষার্থী তথ্য', icon: <FileSpreadsheet className="w-4 h-4" />, color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-50 dark:bg-violet-950/50', borderColor: 'border-violet-200' },
+  { id: 'security', label: 'Security', labelBn: 'নিরাপত্তা', icon: <Shield className="w-4 h-4" />, color: 'text-rose-600 dark:text-rose-400', bgColor: 'bg-rose-50 dark:bg-rose-950/50', borderColor: 'border-rose-200' },
+  { id: 'appearance', label: 'Appearance', labelBn: 'ডিজাইন', icon: <Palette className="w-4 h-4" />, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-950/50', borderColor: 'border-amber-200' },
+  { id: 'academic', label: 'Academic', labelBn: 'একাডেমিক', icon: <GraduationCap className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-50 dark:bg-emerald-950/50', borderColor: 'border-emerald-200' },
+  { id: 'sms', label: 'SMS Gateway', labelBn: 'এসএমএস গেটওয়ে', icon: <MessageSquare className="w-4 h-4" />, color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-950/50', borderColor: 'border-blue-200' },
+  { id: 'data', label: 'Data & Backup', labelBn: 'ডাটা ও ব্যাকআপ', icon: <Database className="w-4 h-4" />, color: 'text-purple-600 dark:text-purple-400', bgColor: 'bg-purple-50 dark:bg-purple-950/50', borderColor: 'border-purple-200' },
+  { id: 'system', label: 'System', labelBn: 'সিস্টেম', icon: <Cpu className="w-4 h-4" />, color: 'text-sky-600 dark:text-sky-400', bgColor: 'bg-sky-50 dark:bg-sky-950/50', borderColor: 'border-sky-200' },
 ];
 
 // ─── INPUT COMPONENT ──────────────────────────────────────────
@@ -120,7 +121,7 @@ function FormInput({ label, value, onChange, placeholder, required, type = 'text
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
         {icon && <span className="text-slate-400">{icon}</span>}
         {label}
         {required && <span className="text-rose-500 ml-0.5">*</span>}
@@ -131,11 +132,11 @@ function FormInput({ label, value, onChange, placeholder, required, type = 'text
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 
-          focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all
-          placeholder:text-slate-400 placeholder:font-normal ${mono ? 'font-mono tracking-wide' : ''}`}
+        className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white 
+          focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all
+          placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal ${mono ? 'font-mono tracking-wide' : ''}`}
       />
-      {hint && <p className="text-[10.5px] text-slate-500 leading-snug">{hint}</p>}
+      {hint && <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug">{hint}</p>}
     </div>
   );
 }
@@ -147,15 +148,15 @@ function SettingsCard({ title, subtitle, icon, iconBg, iconColor, children, bord
   borderColor?: string; badge?: React.ReactNode;
 }) {
   return (
-    <div className={`bg-white p-5 sm:p-6 rounded-2xl border ${borderColor || 'border-slate-200'} shadow-sm space-y-5 transition-all hover:shadow-md`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+    <div className={`bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border ${borderColor || 'border-slate-200 dark:border-slate-800'} shadow-sm space-y-5 transition-all hover:shadow-md`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl ${iconBg} border border-opacity-20 ${iconColor} flex items-center justify-center shrink-0`}>
             {icon}
           </div>
           <div>
-            <h2 className="text-sm sm:text-base font-black text-slate-900 leading-tight">{title}</h2>
-            <p className="text-[11px] text-slate-500 leading-snug">{subtitle}</p>
+            <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">{title}</h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">{subtitle}</p>
           </div>
         </div>
         {badge}
@@ -184,7 +185,7 @@ export default function SettingsPage() {
 
   // Admin Credentials
   const [adminPhoneInput, setAdminPhoneInput] = useState('admin');
-  const [adminPassInput, setAdminPassInput] = useState('admin123');
+  const [adminPassInput, setAdminPassInput] = useState('');
 
   // ─── TEACHER CREDENTIALS & PASSWORD MANAGEMENT (ADMIN ONLY) ────────
   const [teachersList, setTeachersList] = useState<any[]>([]);
@@ -199,7 +200,7 @@ export default function SettingsPage() {
       setTeachersList(all);
       const passMap: Record<string, string> = {};
       all.forEach((t: any) => {
-        passMap[t.id] = t.password || t.passwordHash || '123456';
+        passMap[t.id] = '';
       });
       setTeacherPasswords(passMap);
     }
@@ -284,21 +285,21 @@ export default function SettingsPage() {
     phone: '',
     email: '',
     photo: '',
-    badgeColor: 'bg-emerald-100 text-[#0B5D3B] border-emerald-300',
+    badgeColor: 'bg-emerald-100 dark:bg-emerald-900/40 text-[#0B5D3B] dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60',
     bio: '',
     facebook: '',
     linkedin: ''
   });
 
   const getRoleBadgeColor = (role: string) => {
-    if (role.includes('সভাপতি') && !role.includes('সহ')) return 'bg-emerald-100 text-[#0B5D3B] border-emerald-300';
-    if (role.includes('সহ-সভাপতি')) return 'bg-sky-100 text-sky-800 border-sky-300';
-    if (role.includes('ক্যাশিয়ার') || role.includes('অর্থ')) return 'bg-amber-100 text-amber-800 border-amber-300';
-    if (role.includes('সেক্রেটারী') || role.includes('সচিব') || role.includes('প্রধান শিক্ষক')) return 'bg-purple-100 text-purple-800 border-purple-300';
-    if (role.includes('অভিভাবক')) return 'bg-teal-100 text-teal-800 border-teal-300';
-    if (role.includes('শিক্ষক')) return 'bg-indigo-100 text-indigo-800 border-indigo-300';
-    if (role.includes('প্রতিষ্ঠাতা') || role.includes('দাতা')) return 'bg-rose-100 text-rose-800 border-rose-300';
-    return 'bg-slate-100 text-slate-800 border-slate-300';
+    if (role.includes('সভাপতি') && !role.includes('সহ')) return 'bg-emerald-100 dark:bg-emerald-900/40 text-[#0B5D3B] dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60';
+    if (role.includes('সহ-সভাপতি')) return 'bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-800/60';
+    if (role.includes('ক্যাশিয়ার') || role.includes('অর্থ')) return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-800/60';
+    if (role.includes('সেক্রেটারী') || role.includes('সচিব') || role.includes('প্রধান শিক্ষক')) return 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-800/60';
+    if (role.includes('অভিভাবক')) return 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-800/60';
+    if (role.includes('শিক্ষক')) return 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border-indigo-300 dark:border-indigo-800/60';
+    if (role.includes('প্রতিষ্ঠাতা') || role.includes('দাতা')) return 'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800/60';
+    return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700';
   };
 
   const currentCommitteeMembers: CommitteeMember[] = (formData.committeeMembers && formData.committeeMembers.length > 0)
@@ -315,7 +316,7 @@ export default function SettingsPage() {
       phone: '',
       email: '',
       photo: '',
-      badgeColor: 'bg-emerald-100 text-[#0B5D3B] border-emerald-300',
+      badgeColor: 'bg-emerald-100 dark:bg-emerald-900/40 text-[#0B5D3B] dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60',
       bio: '',
       facebook: '',
       linkedin: ''
@@ -341,7 +342,7 @@ export default function SettingsPage() {
       if (result.valid && result.sanitizedDataUrl) {
         setCommitteeForm((prev) => ({ ...prev, photo: result.sanitizedDataUrl }));
       } else {
-        alert(result.error || 'ছবির ফাইলটি সঠিক নয়।');
+        showToast(result.error || 'ছবির ফাইলটি সঠিক নয়।', 'error');
       }
     }
   };
@@ -349,11 +350,11 @@ export default function SettingsPage() {
   const handleSaveCommitteeMember = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!committeeForm.name?.trim()) {
-      alert('অনুগ্রহ করে সদস্যের নাম পূরণ করুন!');
+      showToast('অনুগ্রহ করে সদস্যের নাম পূরণ করুন!', 'warning');
       return;
     }
     if (!committeeForm.role?.trim()) {
-      alert('অনুগ্রহ করে সদস্যের পদবি পূরণ করুন!');
+      showToast('অনুগ্রহ করে সদস্যের পদবি পূরণ করুন!', 'warning');
       return;
     }
 
@@ -401,10 +402,15 @@ export default function SettingsPage() {
     setTimeout(() => setCommitteeAlert(null), 4000);
   };
 
-  const handleDeleteMember = (memberId: string) => {
+  const handleDeleteMember = async (memberId: string) => {
     const member = currentCommitteeMembers.find(m => m.id === memberId);
     if (!member) return;
-    if (window.confirm(`আপনি কি নিশ্চিত যে "${member.name}" (${member.role})-কে কমিটি তালিকা থেকে মুছে ফেলতে চান?`)) {
+    if (await confirmDialog({
+      title: 'কমিটি সদস্য মুছে ফেলুন',
+      message: `আপনি কি নিশ্চিত যে "${member.name}" (${member.role})-কে কমিটি তালিকা থেকে মুছে ফেলতে চান?`,
+      confirmLabel: 'মুছে ফেলুন',
+      danger: true,
+    })) {
       const updated = currentCommitteeMembers.filter(m => m.id !== memberId);
       settingsService.updateSettings({ committeeMembers: updated });
       setFormData(prev => ({ ...prev, committeeMembers: updated }));
@@ -427,8 +433,13 @@ export default function SettingsPage() {
     setFormData(prev => ({ ...prev, committeeMembers: members }));
   };
 
-  const handleResetCommittee = () => {
-    if (window.confirm('আপনি কি ডিফল্ট ৪ সদস্যের ম্যানেজিং কমিটি তথ্য পুনরুদ্ধার করতে চান? এতে বর্তমান কাস্টম কমিটির তথ্য মুছে যাবে।')) {
+  const handleResetCommittee = async () => {
+    if (await confirmDialog({
+      title: 'কমিটি তথ্য পুনরুদ্ধার',
+      message: 'আপনি কি ডিফল্ট ৪ সদস্যের ম্যানেজিং কমিটি তথ্য পুনরুদ্ধার করতে চান? এতে বর্তমান কাস্টম কমিটির তথ্য মুছে যাবে।',
+      confirmLabel: 'পুনরুদ্ধার করুন',
+      danger: true,
+    })) {
       settingsService.updateSettings({ committeeMembers: DEFAULT_COMMITTEE_MEMBERS });
       setFormData(prev => ({ ...prev, committeeMembers: DEFAULT_COMMITTEE_MEMBERS }));
       setCommitteeAlert({
@@ -490,11 +501,11 @@ export default function SettingsPage() {
   const handleSaveFacilityItem = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!facilityForm.title?.trim()) {
-      alert('অনুগ্রহ করে সুবিধার বাংলা শিরোনাম লিখুন!');
+      showToast('অনুগ্রহ করে সুবিধার বাংলা শিরোনাম লিখুন!', 'warning');
       return;
     }
     if (!facilityForm.description?.trim()) {
-      alert('অনুগ্রহ করে সুবিধার সংক্ষিপ্ত বিবরণী লিখুন!');
+      showToast('অনুগ্রহ করে সুবিধার সংক্ষিপ্ত বিবরণী লিখুন!', 'warning');
       return;
     }
 
@@ -547,10 +558,15 @@ export default function SettingsPage() {
     setTimeout(() => setFacilityAlert(null), 4000);
   };
 
-  const handleDeleteFacility = (facilityId: string) => {
+  const handleDeleteFacility = async (facilityId: string) => {
     const facility = facilitiesConfig.items.find((f) => f.id === facilityId);
     if (!facility) return;
-    if (window.confirm(`আপনি কি নিশ্চিত যে "${facility.title}" সুবিধাটি মুছে ফেলতে চান?`)) {
+    if (await confirmDialog({
+      title: 'সুবিধা মুছে ফেলুন',
+      message: `আপনি কি নিশ্চিত যে "${facility.title}" সুবিধাটি মুছে ফেলতে চান?`,
+      confirmLabel: 'মুছে ফেলুন',
+      danger: true,
+    })) {
       const updatedItems = facilitiesConfig.items.filter((f) => f.id !== facilityId);
       const newConfig: FacilitiesConfig = {
         ...facilitiesConfig,
@@ -625,8 +641,13 @@ export default function SettingsPage() {
     setTimeout(() => setFacilityAlert(null), 3500);
   };
 
-  const handleResetFacilities = () => {
-    if (window.confirm('আপনি কি ক্যাম্পাস সুবিধাসমূহ ডিফল্ট ৬টি সুবিধার তালিকায় পুনরুদ্ধার করতে চান? এতে বর্তমান কাস্টমাইজেশন মুছে যাবে।')) {
+  const handleResetFacilities = async () => {
+    if (await confirmDialog({
+      title: 'ক্যাম্পাস সুবিধা পুনরুদ্ধার',
+      message: 'আপনি কি ক্যাম্পাস সুবিধাসমূহ ডিফল্ট ৬টি সুবিধার তালিকায় পুনরুদ্ধার করতে চান? এতে বর্তমান কাস্টমাইজেশন মুছে যাবে।',
+      confirmLabel: 'পুনরুদ্ধার করুন',
+      danger: true,
+    })) {
       const defaultCfg = landingPageService.getFacilitiesConfig();
       setFacilitiesConfig(defaultCfg);
       landingPageService.updateFacilities(defaultCfg, 'প্রধান শিক্ষক / অ্যাডমিন', true);
@@ -697,11 +718,8 @@ export default function SettingsPage() {
 
       const storedPass = localStorage.getItem('sms_admin_password');
       if (storedPass) {
-        if (storedPass.startsWith('pbkdf2:')) {
-          setAdminPassInput('');
-        } else {
-          setAdminPassInput(storedPass);
-        }
+        // Never pre-fill existing admin password or hash into input fields
+        setAdminPassInput('');
       }
 
       const stored = localStorage.getItem('sms_uploaded_students');
@@ -750,7 +768,7 @@ export default function SettingsPage() {
             <Settings className="w-7 h-7 text-white animate-spin" style={{ animationDuration: '3s' }} />
           </div>
         </div>
-        <p className="text-sm font-bold text-slate-500 animate-pulse">সেটিংস লোড হচ্ছে...</p>
+        <p className="text-sm font-bold text-slate-500 dark:text-slate-400 animate-pulse">সেটিংস লোড হচ্ছে...</p>
       </div>
     );
   }
@@ -760,7 +778,7 @@ export default function SettingsPage() {
     return (
       <div className="max-w-xl mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm">
         <h2 className="text-xl font-black text-slate-900 dark:text-white">অনুমতি নেই</h2>
-        <p className="text-sm text-slate-500">শুধুমাত্র প্রধান প্রশাসক এই পাতায় প্রবেশ করতে পারবেন।</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">শুধুমাত্র প্রধান প্রশাসক এই পাতায় প্রবেশ করতে পারবেন।</p>
         <Link href="/dashboard/teacher-portal" className="inline-block px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs">
           শিক্ষক ড্যাশবোর্ডে ফিরুন
         </Link>
@@ -842,11 +860,11 @@ export default function SettingsPage() {
           handleChange('uploadedPadFileSize', result.fileSize);
           handleChange('activePadMode', 'uploaded');
         } else if (result.error) {
-          alert(result.error);
+          showToast(result.error, 'error');
         }
       } catch (err: any) {
         console.error('Failed to process pad file', err);
-        alert('প্যাড ফাইল প্রসেস করতে ব্যর্থ হয়েছে: ' + err.message);
+        showToast('প্যাড ফাইল প্রসেস করতে ব্যর্থ হয়েছে: ' + err.message, 'error');
       }
     }
   };
@@ -872,7 +890,7 @@ export default function SettingsPage() {
           console.warn('[LogoUpload] Cloud auto-sync deferred:', err);
         }
       } else {
-        alert(result.error || 'লোগো ফাইলটি সঠিক নয়।');
+        showToast(result.error || 'লোগো ফাইলটি সঠিক নয়।', 'error');
       }
     }
   };
@@ -911,24 +929,29 @@ export default function SettingsPage() {
     setTimeout(() => setSavedSuccess(false), 4000);
   };
 
-  const handleResetDefaults = () => {
-    if (confirm('আপনি কি নিশ্চিত যে সকল সেটিংস ডিফল্ট মানে রিসেট করতে চান?')) {
+  const handleResetDefaults = async () => {
+    if (await confirmDialog({
+      title: 'ডিফল্ট সেটিংস রিসেট',
+      message: 'আপনি কি নিশ্চিত যে সকল সেটিংস ডিফল্ট মানে রিসেট করতে চান?',
+      confirmLabel: 'রিসেট করুন',
+      danger: true,
+    })) {
       const defaults: SchoolSettings = {
         schoolName: '',
         schoolLogo: '',
         address: '',
         eiin: '',
         estdYear: '1969',
-        principalName: 'মোহাম্মদ রফিকুল ইসলাম',
+        principalName: '',
         principalTitle: 'প্রধান শিক্ষক',
         classTeacherTitle: 'শ্রেণি শিক্ষকের স্বাক্ষর',
         guardianTitle: 'অভিভাবকের স্বাক্ষর',
         showWatermark: true,
-        watermarkText: 'বরইতলী উচ্চ বিদ্যালয়',
+        watermarkText: '',
         watermarkOpacity: 0.03,
-        phone: '01819-000000',
-        email: 'boroitoli.high.school@gmail.com',
-        website: 'www.boroitolihs.edu.bd',
+        phone: '',
+        email: '',
+        website: '',
         showClassSelection: true,
         showSectionSelection: true,
         showRollInput: true,
@@ -936,8 +959,9 @@ export default function SettingsPage() {
       settingsService.updateSettings(defaults);
       setFormData(defaults);
       setAdminPhoneInput('admin');
-      setAdminPassInput('admin123');
+      setAdminPassInput('');
       setSavedSuccess(true);
+      showToast('সকল সেটিংস ডিফল্ট মানে রিসেট করা হয়েছে।', 'success');
       setTimeout(() => setSavedSuccess(false), 4000);
     }
   };
@@ -973,7 +997,7 @@ export default function SettingsPage() {
 
       const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
       if (lines.length <= 1) {
-        alert('সিএসভি ফাইলে কোনো শিক্ষার্থীর তথ্য পাওয়া যায়নি!');
+        showToast('সিএসভি ফাইলে কোনো শিক্ষার্থীর তথ্য পাওয়া যায়নি!', 'warning');
         return;
       }
 
@@ -998,7 +1022,7 @@ export default function SettingsPage() {
           const gradeBn = gradeVal === '6th' ? '৬ষ্ঠ শ্রেণি' : gradeVal === '7th' ? '৭ম শ্রেণি' : gradeVal === '8th' ? '৮ম শ্রেণি' : gradeVal === '9th' ? '৯ম শ্রেণি' : '১০ম শ্রেণি';
 
           // Religion extraction & normalization
-          let religionRaw = relColIdx !== -1 ? cols[relColIdx] : (cols[9] || 'ইসলাম');
+          const religionRaw = relColIdx !== -1 ? cols[relColIdx] : (cols[9] || 'ইসলাম');
           let religionVal = 'ইসলাম';
           const relLower = (religionRaw || '').toLowerCase();
           if (relLower.includes('hindu') || relLower.includes('হিন্দু') || relLower.includes('sanatan') || relLower.includes('সনাতন')) {
@@ -1210,7 +1234,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleResetDefaults}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-bold rounded-xl border border-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/5 hover:bg-white/10 dark:hover:bg-slate-800 text-slate-300 text-[11px] font-bold rounded-xl border border-white/10 transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" /> রিসেট
             </button>
@@ -1226,22 +1250,22 @@ export default function SettingsPage() {
 
       {/* ═══════ SUCCESS NOTIFICATION ═══════ */}
       {savedSuccess && (
-        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-xl shadow-sm text-xs font-bold animate-fade-in print:hidden">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+        <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 p-4 rounded-xl shadow-sm text-xs font-bold animate-fade-in print:hidden">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
             <span className="font-black">সফলভাবে সংরক্ষিত!</span>
-            <span className="font-medium text-emerald-700 ml-1">মার্কশিট ও প্রিন্ট পেজে নতুন তথ্যসমূহ হালনাগাদ করা হয়েছে।</span>
+            <span className="font-medium text-emerald-700 dark:text-emerald-300 ml-1">মার্কশিট ও প্রিন্ট পেজে নতুন তথ্যসমূহ হালনাগাদ করা হয়েছে।</span>
           </div>
-          <button onClick={() => setSavedSuccess(false)} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg transition-colors">
+          <button onClick={() => setSavedSuccess(false)} className="ml-auto p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">
             <X className="w-3.5 h-3.5 text-emerald-500" />
           </button>
         </div>
       )}
 
       {/* ═══════ TAB NAVIGATION ═══════ */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-1.5 overflow-x-auto print:hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-1.5 overflow-x-auto print:hidden">
         <div className="flex gap-1 min-w-max">
           {TABS.map((tab) => (
             <button
@@ -1250,7 +1274,7 @@ export default function SettingsPage() {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? `${tab.bgColor} ${tab.color} ${tab.borderColor} border shadow-sm`
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               {tab.icon}
@@ -1305,25 +1329,25 @@ export default function SettingsPage() {
                     
                     {formData.uploadedPadTemplateUrl ? (
                       /* If Pad is already Uploaded: Active Pad Card with Actions */
-                      <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3.5">
+                      <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl space-y-3.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span className="text-xs font-black text-emerald-950">কাস্টম প্যাড লোড হয়েছে</span>
+                            <span className="text-xs font-black text-emerald-950 dark:text-emerald-200">কাস্টম প্যাড লোড হয়েছে</span>
                           </div>
-                          <span className="px-2 py-0.5 bg-white text-emerald-800 text-[10px] font-black rounded-md border border-emerald-300 uppercase">
+                          <span className="px-2 py-0.5 bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-200 text-[10px] font-black rounded-md border border-emerald-300 dark:border-emerald-800/60 uppercase">
                             {formData.uploadedPadType === 'pdf' ? 'PDF ফাইল' : 'ইমেজ ফাইল'}
                           </span>
                         </div>
 
                         {/* Thumbnail / Status View */}
-                        <div className="h-28 bg-white rounded-xl border border-emerald-200 overflow-hidden flex items-center justify-center p-2 shadow-inner relative group">
+                        <div className="h-28 bg-white dark:bg-slate-900 rounded-xl border border-emerald-200 dark:border-emerald-800/60 overflow-hidden flex items-center justify-center p-2 shadow-inner relative group">
                           {formData.uploadedPadTemplateUrl ? (
                             <img src={formData.uploadedPadTemplateUrl} alt="Pad Thumbnail" className="h-full object-contain" />
                           ) : (
-                            <div className="flex flex-col items-center text-slate-600 space-y-1">
-                              <FileText className="w-8 h-8 text-indigo-600" />
-                              <span className="text-[11px] font-bold text-slate-800">কোন প্যাড সংযুক্ত নেই</span>
+                            <div className="flex flex-col items-center text-slate-600 dark:text-slate-400 space-y-1">
+                              <FileText className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                              <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100">কোন প্যাড সংযুক্ত নেই</span>
                             </div>
                           )}
                         </div>
@@ -1343,7 +1367,7 @@ export default function SettingsPage() {
                           <button
                             type="button"
                             onClick={() => handleChange('uploadedPadTemplateUrl', '')}
-                            className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                            className="py-2 px-3 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                             title="প্যাড মুছে ডিফল্ট করুন"
                           >
                             <Trash2 size={14} />
@@ -1354,7 +1378,7 @@ export default function SettingsPage() {
                     ) : (
                       /* If No Pad is Uploaded: Clean Dropzone */
                       <div className="space-y-3">
-                        <label className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/70 p-6 rounded-2xl text-center transition-all cursor-pointer block relative group">
+                        <label className="border-2 border-dashed border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/50 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/50 p-6 rounded-2xl text-center transition-all cursor-pointer block relative group">
                           <input
                             type="file"
                             accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
@@ -1365,10 +1389,10 @@ export default function SettingsPage() {
                             <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
                               <Upload size={22} />
                             </div>
-                            <h4 className="text-sm font-black text-slate-900">
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white">
                               প্যাড ফাইল নির্বাচন করুন
                             </h4>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                               PDF, PNG, JPG বা WebP ফরম্যাট সমর্থিত
                             </p>
                           </div>
@@ -1389,8 +1413,8 @@ export default function SettingsPage() {
                   <div className="space-y-4">
                     
                     {/* Top Margin */}
-                    <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                    <div className="space-y-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
                         <span>উপরে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
@@ -1400,9 +1424,9 @@ export default function SettingsPage() {
                             step="0.1"
                             value={formData.padMargins?.top ?? 0.5}
                             onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), top: parseFloat(e.target.value) || 0.5 })}
-                            className="w-14 px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-black text-indigo-700 text-right text-xs"
+                            className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                           />
-                          <span className="text-slate-600 font-mono text-xs">&quot;</span>
+                          <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
                         </div>
                       </div>
                       <input
@@ -1414,12 +1438,12 @@ export default function SettingsPage() {
                         onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), top: parseFloat(e.target.value) })}
                         className="w-full accent-indigo-600 cursor-pointer"
                       />
-                      <p className="text-[10px] text-slate-500">প্যাডের মনোগ্রাম বা হেডারের নিচে যেখানে লেখা শুরু হবে (ডিফল্ট ০.৫ ইঞ্চি)।</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">প্যাডের মনোগ্রাম বা হেডারের নিচে যেখানে লেখা শুরু হবে (ডিফল্ট ০.৫ ইঞ্চি)।</p>
                     </div>
 
                     {/* Left Margin */}
-                    <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                    <div className="space-y-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
                         <span>বামে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
@@ -1429,9 +1453,9 @@ export default function SettingsPage() {
                             step="0.1"
                             value={formData.padMargins?.left ?? 0.5}
                             onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), left: parseFloat(e.target.value) || 0.5 })}
-                            className="w-14 px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-black text-indigo-700 text-right text-xs"
+                            className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                           />
-                          <span className="text-slate-600 font-mono text-xs">&quot;</span>
+                          <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
                         </div>
                       </div>
                       <input
@@ -1443,12 +1467,12 @@ export default function SettingsPage() {
                         onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), left: parseFloat(e.target.value) })}
                         className="w-full accent-indigo-600 cursor-pointer"
                       />
-                      <p className="text-[10px] text-slate-500">বামে মার্জিন (ডিফল্ট ০.৫ ইঞ্চি)।</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">বামে মার্জিন (ডিফল্ট ০.৫ ইঞ্চি)।</p>
                     </div>
 
                     {/* Right Margin */}
-                    <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                    <div className="space-y-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
                         <span>ডানে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
@@ -1458,9 +1482,9 @@ export default function SettingsPage() {
                             step="0.1"
                             value={formData.padMargins?.right ?? 0.5}
                             onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), right: parseFloat(e.target.value) || 0.5 })}
-                            className="w-14 px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-black text-indigo-700 text-right text-xs"
+                            className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                           />
-                          <span className="text-slate-600 font-mono text-xs">&quot;</span>
+                          <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
                         </div>
                       </div>
                       <input
@@ -1475,8 +1499,8 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Bottom Margin */}
-                    <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                    <div className="space-y-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
                         <span>নিচে মার্জিন</span>
                         <div className="flex items-center gap-1">
                           <input
@@ -1486,9 +1510,9 @@ export default function SettingsPage() {
                             step="0.1"
                             value={formData.padMargins?.bottom ?? 0.5}
                             onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), bottom: parseFloat(e.target.value) || 0.5 })}
-                            className="w-14 px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-black text-indigo-700 text-right text-xs"
+                            className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                           />
-                          <span className="text-slate-600 font-mono text-xs">&quot;</span>
+                          <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
                         </div>
                       </div>
                       <input
@@ -1503,20 +1527,20 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Presets */}
-                    <div className="pt-2 border-t border-slate-200 space-y-1.5">
-                      <span className="text-[11px] font-extrabold text-slate-600 block">কুইক মার্জিন প্রিসেট:</span>
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+                      <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">কুইক মার্জিন প্রিসেট:</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => handleChange('padMargins', { top: 3.0, left: 0.8, right: 0.8, bottom: 1.0 })}
-                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
+                          className="px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                         >
                           ★ প্রাতিষ্ঠানিক প্যাড (Top: ৩.০&quot;, Left/Right: ০.৮&quot;)
                         </button>
                         <button
                           type="button"
                           onClick={() => handleChange('padMargins', { top: 2.0, left: 0.8, right: 0.8, bottom: 1.0 })}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
+                          className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                         >
                           ★ ছোট হেডার প্যাড (Top: ২.০&quot;)
                         </button>
@@ -1527,28 +1551,28 @@ export default function SettingsPage() {
                 </SettingsCard>
 
                 {/* 3. INTEGRATED MODULES LIST */}
-                <div className="p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl space-y-2.5">
-                  <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl space-y-2.5">
+                  <span className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     যেসব নথিতে এই প্যাড স্বয়ংক্রিয়ভাবে ব্যবহৃত হবে:
                   </span>
                   <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                    <Link href="/dashboard/notices" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/notices" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       📄 নোটিশ বোর্ড
                     </Link>
-                    <Link href="/dashboard/certificates" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/certificates" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       📜 ছাড়পত্র / টিসি
                     </Link>
-                    <Link href="/dashboard/certificates" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/certificates" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       🎓 প্রশংসাপত্র ও প্রত্যয়ন
                     </Link>
-                    <Link href="/dashboard/certificates" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/certificates" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       🛡️ চারিত্রিক সনদ
                     </Link>
-                    <Link href="/dashboard/students?tab=summary" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/students?tab=summary" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       📊 শিক্ষার্থী পরিসংখ্যান
                     </Link>
-                    <Link href="/dashboard/exam/rank-result" className="p-2 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+                    <Link href="/dashboard/exam/rank-result" className="p-2 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl transition flex items-center gap-1.5">
                       🏆 মেধা তালিকা ও র্যাঙ্ক
                     </Link>
                   </div>
@@ -1591,14 +1615,14 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black text-xs rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                   >
                     <Printer size={15} /> টেস্ট প্রিন্ট করুন
                   </button>
                 </div>
 
                 {/* Live A4 Interactive Sheet */}
-                <div className="bg-slate-200/80 p-4 sm:p-6 rounded-3xl border border-slate-300 overflow-x-auto flex justify-center shadow-inner print:bg-transparent print:p-0 print:m-0 print:border-none print:shadow-none print:w-full print:block">
+                <div className="bg-slate-200/80 dark:bg-slate-800/80 p-4 sm:p-6 rounded-3xl border border-slate-300 dark:border-slate-700 overflow-x-auto flex justify-center shadow-inner print:bg-transparent print:p-0 print:m-0 print:border-none print:shadow-none print:w-full print:block">
                   <SchoolPadWrapper
                     settings={formData}
                     mode={padPreviewMode}
@@ -1708,7 +1732,7 @@ export default function SettingsPage() {
                       বিদ্যালয় পরিচালনা কমিটির সদস্য ব্যবস্থাপনা
                     </h2>
                     <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
-                      কমিটির সদস্যদের নাম, পদবি, মেয়াদকাল, ছবি ও যোগাযোগের তথ্য হালনাগাদ করুন। এখানে সংরক্ষিত তথ্য মূল ওয়েবসাইটের <strong>"পরিচালনা পর্ষদ"</strong> সেকশনে স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
+                      কমিটির সদস্যদের নাম, পদবি, মেয়াদকাল, ছবি ও যোগাযোগের তথ্য হালনাগাদ করুন। এখানে সংরক্ষিত তথ্য মূল ওয়েবসাইটের <strong>&quot;পরিচালনা পর্ষদ&quot;</strong> সেকশনে স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে।
                     </p>
                   </div>
 
@@ -1716,7 +1740,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={handleOpenAddMember}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black text-xs shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
                     >
                       <Plus className="w-4 h-4" />
                       <span>নতুন সদস্য যোগ করুন</span>
@@ -1726,7 +1750,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={handleResetCommittee}
                       title="ডিফল্ট ৪ সদস্যের কমিটি রিস্টোর করুন"
-                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all"
+                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white font-bold text-xs border border-white/20 transition-all"
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-emerald-300" />
                       <span className="hidden sm:inline">ডিফল্ট রিস্টোর</span>
@@ -1735,7 +1759,7 @@ export default function SettingsPage() {
                     <Link
                       href="/#committee"
                       target="_blank"
-                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all"
+                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white font-bold text-xs border border-white/20 transition-all"
                     >
                       <ExternalLink className="w-3.5 h-3.5 text-amber-300" />
                       <span className="hidden sm:inline">ওয়েবসাইটে দেখুন</span>
@@ -1760,19 +1784,19 @@ export default function SettingsPage() {
               {committeeAlert && (
                 <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-bold border transition-all ${
                   committeeAlert.type === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200'
                 }`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>{committeeAlert.message}</span>
-                  <button onClick={() => setCommitteeAlert(null)} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg">
+                  <button onClick={() => setCommitteeAlert(null)} className="ml-auto p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-lg">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
               {/* Search & Filter Bar */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -1780,7 +1804,7 @@ export default function SettingsPage() {
                     value={committeeSearchQuery}
                     onChange={(e) => setCommitteeSearchQuery(e.target.value)}
                     placeholder="সদস্যের নাম, পদবি বা ফোন নম্বর দিয়ে খুঁজুন..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                   {committeeSearchQuery && (
                     <button
@@ -1791,9 +1815,9 @@ export default function SettingsPage() {
                     </button>
                   )}
                 </div>
-                <div className="text-xs font-bold text-slate-500 flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between sm:justify-end gap-2 shrink-0">
                   <span>প্রদর্শিত সদস্য:</span>
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg font-mono">
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-mono">
                     {currentCommitteeMembers.filter(m => 
                       !committeeSearchQuery || 
                       m.name.toLowerCase().includes(committeeSearchQuery.toLowerCase()) ||
@@ -1816,13 +1840,13 @@ export default function SettingsPage() {
                   .map((member, idx) => (
                     <div
                       key={member.id}
-                      className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between group relative overflow-hidden"
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between group relative overflow-hidden"
                     >
                       <div className="space-y-4">
                         {/* Member Header */}
                         <div className="flex items-start gap-4">
                           <div className="relative shrink-0">
-                            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-600/30 bg-emerald-50 flex items-center justify-center shadow-xs">
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shadow-xs">
                               {member.photo ? (
                                 <img
                                   src={member.photo}
@@ -1833,7 +1857,7 @@ export default function SettingsPage() {
                                   }}
                                 />
                               ) : (
-                                <span className="text-xl font-black text-emerald-800">
+                                <span className="text-xl font-black text-emerald-800 dark:text-emerald-200">
                                   {member.name ? member.name.charAt(0) : 'ক'}
                                 </span>
                               )}
@@ -1849,12 +1873,12 @@ export default function SettingsPage() {
                                 {member.role}
                               </span>
                             </div>
-                            <h3 className="text-base font-black text-slate-900 truncate" title={member.name}>
+                            <h3 className="text-base font-black text-slate-900 dark:text-white truncate" title={member.name}>
                               {member.name}
                             </h3>
                             {member.tenure && (
-                              <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
-                                <CalendarDays className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <CalendarDays className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                 <span>{member.tenure}</span>
                               </p>
                             )}
@@ -1862,10 +1886,10 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Contact details */}
-                        <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs text-slate-600 border border-slate-100">
+                        <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
                           {member.phone ? (
                             <div className="flex items-center gap-2 truncate">
-                              <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <span className="font-mono font-medium">{member.phone}</span>
                             </div>
                           ) : (
@@ -1873,13 +1897,13 @@ export default function SettingsPage() {
                           )}
                           {member.email && (
                             <div className="flex items-center gap-2 truncate">
-                              <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                              <span className="font-mono text-[11px] text-slate-500 truncate">{member.email}</span>
+                              <Mail className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                              <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">{member.email}</span>
                             </div>
                           )}
                           {member.joiningDate && (
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                              <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                               <span>যোগদান: {member.joiningDate}</span>
                             </div>
                           )}
@@ -1887,14 +1911,14 @@ export default function SettingsPage() {
 
                         {/* Bio / Quote snippet */}
                         {member.bio && (
-                          <p className="text-xs text-slate-600 italic line-clamp-2 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
-                            "{member.bio}"
+                          <p className="text-xs text-slate-600 dark:text-slate-400 italic line-clamp-2 bg-emerald-50/50 dark:bg-emerald-950/50 p-2.5 rounded-xl border border-emerald-100/50 dark:border-emerald-800/60">
+                            &quot;{member.bio}&quot;
                           </p>
                         )}
                       </div>
 
                       {/* Card Action Toolbar */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                         {/* Order controls */}
                         <div className="flex items-center gap-1">
                           <button
@@ -1902,7 +1926,7 @@ export default function SettingsPage() {
                             onClick={() => handleMoveMember(idx, 'up')}
                             disabled={idx === 0}
                             title="উপরে স্থানান্তর করুন"
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-all text-slate-600"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all text-slate-600 dark:text-slate-400"
                           >
                             <ArrowUp className="w-3.5 h-3.5" />
                           </button>
@@ -1911,7 +1935,7 @@ export default function SettingsPage() {
                             onClick={() => handleMoveMember(idx, 'down')}
                             disabled={idx === currentCommitteeMembers.length - 1}
                             title="নিচে স্থানান্তর করুন"
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-all text-slate-600"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all text-slate-600 dark:text-slate-400"
                           >
                             <ArrowDown className="w-3.5 h-3.5" />
                           </button>
@@ -1922,16 +1946,16 @@ export default function SettingsPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenEditMember(member)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 text-xs font-bold transition-all border border-slate-200"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-700 dark:hover:text-emerald-300 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all border border-slate-200 dark:border-slate-800"
                           >
-                            <Pencil className="w-3.5 h-3.5 text-emerald-600" />
+                            <Pencil className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>সম্পাদনা</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleDeleteMember(member.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-xs font-bold transition-all border border-slate-200"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-700 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all border border-slate-200 dark:border-slate-800"
                           >
                             <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                             <span>মুছুন</span>
@@ -1944,13 +1968,13 @@ export default function SettingsPage() {
 
               {/* Empty state */}
               {currentCommitteeMembers.length === 0 && (
-                <div className="bg-white p-12 rounded-3xl border border-dashed border-slate-300 text-center space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                     <Users className="w-8 h-8" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">বর্তমানে কোনো সদস্য নেই</h3>
-                    <p className="text-xs text-slate-500">ম্যানেজিং কমিটিতে নতুন সদস্য যোগ করতে নিচের বাটনে চাপ দিন।</p>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">বর্তমানে কোনো সদস্য নেই</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">ম্যানেজিং কমিটিতে নতুন সদস্য যোগ করতে নিচের বাটনে চাপ দিন।</p>
                   </div>
                   <div className="flex justify-center gap-3">
                     <button
@@ -1963,7 +1987,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={handleResetCommittee}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2"
+                      className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all flex items-center gap-2"
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> ডিফল্ট কমিটি লোড করুন
                     </button>
@@ -1998,7 +2022,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={handleOpenAddFacility}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-md shadow-teal-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 dark:text-white font-black text-xs shadow-md shadow-teal-500/20 transition-all hover:scale-[1.02] active:scale-95"
                     >
                       <Plus className="w-4 h-4" />
                       <span>নতুন সুবিধা যোগ করুন</span>
@@ -2008,7 +2032,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={handleResetFacilities}
                       title="ডিফল্ট ৬টি ক্যাম্পাস সুবিধা রিস্টোর করুন"
-                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all"
+                      className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white font-bold text-xs border border-white/20 transition-all"
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-teal-300" />
                       <span className="hidden sm:inline">ডিফল্ট রিস্টোর</span>
@@ -2031,15 +2055,15 @@ export default function SettingsPage() {
                 <div
                   className={`p-4 rounded-2xl flex items-center justify-between text-xs font-bold animate-in fade-in duration-200 border ${
                     facilityAlert.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60'
+                      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/60'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     {facilityAlert.type === 'success' ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                     )}
                     <span>{facilityAlert.message}</span>
                   </div>
@@ -2062,10 +2086,10 @@ export default function SettingsPage() {
                 iconColor="text-teal-600"
               >
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                     <div>
-                      <div className="text-sm font-bold text-slate-800">হোমপেজে সেকশন প্রদর্শন</div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-sm font-bold text-slate-800 dark:text-slate-100">হোমপেজে সেকশন প্রদর্শন</div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         সুইচটি বন্ধ রাখলে মূল পাবলিক ওয়েবসাইটে এই সম্পূর্ণ সেকশনটি লুকায়িত থাকবে।
                       </p>
                     </div>
@@ -2077,7 +2101,7 @@ export default function SettingsPage() {
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-900 shadow ring-0 transition duration-200 ease-in-out ${
                           facilitiesConfig.enabled ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -2086,7 +2110,7 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                         আইব্রো ট্যাগ
                       </label>
                       <input
@@ -2096,12 +2120,12 @@ export default function SettingsPage() {
                           setFacilitiesConfig((prev) => ({ ...prev, eyebrow: e.target.value }))
                         }
                         placeholder="যেমন: ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                         সেকশনের প্রধান শিরোনাম
                       </label>
                       <input
@@ -2111,12 +2135,12 @@ export default function SettingsPage() {
                           setFacilitiesConfig((prev) => ({ ...prev, title: e.target.value }))
                         }
                         placeholder="যেমন: শিক্ষার্থীদের সার্বিক বিকাশে আধুনিক সুযোগ-সুবিধা"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition"
                       />
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                         সেকশনের সাবটাইটেল / বিবরণী
                       </label>
                       <textarea
@@ -2126,7 +2150,7 @@ export default function SettingsPage() {
                           setFacilitiesConfig((prev) => ({ ...prev, subtitle: e.target.value }))
                         }
                         placeholder="সুপরিকল্পিত ও মনোরম ক্যাম্পাস পরিবেশ..."
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition resize-none"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition resize-none"
                       />
                     </div>
                   </div>
@@ -2151,14 +2175,14 @@ export default function SettingsPage() {
               </SettingsCard>
 
               {/* Facilities List & Search Header */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold text-sm">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold text-sm">
                     {facilitiesConfig.items?.length || 0}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">সুবিধাসমূহের তালিকা ও ক্রম</h3>
-                    <p className="text-[11px] text-slate-500">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">সুবিধাসমূহের তালিকা ও ক্রম</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       সক্রিয়: {facilitiesConfig.items?.filter((f) => f.visible !== false).length || 0}টি | নিষ্ক্রিয়: {facilitiesConfig.items?.filter((f) => f.visible === false).length || 0}টি
                     </p>
                   </div>
@@ -2172,7 +2196,7 @@ export default function SettingsPage() {
                       value={facilitySearchQuery}
                       onChange={(e) => setFacilitySearchQuery(e.target.value)}
                       placeholder="সুবিধা খুঁজুন..."
-                      className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:bg-white focus:border-teal-500 transition w-44"
+                      className="pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 transition w-44"
                     />
                   </div>
 
@@ -2202,36 +2226,36 @@ export default function SettingsPage() {
                       key={fac.id || idx}
                       className={`p-5 rounded-2xl border transition-all duration-200 relative flex flex-col justify-between ${
                         fac.visible !== false
-                          ? 'bg-white border-slate-200 shadow-xs hover:border-teal-300 hover:shadow-md'
-                          : 'bg-slate-50/80 border-slate-200 opacity-60'
+                          ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-md'
+                          : 'bg-slate-50/80 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800 opacity-60'
                       }`}
                     >
                       <div>
                         {/* Top bar with Icon, Badge & Action Buttons */}
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold text-lg shrink-0">
-                              {fac.icon === 'Monitor' ? <Monitor className="w-5 h-5 text-indigo-600" /> :
-                               fac.icon === 'FlaskConical' ? <FlaskConical className="w-5 h-5 text-emerald-600" /> :
-                               fac.icon === 'BookOpen' ? <BookOpen className="w-5 h-5 text-amber-600" /> :
-                               fac.icon === 'Trophy' ? <Trophy className="w-5 h-5 text-rose-600" /> :
-                               fac.icon === 'Compass' ? <Compass className="w-5 h-5 text-cyan-600" /> :
-                               fac.icon === 'Droplet' ? <Droplet className="w-5 h-5 text-blue-600" /> :
-                               fac.icon === 'Microscope' ? <Microscope className="w-5 h-5 text-emerald-600" /> :
-                               fac.icon === 'Laptop' ? <Laptop className="w-5 h-5 text-indigo-600" /> :
-                               fac.icon === 'Users' ? <Users className="w-5 h-5 text-cyan-600" /> :
-                               fac.icon === 'Award' ? <Award className="w-5 h-5 text-amber-600" /> :
-                               fac.icon === 'ShieldCheck' ? <Shield className="w-5 h-5 text-emerald-600" /> :
-                               <Building2 className="w-5 h-5 text-teal-600" />}
+                            <div className="w-11 h-11 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800/60 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-lg shrink-0">
+                              {fac.icon === 'Monitor' ? <Monitor className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> :
+                               fac.icon === 'FlaskConical' ? <FlaskConical className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> :
+                               fac.icon === 'BookOpen' ? <BookOpen className="w-5 h-5 text-amber-600 dark:text-amber-400" /> :
+                               fac.icon === 'Trophy' ? <Trophy className="w-5 h-5 text-rose-600 dark:text-rose-400" /> :
+                               fac.icon === 'Compass' ? <Compass className="w-5 h-5 text-cyan-600 dark:text-cyan-400" /> :
+                               fac.icon === 'Droplet' ? <Droplet className="w-5 h-5 text-blue-600 dark:text-blue-400" /> :
+                               fac.icon === 'Microscope' ? <Microscope className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> :
+                               fac.icon === 'Laptop' ? <Laptop className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> :
+                               fac.icon === 'Users' ? <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" /> :
+                               fac.icon === 'Award' ? <Award className="w-5 h-5 text-amber-600 dark:text-amber-400" /> :
+                               fac.icon === 'ShieldCheck' ? <Shield className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> :
+                               <Building2 className="w-5 h-5 text-teal-600 dark:text-teal-400" />}
                             </div>
 
                             <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
                                   {fac.title}
                                 </h4>
                                 {fac.visible === false && (
-                                  <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 text-[10px] font-bold">
+                                  <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
                                     লুকায়িত
                                   </span>
                                 )}
@@ -2251,7 +2275,7 @@ export default function SettingsPage() {
                               onClick={() => handleMoveFacility(idx, 'up')}
                               disabled={idx === 0}
                               title="উপরে নিন"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
                             >
                               <ArrowUp className="w-3.5 h-3.5" />
                             </button>
@@ -2260,7 +2284,7 @@ export default function SettingsPage() {
                               onClick={() => handleMoveFacility(idx, 'down')}
                               disabled={idx === (facilitiesConfig.items?.length || 0) - 1}
                               title="নিচে নিন"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
                             >
                               <ArrowDown className="w-3.5 h-3.5" />
                             </button>
@@ -2268,7 +2292,7 @@ export default function SettingsPage() {
                               type="button"
                               onClick={() => handleToggleFacilityVisibility(fac.id)}
                               title={fac.visible !== false ? 'হাইড করুন' : 'দৃশ্যমান করুন'}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition"
                             >
                               {fac.visible !== false ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                             </button>
@@ -2276,7 +2300,7 @@ export default function SettingsPage() {
                               type="button"
                               onClick={() => handleOpenEditFacility(fac)}
                               title="সম্পাদনা করুন"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -2284,7 +2308,7 @@ export default function SettingsPage() {
                               type="button"
                               onClick={() => handleDeleteFacility(fac.id)}
                               title="মুছে ফেলুন"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -2292,16 +2316,16 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Description */}
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
                           {fac.description}
                         </p>
                       </div>
 
                       {/* Card Bottom Meta */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
                         <span className="text-slate-400 font-mono">ID: {fac.id}</span>
                         {fac.badge && (
-                          <span className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200/60 font-bold">
+                          <span className="px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60 font-bold">
                             {fac.badge}
                           </span>
                         )}
@@ -2328,18 +2352,18 @@ export default function SettingsPage() {
               borderColor="border-rose-200"
             >
               {/* Security Warning */}
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-xs">
-                <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-3 text-xs">
+                <AlertTriangle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-black text-amber-900">নিরাপত্তা সতর্কতা:</span>
-                  <span className="text-amber-800 ml-1">ডিফল্ট পাসওয়ার্ড পরিবর্তন করুন। শক্তিশালী পাসওয়ার্ড (৮+ অক্ষর, সংখ্যা ও চিহ্ন মিশ্রিত) ব্যবহার করুন।</span>
+                  <span className="font-black text-amber-900 dark:text-amber-200">নিরাপত্তা সতর্কতা:</span>
+                  <span className="text-amber-800 dark:text-amber-200 ml-1">ডিফল্ট পাসওয়ার্ড পরিবর্তন করুন। শক্তিশালী পাসওয়ার্ড (৮+ অক্ষর, সংখ্যা ও চিহ্ন মিশ্রিত) ব্যবহার করুন।</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Admin User ID */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-slate-400" />
                     অ্যাডমিন ইউজার আইডি / ফোন
                   </label>
@@ -2348,13 +2372,13 @@ export default function SettingsPage() {
                     value={adminPhoneInput}
                     onChange={(e) => setAdminPhoneInput(e.target.value)}
                     placeholder="যেমন: admin অথবা 01700000000"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                   />
                 </div>
 
                 {/* Admin Password */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-slate-400" />
                     অ্যাডমিন পাসওয়ার্ড
                   </label>
@@ -2363,8 +2387,8 @@ export default function SettingsPage() {
                       type={showPasswordAdmin ? 'text' : 'password'}
                       value={adminPassInput}
                       onChange={(e) => setAdminPassInput(e.target.value)}
-                      placeholder="পাসওয়ার্ড সেট করুন"
-                      className="w-full px-4 py-2.5 pr-11 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                      placeholder="পরিবর্তন করতে নতুন পাসওয়ার্ড লিখুন"
+                      className="w-full px-4 py-2.5 pr-11 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                     />
                     <button
                       type="button"
@@ -2379,19 +2403,19 @@ export default function SettingsPage() {
 
               {/* Password Strength Indicator */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-400">
                   <Shield className="w-3.5 h-3.5" /> পাসওয়ার্ড শক্তি:
                   <span className={`font-black ${
-                    adminPassInput.length >= 12 ? 'text-emerald-600' :
-                    adminPassInput.length >= 8 ? 'text-amber-600' :
-                    'text-rose-600'
+                    adminPassInput.length >= 12 ? 'text-emerald-600 dark:text-emerald-400' :
+                    adminPassInput.length >= 8 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-rose-600 dark:text-rose-400'
                   }`}>
                     {adminPassInput.length >= 12 ? '🟢 খুবই শক্তিশালী' :
                      adminPassInput.length >= 8 ? '🟡 মাঝারি' :
                      '🔴 দুর্বল'}
                   </span>
                 </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       adminPassInput.length >= 12 ? 'bg-emerald-500 w-full' :
@@ -2404,16 +2428,18 @@ export default function SettingsPage() {
               </div>
 
               {/* Current Credentials Summary */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="text-[11px] font-black text-slate-600 uppercase tracking-wider">বর্তমান লগইন তথ্য</div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                <div className="text-[11px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">বর্তমান লগইন তথ্য</div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-2.5 bg-white rounded-lg border border-slate-100">
-                    <span className="text-slate-500 block text-[10px] font-bold">ইউজার আইডি</span>
-                    <span className="font-mono font-black text-slate-900">{adminPhoneInput || 'admin'}</span>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-bold">ইউজার আইডি</span>
+                    <span className="font-mono font-black text-slate-900 dark:text-white">{adminPhoneInput || 'admin'}</span>
                   </div>
-                  <div className="p-2.5 bg-white rounded-lg border border-slate-100">
-                    <span className="text-slate-500 block text-[10px] font-bold">পাসওয়ার্ড</span>
-                    <span className="font-mono font-black text-slate-900">{showPasswordAdmin ? adminPassInput : '••••••••'}</span>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400 block text-[10px] font-bold">পাসওয়ার্ড</span>
+                    <span className="font-mono font-black text-slate-900 dark:text-white">
+                      {adminPassInput ? (showPasswordAdmin ? adminPassInput : '••••••••') : 'সুরক্ষিত (অপরিবর্তিত)'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -2428,11 +2454,11 @@ export default function SettingsPage() {
               borderColor="border-indigo-200"
             >
               {/* Information Banner */}
-              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-start gap-3 text-xs">
-                <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl flex items-start gap-3 text-xs">
+                <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <span className="font-black text-indigo-950 text-sm">শিক্ষক লগইন ও পাসওয়ার্ড নিয়মাবলী:</span>
-                  <p className="text-indigo-900 leading-relaxed font-medium">
+                  <span className="font-black text-indigo-950 dark:text-indigo-200 text-sm">শিক্ষক লগইন ও পাসওয়ার্ড নিয়মাবলী:</span>
+                  <p className="text-indigo-900 dark:text-indigo-200 leading-relaxed font-medium">
                     প্রতিটি শিক্ষকের <strong>ইউজার আইডি হলো তার ১১ ডিজিটের মোবাইল নম্বর</strong>। প্রধান শিক্ষক বা অ্যাডমিন হিসেবে আপনি এখান থেকে যেকোনো শিক্ষকের পাসওয়ার্ড সরাসরি দেখতে ও নতুন পাসওয়ার্ড সেট করতে পারেন। শিক্ষক পাসওয়ার্ড ভুলে গেলে লগইন পেজ থেকে <strong>OTP-এর মাধ্যমে নিজেই রিসেট</strong> করতে পারবেন।
                   </p>
                 </div>
@@ -2440,8 +2466,8 @@ export default function SettingsPage() {
 
               {/* Alert Message */}
               {teacherSavedAlert && (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>{teacherSavedAlert}</span>
                 </div>
               )}
@@ -2449,12 +2475,12 @@ export default function SettingsPage() {
               {/* Search & Stats Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-600">
-                    মোট শিক্ষক: <strong className="font-mono text-indigo-600 text-sm">{teachersList.length}</strong> জন
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                    মোট শিক্ষক: <strong className="font-mono text-indigo-600 dark:text-indigo-400 text-sm">{teachersList.length}</strong> জন
                   </span>
                   <Link
                     href="/dashboard/teacher"
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 ml-2"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 ml-2"
                   >
                     <span>শিক্ষক ব্যবস্থাপনা পেজে যান</span>
                     <ExternalLink size={12} />
@@ -2468,23 +2494,23 @@ export default function SettingsPage() {
                     placeholder="নাম বা ফোন নম্বর খুঁজুন..."
                     value={teacherSearchQuery}
                     onChange={(e) => setTeacherSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white"
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white dark:focus:bg-slate-900"
                   />
                 </div>
               </div>
 
               {/* Teachers Table */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-left border-collapse text-xs font-medium">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-700 font-black border-b border-slate-200">
+                    <tr className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-black border-b border-slate-200 dark:border-slate-800">
                       <th className="p-3">শিক্ষকের নাম ও পদবি</th>
                       <th className="p-3">লগইন ইউজার আইডি (ফোন)</th>
                       <th className="p-3">অ্যাডমিন নির্ধারিত পাসওয়ার্ড</th>
                       <th className="p-3 text-right">একশন</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-bold text-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold text-slate-800 dark:text-slate-100">
                     {teachersList
                       .filter((t: any) =>
                         !teacherSearchQuery ||
@@ -2493,12 +2519,12 @@ export default function SettingsPage() {
                         (t.mobile && t.mobile.includes(teacherSearchQuery))
                       )
                       .map((t: any) => (
-                        <tr key={t.id} className="hover:bg-slate-50/80 transition">
+                        <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
                           <td className="p-3">
-                            <div className="font-black text-slate-900 text-sm">{t.name}</div>
-                            <div className="text-[11px] text-slate-500 font-medium">{t.designation} • {t.subject}</div>
+                            <div className="font-black text-slate-900 dark:text-white text-sm">{t.name}</div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{t.designation} • {t.subject}</div>
                           </td>
-                          <td className="p-3 font-mono font-bold text-indigo-700">
+                          <td className="p-3 font-mono font-bold text-indigo-700 dark:text-indigo-300">
                             <div className="flex items-center gap-1.5 text-sm">
                               <Smartphone size={14} className="text-indigo-500" />
                               <span>{t.phone || t.mobile || '—'}</span>
@@ -2510,12 +2536,12 @@ export default function SettingsPage() {
                               <div className="relative flex-1">
                                 <input
                                   type={showTeacherPasswords[t.id] ? 'text' : 'password'}
-                                  value={teacherPasswords[t.id] ?? (t.password || '123456')}
+                                  value={teacherPasswords[t.id] ?? ''}
                                   onChange={(e) =>
                                     setTeacherPasswords({ ...teacherPasswords, [t.id]: e.target.value })
                                   }
-                                  placeholder="পাসওয়ার্ড লিখুন"
-                                  className="w-full px-3 py-1.5 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-400 focus:bg-white"
+                                  placeholder="নতুন পাসওয়ার্ড লিখুন"
+                                  className="w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-400 focus:bg-white dark:focus:bg-slate-900"
                                 />
                                 <button
                                   type="button"
@@ -2569,17 +2595,17 @@ export default function SettingsPage() {
                     }}
                     className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
                       (formData.theme === 'light' || (!formData.theme && themeService.getTheme() === 'light'))
-                        ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-500/20'
-                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
+                        ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50 shadow-md ring-2 ring-indigo-500/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-amber-500">
+                      <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center text-amber-500">
                         <Sun className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">☀️ লাইট মোড</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">উজ্জ্বল ও পরিষ্কার অফিস কালার থিম</p>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">☀️ লাইট মোড</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">উজ্জ্বল ও পরিষ্কার অফিস কালার থিম</p>
                       </div>
                     </div>
                     {(formData.theme === 'light' || (!formData.theme && themeService.getTheme() === 'light')) && (
@@ -2598,7 +2624,7 @@ export default function SettingsPage() {
                     className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
                       (formData.theme === 'dark' || themeService.getTheme() === 'dark')
                         ? 'border-indigo-600 bg-slate-900 text-white shadow-md ring-2 ring-indigo-500/20'
-                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -2606,10 +2632,10 @@ export default function SettingsPage() {
                         <Moon className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className={`text-sm font-black ${(formData.theme === 'dark' || themeService.getTheme() === 'dark') ? 'text-white' : 'text-slate-900'}`}>
+                        <h4 className={`text-sm font-black ${(formData.theme === 'dark' || themeService.getTheme() === 'dark') ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                           🌙 নাইট মোড
                         </h4>
-                        <p className="text-[11px] text-slate-500 font-medium">চোখের আরামদায়ক আধুনিক ডার্ক মোড</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">চোখের আরামদায়ক আধুনিক ডার্ক মোড</p>
                       </div>
                     </div>
                     {(formData.theme === 'dark' || themeService.getTheme() === 'dark') && (
@@ -2628,14 +2654,14 @@ export default function SettingsPage() {
                 icon={<ImageIcon className="w-5 h-5" />}
                 iconBg="bg-amber-50" iconColor="text-amber-600"
               >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
                   {/* Logo Preview */}
-                  <div className="w-20 h-20 rounded-2xl bg-white border-2 border-slate-200 flex flex-col items-center justify-center text-slate-950 shrink-0 overflow-hidden shadow-inner">
+                  <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-950 dark:text-white shrink-0 overflow-hidden shadow-inner">
                     {formData.schoolLogo ? (
                       <img src={formData.schoolLogo} alt="School Logo" className="w-full h-full object-contain p-1.5" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50/60 text-indigo-700 p-2 text-center">
-                        <GraduationCap className="w-7 h-7 text-indigo-600 mb-0.5" />
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 p-2 text-center">
+                        <GraduationCap className="w-7 h-7 text-indigo-600 dark:text-indigo-400 mb-0.5" />
                         <span className="text-[8.5px] font-extrabold tracking-tight">লোগো দিন</span>
                       </div>
                     )}
@@ -2646,9 +2672,9 @@ export default function SettingsPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
-                      className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+                      className="text-xs text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
                     />
-                    <p className="text-[11px] text-slate-500 leading-snug">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                       PNG/JPG/SVG ফরম্যাট, সর্বোচ্চ 2MB সাইজ। আপলোড করলে এটি স্বয়ংক্রিয়ভাবে লোকাল স্টোরেজ, ইনডেক্সডডিবি এবং ল্যান্ডিং পেইজে সিঙ্ক ও স্থায়ী থাকবে।
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -2662,14 +2688,14 @@ export default function SettingsPage() {
                               a.download = 'logo.png';
                               a.click();
                             }}
-                            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+                            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
                           >
                             <Download className="w-3.5 h-3.5" /> লোগো ডাউনলোড করুন (logo.png)
                           </button>
                           <button
                             type="button"
                             onClick={() => handleChange('schoolLogo', '')}
-                            className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition-colors"
+                            className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> লোগো মুছে ফেলুন
                           </button>
@@ -2688,10 +2714,10 @@ export default function SettingsPage() {
                 iconBg="bg-amber-50" iconColor="text-amber-600"
               >
                 {/* Watermark Toggle */}
-                <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">ব্যাকগ্রাউন্ড জলছাপ</span>
-                    <span className="text-[11px] text-slate-500">প্রিন্ট নম্বরপত্রে হালকা ওয়াটারমার্ক দেখাবে</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">ব্যাকগ্রাউন্ড জলছাপ</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">প্রিন্ট নম্বরপত্রে হালকা ওয়াটারমার্ক দেখাবে</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -2706,10 +2732,10 @@ export default function SettingsPage() {
 
                 {/* Watermark Opacity Slider */}
                 {formData.showWatermark && (
-                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
                     <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-700">জলছাপের দৃশ্যমানতা / ঘনত্ব:</span>
-                      <span className="text-indigo-600 font-mono font-black text-sm">{Math.round(formData.watermarkOpacity * 100)}%</span>
+                      <span className="text-slate-700 dark:text-slate-300">জলছাপের দৃশ্যমানতা / ঘনত্ব:</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-mono font-black text-sm">{Math.round(formData.watermarkOpacity * 100)}%</span>
                     </div>
                     <input
                       type="range"
@@ -2718,9 +2744,9 @@ export default function SettingsPage() {
                       step="0.01"
                       value={formData.watermarkOpacity}
                       onChange={(e) => handleChange('watermarkOpacity', parseFloat(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-500">
+                    <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                       <span>১% (একদম হালকা)</span>
                       <span className="text-indigo-500 font-bold">ডিফল্ট ৩%</span>
                       <span>১৫% (গাঢ়)</span>
@@ -2730,7 +2756,7 @@ export default function SettingsPage() {
 
                 {/* Print Layout Options */}
                 <div className="space-y-3">
-                  <div className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <LayoutGrid className="w-3.5 h-3.5 text-slate-400" /> প্রিন্ট লেআউট অপশন
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2739,14 +2765,14 @@ export default function SettingsPage() {
                       { label: 'শাখা সিলেক্টর দেখাবে', field: 'showSectionSelection' as keyof SchoolSettings },
                       { label: 'রোল ইনপুট দেখাবে', field: 'showRollInput' as keyof SchoolSettings },
                     ].map(opt => (
-                      <label key={opt.field} className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                      <label key={opt.field} className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <input
                           type="checkbox"
                           checked={formData[opt.field] as boolean}
                           onChange={(e) => handleChange(opt.field, e.target.checked)}
-                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                          className="w-4 h-4 text-indigo-600 dark:text-indigo-400 border-slate-300 dark:border-slate-700 rounded focus:ring-indigo-500"
                         />
-                        <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{opt.label}</span>
                       </label>
                     ))}
                   </div>
@@ -2767,25 +2793,25 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormInput label="বর্তমান সেশন / শিক্ষা বর্ষ" value={currentSession} onChange={setCurrentSession} placeholder="যেমন: ২০২৬" mono icon={<CalendarDays className="w-3.5 h-3.5" />} />
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                       <BookOpen className="w-3.5 h-3.5 text-slate-400" /> শ্রেণি পরিসর
                     </label>
-                    <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700">
+                    <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300">
                       ৬ষ্ঠ — ১০ম শ্রেণি (Class 6th – 10th)
                     </div>
-                    <p className="text-[10.5px] text-slate-500">মাধ্যমিক স্তরের সকল শ্রেণি সাপোর্টেড</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400">মাধ্যমিক স্তরের সকল শ্রেণি সাপোর্টেড</p>
                   </div>
                 </div>
 
                 {/* Exam Names Configuration */}
                 <div className="space-y-3 pt-2">
-                  <div className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-slate-400" /> পরীক্ষার নামসমূহ
                   </div>
                   <div className="space-y-2">
                     {(Array.isArray(examNames) ? examNames : []).map((name, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                        <span className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-black flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
                         <input
@@ -2796,13 +2822,13 @@ export default function SettingsPage() {
                             updated[idx] = e.target.value;
                             setExamNames(updated);
                           }}
-                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                          className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                         />
                         {examNames.length > 1 && (
                           <button
                             type="button"
                             onClick={() => setExamNames(examNames.filter((_, i) => i !== idx))}
-                            className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -2812,7 +2838,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setExamNames([...examNames, ''])}
-                      className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 mt-1 transition-colors"
+                      className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 mt-1 transition-colors"
                     >
                       <Zap className="w-3.5 h-3.5" /> নতুন পরীক্ষা যোগ করুন
                     </button>
@@ -2820,8 +2846,8 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Grading System Info */}
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
-                  <div className="text-[11px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-2">
+                  <div className="text-[11px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
                     <Award className="w-3.5 h-3.5" /> গ্রেডিং সিস্টেম (NCTB)
                   </div>
                   <div className="grid grid-cols-5 gap-1.5 text-[10px] font-bold">
@@ -2832,10 +2858,10 @@ export default function SettingsPage() {
                       { grade: 'B', range: '৫০-৫৯', gpa: '৩.০০', color: 'bg-amber-600' },
                       { grade: 'F', range: '০-৩২', gpa: '০.০০', color: 'bg-rose-600' },
                     ].map(g => (
-                      <div key={g.grade} className="text-center p-2 bg-white rounded-lg border border-emerald-100">
+                      <div key={g.grade} className="text-center p-2 bg-white dark:bg-slate-900 rounded-lg border border-emerald-100 dark:border-emerald-800/60">
                         <div className={`inline-block px-2 py-0.5 ${g.color} text-white rounded-md text-[9px] font-black mb-1`}>{g.grade}</div>
-                        <div className="text-slate-600">{g.range}</div>
-                        <div className="text-emerald-700 font-mono">{g.gpa}</div>
+                        <div className="text-slate-600 dark:text-slate-400">{g.range}</div>
+                        <div className="text-emerald-700 dark:text-emerald-300 font-mono">{g.gpa}</div>
                       </div>
                     ))}
                   </div>
@@ -2851,8 +2877,8 @@ export default function SettingsPage() {
                 badge={
                   <span className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 ${
                     formData.onlineAdmissionEnabled !== false
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : 'bg-rose-100 text-rose-800 border border-rose-300'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60'
+                      : 'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800/60'
                   }`}>
                     <span className={`w-2 h-2 rounded-full ${formData.onlineAdmissionEnabled !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                     {formData.onlineAdmissionEnabled !== false 
@@ -2861,13 +2887,13 @@ export default function SettingsPage() {
                   </span>
                 }
               >
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <span className="text-xs font-black text-slate-800 block">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">
                         {currentLang === 'en' ? 'Public Online Admission Form Status' : 'অনলাইন ভর্তি ফরম স্ট্যাটাস'}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl leading-relaxed">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl leading-relaxed">
                         {formData.onlineAdmissionEnabled !== false
                           ? (currentLang === 'en'
                               ? 'Online admission is OPEN. Applicants can submit admission forms directly at /admission.'
@@ -2891,7 +2917,7 @@ export default function SettingsPage() {
                         }`}
                       >
                         <span
-                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-md ${
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-900 transition-transform shadow-md ${
                             formData.onlineAdmissionEnabled !== false ? 'translate-x-8' : 'translate-x-1'
                           }`}
                         />
@@ -2899,14 +2925,14 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-bold">
+                  <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <span className="text-slate-500 dark:text-slate-400 font-bold">
                       {currentLang === 'en' ? 'Public Form URL:' : 'পাবলিক ফরম লিংক:'}{' '}
-                      <Link href="/admission" target="_blank" className="text-indigo-600 font-mono font-bold hover:underline">
+                      <Link href="/admission" target="_blank" className="text-indigo-600 dark:text-indigo-400 font-mono font-bold hover:underline">
                         /admission ↗
                       </Link>
                     </span>
-                    <span className="text-[11px] text-slate-500 font-medium">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                       {formData.onlineAdmissionEnabled !== false ? '✅ নতুন আবেদন গ্রহণ চলছে' : '⛔ আবেদন গ্রহণ বন্ধ'}
                     </span>
                   </div>
@@ -2927,13 +2953,13 @@ export default function SettingsPage() {
                 }`}>
                   <div className="flex items-center gap-2">
                     {smsSaveAlert.type === 'success' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                      <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
                     )}
                     <span>{smsSaveAlert.message}</span>
                   </div>
-                  <button onClick={() => setSmsSaveAlert(null)} className="text-slate-400 hover:text-slate-700 font-black cursor-pointer ml-4">✕</button>
+                  <button onClick={() => setSmsSaveAlert(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-black cursor-pointer ml-4">✕</button>
                 </div>
               )}
 
@@ -2945,7 +2971,7 @@ export default function SettingsPage() {
                 iconBg="bg-blue-50"
                 iconColor="text-blue-600"
                 badge={
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-black">
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-black">
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>
                       {smsConfig.provider === 'bulksmsdhaka'
@@ -2963,7 +2989,7 @@ export default function SettingsPage() {
               >
                 {/* Gateway Provider Selector */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     গেটওয়ে প্রোভাইডার নির্বাচন করুন
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -3002,23 +3028,23 @@ export default function SettingsPage() {
                               updated.senderId = smsConfig.savedGateways.bulksmsdhaka.senderId || '1234';
                             } else if (p.id === 'bulksmsbd' && smsConfig.savedGateways?.bulksmsbd) {
                               updated.apiKey = smsConfig.savedGateways.bulksmsbd.apiKey;
-                              updated.senderId = smsConfig.savedGateways.bulksmsbd.senderId || '8809617613435';
+                              updated.senderId = smsConfig.savedGateways.bulksmsbd.senderId || '';
                             }
                             setSmsConfig(updated);
                           }}
                           className={`p-3.5 rounded-2xl border text-left transition-all relative ${
                             isSelected
-                              ? 'border-blue-500 bg-blue-50/50 shadow-xs ring-2 ring-blue-100'
-                              : 'border-slate-200 bg-white hover:bg-slate-50'
+                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/50 shadow-xs ring-2 ring-blue-100'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-black text-slate-900">{p.name}</span>
-                            {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                            <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
                           </div>
-                          <p className="text-[11px] font-mono text-slate-500 mt-0.5">{p.domain}</p>
+                          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">{p.domain}</p>
                           <span className={`inline-block mt-2 px-2 py-0.5 rounded-md text-[9px] font-bold ${
-                            p.recommended ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                            p.recommended ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}>
                             {p.tag}
                           </span>
@@ -3029,18 +3055,18 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Form Fields for Active Gateway */}
-                <div className="pt-2 border-t border-slate-100 space-y-4">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* API Key Field */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           এপিআই কি <span className="text-rose-500">*</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => setShowSmsApiKey(!showSmsApiKey)}
-                          className="text-[10px] text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold flex items-center gap-1"
                         >
                           {showSmsApiKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                           {showSmsApiKey ? 'লুকান' : 'দেখুন'}
@@ -3064,9 +3090,9 @@ export default function SettingsPage() {
                           }));
                         }}
                         placeholder="আপনার bulksmsdhaka.net একাউন্টের API Key দিন"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                       />
-                      <p className="text-[10.5px] text-slate-500">
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
                         {smsConfig.provider === 'bulksmsdhaka'
                           ? 'bulksmsdhaka.net ড্যাশবোর্ডের API Settings থেকে প্রাপ্ত API Key'
                           : 'এসএমএস গেটওয়ে থেকে প্রাপ্ত Secret / API Key'}
@@ -3075,7 +3101,7 @@ export default function SettingsPage() {
 
                     {/* Caller ID / Sender ID */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         কলার আইডি / সেন্ডার আইডি <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -3096,16 +3122,16 @@ export default function SettingsPage() {
                           }));
                         }}
                         placeholder="যেমন: 1234 (নন-মাস্কিং) অথবা BoraitoliHS (মাস্কিং)"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                       />
-                      <p className="text-[10.5px] text-slate-500">
-                        নন-মাস্কিং এর ক্ষেত্রে <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">1234</code> এবং মাস্কিং এর ক্ষেত্রে অনুমোদিত ব্র্যান্ড নাম দিন।
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                        নন-মাস্কিং এর ক্ষেত্রে <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-blue-600 dark:text-blue-400 font-bold">1234</code> এবং মাস্কিং এর ক্ষেত্রে অনুমোদিত ব্র্যান্ড নাম দিন।
                       </p>
                     </div>
 
                     {/* Brand Name for OTP */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         ওটিপি ব্র্যান্ডের নাম
                       </label>
                       <input
@@ -3113,16 +3139,16 @@ export default function SettingsPage() {
                         value={smsConfig.brandName || ''}
                         onChange={(e) => setSmsConfig((prev) => ({ ...prev, brandName: e.target.value }))}
                         placeholder="যেমন: Boraitoli High School"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                       />
-                      <p className="text-[10.5px] text-slate-500">
-                        ওটিপি বার্তা তৈরির সময় <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-bold">Your {'{Brand Name}'} OTP is XXXX</code> ফরম্যাটে যাবে।
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                        ওটিপি বার্তা তৈরির সময় <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-blue-600 dark:text-blue-400 font-bold">Your {'{Brand Name}'} OTP is XXXX</code> ফরম্যাটে যাবে।
                       </p>
                     </div>
 
                     {/* Balance */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         বর্তমান ব্যালেন্স / ক্রেডিট
                       </label>
                       <div className="relative">
@@ -3132,19 +3158,19 @@ export default function SettingsPage() {
                           value={smsConfig.balance}
                           onChange={(e) => setSmsConfig((prev) => ({ ...prev, balance: parseFloat(e.target.value) || 0 }))}
                           placeholder="0.00"
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                         />
                         <span className="absolute right-3.5 top-2.5 text-[11px] font-bold text-slate-400">টাকা / ক্রেডিট</span>
                       </div>
-                      <p className="text-[10.5px] text-slate-500">
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
                         প্রতিটি সফল এসএমএস প্রেরণে এই ব্যালেন্স থেকে স্বয়ংক্রিয়ভাবে ক্রেডিট সমন্বয় হয়।
                       </p>
                     </div>
                   </div>
 
                   {/* Save Button Bar */}
-                  <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
-                    <div className="text-[11px] text-slate-500">
+                  <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
                       সংরক্ষণ করলে ড্যাশবোর্ডের সকল এসএমএস মডিউলে এই গেটওয়ে কার্যকর হবে।
                     </div>
                     <button
@@ -3251,14 +3277,14 @@ export default function SettingsPage() {
               >
                 <div className="space-y-4">
                   {/* Mode Selector */}
-                  <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+                  <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
                     <button
                       type="button"
                       onClick={() => setTestSmsMode('text')}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                         testSmsMode === 'text'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-500 hover:text-slate-800'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
                       সাধারণ টেক্সট এসএমএস টেস্ট
@@ -3268,8 +3294,8 @@ export default function SettingsPage() {
                       onClick={() => setTestSmsMode('otp')}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                         testSmsMode === 'otp'
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-500 hover:text-slate-800'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
                       ওটিপি টেস্ট
@@ -3279,7 +3305,7 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Mobile Number Input */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         টেস্ট মোবাইল নম্বর <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -3287,17 +3313,17 @@ export default function SettingsPage() {
                         value={testSmsMobile}
                         onChange={(e) => setTestSmsMobile(e.target.value)}
                         placeholder="যেমন: 018XXXXXXXX"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                       />
-                      <p className="text-[10.5px] text-slate-500">যে মোবাইল নম্বরে টেস্ট এসএমএস পাঠাতে চান</p>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">যে মোবাইল নম্বরে টেস্ট এসএমএস পাঠাতে চান</p>
                     </div>
 
                     {/* Mode Specific Preview / Input */}
                     {testSmsMode === 'text' ? (
                       <div className="space-y-1.5 sm:col-span-2">
                         <div className="flex items-center justify-between text-xs">
-                          <label className="font-bold text-slate-700">টেস্ট বার্তা</label>
-                          <span className="text-[10.5px] font-mono text-slate-500">
+                          <label className="font-bold text-slate-700 dark:text-slate-300">টেস্ট বার্তা</label>
+                          <span className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400">
                             {testSmsMessage.length} অক্ষর | {smsService.calculateSMSCredit(testSmsMessage).smsParts} ক্রেডিট
                           </span>
                         </div>
@@ -3305,19 +3331,19 @@ export default function SettingsPage() {
                           rows={2}
                           value={testSmsMessage}
                           onChange={(e) => setTestSmsMessage(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all resize-none"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all resize-none"
                         />
                       </div>
                     ) : (
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700">স্বয়ংক্রিয় ওটিপি ফরম্যাট প্রিভিউ</label>
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 space-y-1">
-                          <div className="text-emerald-700 font-bold">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">স্বয়ংক্রিয় ওটিপি ফরম্যাট প্রিভিউ</label>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-100 space-y-1">
+                          <div className="text-emerald-700 dark:text-emerald-300 font-bold">
                             Your {smsConfig.brandName || 'Boraitoli HS'} OTP is [৪-ডিজিট কোড]
                           </div>
-                          <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200">
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800">
                             <span>মোট দৈর্ঘ্য: ~{24 + (smsConfig.brandName || 'Boraitoli HS').length} ক্যারেক্টার</span>
-                            <span className="text-emerald-600 font-bold">✅ ৭০ ক্যারেক্টারের মধ্যে নিরাপদ</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">✅ ৭০ ক্যারেক্টারের মধ্যে নিরাপদ</span>
                           </div>
                         </div>
                       </div>
@@ -3349,7 +3375,7 @@ export default function SettingsPage() {
 
                     <Link
                       href="/dashboard/sms"
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                      className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       এসএমএস ব্রডকাস্ট প্যানেল খুলুন
@@ -3360,19 +3386,19 @@ export default function SettingsPage() {
                   {smsTestResult && (
                     <div className={`p-4 rounded-xl text-xs space-y-1.5 border animate-in fade-in ${
                       smsTestResult.success
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                        : 'bg-rose-50 border-rose-300 text-rose-950'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200'
+                        : 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800/60 text-rose-950 dark:text-rose-200'
                     }`}>
                       <div className="font-bold flex items-center gap-2">
                         {smsTestResult.success ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         ) : (
-                          <AlertTriangle className="w-4 h-4 text-rose-600" />
+                          <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                         )}
                         <span>{smsTestResult.message}</span>
                       </div>
                       {smsTestResult.response && (
-                        <div className="text-[11px] font-mono bg-black/5 p-2 rounded-lg break-all text-slate-700">
+                        <div className="text-[11px] font-mono bg-black/5 p-2 rounded-lg break-all text-slate-700 dark:text-slate-300">
                           <strong>গেটওয়ে রেসপন্স:</strong> {smsTestResult.response}
                         </div>
                       )}
@@ -3395,13 +3421,13 @@ export default function SettingsPage() {
                 }`}>
                   <div className="flex items-center gap-2">
                     {backupAlert.type === 'success' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                      <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
                     )}
                     <span>{backupAlert.message}</span>
                   </div>
-                  <button onClick={() => setBackupAlert(null)} className="text-slate-400 hover:text-slate-700 font-black cursor-pointer ml-4">✕</button>
+                  <button onClick={() => setBackupAlert(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-black cursor-pointer ml-4">✕</button>
                 </div>
               )}
 
@@ -3446,44 +3472,44 @@ export default function SettingsPage() {
                 borderColor="border-indigo-200 dark:border-indigo-800"
                 badge={
                   <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-[11px] font-black flex items-center gap-1 shadow-2xs">
-                    <Shield className="w-3.5 h-3.5 text-emerald-600" /> ১০০% সুরক্ষিত JSON ফরম্যাট
+                    <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> ১০০% সুরক্ষিত JSON ফরম্যাট
                   </span>
                 }
               >
                 {/* Live Database Metrics Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center">
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">মোট শিক্ষার্থী</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">মোট শিক্ষার্থী</span>
                     <strong className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono">
                       {backupStats ? backupStats.studentsCount : 0} জন
                     </strong>
                   </div>
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">শিক্ষক ও স্টাফ</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">শিক্ষক ও স্টাফ</span>
                     <strong className="text-sm font-black text-indigo-700 dark:text-indigo-300 font-mono">
                       {backupStats ? backupStats.teachersCount : 0} জন
                     </strong>
                   </div>
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">নম্বর এন্ট্রি</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">নম্বর এন্ট্রি</span>
                     <strong className="text-sm font-black text-emerald-700 dark:text-emerald-300 font-mono">
                       {backupStats ? backupStats.markEntriesCount : 0} টি
                     </strong>
                   </div>
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">হাজিরা দিন</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">হাজিরা দিন</span>
                     <strong className="text-sm font-black text-teal-700 dark:text-teal-300 font-mono">
                       {backupStats ? backupStats.attendanceDaysCount : 0} দিন
                     </strong>
                   </div>
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">নোটিশ</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">নোটিশ</span>
                     <strong className="text-sm font-black text-rose-700 dark:text-rose-300 font-mono">
                       {backupStats ? backupStats.noticesCount : 0} টি
                     </strong>
                   </div>
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs">
-                    <span className="text-[10.5px] text-slate-500 font-bold block">ডেটাবেস সাইজ</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold block">ডেটাবেস সাইজ</span>
                     <strong className="text-sm font-black text-purple-700 dark:text-purple-300 font-mono">
                       {backupStats ? `${backupStats.totalSizeKb} KB` : '...'}
                     </strong>
@@ -3512,7 +3538,7 @@ export default function SettingsPage() {
                     type="button"
                     onClick={handleDownloadFullBackup}
                     disabled={isBackingUp}
-                    className="w-full md:w-auto px-6 py-3.5 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
+                    className="w-full md:w-auto px-6 py-3.5 bg-sky-500 hover:bg-sky-400 text-slate-950 dark:text-white rounded-xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
                   >
                     <Download className={`w-4 h-4 ${isBackingUp ? 'animate-bounce' : ''}`} />
                     <span>{isBackingUp ? 'ব্যাকআপ তৈরি হচ্ছে...' : 'সম্পূর্ণ ডেটাবেস JSON ডাউনলোড'}</span>
@@ -3520,7 +3546,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong>গুরুত্বপূর্ণ সুরক্ষা পরামর্শ:</strong> নতুন পরীক্ষা শুরু, বার্ষিক ফলাফল প্রস্তুত কিংবা ব্রাউজার হিস্ট্রি বা উইন্ডোজ সেটআপ দেওয়ার পূর্বে অবশ্যই এই JSON ব্যাকআপ ফাইলটি ডাউনলোড করে একটি নিরাপদ পেনড্রাইভ বা গুগল ড্রাইভে সংরক্ষণ করুন।
                   </div>
@@ -3560,7 +3586,7 @@ export default function SettingsPage() {
                   <div className="p-5 bg-white dark:bg-slate-900 border-2 border-indigo-500 rounded-2xl space-y-4 shadow-xl animate-in zoom-in-95">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                         <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
                           ব্যাকআপ ফাইল বিশ্লেষণ সম্পন্ন — রিস্টোর অনুমোদন দিন
                         </h4>
@@ -3594,7 +3620,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                       <span className="leading-relaxed">
                         <strong>সতর্কতা:</strong> রিস্টোর নিশ্চিত করলে বর্তমান ব্রাউজারের সকল তথ্য এই ব্যাকআপ ফাইলের তথ্য দ্বারা সফলভাবে হালনাগাদ হবে।
                       </span>
@@ -3604,7 +3630,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => { setRestoreConfirmOpen(false); setRestoreValidation(null); }}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
                       >
                         বাতিল করুন
                       </button>
@@ -3634,26 +3660,26 @@ export default function SettingsPage() {
                 icon={<Globe className="w-5 h-5" />}
                 iconBg="bg-indigo-50" iconColor="text-indigo-600"
               >
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <span className="text-xs font-black text-slate-800 block">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">
                         {currentLang === 'en' ? 'Active System Language' : 'সক্রিয় সিস্টেম ভাষা'}
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         {currentLang === 'en' 
                           ? 'Controls navigation menu, headers, form labels, and dashboard summaries' 
                           : 'মেন্যু, হেডার, ফিল্ড লেবেল ও রিপোর্টসমূহ নির্বাচিত ভাষায় প্রদর্শিত হবে'}
                       </p>
                     </div>
-                    <div className="flex bg-white p-1 rounded-xl border border-slate-300 shadow-sm shrink-0">
+                    <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm shrink-0">
                       <button
                         type="button"
                         onClick={() => handleGlobalLanguageChange('bn')}
                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                           currentLang === 'bn'
                             ? 'bg-indigo-600 text-white shadow-md font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         🇧🇩 বাংলা
@@ -3664,7 +3690,7 @@ export default function SettingsPage() {
                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                           currentLang === 'en'
                             ? 'bg-indigo-600 text-white shadow-md font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         🇬🇧 English
@@ -3683,22 +3709,22 @@ export default function SettingsPage() {
               {/* System Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'সফটওয়্যার সংস্করণ', value: 'v2.0.0', icon: <Zap className="w-4 h-4" />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                  { label: 'মোট শিক্ষার্থী', value: `${totalStudents} জন`, icon: <Users className="w-4 h-4" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                  { label: 'ডাটা স্টোরেজ', value: 'LocalStorage', icon: <HardDrive className="w-4 h-4" />, color: 'text-amber-600', bg: 'bg-amber-50' },
-                  { label: 'ফ্রেমওয়ার্ক', value: 'Next.js 16', icon: <Cpu className="w-4 h-4" />, color: 'text-sky-600', bg: 'bg-sky-50' },
+                  { label: 'সফটওয়্যার সংস্করণ', value: 'v2.0.0', icon: <Zap className="w-4 h-4" />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50' },
+                  { label: 'মোট শিক্ষার্থী', value: `${totalStudents} জন`, icon: <Users className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50' },
+                  { label: 'ডাটা স্টোরেজ', value: 'LocalStorage', icon: <HardDrive className="w-4 h-4" />, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50' },
+                  { label: 'ফ্রেমওয়ার্ক', value: 'Next.js 16', icon: <Cpu className="w-4 h-4" />, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50' },
                 ].map((stat, idx) => (
                   <div key={idx} className={`p-4 ${stat.bg} rounded-xl border border-opacity-30 space-y-2`}>
                     <div className={`${stat.color}`}>{stat.icon}</div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{stat.label}</div>
-                    <div className="text-sm font-black text-slate-900">{stat.value}</div>
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{stat.label}</div>
+                    <div className="text-sm font-black text-slate-900 dark:text-white">{stat.value}</div>
                   </div>
                 ))}
               </div>
 
               {/* Feature List */}
               <div className="space-y-2">
-                <div className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> সিস্টেম মডিউলসমূহ
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -3707,7 +3733,7 @@ export default function SettingsPage() {
                     'ফিনান্স ও ফি', 'নোটিশ বোর্ড', 'উপবৃত্তি', 'শিক্ষক প্যানেল',
                     'একাডেমিক', 'সেটিংস', 'মোবাইল অ্যাপ', 'এইচআর'
                   ].map((mod, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl text-xs font-bold text-slate-700 border border-slate-100">
+                    <div key={idx} className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       {mod}
                     </div>
@@ -3716,35 +3742,35 @@ export default function SettingsPage() {
               </div>
 
               {/* EIIN Copy Section */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                <div className="text-[11px] font-black text-slate-600 uppercase tracking-wider">প্রতিষ্ঠানের সংক্ষিপ্ত তথ্য</div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+                <div className="text-[11px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">প্রতিষ্ঠানের সংক্ষিপ্ত তথ্য</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="p-3 bg-white rounded-xl border border-slate-100 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500 block">প্রতিষ্ঠান</span>
-                    <span className="font-black text-slate-900 text-sm">{formData.schoolName}</span>
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">প্রতিষ্ঠান</span>
+                    <span className="font-black text-slate-900 dark:text-white text-sm">{formData.schoolName}</span>
                   </div>
-                  <div className="p-3 bg-white rounded-xl border border-slate-100 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500 block">EIIN</span>
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">EIIN</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-black text-slate-900 text-sm">{formData.eiin}</span>
-                      <button onClick={handleCopyEIIN} className="p-1 hover:bg-slate-100 rounded-md transition-colors">
-                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                      <span className="font-mono font-black text-slate-900 dark:text-white text-sm">{formData.eiin}</span>
+                      <button onClick={handleCopyEIIN} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors">
+                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                       </button>
                     </div>
                   </div>
-                  <div className="p-3 bg-white rounded-xl border border-slate-100 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500 block">স্থাপিত</span>
-                    <span className="font-mono font-black text-slate-900 text-sm">{formData.estdYear} খ্রি.</span>
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">স্থাপিত</span>
+                    <span className="font-mono font-black text-slate-900 dark:text-white text-sm">{formData.estdYear} খ্রি.</span>
                   </div>
                 </div>
               </div>
 
               {/* Developer Credits */}
-              <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl space-y-1">
-                <div className="text-[11px] font-black text-indigo-800 flex items-center gap-1.5">
+              <div className="p-4 bg-gradient-to-r from-indigo-50 dark:from-indigo-950/50 to-purple-50 dark:to-purple-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl space-y-1">
+                <div className="text-[11px] font-black text-indigo-800 dark:text-indigo-200 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" /> ডেভেলপমেন্ট ও টেকনোলজি
                 </div>
-                <p className="text-[10.5px] text-indigo-700 leading-relaxed">
+                <p className="text-[10.5px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
                   স্কুল ম্যানেজমেন্ট সিস্টেম v2.0 — Next.js 16, React 19, Tailwind CSS ও LocalStorage ভিত্তিক।
                   সকল মডিউল সম্পূর্ণ বাংলায় ডিজাইন করা হয়েছে এবং প্রিন্টের জন্য অপ্টিমাইজড।
                 </p>
@@ -3760,18 +3786,18 @@ export default function SettingsPage() {
           <div className="sticky top-6 space-y-4">
 
             {/* Live Marksheet Preview */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-widest">
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase tracking-widest">
                   <Printer className="w-3.5 h-3.5" /> লাইভ মার্কশিট প্রিভিউ
                 </div>
-                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-bold border border-emerald-100 animate-pulse">
+                <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-md text-[9px] font-bold border border-emerald-100 dark:border-emerald-800/60 animate-pulse">
                   ● LIVE
                 </span>
               </div>
 
               {/* Preview Container */}
-              <div className="bg-white p-4 border border-slate-300 rounded-none relative overflow-hidden font-sans text-slate-950">
+              <div className="bg-white dark:bg-slate-900 p-4 border border-slate-300 dark:border-slate-700 rounded-none relative overflow-hidden font-sans text-slate-950 dark:text-white">
                 {/* Watermark */}
                 {formData.showWatermark && (
                   <div
@@ -3783,7 +3809,7 @@ export default function SettingsPage() {
                     ) : (
                       <div className="w-[120px] h-[120px] flex flex-col items-center justify-center text-slate-400">
                         <GraduationCap className="w-14 h-14 text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-500 mt-1">{formData.estdYear}</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1">{formData.estdYear}</span>
                       </div>
                     )}
                   </div>
@@ -3792,29 +3818,29 @@ export default function SettingsPage() {
                 {/* Header */}
                 <div className="relative z-10 space-y-1 text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <div className="w-9 h-9 flex flex-col items-center justify-center text-slate-950 overflow-hidden shrink-0">
+                    <div className="w-9 h-9 flex flex-col items-center justify-center text-slate-950 dark:text-white overflow-hidden shrink-0">
                       {formData.schoolLogo ? (
                         <img src={formData.schoolLogo} alt="Logo" className="w-full h-full object-contain" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full border border-slate-950 flex flex-col items-center justify-center bg-slate-50">
-                          <GraduationCap className="w-4 h-4 text-slate-700" />
+                        <div className="w-8 h-8 rounded-full border border-slate-950 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+                          <GraduationCap className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                         </div>
                       )}
                     </div>
-                    <h3 className="text-[13px] font-black text-slate-950 leading-tight">
+                    <h3 className="text-[13px] font-black text-slate-950 dark:text-white leading-tight">
                       {formData.schoolName || 'প্রতিষ্ঠানের নাম'}
                     </h3>
                   </div>
 
-                  <p className="text-[9px] font-bold text-slate-800">{formData.address || 'প্রতিষ্ঠানের ঠিকানা'}</p>
-                  <p className="text-[8px] font-bold text-slate-700 font-mono">
+                  <p className="text-[9px] font-bold text-slate-800 dark:text-slate-100">{formData.address || 'প্রতিষ্ঠানের ঠিকানা'}</p>
+                  <p className="text-[8px] font-bold text-slate-700 dark:text-slate-300 font-mono">
                     স্থাপিত: {formData.estdYear || '1969'} খ্রি. । EIIN: {formData.eiin || '106184'}
                   </p>
 
                   <div className="w-full border-b border-slate-950 my-1"></div>
 
                   <div className="text-center space-y-0.5 pt-0.5">
-                    <div className="text-[9px] font-black uppercase text-slate-950">একাডেমিক ট্রান্সক্রিপ্ট / নম্বরপত্র</div>
+                    <div className="text-[9px] font-black uppercase text-slate-950 dark:text-white">একাডেমিক ট্রান্সক্রিপ্ট / নম্বরপত্র</div>
                     <span className="inline-block px-3 py-0.5 bg-slate-950 text-white font-black text-[8px] uppercase tracking-wider">
                       {(Array.isArray(examNames) && examNames[0]) || 'অর্ধ-বার্ষিক পরীক্ষা'} {currentSession}
                     </span>
@@ -3822,7 +3848,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Footer Signatures */}
-                <div className="pt-6 flex justify-between text-[8px] font-bold border-t border-slate-300 mt-4 relative z-10">
+                <div className="pt-6 flex justify-between text-[8px] font-bold border-t border-slate-300 dark:border-slate-700 mt-4 relative z-10">
                   <div>
                     <div className="w-14 border-b border-slate-950 mb-0.5"></div>
                     <span>{formData.classTeacherTitle}</span>
@@ -3831,16 +3857,16 @@ export default function SettingsPage() {
                     <div className="w-14 border-b border-slate-950 mb-0.5 ml-auto"></div>
                     <span className="font-black">{formData.principalTitle}</span>
                     {formData.principalName && (
-                      <div className="text-[7px] font-normal text-slate-600">({formData.principalName})</div>
+                      <div className="text-[7px] font-normal text-slate-600 dark:text-slate-400">({formData.principalName})</div>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Auto Sync Info */}
-              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] font-medium text-indigo-900/90 space-y-1">
-                <div className="font-bold flex items-center gap-1.5 text-indigo-900 text-[10px]">
-                  <Info className="w-3.5 h-3.5 text-indigo-600" /> অটোমেটিক সিঙ্ক:
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/60 rounded-xl text-[11px] font-medium text-indigo-900/90 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200 text-[10px]">
+                  <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> অটোমেটিক সিঙ্ক:
                 </div>
                 <p className="leading-relaxed">
                   সংরক্ষিত তথ্য মার্কশিট, ট্যাবুলেশন ও অন্যান্য প্রিন্ট মডিউলে রিয়েল-টাইমে আপডেট হয়।
@@ -3898,20 +3924,20 @@ export default function SettingsPage() {
           onClick={() => setIsCommitteeModalOpen(false)}
         >
           <div
-            className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 via-teal-50 to-white">
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-50 dark:from-emerald-950/50 via-teal-50 dark:via-teal-950/30 to-white dark:to-slate-900">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
                     {editingMember ? 'কমিটির সদস্য তথ্য সম্পাদনা' : 'নতুন কমিটির সদস্য যোগ'}
                   </h3>
-                  <p className="text-xs text-slate-500 leading-snug">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
                     সদস্যের তথ্য পূরণ করে সংরক্ষণ করুন, সরাসরি মূল ওয়েবসাইটে আপডেট হবে
                   </p>
                 </div>
@@ -3919,7 +3945,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setIsCommitteeModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3930,7 +3956,7 @@ export default function SettingsPage() {
               {/* Name & Role */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     সদস্যের নাম <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -3939,14 +3965,14 @@ export default function SettingsPage() {
                     onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="যেমন: আলহাজ্ব মোস্তফা কামাল"
                     required
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                     <span>পদবি / দায়িত্ব <span className="text-rose-500">*</span></span>
-                    <span className="text-[10px] text-emerald-600 font-normal">নিচের তালিকা থেকে নির্বাচন করুন বা টাইপ করুন</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">নিচের তালিকা থেকে নির্বাচন করুন বা টাইপ করুন</span>
                   </label>
                   
                   {/* Quick Preset Buttons */}
@@ -3975,7 +4001,7 @@ export default function SettingsPage() {
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border ${
                           committeeForm.role === presetRole
                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700'
+                            : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-700 dark:hover:text-emerald-300'
                         }`}
                       >
                         {presetRole}
@@ -3996,65 +4022,65 @@ export default function SettingsPage() {
                     }}
                     placeholder="যেমন: সভাপতি"
                     required
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">মেয়াদকাল</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">মেয়াদকাল</label>
                   <input
                     type="text"
                     value={committeeForm.tenure || ''}
                     onChange={(e) => setCommitteeForm(prev => ({ ...prev, tenure: e.target.value }))}
                     placeholder="যেমন: ২০২৪ – ২০২৬ খ্রিঃ (৩ বছর)"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">যোগদানের তারিখ</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">যোগদানের তারিখ</label>
                   <input
                     type="text"
                     value={committeeForm.joiningDate || ''}
                     onChange={(e) => setCommitteeForm(prev => ({ ...prev, joiningDate: e.target.value }))}
                     placeholder="যেমন: ০১ জানুয়ারি ২০২৪"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">মোবাইল নম্বর</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">মোবাইল নম্বর</label>
                   <input
                     type="text"
                     value={committeeForm.phone || ''}
                     onChange={(e) => setCommitteeForm(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="যেমন: +880 1712-345678"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">ইমেইল এড্রেস</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">ইমেইল এড্রেস</label>
                   <input
                     type="email"
                     value={committeeForm.email || ''}
                     onChange={(e) => setCommitteeForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="যেমন: member@school.edu.bd"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                   />
                 </div>
               </div>
 
               {/* Photo Upload & URL */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                   <span>সদস্যের ছবি</span>
-                  <span className="text-[10px] text-slate-500">কম্পিউটার/মোবাইল থেকে আপলোড করুন বা লিংক দিন</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">কম্পিউটার/মোবাইল থেকে আপলোড করুন বা লিংক দিন</span>
                 </label>
                 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   {/* Photo Preview */}
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-emerald-500/40 bg-white flex items-center justify-center shrink-0 shadow-xs">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-emerald-500/40 bg-white dark:bg-slate-900 flex items-center justify-center shrink-0 shadow-xs">
                     {committeeForm.photo ? (
                       <img
                         src={committeeForm.photo}
@@ -4085,7 +4111,7 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={() => setCommitteeForm(prev => ({ ...prev, photo: '' }))}
-                          className="px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition-all"
+                          className="px-3 py-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl text-xs font-bold transition-all"
                         >
                           ছবি মুছুন
                         </button>
@@ -4096,7 +4122,7 @@ export default function SettingsPage() {
                       value={committeeForm.photo || ''}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, photo: e.target.value }))}
                       placeholder="অথবা সরাসরি ছবির ওয়েব লিংক পেস্ট করুন"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -4104,22 +4130,22 @@ export default function SettingsPage() {
 
               {/* Bio Statement */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">সংক্ষিপ্ত পরিচিতি ও বক্তব্য (Bio / Statement)</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">সংক্ষিপ্ত পরিচিতি ও বক্তব্য (Bio / Statement)</label>
                 <textarea
                   rows={3}
                   value={committeeForm.bio || ''}
                   onChange={(e) => setCommitteeForm(prev => ({ ...prev, bio: e.target.value }))}
                   placeholder="বিদ্যালয়ের উন্নয়ন ও মানসম্মত শিক্ষা সম্প্রসারণে উনার ভূমিকা বা বক্তব্য..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all resize-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all resize-none"
                 />
               </div>
 
               {/* Modal Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsCommitteeModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-all"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all"
                 >
                   বাতিল করুন
                 </button>
@@ -4145,20 +4171,20 @@ export default function SettingsPage() {
           onClick={() => setIsFacilityModalOpen(false)}
         >
           <div
-            className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-teal-50 via-emerald-50 to-white">
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-teal-50 dark:from-teal-950/50 via-emerald-50 dark:via-emerald-950/30 to-white dark:to-slate-900">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
                     {editingFacility ? 'ক্যাম্পাস সুবিধা সম্পাদনা' : 'নতুন ক্যাম্পাস সুবিধা যোগ'}
                   </h3>
-                  <p className="text-xs text-slate-500 leading-snug">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">
                     সুবিধার শিরোনাম, বিবরণী, আইকন ও কালার থিম নির্ধারণ করুন
                   </p>
                 </div>
@@ -4166,7 +4192,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setIsFacilityModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4176,7 +4202,7 @@ export default function SettingsPage() {
             <form onSubmit={handleSaveFacilityItem} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     সুবিধার বাংলা শিরোনাম <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -4185,12 +4211,12 @@ export default function SettingsPage() {
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, title: e.target.value }))}
                     placeholder="যেমন: শেখ রাসেল ডিজিটাল ল্যাব"
                     required
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     ইংরেজি নাম
                   </label>
                   <input
@@ -4198,12 +4224,12 @@ export default function SettingsPage() {
                     value={facilityForm.titleEn || ''}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, titleEn: e.target.value }))}
                     placeholder="যেমন: Sheikh Russel Digital Lab"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition font-en"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition font-en"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     হাইলাইট ব্যাজ / ট্যাগ
                   </label>
                   <input
@@ -4211,18 +4237,18 @@ export default function SettingsPage() {
                     value={facilityForm.badge || ''}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, badge: e.target.value }))}
                     placeholder="যেমন: আইসিটি ও কোডিং"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     আইকন প্রতীক
                   </label>
                   <select
                     value={facilityForm.icon || 'Monitor'}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, icon: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition cursor-pointer"
                   >
                     <option value="Monitor">🖥️ কম্পিউটার / ডিজিটাল ল্যাব</option>
                     <option value="FlaskConical">🧪 বিজ্ঞানাগার / ল্যাবরেটরি</option>
@@ -4240,13 +4266,13 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     কালার থিম
                   </label>
                   <select
                     value={facilityForm.color || 'indigo'}
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, color: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition cursor-pointer"
                   >
                     <option value="indigo">ইন্ডিগো ব্লু</option>
                     <option value="emerald">পান্না সবুজ</option>
@@ -4258,7 +4284,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     বিস্তারিত বিবরণী <span className="text-rose-500">*</span>
                   </label>
                   <textarea
@@ -4267,19 +4293,19 @@ export default function SettingsPage() {
                     onChange={(e) => setFacilityForm((prev) => ({ ...prev, description: e.target.value }))}
                     placeholder="সুবিধাটির প্রধান বৈশিষ্ট্য ও সুযোগ-সুবিধা সম্পর্কে ২-৩ লাইনে লিখুন..."
                     required
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-teal-500 outline-none transition resize-none"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-teal-500 outline-none transition resize-none"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                     <input
                       type="checkbox"
                       checked={facilityForm.visible !== false}
                       onChange={(e) => setFacilityForm((prev) => ({ ...prev, visible: e.target.checked }))}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-teal-600 dark:text-teal-400 rounded"
                     />
-                    <span className="text-xs font-bold text-slate-700">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       এই সুবিধাটি মূল পাবলিক ওয়েবসাইটে সক্রিয় ও দৃশ্যমান রাখুন
                     </span>
                   </label>
@@ -4287,11 +4313,11 @@ export default function SettingsPage() {
               </div>
 
               {/* Modal Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsFacilityModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition"
                 >
                   বাতিল করুন
                 </button>

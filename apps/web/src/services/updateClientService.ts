@@ -1,6 +1,7 @@
 import { UpdateReleaseManifest } from '@sms/shared-types';
 import { clientLicenseService } from './clientLicenseService';
 import { centralAdminService } from './centralAdminService';
+import { getConfiguredCentralApiUrl, getCentralApiBaseUrl } from '@/lib/centralApiConfig';
 
 const CURRENT_APP_VERSION = '1.0.0';
 const STORAGE_KEY_PENDING_UPDATE = 'sms_pending_update_manifest_v1';
@@ -14,7 +15,9 @@ export interface UpdateCheckResult {
 }
 
 class UpdateClientService {
-  private apiBaseUrl: string = process.env.NEXT_PUBLIC_CENTRAL_API_URL || 'http://localhost:3000';
+  private get apiBaseUrl(): string {
+    return getCentralApiBaseUrl();
+  }
   private cachedManifest: UpdateReleaseManifest | null = null;
 
   constructor() {
@@ -41,7 +44,7 @@ class UpdateClientService {
    */
   public async checkForUpdates(): Promise<UpdateCheckResult> {
     const regState = clientLicenseService.getRegistrationState();
-    const schoolId = regState.schoolCode || 'SCH-106184';
+    const schoolId = regState.schoolCode || 'SCH-DEFAULT';
 
     // 1. If running in Electron Desktop Shell
     if (typeof window !== 'undefined' && window.electronAPI?.checkForUpdates) {
@@ -59,33 +62,37 @@ class UpdateClientService {
       }
     }
 
-    // 2. Live Central Backend API
-    try {
-      const res = await fetch(`${this.apiBaseUrl}/api/v1/updates/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schoolId,
-          currentVersion: CURRENT_APP_VERSION,
-          platform: 'win32'
-        })
-      });
+    // 2. Live Central Backend API (only queried if configured; prevents localhost:3000 404 noise)
+    if (getConfiguredCentralApiUrl()) {
+      try {
+        const res = await fetch(`${this.apiBaseUrl}/api/v1/updates/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolId,
+            currentVersion: CURRENT_APP_VERSION,
+            platform: 'win32'
+          })
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        const manifest = data.manifest || data.latestRelease;
-        if (data.hasUpdate && manifest) {
-          return this.processUpdateManifest(manifest);
+        if (res.ok) {
+          const data = await res.json();
+          const manifest = data.manifest || data.latestRelease;
+          if (data.hasUpdate && manifest) {
+            return this.processUpdateManifest(manifest);
+          }
         }
+      } catch (err: any) {
+        // Fall through to local release check
       }
-    } catch (err: any) {
-      // 3. Fallback to Central Admin Local Bridge
-      const releases = centralAdminService.getReleases();
-      if (releases.length > 0) {
-        const latest = releases[0];
-        if (this.isVersionNewer(latest.version, CURRENT_APP_VERSION)) {
-          return this.processUpdateManifest(latest);
-        }
+    }
+
+    // 3. Fallback to Central Admin Local Bridge
+    const releases = centralAdminService.getReleases();
+    if (releases.length > 0) {
+      const latest = releases[0];
+      if (this.isVersionNewer(latest.version, CURRENT_APP_VERSION)) {
+        return this.processUpdateManifest(latest);
       }
     }
 

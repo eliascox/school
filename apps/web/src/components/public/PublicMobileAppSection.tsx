@@ -74,10 +74,10 @@ export default function PublicMobileAppSection({
 
   const getScannableBaseOrigin = () => {
     if (typeof window === 'undefined') return '';
-    const { hostname, port } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `http://192.168.0.187:${port || '3000'}`;
-    }
+    try {
+      const savedLanUrl = localStorage.getItem('sms_lan_server_url')?.trim();
+      if (savedLanUrl) return savedLanUrl.replace(/\/$/, '');
+    } catch {}
     return window.location.origin;
   };
 

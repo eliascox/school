@@ -277,16 +277,16 @@ export default function StudentPromotionPage() {
   const selectedCount = students.filter(s => s.selected).length;
 
   return (
-    <div className="w-full space-y-6 pb-12 font-sans text-slate-900">
+    <div className="w-full space-y-6 pb-12 font-sans text-slate-900 dark:text-white">
       
 
 
       {/* ALERT MESSAGES */}
       {alertMsg && (
         <div className={`p-4 rounded-2xl text-xs font-black flex items-center gap-2 animate-in fade-in ${
-          alertMsg.type === 'success' ? 'bg-emerald-50 text-emerald-950 border border-emerald-300' : 'bg-rose-50 text-rose-950 border border-rose-300'
+          alertMsg.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60' : 'bg-rose-50 dark:bg-rose-950/50 text-rose-950 dark:text-rose-200 border border-rose-300 dark:border-rose-800/60'
         }`}>
-          {alertMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600" /> : <AlertCircle size={18} className="text-rose-600" />}
+          {alertMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" /> : <AlertCircle size={18} className="text-rose-600 dark:text-rose-400" />}
           <span>{alertMsg.text}</span>
         </div>
       )}
@@ -294,24 +294,24 @@ export default function StudentPromotionPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* STEP 1: CLASS PROMOTION SELECTOR TABS       */}
       {/* ═══════════════════════════════════════════ */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h2 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-              <GraduationCap className="text-indigo-600" size={20} />
+            <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+              <GraduationCap className="text-indigo-600 dark:text-indigo-400" size={20} />
               ১. প্রমোশন শ্রেণি সিলেক্ট করুন
             </h2>
-            <p className="text-xs text-slate-500 font-semibold">কোন শ্রেণি থেকে কোন শ্রেণিতে প্রমোশন দিবেন তা নির্ধারণ করুন</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">কোন শ্রেণি থেকে কোন শ্রেণিতে প্রমোশন দিবেন তা নির্ধারণ করুন</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
-              <Award size={14} className="text-amber-700" />
-              <span className="text-amber-950 font-extrabold">মূল্যায়ন পরীক্ষা:</span>
+            <div className="flex items-center gap-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-950/50 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/60">
+              <Award size={14} className="text-amber-700 dark:text-amber-300" />
+              <span className="text-amber-950 dark:text-amber-200 font-extrabold">মূল্যায়ন পরীক্ষা:</span>
               <select
                 value={selectedExam}
                 onChange={(e) => handleExamChange(e.target.value)}
-                className="px-2 py-0.5 bg-white border border-amber-300 rounded font-bold text-amber-950 text-xs cursor-pointer outline-none"
+                className="px-2 py-0.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800/60 rounded font-bold text-amber-950 dark:text-amber-200 text-xs cursor-pointer outline-none"
               >
                 <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬ (Annual Exam)</option>
                 <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
@@ -326,13 +326,13 @@ export default function StudentPromotionPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-bold bg-indigo-50 px-3.5 py-1.5 rounded-xl border border-indigo-200">
-              <span className="text-indigo-950 font-extrabold">পরবর্তী সেশন:</span>
+            <div className="flex items-center gap-2 text-xs font-bold bg-indigo-50 dark:bg-indigo-950/50 px-3.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60">
+              <span className="text-indigo-950 dark:text-indigo-200 font-extrabold">পরবর্তী সেশন:</span>
               <input
                 type="text"
                 value={targetSession}
                 onChange={(e) => setTargetSession(e.target.value)}
-                className="w-16 px-2 py-0.5 bg-white border border-indigo-300 rounded text-center font-mono font-black text-indigo-900"
+                className="w-16 px-2 py-0.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800/60 rounded text-center font-mono font-black text-indigo-900 dark:text-indigo-200"
               />
             </div>
           </div>
@@ -353,7 +353,7 @@ export default function StudentPromotionPage() {
               className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
                 fromGrade === item.key
                   ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-indigo-500'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <span className="text-[10px] text-amber-400 uppercase font-extrabold">{item.from}</span>
@@ -367,15 +367,15 @@ export default function StudentPromotionPage() {
 
         {/* Additional Group selection if target grade is 9th */}
         {targetGradeKey === '9th' && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold animate-in fade-in">
-            <span className="text-amber-950 flex items-center gap-1.5">
-              <Sparkles size={16} className="text-amber-600" />
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold animate-in fade-in">
+            <span className="text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+              <Sparkles size={16} className="text-amber-600 dark:text-amber-400" />
               ৯ম শ্রেণিতে প্রমোশনপ্রাপ্ত শিক্ষার্থীদের বিভাগ (Group) সিলেক্ট করুন:
             </span>
             <select
               value={targetGroup}
               onChange={(e) => setTargetGroup(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl outline-none font-bold text-amber-950 cursor-pointer"
+              className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800/60 rounded-xl outline-none font-bold text-amber-950 dark:text-amber-200 cursor-pointer"
             >
               <option value="বিজ্ঞান">🧪 বিজ্ঞান (Science)</option>
               <option value="মানবিক">📖 মানবিক (Humanities)</option>
@@ -388,40 +388,40 @@ export default function StudentPromotionPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* STEP 2: STUDENTS PROMOTION LIST & SELECTION */}
       {/* ═══════════════════════════════════════════ */}
-      <div id="promotion-table-section" className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div id="promotion-table-section" className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-              <Users className="text-indigo-600" size={18} />
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+              <Users className="text-indigo-600 dark:text-indigo-400" size={18} />
               ২. প্রমোশনযোগ্য শিক্ষার্থীদের তালিকা ({students.length} জন)
             </h3>
-            <p className="text-xs text-slate-500 font-semibold flex items-center gap-2 flex-wrap mt-0.5">
-              <span>বর্তমানে: <strong className="text-indigo-700">{fromGrade === '6th' ? '৬ষ্ঠ' : fromGrade === '7th' ? '৭ম' : fromGrade === '8th' ? '৮ম' : fromGrade === '9th' ? '৯ম' : '১০ম'} শ্রেণি</strong> ➔ প্রমোশন টার্গেট: <strong className="text-emerald-700">{toGrade}</strong></span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-2 flex-wrap mt-0.5">
+              <span>বর্তমানে: <strong className="text-indigo-700 dark:text-indigo-300">{fromGrade === '6th' ? '৬ষ্ঠ' : fromGrade === '7th' ? '৭ম' : fromGrade === '8th' ? '৮ম' : fromGrade === '9th' ? '৯ম' : '১০ম'} শ্রেণি</strong> ➔ প্রমোশন টার্গেট: <strong className="text-emerald-700 dark:text-emerald-300">{toGrade}</strong></span>
               <span className="text-slate-300">|</span>
-              <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">মূল্যায়ন: {selectedExam}</span>
+              <span className="text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">মূল্যায়ন: {selectedExam}</span>
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleToggleSelectPassed}
-              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800/60 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
               title="শুধুমাত্র যারা উত্তীর্ণ হয়েছে তাদের সিলেক্ট করুন"
             >
-              <CheckCheck size={14} className="text-emerald-600" /> উত্তীর্ণদের সিলেক্ট করুন
+              <CheckCheck size={14} className="text-emerald-600 dark:text-emerald-400" /> উত্তীর্ণদের সিলেক্ট করুন
             </button>
 
             <button
               onClick={() => handleToggleSelectAll(true)}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <CheckSquare size={14} /> সকলকে সিলেক্ট করুন
             </button>
 
             <button
               onClick={() => handleToggleSelectAll(false)}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <Square size={14} /> আনসিলেক্ট করুন
             </button>
@@ -429,7 +429,7 @@ export default function StudentPromotionPage() {
         </div>
 
         {students.length === 0 ? (
-          <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 text-slate-500 space-y-2">
+          <div className="p-12 text-center bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 space-y-2">
             <Users size={36} className="mx-auto text-slate-400" />
             <p className="font-bold text-xs">এই শ্রেণিতে কোনো শিক্ষার্থী নিবন্ধিত নেই।</p>
           </div>
@@ -438,13 +438,13 @@ export default function StudentPromotionPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-900 font-black uppercase text-[10.5px] border-b border-slate-200">
+                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-black uppercase text-[10.5px] border-b border-slate-200 dark:border-slate-800">
                     <th className="p-3 w-10 text-center">
                       <input
                         type="checkbox"
                         checked={students.length > 0 && students.every(s => s.selected)}
                         onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
                       />
                     </th>
                     <th className="p-3 w-16 text-center">রোল</th>
@@ -455,44 +455,44 @@ export default function StudentPromotionPage() {
                     <th className="p-3 text-center">প্রমোশন সিদ্ধান্ত</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {students.map((st) => (
-                    <tr key={st.id} className={`hover:bg-slate-50 transition ${st.alreadyPromoted ? 'bg-amber-50/30 opacity-80' : st.selected ? 'bg-indigo-50/20' : ''}`}>
+                    <tr key={st.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition ${st.alreadyPromoted ? 'bg-amber-50/30 dark:bg-amber-950/50 opacity-80' : st.selected ? 'bg-indigo-50/20 dark:bg-indigo-950/50' : ''}`}>
                       <td className="p-3 text-center">
                         <input
                           type="checkbox"
                           checked={st.selected}
                           disabled={st.alreadyPromoted}
                           onChange={() => !st.alreadyPromoted && handleToggleStudent(st.id)}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </td>
-                      <td className="p-3 text-center font-mono font-black text-slate-900">{st.roll}</td>
-                      <td className="p-3 font-black text-slate-900">{st.name}</td>
-                      <td className="p-3 font-mono font-bold text-indigo-700 text-[11px]">{st.id}</td>
-                      <td className="p-3 text-slate-700 font-bold">
+                      <td className="p-3 text-center font-mono font-black text-slate-900 dark:text-white">{st.roll}</td>
+                      <td className="p-3 font-black text-slate-900 dark:text-white">{st.name}</td>
+                      <td className="p-3 font-mono font-bold text-indigo-700 dark:text-indigo-300 text-[11px]">{st.id}</td>
+                      <td className="p-3 text-slate-700 dark:text-slate-300 font-bold">
                         {st.grade} ({st.section})
                       </td>
                       <td className="p-3 text-center">
                         {st.status === 'Pass' ? (
-                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 inline-flex items-center gap-1 shadow-xs">
-                            <CheckCircle2 size={12} className="text-emerald-600" />
+                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800/60 inline-flex items-center gap-1 shadow-xs">
+                            <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
                             GPA: {st.gpa} ({st.letterGrade ? `${st.letterGrade} - ` : ''}উত্তীর্ণ)
                           </span>
                         ) : st.status === 'Fail' ? (
-                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-rose-50 text-rose-800 border-rose-300 inline-flex items-center gap-1 shadow-xs">
-                            <AlertCircle size={12} className="text-rose-600" />
+                          <span className="px-2.5 py-1 font-mono font-black text-[11px] rounded-full border bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800/60 inline-flex items-center gap-1 shadow-xs">
+                            <AlertCircle size={12} className="text-rose-600 dark:text-rose-400" />
                             GPA: {st.gpa} (অনুত্তীর্ণ {st.failedCount ? `- ${st.failedCount} বিষয়ে` : ''})
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 font-mono font-bold text-[11px] rounded-full border bg-slate-100 text-slate-600 border-slate-300 inline-flex items-center gap-1">
+                          <span className="px-2.5 py-1 font-mono font-bold text-[11px] rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 inline-flex items-center gap-1">
                             ফলাফল এন্ট্রি নেই (N/A)
                           </span>
                         )}
                       </td>
                       <td className="p-3 text-center">
                         {st.alreadyPromoted ? (
-                          <span className="px-2.5 py-1 bg-amber-100 text-amber-800 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-amber-300">
+                          <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-amber-300 dark:border-amber-800/60">
                             <AlertCircle size={13} /> ইতোমধ্যে প্রমোশন হয়েছে
                           </span>
                         ) : st.selected ? (
@@ -500,11 +500,11 @@ export default function StudentPromotionPage() {
                             <CheckCircle2 size={13} /> {toGrade} এ প্রমোশন হবে
                           </span>
                         ) : st.status === 'Fail' ? (
-                          <span className="px-2.5 py-1 bg-rose-100 text-rose-800 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-rose-200">
+                          <span className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 font-black text-[10.5px] rounded-xl inline-flex items-center gap-1 border border-rose-200 dark:border-rose-800/60">
                             <AlertCircle size={13} /> অনুত্তীর্ণ — একই ক্লাসে বহাল
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 bg-slate-200 text-slate-600 font-bold text-[10.5px] rounded-xl inline-flex items-center gap-1">
+                          <span className="px-2.5 py-1 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10.5px] rounded-xl inline-flex items-center gap-1">
                             একই ক্লাসে থাকবে (Hold)
                           </span>
                         )}
@@ -544,23 +544,23 @@ export default function StudentPromotionPage() {
       {/* STEP 3: PROMOTION HISTORY LOGS              */}
       {/* ═══════════════════════════════════════════ */}
       {promotionLogs.length > 0 && (
-        <div id="logs" className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 scroll-mt-6">
-          <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-            <History size={15} className="text-indigo-600" />
+        <div id="logs" className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 scroll-mt-6">
+          <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <History size={15} className="text-indigo-600 dark:text-indigo-400" />
             পূর্ববর্তী প্রমোশন হিস্টোরি ও লগ (Promotion Logs)
           </h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-bold">
             {promotionLogs.map((log) => (
-              <div key={log.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-1 hover:border-indigo-300 transition">
-                <div className="flex justify-between items-center text-slate-500 text-[10px] font-mono">
+              <div key={log.id} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1 hover:border-indigo-300 dark:hover:border-indigo-700 transition">
+                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 text-[10px] font-mono">
                   <span>📅 {log.timestamp}</span>
-                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-900 font-bold rounded">সেশন: {log.session}</span>
+                  <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200 font-bold rounded">সেশন: {log.session}</span>
                 </div>
-                <div className="text-slate-900 font-black pt-1">
+                <div className="text-slate-900 dark:text-white font-black pt-1">
                   {log.fromGrade} ➔ {log.toGrade}
                 </div>
-                <div className="text-emerald-700 text-[11px] font-black">
+                <div className="text-emerald-700 dark:text-emerald-300 text-[11px] font-black">
                   মোট প্রমোশন প্রাপ্ত: {log.count} জন
                 </div>
               </div>

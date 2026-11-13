@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 interface SectionBranch {
   id: string;
@@ -278,7 +279,7 @@ export default function ClassesClient() {
   const handleAddBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addBranchModal || !newBranch.name.trim()) {
-      alert('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!');
+      showToast('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!', 'warning');
       return;
     }
 
@@ -305,7 +306,7 @@ export default function ClassesClient() {
     saveClasses(updatedClasses);
     setAddBranchModal(null);
     setNewBranch({ name: '', room: 'রুম ১০৫', capacity: 50, sectionTeacher: '', shift: 'প্রভাতি (Morning)' });
-    alert('নতুন শাখা (Section) সফলভাবে যুক্ত করা হয়েছে!');
+    showToast('নতুন শাখা (Section) সফলভাবে যুক্ত করা হয়েছে!', 'success');
   };
 
   // Open Edit Branch Section Modal
@@ -324,7 +325,7 @@ export default function ClassesClient() {
   const handleEditBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editBranchModal || !editBranchForm.name.trim()) {
-      alert('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!');
+      showToast('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!', 'warning');
       return;
     }
 
@@ -350,14 +351,14 @@ export default function ClassesClient() {
 
     saveClasses(updatedClasses);
     setEditBranchModal(null);
-    alert('শাখা তথ্য সফলভাবে হালনাগাদ করা হয়েছে!');
+    showToast('শাখা তথ্য সফলভাবে হালনাগাদ করা হয়েছে!', 'success');
   };
 
   // Global Add Section from Top Toolbar
   const handleGlobalAddSectionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranch.name.trim()) {
-      alert('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!');
+      showToast('অনুগ্রহ করে শাখার নাম উল্লেখ করুন!', 'warning');
       return;
     }
 
@@ -386,7 +387,7 @@ export default function ClassesClient() {
     setIsGlobalAddSectionOpen(false);
     setNewBranch({ name: '', room: 'রুম ১০৫', capacity: 50, sectionTeacher: '', shift: 'দিবা (Day)' });
     setExpandedClassId(targetClass.id);
-    alert(`নতুন শাখা "${createdSection.name}" (${targetClass.nameBn}) সফলভাবে তৈরি করা হয়েছে!`);
+    showToast(`নতুন শাখা "${createdSection.name}" (${targetClass.nameBn}) সফলভাবে তৈরি করা হয়েছে!`, 'success');
   };
 
   // Handle Edit Class Info
@@ -407,12 +408,12 @@ export default function ClassesClient() {
 
     saveClasses(updatedClasses);
     setEditClassModal(null);
-    alert('শ্রেণি তথ্য সফলভাবে হালনাগাদ করা হয়েছে!');
+    showToast('শ্রেণি তথ্য সফলভাবে হালনাগাদ করা হয়েছে!', 'success');
   };
 
   // Delete Branch Section
-  const handleDeleteBranch = (classId: string, sectionId: string) => {
-    if (confirm('আপনি কি নিশ্চিত যে এই শাখাটি মুছে ফেলতে চান?')) {
+  const handleDeleteBranch = async (classId: string, sectionId: string) => {
+    if (await confirmDialog({ title: 'শাখা মুছে ফেলা', message: 'আপনি কি নিশ্চিত যে এই শাখাটি মুছে ফেলতে চান?', confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const updated = classes.map(c => {
         if (c.id === classId) {
           return {
@@ -423,7 +424,7 @@ export default function ClassesClient() {
         return c;
       });
       saveClasses(updated);
-      alert('শাখা সফলভাবে মুছে ফেলা হয়েছে!');
+      showToast('শাখা সফলভাবে মুছে ফেলা হয়েছে!', 'success');
     }
   };
 

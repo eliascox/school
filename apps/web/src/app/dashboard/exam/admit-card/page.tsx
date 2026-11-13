@@ -72,7 +72,7 @@ function RealQRCode({ text }: { text: string }) {
 
   if (!dataUrl) {
     return (
-      <div className="w-[74px] h-[74px] bg-slate-50 border border-slate-200 rounded flex items-center justify-center text-[8px] text-slate-400 font-bold">
+      <div className="w-[74px] h-[74px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded flex items-center justify-center text-[8px] text-slate-400 font-bold">
         QR লোড...
       </div>
     );
@@ -291,12 +291,12 @@ export default function ProfessionalAdmitCardPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12 print:p-0 print:m-0 print:space-y-0 font-sans text-slate-900">
+    <div className="space-y-6 pb-12 print:p-0 print:m-0 print:space-y-0 font-sans text-slate-900 dark:text-white">
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* UNIFIED SINGLE-LINE CONTROLS BAR (PRINT: HIDDEN)            */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs print:hidden">
         <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-2.5">
           
           {/* Filters: Exam, Class, Section/Group, Search */}
@@ -307,7 +307,7 @@ export default function ProfessionalAdmitCardPage() {
               <select
                 value={selectedExam}
                 onChange={(e) => setSelectedExam(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-900 font-bold cursor-pointer transition"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-900 dark:text-white font-bold cursor-pointer transition"
               >
                 <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">📋 অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
                 <option value="বার্ষিক পরীক্ষা ২০২৬">📋 বার্ষিক পরীক্ষা ২০২৬</option>
@@ -321,7 +321,7 @@ export default function ProfessionalAdmitCardPage() {
               <select
                 value={selectedGrade}
                 onChange={(e) => setSelectedGrade(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-900 font-bold cursor-pointer transition"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-900 dark:text-white font-bold cursor-pointer transition"
               >
                 <option value="6th">🎓 ৬ষ্ঠ শ্রেণি (Class 6)</option>
                 <option value="7th">🎓 ৭ম শ্রেণি (Class 7)</option>
@@ -336,7 +336,7 @@ export default function ProfessionalAdmitCardPage() {
               <select
                 value={isClass9or10 ? selectedGroup : selectedBranch}
                 onChange={(e) => handleGroupBranchChange(e.target.value)}
-                className="w-full px-3 py-2 bg-indigo-50/60 hover:bg-indigo-50 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-indigo-950 font-bold cursor-pointer transition"
+                className="w-full px-3 py-2 bg-indigo-50/60 dark:bg-indigo-950/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-indigo-950 dark:text-indigo-200 font-bold cursor-pointer transition"
               >
                 {isClass9or10 ? (
                   <>
@@ -362,7 +362,7 @@ export default function ProfessionalAdmitCardPage() {
                 placeholder="রোল বা নাম দিয়ে খুঁজুন..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-800 font-medium placeholder:text-slate-400 transition"
+                className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-200 text-xs text-slate-800 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
               />
             </div>
 
@@ -370,7 +370,7 @@ export default function ProfessionalAdmitCardPage() {
 
           {/* Action: Student Count + Print Button */}
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-            <span className="hidden xl:inline-flex items-center px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-200/60">
+            <span className="hidden xl:inline-flex items-center px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold border border-slate-200/60 dark:border-slate-800">
               মোট: {filteredStudents.length} জন
             </span>
             <button
@@ -390,9 +390,9 @@ export default function ProfessionalAdmitCardPage() {
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="space-y-6 print:space-y-0">
         {studentPairs.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 print:hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 print:hidden">
             <UserCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-700 font-bold">কোনো শিক্ষার্থী পাওয়া যায়নি</p>
+            <p className="text-slate-700 dark:text-slate-300 font-bold">কোনো শিক্ষার্থী পাওয়া যায়নি</p>
           </div>
         ) : (
           studentPairs.map((pair, pairIdx) => (
@@ -495,17 +495,17 @@ export default function ProfessionalAdmitCardPage() {
                                     className="text-[22px] sm:text-[24px] font-[950] tracking-tight leading-tight"
                                     style={{ color: '#006a4e', fontFamily: 'serif' }}
                                   >
-                                    {schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                                    {schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
                                   </h2>
 
                                   {/* Line 2: Address */}
                                   <p className="text-[10px] text-slate-950 font-bold tracking-wide leading-tight mt-0.5 text-center">
-                                    {schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
+                                    {schoolSettings.address || ''}
                                   </p>
 
                                   {/* Line 3: EIIN & Established */}
                                   <p className="text-[9px] text-slate-950 font-bold tracking-wide leading-tight mt-0.5 text-center">
-                                    EIIN: <span className="font-mono font-black text-slate-950">{schoolSettings.eiin || '106184'}</span> , স্থাপিত: <span className="font-bold text-slate-950">{schoolSettings.estdYear || '1969'}</span> খ্রি .
+                                    EIIN: <span className="font-mono font-black text-slate-950">{schoolSettings.eiin || '---'}</span>{schoolSettings.estdYear ? <> , স্থাপিত: <span className="font-bold text-slate-950">{schoolSettings.estdYear}</span> খ্রি .</> : null}
                                   </p>
                                 </div>
                               </div>
@@ -808,10 +808,16 @@ export default function ProfessionalAdmitCardPage() {
           html, body {
             margin: 0mm !important;
             padding: 0mm !important;
-            height: 297mm !important;
-            overflow: hidden !important;
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
+            background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          .print\\:break-after-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
         }
         /* Force high contrast black color only for general grey/muted text classes */

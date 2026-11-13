@@ -183,7 +183,7 @@ export default function FreshRankBasedResultPage() {
     let mainGPPoints = 0;
     let mainUnitsCount = 0;
     let failedCount = 0;
-    let failedSubjects: string[] = [];
+    const failedSubjects: string[] = [];
 
     const processedCodes = new Set<string>();
     const processedNames = new Set<string>();
@@ -490,20 +490,20 @@ export default function FreshRankBasedResultPage() {
     <div className="space-y-4 pb-12 print:p-0 print:space-y-0">
       
       {/* 🌟 1. FRESH COMPACT TOP BAR: Tabs on Left + Actions on Right */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs print:hidden">
         
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 text-xs font-bold bg-slate-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
           <button
             type="button"
             onClick={() => setActiveMainTab('class_rank')}
             className={"py-2 px-3.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 " + (
               activeMainTab === 'class_rank'
-                ? 'bg-white text-indigo-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs font-black'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             )}
           >
-            <Layers size={14} className="text-indigo-600" />
+            <Layers size={14} className="text-indigo-600 dark:text-indigo-400" />
             <span>১. শ্রেণিভিত্তিক মেধা ও ফলাফল</span>
           </button>
 
@@ -512,8 +512,8 @@ export default function FreshRankBasedResultPage() {
             onClick={() => setActiveMainTab('school_champions')}
             className={"py-2 px-3.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 " + (
               activeMainTab === 'school_champions'
-                ? 'bg-white text-amber-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-300 shadow-xs font-black'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             )}
           >
             <Crown size={14} className="text-amber-500" />
@@ -526,7 +526,7 @@ export default function FreshRankBasedResultPage() {
           <button
             type="button"
             onClick={() => setShowBlankPadModal(true)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer border border-slate-200"
+            className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer border border-slate-200 dark:border-slate-800"
           >
             <Printer size={13} /> ফাঁকা প্যাড
           </button>
@@ -547,7 +547,7 @@ export default function FreshRankBasedResultPage() {
         <div className="space-y-3">
           
           {/* COMPACT FILTER & INCLUSIONS CONSOLE */}
-          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3 print:hidden">
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3 print:hidden">
             
             {/* Dropdowns */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-bold">
@@ -555,7 +555,7 @@ export default function FreshRankBasedResultPage() {
                 <select
                   value={selectedExam}
                   onChange={(e) => setSelectedExam(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 font-bold cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-bold cursor-pointer"
                 >
                   <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
                   <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -578,7 +578,7 @@ export default function FreshRankBasedResultPage() {
                       setSelectedGroup('সাধারণ');
                     }
                   }}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 font-bold cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-bold cursor-pointer"
                 >
                   <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
                   <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -601,7 +601,7 @@ export default function FreshRankBasedResultPage() {
                       setSelectedGroup('সাধারণ');
                     }
                   }}
-                  className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-950 font-bold cursor-pointer"
+                  className="w-full px-3 py-2 bg-indigo-50/50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-950 dark:text-indigo-200 font-bold cursor-pointer"
                 >
                   {isClass9or10 ? (
                     <>
@@ -625,27 +625,27 @@ export default function FreshRankBasedResultPage() {
                   placeholder="রোল বা নাম খুঁজুন..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+                  className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900 dark:text-white"
                 />
                 <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
               </div>
             </div>
 
             {/* Clean, Simple Filter Checkbox Badges */}
-            <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-slate-500 font-bold mr-1">তালিকা ফিল্টার:</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold mr-1">তালিকা ফিল্টার:</span>
 
                 <button
                   type="button"
                   onClick={() => toggleCriteria('includePass')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includePass
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400 line-through'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
                   )}
                 >
-                  <CheckCircle2 size={12} className={criteria.includePass ? "text-emerald-600" : "text-slate-400"} />
+                  <CheckCircle2 size={12} className={criteria.includePass ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"} />
                   <span>পাস ({allPassStudentsCount})</span>
                 </button>
 
@@ -654,8 +654,8 @@ export default function FreshRankBasedResultPage() {
                   onClick={() => toggleCriteria('includeFail1')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includeFail1
-                      ? 'bg-amber-50 border-amber-300 text-amber-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400 line-through'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-800/60 text-amber-950 dark:text-amber-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
                   )}
                 >
                   <span>১ বিষয়ে ফেল ({fail1Count})</span>
@@ -666,8 +666,8 @@ export default function FreshRankBasedResultPage() {
                   onClick={() => toggleCriteria('includeFail2')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includeFail2
-                      ? 'bg-orange-50 border-orange-300 text-orange-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400 line-through'
+                      ? 'bg-orange-50 dark:bg-orange-950/50 border-orange-300 dark:border-orange-800/60 text-orange-950 dark:text-orange-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
                   )}
                 >
                   <span>২ বিষয়ে ফেল ({fail2Count})</span>
@@ -678,8 +678,8 @@ export default function FreshRankBasedResultPage() {
                   onClick={() => toggleCriteria('includeFail3')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includeFail3
-                      ? 'bg-rose-50 border-rose-300 text-rose-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400'
+                      ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800/60 text-rose-950 dark:text-rose-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'
                   )}
                 >
                   <span>৩ বিষয় ({fail3Count})</span>
@@ -690,8 +690,8 @@ export default function FreshRankBasedResultPage() {
                   onClick={() => toggleCriteria('includeFail4Plus')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includeFail4Plus
-                      ? 'bg-red-50 border-red-300 text-red-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400'
+                      ? 'bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800/60 text-red-950 dark:text-red-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'
                   )}
                 >
                   <span>৪+ বিষয় ({fail4PlusCount})</span>
@@ -702,16 +702,16 @@ export default function FreshRankBasedResultPage() {
                   onClick={() => toggleCriteria('includeConsidered')}
                   className={"px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] " + (
                     criteria.includeConsidered
-                      ? 'bg-purple-50 border-purple-300 text-purple-950 font-black'
-                      : 'bg-white border-slate-200 text-slate-400'
+                      ? 'bg-purple-50 dark:bg-purple-950/50 border-purple-300 dark:border-purple-800/60 text-purple-950 dark:text-purple-200 font-black'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'
                   )}
                 >
-                  <Star size={11} className={criteria.includeConsidered ? "text-purple-600" : "text-slate-400"} />
+                  <Star size={11} className={criteria.includeConsidered ? "text-purple-600 dark:text-purple-400" : "text-slate-400"} />
                   <span>বিবেচনাপ্রাপ্ত ({consideredCount})</span>
                 </button>
               </div>
 
-              <div className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+              <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800/60">
                 মোট নির্বাচিত: {displayedClassList.length} জন
               </div>
             </div>
@@ -728,13 +728,13 @@ export default function FreshRankBasedResultPage() {
         <div className="space-y-3">
           
           {/* Exam Filter Strip */}
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs font-bold print:hidden">
+          <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs font-bold print:hidden">
             <div className="flex items-center gap-2">
-              <span className="text-slate-600">পরীক্ষা:</span>
+              <span className="text-slate-600 dark:text-slate-400">পরীক্ষা:</span>
               <select
                 value={selectedExam}
                 onChange={(e) => setSelectedExam(e.target.value)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold cursor-pointer"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
               >
                 <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
                 <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -743,46 +743,46 @@ export default function FreshRankBasedResultPage() {
               </select>
             </div>
 
-            <div className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-emerald-600" />
+            <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1.5">
+              <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400" />
               <span>১ম শর্ত: মেধা তালিকায় স্থান পেতে সকল বিষয়ে পাস বাধ্যতামূলক</span>
             </div>
           </div>
 
           {/* 👑 SCHOOL CHAMPION HIGHLIGHT STRIP */}
           {schoolChampion ? (
-            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-300 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800/60 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-lg shadow-xs shrink-0">
                   👑
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase text-amber-900 bg-amber-200 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-black uppercase text-amber-900 dark:text-amber-200 bg-amber-200 px-2 py-0.5 rounded">
                       স্কুল ফার্স্ট ২০২৬ (সর্ব-বিদ্যালয় সেরা মেধা)
                     </span>
                   </div>
-                  <h3 className="text-base font-black text-slate-900 mt-0.5">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white mt-0.5">
                     {schoolChampion.name}
                   </h3>
-                  <p className="text-xs text-slate-600 font-semibold">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
                     শ্রেণি: <b>{schoolChampion.gradeBn}</b> • রোল: <b>{schoolChampion.roll}</b> • প্রাপ্ত নম্বর: <b>{schoolChampion.totalObtained}/{schoolChampion.totalFull}</b>
                   </p>
                 </div>
               </div>
 
-              <div className="text-left sm:text-right bg-white p-2 rounded-xl border border-amber-200 shrink-0">
-                <span className="text-base font-black text-indigo-700 font-mono block">
+              <div className="text-left sm:text-right bg-white dark:bg-slate-900 p-2 rounded-xl border border-amber-200 dark:border-amber-800/60 shrink-0">
+                <span className="text-base font-black text-indigo-700 dark:text-indigo-300 font-mono block">
                   GPA {schoolChampion.finalGPA.toFixed(2)} ({schoolChampion.overallGrade})
                 </span>
-                <span className="text-xs font-black text-emerald-700">
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-300">
                   শতকরা হার: {schoolChampion.obtainedPercentage}%
                 </span>
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-              <AlertCircle size={15} className="text-rose-600 shrink-0" />
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={15} className="text-rose-600 dark:text-rose-400 shrink-0" />
               <span>বিদ্যালয়ে সকল বিষয়ে পাস করেছে এমন কোনো শিক্ষার্থীর নম্বর পাওয়া যায়নি। মেধা তালিকায় স্থান পেতে সকল বিষয়ে পাস আবশ্যক।</span>
             </div>
           )}
@@ -806,11 +806,13 @@ export default function FreshRankBasedResultPage() {
         {/* HEADER */}
         <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
           <h2 className="text-2xl font-black text-slate-950 tracking-tight">
-            {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+            {schoolSettings?.schoolName || 'স্মার্ট স্কুল'}
           </h2>
-          <p className="text-xs font-bold text-slate-800">
-            {schoolSettings?.address || 'চকরিয়া, কক্সবাজার।'} | EIIN: {schoolSettings?.eiin || '106184'}
-          </p>
+          {(schoolSettings?.address || schoolSettings?.eiin) && (
+            <p className="text-xs font-bold text-slate-800">
+              {[schoolSettings?.address, schoolSettings?.eiin ? `EIIN: ${schoolSettings.eiin}` : ''].filter(Boolean).join(' | ')}
+            </p>
+          )}
           <div className="pt-1">
             <span className="inline-block px-4 py-0.5 bg-slate-950 text-white font-black text-xs uppercase tracking-wide rounded-md">
               {selectedExam} — {printableListTitle}
@@ -1001,11 +1003,11 @@ export default function FreshRankBasedResultPage() {
       {/* 🖨️ BLANK SCHOOL PAD MODAL */}
       {showBlankPadModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 print:p-0 print:bg-white print:relative print:z-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 print:shadow-none print:border-none print:p-0 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
               <div>
-                <h3 className="font-black text-slate-950 text-base flex items-center gap-2">
-                  <Printer className="text-emerald-600" size={18} />
+                <h3 className="font-black text-slate-950 dark:text-white text-base flex items-center gap-2">
+                  <Printer className="text-emerald-600 dark:text-emerald-400" size={18} />
                   ফাঁকা স্কুল প্যাড প্রিন্ট প্রিভিউ
                 </h3>
               </div>
@@ -1020,7 +1022,7 @@ export default function FreshRankBasedResultPage() {
                 <button
                   type="button"
                   onClick={() => setShowBlankPadModal(false)}
-                  className="p-2 hover:bg-slate-100 text-slate-500 rounded-xl cursor-pointer"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -1035,10 +1037,10 @@ export default function FreshRankBasedResultPage() {
                 hideHeaderActions={true}
                 signatures={[
                   {
-                    title: schoolSettings?.principalName || 'মোহাম্মদ রফিকুল ইসলাম',
+                    title: schoolSettings?.principalName || 'প্রধান শিক্ষক',
                     designation: schoolSettings?.principalTitle || 'প্রধান শিক্ষক',
-                    institution: schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-                    address: schoolSettings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।',
+                    institution: schoolSettings?.schoolName || 'স্মার্ট স্কুল',
+                    address: schoolSettings?.address || '',
                     rightAligned: true
                   }
                 ]}
@@ -1047,6 +1049,37 @@ export default function FreshRankBasedResultPage() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0.45in;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            height: auto !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          nav, aside, header, .print\\:hidden {
+            display: none !important;
+          }
+          table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

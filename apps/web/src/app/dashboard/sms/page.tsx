@@ -27,6 +27,7 @@ import { smsService, SMSGatewayConfig, SMSLogRecord, SMSTemplate, SMSProviderTyp
 import { studentService, Student } from '@/services/studentService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import Link from 'next/link';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 type SMSTab = 'send' | 'logs' | 'config';
 
@@ -39,10 +40,10 @@ export default function SMSDashboardPage() {
   const [gatewayConfig, setGatewayConfig] = useState<SMSGatewayConfig>(smsService.getConfig());
   const [dhakaApiKey, setDhakaApiKey] = useState('');
   const [dhakaSenderId, setDhakaSenderId] = useState('1234');
-  const [dhakaBrandName, setDhakaBrandName] = useState('Boraitoli High School');
-  const [bdApiKey, setBdApiKey] = useState('5zVaXEuUgZq5gyX23ujq');
-  const [bdSenderId, setBdSenderId] = useState('8809617613435');
-  const [bdBalance, setBdBalance] = useState<number>(105.20);
+  const [dhakaBrandName, setDhakaBrandName] = useState('');
+  const [bdApiKey, setBdApiKey] = useState('');
+  const [bdSenderId, setBdSenderId] = useState('');
+  const [bdBalance, setBdBalance] = useState<number>(0);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
   // Recipients Data
@@ -232,21 +233,25 @@ export default function SMSDashboardPage() {
   // Handle Send Batch SMS
   const handleSendSMS = async () => {
     if (targetRecipients.length === 0) {
-      alert('এসএমএস পাঠানোর জন্য অন্তত একজন প্রাপক নির্বাচন করুন!');
+      showToast('এসএমএস পাঠানোর জন্য অন্তত একজন প্রাপক নির্বাচন করুন!', 'warning');
       return;
     }
 
     if (!messageBody.trim()) {
-      alert('এসএমএস-এর মূল বার্তা ফাকা রাখা যাবে না!');
+      showToast('এসএমএস-এর মূল বার্তা ফাকা রাখা যাবে না!', 'warning');
       return;
     }
 
     if (gatewayConfig.balance < totalCreditsRequired) {
-      alert(`পর্যাপ্ত এসএমএস ক্রেডিট নেই! প্রয়োজন: ${totalCreditsRequired} ক্রেডিট, বর্তমান ব্যালেন্স: ${gatewayConfig.balance} ক্রেডিট।`);
+      showToast(`পর্যাপ্ত এসএমএস ক্রেডিট নেই! প্রয়োজন: ${totalCreditsRequired} ক্রেডিট, বর্তমান ব্যালেন্স: ${gatewayConfig.balance} ক্রেডিট।`, 'error');
       return;
     }
 
-    if (!confirm(`আপনি কি নিশ্চিত যে ${targetRecipients.length} জন প্রাপককে মোট ${totalCreditsRequired} টি এসএমএস ক্রেডিট পাঠাতে চান?`)) {
+    if (!(await confirmDialog({
+      title: 'এসএমএস প্রেরণ নিশ্চিতকরণ',
+      message: `আপনি কি নিশ্চিত যে ${targetRecipients.length} জন প্রাপককে মোট ${totalCreditsRequired} টি এসএমএস ক্রেডিট পাঠাতে চান?`,
+      confirmLabel: 'এসএমএস পাঠান',
+    }))) {
       return;
     }
 
@@ -254,7 +259,7 @@ export default function SMSDashboardPage() {
 
     // Prepare Interpolated SMS per recipient
     const batchPayload = targetRecipients.map((r) => {
-      let interpolated = messageBody
+      const interpolated = messageBody
         .replace(/{name}/g, r.name)
         .replace(/{grade}/g, r.grade === '6th' ? '৬ষ্ঠ' : r.grade === '7th' ? '৭ম' : r.grade === '8th' ? '৮ম' : r.grade === '9th' ? '৯ম' : '১০ম')
         .replace(/{roll}/g, r.roll)
@@ -294,17 +299,17 @@ export default function SMSDashboardPage() {
   if (!mounted) return null;
 
   return (
-    <div className="w-full space-y-5 pb-16 font-sans text-slate-900" suppressHydrationWarning>
+    <div className="w-full space-y-5 pb-16 font-sans text-slate-900 dark:text-white" suppressHydrationWarning>
       
       {/* TOP ACTIONS & BALANCE BAR (Clean & Compact) */}
       <div className="flex justify-end print:hidden">
-        <div className="bg-white border border-slate-200 p-2.5 px-4 rounded-2xl flex items-center gap-3 shadow-xs shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 px-4 rounded-2xl flex items-center gap-3 shadow-xs shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
             <Smartphone size={16} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-500 block uppercase">
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">
                 {gatewayConfig.provider === 'bulksmsbd' ? 'BulkSMSBD' : 'BulkSMSDhaka'} ব্যালেন্স
               </span>
               <button
@@ -314,19 +319,19 @@ export default function SMSDashboardPage() {
                 title="এপিআই থেকে লাইভ ব্যালেন্স রিফ্রেশ করুন"
                 className="text-slate-400 hover:text-emerald-600 cursor-pointer transition p-0.5"
               >
-                <RefreshCw size={11} className={isBalanceLoading ? 'animate-spin text-emerald-600' : ''} />
+                <RefreshCw size={11} className={isBalanceLoading ? 'animate-spin text-emerald-600 dark:text-emerald-400' : ''} />
               </button>
             </div>
-            <strong className="text-base font-black text-emerald-700 font-mono">
+            <strong className="text-base font-black text-emerald-700 dark:text-emerald-300 font-mono">
               ৳{gatewayConfig.balance}{' '}
             </strong>
-            <span className="text-[11px] text-slate-500 font-semibold">টাকা/ক্রেডিট</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">টাকা/ক্রেডিট</span>
           </div>
         </div>
       </div>
 
       {/* TAB NAVIGATION */}
-      <div className="bg-slate-200/60 rounded-2xl border border-slate-200 p-1.5 shadow-sm print:hidden">
+      <div className="bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 shadow-sm print:hidden">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'send', label: 'এসএমএস পাঠান (Send Bulk SMS)', icon: <Send size={14} /> },
@@ -338,8 +343,8 @@ export default function SMSDashboardPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {tab.icon}
@@ -367,9 +372,9 @@ export default function SMSDashboardPage() {
           
           {/* Left Column: Target selection */}
           <div className="space-y-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <Users size={15} className="text-indigo-600" />
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-2">
+                <Users size={15} className="text-indigo-600 dark:text-indigo-400" />
                 ১. প্রাপক কভারেজ নির্বাচন (Target Audience)
               </h3>
 
@@ -386,12 +391,12 @@ export default function SMSDashboardPage() {
                     key={tgt.id}
                     onClick={() => setTargetGroup(tgt.id as any)}
                     className={`p-3 rounded-2xl border flex items-start justify-between cursor-pointer transition ${
-                      targetGroup === tgt.id ? 'bg-slate-900 text-white border-slate-950 shadow-sm' : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-800'
+                      targetGroup === tgt.id ? 'bg-slate-900 text-white border-slate-950 shadow-sm' : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100'
                     }`}
                   >
                     <div>
                       <span className="block font-black text-xs">{tgt.label}</span>
-                      <span className={`text-[10px] ${targetGroup === tgt.id ? 'text-slate-300' : 'text-slate-500'}`}>{tgt.desc}</span>
+                      <span className={`text-[10px] ${targetGroup === tgt.id ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>{tgt.desc}</span>
                     </div>
                     <input type="radio" name="target_group" checked={targetGroup === tgt.id} readOnly className="mt-1 accent-indigo-500" />
                   </label>
@@ -400,16 +405,16 @@ export default function SMSDashboardPage() {
 
               {/* Secondary filters if grade selected */}
               {targetGroup === 'grade_students' && (
-                <div className="pt-2 border-t border-slate-100 space-y-1">
-                  <label className="block text-[10px] uppercase text-slate-500 font-bold">শ্রেণি নির্বাচন:</label>
-                  <div className="grid grid-cols-5 gap-1 bg-slate-100 p-1 rounded-xl">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                  <label className="block text-[10px] uppercase text-slate-500 dark:text-slate-400 font-bold">শ্রেণি নির্বাচন:</label>
+                  <div className="grid grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                     {['6th', '7th', '8th', '9th', '10th'].map((c) => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => setSelectedGrade(c)}
                         className={`py-1 rounded-lg text-[10px] font-bold text-center transition ${
-                          selectedGrade === c ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                          selectedGrade === c ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         {c === '6th' ? '৬ষ্ঠ' : c === '7th' ? '৭ম' : c === '8th' ? '৮ম' : c === '9th' ? '৯ম' : '১০ম'}
@@ -421,22 +426,22 @@ export default function SMSDashboardPage() {
 
               {/* Custom number input */}
               {targetGroup === 'custom' && (
-                <div className="pt-2 border-t border-slate-100 space-y-2 text-xs font-bold">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs font-bold">
                   <div>
-                    <label className="block text-slate-600 mb-1">প্রাপকের নাম:</label>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">প্রাপকের নাম:</label>
                     <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="যেমন: রহিম সাহেব"
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none" />
                   </div>
                   <div>
-                    <label className="block text-slate-600 mb-1">মোবাইল নম্বর (১১ ডিজিট):</label>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">মোবাইল নম্বর (১১ ডিজিট):</label>
                     <input type="text" value={customMobile} onChange={(e) => setCustomMobile(e.target.value)} placeholder="01800000000"
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono" />
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono" />
                   </div>
                 </div>
               )}
 
               {/* Selected Target Summary */}
-              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-between text-xs font-bold text-indigo-950">
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl flex items-center justify-between text-xs font-bold text-indigo-950 dark:text-indigo-200">
                 <span>নির্বাচিত প্রাপক সংখ্যা:</span>
                 <span className="font-mono text-sm px-2 py-0.5 bg-indigo-600 text-white rounded-lg">{targetRecipients.length} জন</span>
               </div>
@@ -444,26 +449,26 @@ export default function SMSDashboardPage() {
           </div>
 
           {/* Right Column: Message Composer */}
-          <div className="md:col-span-2 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div className="md:col-span-2 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
-                <MessageSquare size={16} className="text-indigo-600" />
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                <MessageSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
                 ২. এসএমএস টেমপ্লেট ও বার্তা তৈরি (SMS Composer)
               </h3>
 
-              <span className="px-2.5 py-1 bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200">
+              <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-slate-800">
                 মাস্কিং আইডি: <strong>{gatewayConfig.senderId}</strong>
               </span>
             </div>
 
             {/* Template Selector */}
             <div className="space-y-1 text-xs font-bold">
-              <label className="block text-slate-500 uppercase text-[10px]">প্রস্তুতকৃত টেমপ্লেট নির্বাচন করুন:</label>
+              <label className="block text-slate-500 dark:text-slate-400 uppercase text-[10px]">প্রস্তুতকৃত টেমপ্লেট নির্বাচন করুন:</label>
               <select
                 value={selectedTemplateId}
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer font-bold text-slate-800"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none cursor-pointer font-bold text-slate-800 dark:text-slate-100"
               >
                 {templates.map((tpl) => (
                   <option key={tpl.id} value={tpl.id}>{tpl.title}</option>
@@ -473,7 +478,7 @@ export default function SMSDashboardPage() {
 
             {/* Variable Interpolation Helper Pills */}
             <div className="space-y-1.5">
-              <label className="block text-slate-500 uppercase text-[10px] font-bold">অটো-ম্যাপিং ভেরিয়েবল ট্যাগসমূহ (ক্লিক করে যুক্ত করুন):</label>
+              <label className="block text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold">অটো-ম্যাপিং ভেরিয়েবল ট্যাগসমূহ (ক্লিক করে যুক্ত করুন):</label>
               <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
                 {[
                   { tag: '{name}', label: 'শিক্ষার্থীর নাম' },
@@ -488,7 +493,7 @@ export default function SMSDashboardPage() {
                     key={v.tag}
                     type="button"
                     onClick={() => insertVariable(v.tag)}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-900 text-slate-700 rounded-lg border border-slate-200 font-mono transition cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-900 dark:hover:text-indigo-300 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-800 font-mono transition cursor-pointer flex items-center gap-1"
                   >
                     <span>+ {v.tag}</span>
                     <span className="text-[9px] text-slate-400">({v.label})</span>
@@ -500,8 +505,8 @@ export default function SMSDashboardPage() {
             {/* Message Body Input */}
             <div className="space-y-1 text-xs font-bold">
               <div className="flex items-center justify-between">
-                <label className="block text-slate-700">এসএমএস মূল বার্তা (Bangla / English) *</label>
-                <span className="text-[10px] text-indigo-600 font-mono">
+                <label className="block text-slate-700 dark:text-slate-300">এসএমএস মূল বার্তা (Bangla / English) *</label>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">
                   {smsCreditInfo.isUnicode ? 'বাংলা / ইউনিকোড এসএমএস' : 'English ASCII SMS'}
                 </span>
               </div>
@@ -510,7 +515,7 @@ export default function SMSDashboardPage() {
                 value={messageBody}
                 onChange={(e) => setMessageBody(e.target.value)}
                 placeholder="এখানে আপনার বার্তা লিখুন..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-xs font-bold leading-relaxed text-slate-900 focus:bg-white focus:border-indigo-400 transition"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none text-xs font-bold leading-relaxed text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-400 transition"
               />
             </div>
 
@@ -538,7 +543,7 @@ export default function SMSDashboardPage() {
             </div>
 
             {/* Submit Action */}
-            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 disabled={isSending || targetRecipients.length === 0}
@@ -571,7 +576,7 @@ export default function SMSDashboardPage() {
         <div className="space-y-4 print:p-0 print:space-y-0">
           
           {/* Controls */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-bold print:hidden">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-bold print:hidden">
             <div className="flex items-center gap-3 flex-1">
               <div className="relative flex-1">
                 <input
@@ -579,18 +584,18 @@ export default function SMSDashboardPage() {
                   value={logSearch}
                   onChange={(e) => setLogSearch(e.target.value)}
                   placeholder="নাম, মোবাইল বা বার্তা দিয়ে খুঁজুন..."
-                  className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
+                  className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
                 />
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
 
-              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
                 {['All', 'Sent', 'Failed'].map((st) => (
                   <button
                     key={st}
                     onClick={() => setLogFilterStatus(st as any)}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      logFilterStatus === st ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      logFilterStatus === st ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {st === 'All' ? (currentLang === 'en' ? 'All' : 'সকল') : st === 'Sent' ? (currentLang === 'en' ? 'Sent' : 'সফল') : (currentLang === 'en' ? 'Failed' : 'ব্যর্থ')}
@@ -608,16 +613,16 @@ export default function SMSDashboardPage() {
           </div>
 
           {/* Logs Table */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 print:p-0 print:border-none print:shadow-none">
+          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:p-0 print:border-none print:shadow-none">
             <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
-              <h2 className="text-xl font-black text-slate-950">বরইতলী উচ্চ বিদ্যালয়</h2>
-              <p className="text-[10px] font-bold text-slate-600">এসএমএস গেটওয়ে প্রেক্ষিত ও ডেলিভারি লগ রিপোর্ট ২০২৬</p>
+              <h2 className="text-xl font-black text-slate-950 dark:text-white">বরইতলী উচ্চ বিদ্যালয়</h2>
+              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">এসএমএস গেটওয়ে প্রেক্ষিত ও ডেলিভারি লগ রিপোর্ট ২০২৬</p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse border border-slate-950 font-sans">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-950 font-black border-b border-slate-950 text-[10px] uppercase">
+                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white font-black border-b border-slate-950 text-[10px] uppercase">
                     <th className="p-2 border-r border-slate-950 text-center w-24">তারিখ ও সময়</th>
                     <th className="p-2 border-r border-slate-950">প্রাপক নাম ও ক্যাটাগরি</th>
                     <th className="p-2 border-r border-slate-950 text-center w-28">মোবাইল নম্বর</th>
@@ -630,27 +635,27 @@ export default function SMSDashboardPage() {
                 <tbody className="divide-y divide-slate-950 font-medium">
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-slate-500 italic">কোনো এসএমএস প্রেরণের ইতিহাস পাওয়া যায়নি।</td>
+                      <td colSpan={7} className="p-6 text-center text-slate-500 dark:text-slate-400 italic">কোনো এসএমএস প্রেরণের ইতিহাস পাওয়া যায়নি।</td>
                     </tr>
                   ) : (
                     filteredLogs.map((l) => (
-                      <tr key={l.id} className="border-b border-slate-950 hover:bg-slate-50">
+                      <tr key={l.id} className="border-b border-slate-950 hover:bg-slate-50 dark:hover:bg-slate-800">
                         <td className="p-2 text-center font-mono text-[10px] border-r border-slate-950">{l.date}</td>
                         <td className="p-2 border-r border-slate-950 font-bold">
                           <div>{l.recipientName}</div>
-                          <span className="text-[9px] text-slate-500 font-semibold">{l.recipientCategory}</span>
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">{l.recipientCategory}</span>
                         </td>
                         <td className="p-2 text-center border-r border-slate-950 font-mono font-bold">{l.mobile}</td>
                         <td className="p-2 border-r border-slate-950 text-[11px] leading-snug">{l.message}</td>
                         <td className="p-2 text-center border-r border-slate-950 font-mono font-bold">{l.smsCount}</td>
                         <td className="p-2 text-center border-r border-slate-950">
                           {l.status === 'Sent' ? (
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded uppercase">সফল</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 text-[9px] font-black rounded uppercase">সফল</span>
                           ) : (
-                            <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-black rounded uppercase">ব্যর্থ</span>
+                            <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-[9px] font-black rounded uppercase">ব্যর্থ</span>
                           )}
                         </td>
-                        <td className="p-2 font-mono text-[9.5px] text-slate-600">{l.gatewayResponse}</td>
+                        <td className="p-2 font-mono text-[9.5px] text-slate-600 dark:text-slate-400">{l.gatewayResponse}</td>
                       </tr>
                     ))
                   )}
@@ -667,14 +672,14 @@ export default function SMSDashboardPage() {
       {/* TAB 3: এসএমএস গেটওয়ে কনফিগারেশন প্যানেল                    */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'config' && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 print:hidden">
-          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 print:hidden">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <Settings size={18} className="text-indigo-600" />
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <Settings size={18} className="text-indigo-600 dark:text-indigo-400" />
                 {currentLang === 'en' ? 'SMS Gateway Configuration' : 'এসএমএস গেটওয়ে কনফিগারেশন'}
               </h3>
-              <p className="text-xs text-slate-500 font-medium">আপনার মূল BulkSMSBD এপিআই কি ও মাস্কিং সেন্ডার আইডি সেভ করুন। এপিআই দিয়ে সকল এসএমএস অটোমেটিক ডেলিভারি হবে।</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">আপনার মূল BulkSMSBD এপিআই কি ও মাস্কিং সেন্ডার আইডি সেভ করুন। এপিআই দিয়ে সকল এসএমএস অটোমেটিক ডেলিভারি হবে।</p>
             </div>
             
             <div className="text-xs bg-slate-900 text-white px-4 py-2 rounded-2xl font-mono font-bold flex items-center gap-2 shrink-0">
@@ -684,14 +689,14 @@ export default function SMSDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+          <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl w-fit">
             <button
               type="button"
               onClick={() => handleSwitchGateway('bulksmsdhaka')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 gatewayConfig.provider === 'bulksmsdhaka'
                   ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Bulk SMS Dhaka (bulksmsdhaka.net)
@@ -702,7 +707,7 @@ export default function SMSDashboardPage() {
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 gatewayConfig.provider === 'bulksmsbd'
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               BulkSMSBD (bulksmsbd.net)
@@ -713,7 +718,7 @@ export default function SMSDashboardPage() {
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 gatewayConfig.provider === 'demo_mode'
                   ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               টেস্টিং সিমুলেশন
@@ -722,14 +727,14 @@ export default function SMSDashboardPage() {
 
           <form onSubmit={handleSaveConfig} className="space-y-6">
             {gatewayConfig.provider === 'bulksmsdhaka' ? (
-              <div className="p-6 rounded-3xl border border-blue-500/30 bg-blue-50/60 space-y-4">
-                <div className="flex items-center justify-between border-b border-blue-200/80 pb-3">
+              <div className="p-6 rounded-3xl border border-blue-500/30 bg-blue-50/60 dark:bg-blue-950/50 space-y-4">
+                <div className="flex items-center justify-between border-b border-blue-200/80 dark:border-blue-800/60 pb-3">
                   <div>
-                    <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                    <h4 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-blue-500"></span>
                       Bulk SMS Dhaka (bulksmsdhaka.net)
                     </h4>
-                    <span className="text-[10.5px] text-slate-500 font-mono">https://bulksmsdhaka.net/api/sendtext</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-mono">https://bulksmsdhaka.net/api/sendtext</span>
                   </div>
 
                   <div className="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-sm">
@@ -740,52 +745,52 @@ export default function SMSDashboardPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
                   <div>
-                    <label className="block text-slate-700 mb-1">API Key (apikey) *</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">API Key (apikey) *</label>
                     <input
                       type="text"
                       required
                       value={dhakaApiKey}
                       onChange={(e) => setDhakaApiKey(e.target.value)}
                       placeholder="bulksmsdhaka.net API Key দিন"
-                      className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 mb-1">Caller ID (callerID) *</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Caller ID (callerID) *</label>
                     <input
                       type="text"
                       required
                       value={dhakaSenderId}
                       onChange={(e) => setDhakaSenderId(e.target.value)}
                       placeholder="যেমন: 1234 বা Brand Name"
-                      className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 mb-1">Brand Name for OTP</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Brand Name for OTP</label>
                     <input
                       type="text"
                       value={dhakaBrandName}
                       onChange={(e) => setDhakaBrandName(e.target.value)}
                       placeholder="যেমন: Boraitoli High School"
-                      className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none text-slate-900"
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-600">
-                  💡 Send SMS API: <code className="bg-white/80 px-1.5 py-0.5 rounded text-blue-600 font-mono font-bold">https://bulksmsdhaka.net/api/sendtext?apikey=...&amp;callerID=...&amp;number=...&amp;message=...</code>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  💡 Send SMS API: <code className="bg-white/80 dark:bg-slate-900/80 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-mono font-bold">https://bulksmsdhaka.net/api/sendtext?apikey=...&amp;callerID=...&amp;number=...&amp;message=...</code>
                 </p>
               </div>
             ) : (
-              <div className="p-6 rounded-3xl border border-emerald-500/30 bg-emerald-50/60 space-y-4">
-                <div className="flex items-center justify-between border-b border-emerald-200/80 pb-3">
+              <div className="p-6 rounded-3xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/50 space-y-4">
+                <div className="flex items-center justify-between border-b border-emerald-200/80 dark:border-emerald-800/60 pb-3">
                   <div>
-                    <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                    <h4 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
                       BulkSMSBD (bulksmsbd.net)
                     </h4>
-                    <span className="text-[10.5px] text-slate-500 font-mono">http://bulksmsbd.net/api/smsapi</span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-mono">http://bulksmsbd.net/api/smsapi</span>
                   </div>
 
                   <div className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-sm">
@@ -795,12 +800,12 @@ export default function SMSDashboardPage() {
                 </div>
 
                 <div className="space-y-4 text-xs font-bold">
-                  <div className="bg-white/80 border border-emerald-200 p-3.5 rounded-2xl flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-slate-700">
-                      <DollarSign size={16} className="text-emerald-600" /> বর্তমান লাইভ এসএমএস ব্যালেন্স (BulkSMSBD API):
+                  <div className="bg-white/80 dark:bg-slate-900/80 border border-emerald-200 dark:border-emerald-800/60 p-3.5 rounded-2xl flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      <DollarSign size={16} className="text-emerald-600 dark:text-emerald-400" /> বর্তমান লাইভ এসএমএস ব্যালেন্স (BulkSMSBD API):
                     </span>
                     <div className="flex items-center gap-2">
-                      <strong className="font-mono text-base font-black text-slate-950">৳{bdBalance}</strong>
+                      <strong className="font-mono text-base font-black text-slate-950 dark:text-white">৳{bdBalance}</strong>
                       <button
                         type="button"
                         onClick={fetchLiveBalance}
@@ -814,25 +819,26 @@ export default function SMSDashboardPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-slate-700 mb-1">BulkSMSBD API Key *</label>
+                      <label className="block text-slate-700 dark:text-slate-300 mb-1">BulkSMSBD API Key *</label>
                       <input
-                        type="text"
+                        type="password"
+                        autoComplete="off"
                         required
                         value={bdApiKey}
                         onChange={(e) => setBdApiKey(e.target.value)}
-                        placeholder="API Key: 5zVaXEuUgZq5gyX23ujq"
-                        className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900"
+                        placeholder="আপনার BulkSMSBD API Key লিখুন"
+                        className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 mb-1">Approved Sender ID (Masking ID) *</label>
+                      <label className="block text-slate-700 dark:text-slate-300 mb-1">Approved Sender ID (Masking ID) *</label>
                       <input
                         type="text"
                         required
                         value={bdSenderId}
                         onChange={(e) => setBdSenderId(e.target.value)}
-                        placeholder="যেমন: 8809617613435"
-                        className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-mono text-slate-900 uppercase font-black"
+                        placeholder="আপনার Approved Sender ID লিখুন"
+                        className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-mono text-slate-900 dark:text-white uppercase font-black"
                       />
                     </div>
                   </div>
@@ -841,10 +847,10 @@ export default function SMSDashboardPage() {
             )}
 
             {/* Save Config Button */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
               <Link
                 href="/dashboard/settings"
-                className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
               >
                 ⚙️ সেটিংস পেজে সম্পূর্ণ কনফিগারেশন ও টেস্ট দেখুন ↗
               </Link>

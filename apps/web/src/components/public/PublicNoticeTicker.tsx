@@ -40,11 +40,13 @@ export default function PublicNoticeTicker({ notices, onSelectNotice }: PublicNo
                 <span className="font-semibold">{n.title}</span>
                 <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded-md border border-slate-800">
                   <Calendar className="w-2.5 h-2.5 text-indigo-400" />
-                  {new Date(n.publishedAt || Date.now()).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })}
+                  {n.publishedAt
+                    ? new Date(n.publishedAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })
+                    : 'সদ্য প্রকাশিত'}
                 </span>
               </button>
             ))}

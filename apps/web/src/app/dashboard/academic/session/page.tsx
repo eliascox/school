@@ -29,6 +29,7 @@ import {
   Square,
   School
 } from 'lucide-react';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import { studentService, Student } from '@/services/studentService';
 
@@ -187,7 +188,7 @@ export default function SessionManagementPage() {
   const handleAddSessionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSession.nameBn.trim()) {
-      alert('অনুগ্রহ করে সেশনের নাম উল্লেখ করুন!');
+      showToast('অনুগ্রহ করে সেশনের নাম উল্লেখ করুন!', 'warning');
       return;
     }
 
@@ -216,7 +217,7 @@ export default function SessionManagementPage() {
       admissionStatus: 'Open',
       remarks: ''
     });
-    alert('নতুন শিক্ষাবর্ষ সফলভাবে সংযোজন করা হয়েছে!');
+    showToast('নতুন শিক্ষাবর্ষ সফলভাবে সংযোজন করা হয়েছে!', 'success');
   };
 
   // Update Session Edit
@@ -227,15 +228,15 @@ export default function SessionManagementPage() {
     const updated = sessions.map(s => s.id === editSessionModal.id ? editSessionModal : s);
     saveSessions(updated);
     setEditSessionModal(null);
-    alert('সেশন তথ্য সফলভাবে আপডেট হয়েছে!');
+    showToast('সেশন তথ্য সফলভাবে আপডেট হয়েছে!', 'success');
   };
 
   // Handle Delete Session
-  const handleDeleteSession = (id: string, nameBn: string) => {
-    if (confirm(`আপনি কি নিশ্চিত যে "${nameBn}" শিক্ষাবর্ষটি মুছে ফেলতে চান?`)) {
+  const handleDeleteSession = async (id: string, nameBn: string) => {
+    if (await confirmDialog({ title: 'শিক্ষাবর্ষ মুছে ফেলা', message: `আপনি কি নিশ্চিত যে "${nameBn}" শিক্ষাবর্ষটি মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const updated = sessions.filter(s => s.id !== id);
       saveSessions(updated);
-      alert('সেশন মুছে ফেলা হয়েছে!');
+      showToast('সেশন মুছে ফেলা হয়েছে!', 'success');
     }
   };
 
@@ -252,53 +253,53 @@ export default function SessionManagementPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Active Session Name */}
-        <div className="bg-white p-5 rounded-3xl border border-indigo-100 shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-indigo-100 dark:border-indigo-800/60 shadow-sm space-y-2 relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full border border-indigo-100 dark:border-indigo-800/60">
               সক্রিয় শিক্ষাবর্ষ
             </span>
             <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md">
               <Calendar size={16} />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900">{activeSession.nameBn}</p>
-          <p className="text-xs text-slate-500 font-bold flex items-center gap-1">
+          <p className="text-2xl font-black text-slate-900 dark:text-white">{activeSession.nameBn}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
             <CheckCircle2 size={13} className="text-emerald-500" /> বর্তমানে কার্যকর একাডেমিক সেশন
           </p>
         </div>
 
         {/* Card 2: Enrolled Students */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
               মোট রেজিস্টার্ড শিক্ষার্থী
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold">
               <Users size={16} />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalEnrolledCount} জন</p>
-          <p className="text-xs text-slate-500 font-semibold">৬ষ্ঠ থেকে ১০ম শ্রেণি সরাসরি তথ্য</p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white">{totalEnrolledCount} জন</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">৬ষ্ঠ থেকে ১০ম শ্রেণি সরাসরি তথ্য</p>
         </div>
 
         {/* Card 3: Session Duration */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
               সেশনের মেয়াদ
             </span>
-            <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 flex items-center justify-center font-bold">
               <Clock size={16} />
             </div>
           </div>
-          <p className="text-lg font-black text-slate-900">১ জানুঃ - ৩১ ডিসেঃ</p>
-          <p className="text-xs text-slate-500 font-semibold">বছর: {activeSession.year} (১২ মাস)</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white">১ জানুঃ - ৩১ ডিসেঃ</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">বছর: {activeSession.year} (১২ মাস)</p>
         </div>
 
         {/* Card 4: Admission Status Toggle */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
               ভর্তি পোর্টাল
             </span>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white shadow ${activeSession.admissionStatus === 'Open' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
@@ -306,12 +307,12 @@ export default function SessionManagementPage() {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <p className={`text-base font-black ${activeSession.admissionStatus === 'Open' ? 'text-emerald-700' : 'text-rose-700'}`}>
+            <p className={`text-base font-black ${activeSession.admissionStatus === 'Open' ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
               {activeSession.admissionStatus === 'Open' ? 'ভর্তি খোলা (Open)' : 'ভর্তি বন্ধ (Closed)'}
             </p>
             <button
               onClick={() => handleToggleAdmission(activeSession.id)}
-              className="text-[11px] font-black text-indigo-700 hover:text-indigo-900 underline cursor-pointer"
+              className="text-[11px] font-black text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-300 underline cursor-pointer"
             >
               টগল করুন
             </button>
@@ -324,16 +325,16 @@ export default function SessionManagementPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* SESSIONS DIRECTORY LIST TABLE               */}
       {/* ═══════════════════════════════════════════ */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden space-y-4 p-6">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden space-y-4 p-6">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <h3 className="font-extrabold text-slate-900 text-base">বিদ্যালয়ের সকল সেশন ও শিক্ষাবর্ষ তালিকা</h3>
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-base">বিদ্যালয়ের সকল সেশন ও শিক্ষাবর্ষ তালিকা</h3>
             <p className="text-xs text-slate-400 font-semibold">সক্রিয়, আর্কাইভ এবং আগামী প্রস্তাবিত সেশনের বিবরণী</p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap print:hidden">
-            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
               মোট সেশন: {sessions.length} টি
             </span>
             <button
@@ -362,18 +363,18 @@ export default function SessionManagementPage() {
                 {/* Top: Title + Badges */}
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-base font-black text-slate-900 leading-tight">{session.nameBn}</h4>
+                    <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">{session.nameBn}</h4>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => setEditSessionModal(session)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg border border-slate-200 dark:border-slate-800 transition cursor-pointer"
                         title="সেশন এডিট"
                       >
                         <Pencil size={13} />
                       </button>
                       <button
                         onClick={() => handleDeleteSession(session.id, session.nameBn)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg border border-slate-200 dark:border-slate-800 transition cursor-pointer"
                         title="সেশন ডিলিট"
                       >
                         <Trash2 size={13} />
@@ -389,48 +390,48 @@ export default function SessionManagementPage() {
                       </span>
                     )}
                     {session.status === 'Archived' && (
-                      <span className="px-2.5 py-0.5 bg-slate-200 text-slate-700 font-bold text-[9px] rounded-full flex items-center gap-1">
+                      <span className="px-2.5 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px] rounded-full flex items-center gap-1">
                         <Archive size={10} /> আর্কাইভড
                       </span>
                     )}
                     {session.status === 'Upcoming' && (
-                      <span className="px-2.5 py-0.5 bg-amber-100 text-amber-900 font-extrabold text-[9px] rounded-full flex items-center gap-1 border border-amber-300/60">
+                      <span className="px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 font-extrabold text-[9px] rounded-full flex items-center gap-1 border border-amber-300/60 dark:border-amber-800/60">
                         <Clock size={10} /> প্রস্তাবিত / প্রস্তুতি
                       </span>
                     )}
                     <span className={`px-2.5 py-0.5 text-[9px] font-black rounded-full flex items-center gap-1 ${
                       session.admissionStatus === 'Open'
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
                         : session.admissionStatus === 'Upcoming'
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'bg-red-100 text-red-800 border border-red-200'
+                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60'
+                        : 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800/60'
                     }`}>
                       {session.admissionStatus === 'Open' ? '🟢 ভর্তি খোলা' : session.admissionStatus === 'Upcoming' ? '🟡 প্রস্তুতি' : '🔴 ভর্তি বন্ধ'}
                     </span>
                   </div>
 
                   {/* Remarks */}
-                  <p className="text-[11px] font-medium text-slate-600 leading-relaxed">{session.remarks}</p>
+                  <p className="text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">{session.remarks}</p>
                 </div>
 
                 {/* Middle: Stats */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/80 rounded-xl p-2.5 border border-slate-100 text-center">
-                    <p className="text-[10px] text-slate-500 font-bold">শিক্ষার্থী</p>
-                    <p className="text-lg font-black text-slate-900 font-mono">
+                  <div className="bg-white/80 dark:bg-slate-900/80 rounded-xl p-2.5 border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">শিক্ষার্থী</p>
+                    <p className="text-lg font-black text-slate-900 dark:text-white font-mono">
                       {session.isCurrent ? totalEnrolledCount : session.totalStudents}
                     </p>
                     <p className="text-[9px] text-slate-400">জন নথিভুক্ত</p>
                   </div>
-                  <div className="bg-white/80 rounded-xl p-2.5 border border-slate-100 text-center">
-                    <p className="text-[10px] text-slate-500 font-bold">মেয়াদ</p>
-                    <p className="text-sm font-black text-slate-900">{session.year}</p>
+                  <div className="bg-white/80 dark:bg-slate-900/80 rounded-xl p-2.5 border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">মেয়াদ</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">{session.year}</p>
                     <p className="text-[9px] text-slate-400">{session.startDate.slice(5)} → {session.endDate.slice(5)}</p>
                   </div>
                 </div>
 
                 {/* Bottom: Action Buttons */}
-                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   {!session.isCurrent && (
                     <button
                       onClick={() => handleSetActiveSession(session.id)}
@@ -443,8 +444,8 @@ export default function SessionManagementPage() {
                     onClick={() => handleToggleAdmission(session.id)}
                     className={`w-full py-2 rounded-xl font-extrabold text-xs border transition cursor-pointer ${
                       session.admissionStatus === 'Open'
-                        ? 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                        : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        ? 'border-rose-300 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40'
+                        : 'border-emerald-300 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                     }`}
                   >
                     {session.admissionStatus === 'Open' ? '🔴 ভর্তি বন্ধ করুন' : '🟢 ভর্তি চালু করুন'}
@@ -462,45 +463,45 @@ export default function SessionManagementPage() {
       {/* ═════════════════════════════════════════════════════════════════ */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-base">নতুন শিক্ষাবর্ষ (Session) সংযোজন করুন</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">নতুন শিক্ষাবর্ষ (Session) সংযোজন করুন</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddSessionSubmit} className="space-y-3.5 text-xs font-semibold text-slate-800">
+            <form onSubmit={handleAddSessionSubmit} className="space-y-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">সেশনের নাম (বাংলা) *</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">সেশনের নাম (বাংলা) *</label>
                 <input
                   type="text"
                   required
                   value={newSession.nameBn}
                   onChange={(e) => setNewSession({ ...newSession, nameBn: e.target.value })}
                   placeholder="যেমন: ২০২৭ শিক্ষাবর্ষ"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">শিক্ষাবর্ষ (Year) *</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">শিক্ষাবর্ষ (Year) *</label>
                   <input
                     type="number"
                     required
                     value={newSession.year}
                     onChange={(e) => setNewSession({ ...newSession, year: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">ভর্তি অবস্থা</label>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">ভর্তি অবস্থা</label>
                   <select
                     value={newSession.admissionStatus}
                     onChange={(e) => setNewSession({ ...newSession, admissionStatus: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="Open">🟢 ভর্তি খোলা (Open)</option>
                     <option value="Closed">🔴 ভর্তি বন্ধ (Closed)</option>
@@ -510,21 +511,21 @@ export default function SessionManagementPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">মন্তব্য / বিবরণ</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">মন্তব্য / বিবরণ</label>
                 <input
                   type="text"
                   value={newSession.remarks}
                   onChange={(e) => setNewSession({ ...newSession, remarks: e.target.value })}
                   placeholder="যেমন: আগামী শিক্ষাবর্ষের আগাম সেশন পরিকল্পনা"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition text-xs cursor-pointer"
+                  className="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition text-xs cursor-pointer"
                 >
                   বাতিল
                 </button>
@@ -545,40 +546,40 @@ export default function SessionManagementPage() {
       {/* ═════════════════════════════════════════════════════════════════ */}
       {editSessionModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-base">সেশন তথ্য এডিট করুন</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">সেশন তথ্য এডিট করুন</h3>
               <button onClick={() => setEditSessionModal(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateSession} className="space-y-3.5 text-xs font-semibold text-slate-800">
+            <form onSubmit={handleUpdateSession} className="space-y-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">সেশনের নাম (বাংলা)</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">সেশনের নাম (বাংলা)</label>
                 <input
                   type="text"
                   value={editSessionModal.nameBn}
                   onChange={(e) => setEditSessionModal({ ...editSessionModal, nameBn: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">মন্তব্য / বিবরণ</label>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">মন্তব্য / বিবরণ</label>
                 <input
                   type="text"
                   value={editSessionModal.remarks || ''}
                   onChange={(e) => setEditSessionModal({ ...editSessionModal, remarks: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none font-medium text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-medium text-slate-900 dark:text-white"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setEditSessionModal(null)}
-                  className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition text-xs cursor-pointer"
+                  className="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition text-xs cursor-pointer"
                 >
                   বাতিল
                 </button>

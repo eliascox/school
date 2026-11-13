@@ -24,6 +24,7 @@ import { noticeService, Notice } from '@/services/noticeService';
 import { leaveService, LeaveApplication, LeaveType, LEAVE_TYPE_LABELS } from '@/services/leaveService';
 import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS } from '@/services/routineService';
 import { auditTrailService } from '@/services/auditTrailService';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const gradeLabel = (g: string) => {
@@ -502,8 +503,8 @@ export default function TeacherPortalPage() {
     }
   };
 
-  const handleCancelLeave = (leaveId: string) => {
-    if (confirm('আপনি কি নিশ্চিতভাবে এই ছুটির আবেদনটি প্রত্যাহার করতে চান?')) {
+  const handleCancelLeave = async (leaveId: string) => {
+    if (await confirmDialog({ title: 'ছুটির আবেদন প্রত্যাহার', message: 'আপনি কি নিশ্চিতভাবে এই ছুটির আবেদনটি প্রত্যাহার করতে চান?', confirmLabel: 'প্রত্যাহার করুন', danger: true })) {
       const myId = teacher?.id || session?.teacherId || '';
       const res = leaveService.cancelLeave(leaveId, myId);
       if (res.success) {
@@ -1568,7 +1569,7 @@ export default function TeacherPortalPage() {
                           const file = e.target.files?.[0];
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
-                              alert('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।');
+                              showToast('ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে।', 'warning');
                               return;
                             }
                             const compressed = await autoCropAndCompressStudentPhoto(file, 300, 360, 0.85);

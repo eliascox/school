@@ -59,12 +59,18 @@ export default function SchoolPadWrapper({
   const lineHeight = settings?.padLineHeight || 2.1;
   const signatureGap = settings?.padSignatureGap || 2.5;
 
+  const [autoSerial, setAutoSerial] = useState<string>('001');
+
   useEffect(() => {
     setImgLoadError(false);
   }, [rawPadUrl]);
 
+  useEffect(() => {
+    setAutoSerial(String(Math.floor(100 + Math.random() * 900)));
+  }, []);
+
   const formattedDate = date || new Date().toLocaleDateString('bn-BD');
-  const formattedRef = refNo || `${settings?.padRefPrefix || 'স্মারক নং: ব.উ.বি/'}২০২৬/${Math.floor(100 + Math.random() * 900)}`;
+  const formattedRef = refNo || `${settings?.padRefPrefix || 'স্মারক নং: '}২০২৬/${autoSerial}`;
 
   const handlePrint = () => {
     if (onPrint) {
@@ -269,17 +275,19 @@ export default function SchoolPadWrapper({
                   <div className="space-y-0.5 ml-auto text-center min-w-[210px]">
                     <div className="w-52 border-b-2 border-slate-900 mx-auto mb-1.5"></div>
                     <p className="font-black text-slate-950 text-xs sm:text-sm">
-                      {settings?.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
+                      {settings?.principalName || 'প্রধান শিক্ষক'}
                     </p>
                     <p className="text-[11px] text-slate-800 font-bold">
                       {settings?.principalTitle || 'প্রধান শিক্ষক'}
                     </p>
                     <p className="text-[11px] text-slate-700 font-semibold">
-                      {settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
+                      {settings?.schoolName || 'স্মার্ট স্কুল'}
                     </p>
-                    <p className="text-[10px] text-slate-600">
-                      {settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}
-                    </p>
+                    {settings?.address && (
+                      <p className="text-[10px] text-slate-600">
+                        {settings.address}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -287,6 +295,23 @@ export default function SchoolPadWrapper({
           )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0mm !important;
+          }
+          html, body {
+            margin: 0mm !important;
+            padding: 0mm !important;
+            height: auto !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

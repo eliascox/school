@@ -37,6 +37,7 @@ export interface BackupRestoreResult {
 }
 
 import { isSafeRestoreKey } from '@/lib/securityUtils';
+import { canonicalizeLocalStorageKeys } from '@/lib/storageMigration';
 
 export interface BackupValidationResult {
   valid: boolean;
@@ -66,32 +67,87 @@ export interface DatabaseStats {
 }
 
 class BackupService {
+  private readJsonStorage<T>(key: string, fallback: T): T {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private collectPrefixedEntries(prefix: string): Array<{ storageKey: string; data: unknown }> {
+    const entries: Array<{ storageKey: string; data: unknown }> = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        try {
+          entries.push({ storageKey: key, data: JSON.parse(raw) });
+        } catch {
+          entries.push({ storageKey: key, data: raw });
+        }
+      }
+    }
+    return entries;
+  }
+
+  private applyWebStorageData(web: Record<string, any>): void {
+    if (web.students) {
+      localStorage.setItem('sms_students', JSON.stringify(web.students));
+    }
+    if (web.fee_collections) {
+      localStorage.setItem('sms_fee_invoices', JSON.stringify(web.fee_collections));
+    }
+    if (web.fee_ledgers) {
+      localStorage.setItem('sms_student_fee_ledgers', JSON.stringify(web.fee_ledgers));
+    }
+    if (Array.isArray(web.exam_marks)) {
+      const hasKeyedEntries = web.exam_marks.some(
+        (item: any) => item && typeof item.storageKey === 'string' && item.storageKey.startsWith('sms_marks_')
+      );
+      if (hasKeyedEntries) {
+        web.exam_marks.forEach((item: any) => {
+          if (item && typeof item.storageKey === 'string' && isSafeRestoreKey(item.storageKey)) {
+            const val = typeof item.data === 'string' ? item.data : JSON.stringify(item.data ?? item.value ?? []);
+            localStorage.setItem(item.storageKey, val);
+          }
+        });
+      } else {
+        localStorage.setItem('exam_results_v1', JSON.stringify(web.exam_marks));
+      }
+    }
+    if (web.settings) {
+      localStorage.setItem('sms_school_settings', JSON.stringify(web.settings));
+    }
+    if (web.teachers) {
+      localStorage.setItem('sms_rbac_teachers', JSON.stringify(web.teachers));
+    }
+    if (web.notices) {
+      localStorage.setItem('sms_notices', JSON.stringify(web.notices));
+    }
+    canonicalizeLocalStorageKeys();
+  }
+
   /**
    * 1. Gather all local operational data from client storage
    */
   public getWebOperationalData(): any {
     if (typeof window === 'undefined') return {};
 
-    let students = [];
-    let fee_collections = [];
-    let exam_marks = [];
-    let settings = {};
+    canonicalizeLocalStorageKeys();
 
-    try {
-      students = JSON.parse(localStorage.getItem('students') || '[]');
-    } catch (e) {}
-
-    try {
-      fee_collections = JSON.parse(localStorage.getItem('fee_collections_v1') || '[]');
-    } catch (e) {}
-
-    try {
-      exam_marks = JSON.parse(localStorage.getItem('exam_results_v1') || '[]');
-    } catch (e) {}
-
-    try {
-      settings = JSON.parse(localStorage.getItem('school_settings_v1') || '{}');
-    } catch (e) {}
+    const students = this.readJsonStorage<any[]>('sms_students', []);
+    let fee_collections = this.readJsonStorage<any[]>('sms_fee_invoices', []);
+    if (fee_collections.length === 0) {
+      fee_collections = this.readJsonStorage<any[]>('sms_payment_history', []);
+    }
+    let exam_marks: any[] = this.collectPrefixedEntries('sms_marks_');
+    if (exam_marks.length === 0) {
+      exam_marks = this.readJsonStorage<any[]>('exam_results_v1', []);
+    }
+    const settings = this.readJsonStorage<Record<string, any>>('sms_school_settings', {});
 
     return {
       students,
@@ -106,7 +162,7 @@ class BackupService {
    */
   public async createBackup(password?: string): Promise<BackupCreateResult> {
     const regState = clientLicenseService.getRegistrationState();
-    const schoolId = regState.schoolCode || 'SCH-106184';
+    const schoolId = regState.schoolCode || 'SCH-DEFAULT';
     const webStorageData = this.getWebOperationalData();
 
     // Desktop native backup
@@ -214,23 +270,12 @@ class BackupService {
 
         // Apply restored web operational data
         if (res.restoredPayload?.webStorageData) {
-          const web = res.restoredPayload.webStorageData;
-          if (web.students) {
-            localStorage.setItem('students', JSON.stringify(web.students));
-          }
-          if (web.fee_collections) {
-            localStorage.setItem('fee_collections_v1', JSON.stringify(web.fee_collections));
-          }
-          if (web.exam_marks) {
-            localStorage.setItem('exam_results_v1', JSON.stringify(web.exam_marks));
-          }
-          if (web.settings) {
-            localStorage.setItem('school_settings_v1', JSON.stringify(web.settings));
-          }
+          this.applyWebStorageData(res.restoredPayload.webStorageData);
         }
 
         // Notify app components to refresh
-        window.dispatchEvent(new CustomEvent('sms:data-restored'));
+        canonicalizeLocalStorageKeys();
+      window.dispatchEvent(new CustomEvent('sms:data-restored'));
 
         return {
           success: true,
@@ -261,11 +306,9 @@ class BackupService {
       }
 
       const web = payload.webStorageData;
-      if (web.students) localStorage.setItem('students', JSON.stringify(web.students));
-      if (web.fee_collections) localStorage.setItem('fee_collections_v1', JSON.stringify(web.fee_collections));
-      if (web.exam_marks) localStorage.setItem('exam_results_v1', JSON.stringify(web.exam_marks));
-      if (web.settings) localStorage.setItem('school_settings_v1', JSON.stringify(web.settings));
+      this.applyWebStorageData(web);
 
+      canonicalizeLocalStorageKeys();
       window.dispatchEvent(new CustomEvent('sms:data-restored'));
 
       return {
@@ -301,30 +344,43 @@ class BackupService {
     let noticesCount = 0;
     let totalSize = 0;
 
-    try {
-      const s = JSON.parse(localStorage.getItem('students') || '[]');
-      studentsCount = s.length;
-    } catch (e) {}
+    canonicalizeLocalStorageKeys();
 
-    try {
-      const t = JSON.parse(localStorage.getItem('teachers_v1') || '[]');
-      teachersCount = t.length;
-    } catch (e) {}
+    const s = this.readJsonStorage<any[]>('sms_students', []);
+    studentsCount = Array.isArray(s) ? s.length : 0;
 
-    try {
-      const m = JSON.parse(localStorage.getItem('exam_results_v1') || '[]');
-      markEntriesCount = m.length;
-    } catch (e) {}
+    const rbacTeachers = this.readJsonStorage<any[]>('sms_rbac_teachers', []);
+    const legacyTeachers = rbacTeachers.length > 0 ? rbacTeachers : this.readJsonStorage<any[]>('sms_teachers_list', []);
+    teachersCount = Array.isArray(legacyTeachers) ? legacyTeachers.length : 0;
 
-    try {
-      const a = JSON.parse(localStorage.getItem('attendance_records_v1') || '[]');
-      attendanceDaysCount = a.length;
-    } catch (e) {}
+    const markEntries = this.collectPrefixedEntries('sms_marks_');
+    if (markEntries.length > 0) {
+      markEntriesCount = markEntries.reduce((acc, entry) => {
+        if (Array.isArray(entry.data)) return acc + entry.data.length;
+        if (entry.data && typeof entry.data === 'object') return acc + Object.keys(entry.data).length;
+        return acc + 1;
+      }, 0);
+    } else {
+      const m = this.readJsonStorage<any[]>('exam_results_v1', []);
+      markEntriesCount = Array.isArray(m) ? m.length : 0;
+    }
 
-    try {
-      const n = JSON.parse(localStorage.getItem('school_notices_v1') || '[]');
-      noticesCount = n.length;
-    } catch (e) {}
+    const attEntries = this.collectPrefixedEntries('sms_attendance_');
+    if (attEntries.length > 0) {
+      const distinctDates = new Set<string>();
+      attEntries.forEach(({ storageKey }) => {
+        const rest = storageKey.slice('sms_attendance_'.length);
+        const datePart = rest.split('_')[0] || storageKey;
+        distinctDates.add(datePart);
+      });
+      attendanceDaysCount = distinctDates.size;
+    } else {
+      const a = this.readJsonStorage<any[]>('attendance_records_v1', []);
+      attendanceDaysCount = Array.isArray(a) ? a.length : 0;
+    }
+
+    const n = this.readJsonStorage<any[]>('sms_notices', []);
+    noticesCount = Array.isArray(n) ? n.length : 0;
 
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -368,7 +424,7 @@ class BackupService {
         }
       }
 
-      const settings = fullDump['school_settings_v1'] || {};
+      const settings = fullDump['sms_school_settings'] || fullDump['school_settings_v1'] || {};
       const schoolName = settings.schoolName || 'SchoolPro';
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `${schoolName}_Backup_${timestamp}.json`;
@@ -426,8 +482,8 @@ class BackupService {
       }
 
       const data = parsed.data || parsed.webStorageData;
-      const settings = (data && data.school_settings_v1) || (data && data.settings) || {};
-      const students = (data && data.students) || [];
+      const settings = (data && (data.sms_school_settings || data.school_settings_v1 || data.settings)) || {};
+      const students = (data && (data.sms_students || data.students)) || [];
 
       return {
         valid: true,
@@ -470,6 +526,7 @@ class BackupService {
         count++;
       }
 
+      canonicalizeLocalStorageKeys();
       window.dispatchEvent(new CustomEvent('sms:data-restored'));
       return {
         success: true,

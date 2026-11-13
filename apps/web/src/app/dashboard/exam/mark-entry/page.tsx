@@ -28,6 +28,8 @@ import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, SubjectAssignment } from '@/services/teacherRBACService';
 import { auditTrailService } from '@/services/auditTrailService';
 import { syncQueueService } from '@/services/syncQueueService';
+import { settingsService } from '@/services/settingsService';
+import { showToast } from '@/components/ui/ToastProvider';
 import {
   getStudentReligion,
   getSubjectReligion,
@@ -262,7 +264,7 @@ export default function ProfessionalMarkEntryPage() {
     // 2. Load saved marks from LocalStorage and merge with directory student list
     const key = `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_${selectedSubject}`;
     const saved = localStorage.getItem(key);
-    let savedMap: Record<string, StudentMarkRow> = {};
+    const savedMap: Record<string, StudentMarkRow> = {};
 
     if (saved) {
       try {
@@ -304,7 +306,7 @@ export default function ProfessionalMarkEntryPage() {
   const handleMarkChange = (id: string, field: 'written' | 'mcq' | 'practical', value: number) => {
     // RBAC: Verify teacher owns this subject before writing marks
     if (isTeacherRole && !teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, selectedSubject)) {
-      alert('আপনার এই শ্রেণিতে এই বিষয়ের নম্বর পরিবর্তন করার অনুমতি নেই!');
+      showToast('আপনার এই শ্রেণিতে এই বিষয়ের নম্বর পরিবর্তন করার অনুমতি নেই!', 'error');
       return;
     }
 
@@ -415,13 +417,13 @@ export default function ProfessionalMarkEntryPage() {
       
       {/* ⚠️ CLASS TEACHER ONLY BLOCK (যদি কোনো বিষয় বরাদ্দ না থাকে) */}
       {isClassTeacherOnly && (
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-8 text-center space-y-4 print:hidden shadow-xs">
-          <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shadow-inner">
+        <div className="bg-gradient-to-br from-amber-50 dark:from-amber-950/50 to-orange-50 dark:to-orange-950/40 border-2 border-amber-200 dark:border-amber-800/60 rounded-3xl p-8 text-center space-y-4 print:hidden shadow-xs">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-700 dark:text-amber-300 shadow-inner">
             <UserCheck size={32} />
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="font-black text-slate-900 text-lg">আপনি শুধুমাত্র শ্রেণি শিক্ষক (Class Teacher)</h3>
-            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+            <h3 className="font-black text-slate-900 dark:text-white text-lg">আপনি শুধুমাত্র শ্রেণি শিক্ষক (Class Teacher)</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
               আপনার আইডিতে পরীক্ষার কোনো বিষয়ের দায়িত্ব প্রদান করা হয়নি। শ্রেণি শিক্ষক হিসেবে আপনি শিক্ষার্থীদের <strong>দৈনিক হাজিরা</strong> গ্রহণ করতে পারেন।
             </p>
           </div>
@@ -434,7 +436,7 @@ export default function ProfessionalMarkEntryPage() {
             </Link>
             <Link
               href="/dashboard/teacher"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 transition"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
               শিক্ষক প্রোফাইল
             </Link>
@@ -444,12 +446,12 @@ export default function ProfessionalMarkEntryPage() {
 
       {/* ⚠️ TEACHER HAS NO SUBJECTS IN THIS GRADE (অন্য শ্রেণিতে বরাদ্দ আছে) */}
       {hasNoSubjectsInSelectedGrade && (
-        <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 text-center space-y-3 print:hidden">
-          <div className="flex items-center justify-center gap-2 text-blue-900 font-black text-sm">
-            <AlertCircle size={18} className="text-blue-600" />
+        <div className="bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 rounded-3xl p-6 text-center space-y-3 print:hidden">
+          <div className="flex items-center justify-center gap-2 text-blue-900 dark:text-blue-200 font-black text-sm">
+            <AlertCircle size={18} className="text-blue-600 dark:text-blue-400" />
             <span>{gradeNameBn}-এ আপনার কোনো বিষয় বরাদ্দ নেই</span>
           </div>
-          <p className="text-xs text-blue-700 font-medium max-w-lg mx-auto">
+          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium max-w-lg mx-auto">
             আপনার বরাদ্দকৃত বিষয়সমূহে নম্বর এন্ট্রি করতে নিচের শ্রেণি নির্বাচন করুন:
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
@@ -463,9 +465,9 @@ export default function ProfessionalMarkEntryPage() {
                     setSelectedGrade(sa.classId);
                     setSelectedSubject(sa.subjectId);
                   }}
-                  className="px-3.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-white text-indigo-900 border border-indigo-200 rounded-xl font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 bg-white dark:bg-slate-900 hover:bg-indigo-600 hover:text-white text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded font-black text-[10px]">{gLabel} শ্রেণি</span>
+                  <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 rounded font-black text-[10px]">{gLabel} শ্রেণি</span>
                   <span>{sa.subjectId}</span>
                 </button>
               );
@@ -491,16 +493,16 @@ export default function ProfessionalMarkEntryPage() {
       {/* FILTER & CONTROL PANEL                      */}
       {/* ═══════════════════════════════════════════ */}
       {!isClassTeacherOnly && (
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4 print:hidden">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-bold">
           
           {/* Exam Selector */}
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">১. পরীক্ষা (Examination)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">১. পরীক্ষা (Examination)</label>
             <select
               value={selectedExam}
               onChange={(e) => setSelectedExam(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
               <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
@@ -511,11 +513,11 @@ export default function ProfessionalMarkEntryPage() {
 
           {/* Class Selector */}
           <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">২. শ্রেণি (Class)</label>
+            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">২. শ্রেণি (Class)</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 font-bold cursor-pointer"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
             >
               <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
               <option value="7th">৭ম শ্রেণি (Class 7)</option>
@@ -527,13 +529,13 @@ export default function ProfessionalMarkEntryPage() {
 
           {/* Single Section or Group Selector */}
           <div>
-            <label className="block text-[10px] font-extrabold text-indigo-700 uppercase mb-1">
+            <label className="block text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase mb-1">
               {isClass9or10 ? '৩. বিভাগ / গ্রুপ (Department / Group)' : '৩. শাখা / সেকশন (Section)'}
             </label>
             <select
               value={isClass9or10 ? selectedGroup : selectedBranch}
               onChange={(e) => handleGroupBranchChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-indigo-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-950 font-extrabold cursor-pointer shadow-xs"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-950 dark:text-white font-extrabold cursor-pointer shadow-xs"
             >
               {isClass9or10 ? (
                 <>
@@ -554,15 +556,15 @@ export default function ProfessionalMarkEntryPage() {
           {/* Subject Selector (Strict RBAC filtering for Teachers) */}
           <div>
             <label className="block text-[10px] font-extrabold uppercase mb-1 flex items-center justify-between">
-              <span className="text-slate-500">৪. বিষয় নির্বাচন (Subject)</span>
+              <span className="text-slate-500 dark:text-slate-400">৪. বিষয় নির্বাচন (Subject)</span>
               {isTeacherRole && (
-                <span className="text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.2 rounded text-[9px] font-black">
+                <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.2 rounded text-[9px] font-black">
                   🔒 শুধু আপনার বিষয় ({availableSubjects.length}টি)
                 </span>
               )}
             </label>
             {availableSubjects.length === 0 ? (
-              <div className="w-full px-3 py-2.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 font-bold text-xs flex items-center gap-1.5">
+              <div className="w-full px-3 py-2.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-rose-700 dark:text-rose-300 font-bold text-xs flex items-center gap-1.5">
                 <AlertCircle size={14} className="shrink-0" />
                 <span>কোনো বিষয় বরাদ্দ নেই</span>
               </div>
@@ -570,7 +572,7 @@ export default function ProfessionalMarkEntryPage() {
               <select
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-indigo-950 font-black cursor-pointer"
+                className="w-full px-3 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-indigo-950 dark:text-indigo-200 font-black cursor-pointer"
               >
                 {availableSubjects.map((sub: string, idx: number) => (
                   <option key={idx} value={sub}>{sub}</option>
@@ -587,18 +589,18 @@ export default function ProfessionalMarkEntryPage() {
       {/* MARK ENTRY SHEET TABLE                      */}
       {/* ═══════════════════════════════════════════ */}
       {!isClassTeacherOnly && !hasNoSubjectsInSelectedGrade && availableSubjects.length > 0 && (
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden space-y-4 p-5 print:hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden space-y-4 p-5 print:hidden">
         
         {/* Table Top Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <BookOpen className="text-indigo-600" size={18} />
-                {gradeNameBn} ({selectedBranch} {isClass9or10 ? 'বিভাগ' : 'শাখা'}) - <span className="text-indigo-600">{selectedSubject}</span>
+              <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <BookOpen className="text-indigo-600 dark:text-indigo-400" size={18} />
+                {gradeNameBn} ({selectedBranch} {isClass9or10 ? 'বিভাগ' : 'শাখা'}) - <span className="text-indigo-600 dark:text-indigo-400">{selectedSubject}</span>
               </h3>
               {isClass9or10 && (
-                <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[10px] font-black border border-indigo-200">
+                <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 rounded-full text-[10px] font-black border border-indigo-200 dark:border-indigo-800/60">
                   গ্রুপ ভিত্তিক এন্ট্রি
                 </span>
               )}
@@ -607,14 +609,14 @@ export default function ProfessionalMarkEntryPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
               <Search size={14} className="text-slate-400" />
               <input
                 type="text"
                 placeholder="রোল বা নাম খুঁজুন..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-xs text-slate-800 font-medium w-28 sm:w-36"
+                className="bg-transparent border-none outline-none text-xs text-slate-800 dark:text-slate-100 font-medium w-28 sm:w-36"
               />
             </div>
           </div>
@@ -622,11 +624,11 @@ export default function ProfessionalMarkEntryPage() {
 
         {/* 9-10 Common Subject Information Notice */}
         {isClass9or10 && (
-          <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-[11px] font-medium text-blue-900 flex items-center justify-between gap-2">
+          <div className="p-3 bg-blue-50/70 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/60 rounded-2xl text-[11px] font-medium text-blue-900 dark:text-blue-200 flex items-center justify-between gap-2">
             <span>
               ℹ️ <strong>গ্রুপ ভিত্তিক এন্ট্রি নির্দেশিকা:</strong> আপনি বর্তমানে <strong>{selectedBranch} বিভাগ</strong>-এর শিক্ষার্থীদের নম্বর এন্ট্রি করছেন। অন্য বিভাগের শিক্ষার্থীদের নম্বর এন্ট্রি করতে উপরের ৩নং অপশন থেকে বিভাগ পরিবর্তন করুন।
             </span>
-            <span className="px-2.5 py-1 bg-blue-200/80 text-blue-950 rounded-xl font-bold text-[10px] shrink-0 font-mono">
+            <span className="px-2.5 py-1 bg-blue-200/80 text-blue-950 dark:text-blue-200 rounded-xl font-bold text-[10px] shrink-0 font-mono">
               শিক্ষার্থী: {marks.length} জন
             </span>
           </div>
@@ -634,24 +636,24 @@ export default function ProfessionalMarkEntryPage() {
 
         {/* Subject Religion Filter Indicator Banner */}
         {(selectedSubject.toLowerCase().includes('হিন্দু') || selectedSubject.toLowerCase().includes('hindu')) && (
-          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-950 rounded-2xl text-xs font-bold flex items-center justify-between gap-2">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-950 dark:text-amber-200 rounded-2xl text-xs font-bold flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
               <span className="text-base">🕉️</span>
               <span><strong>ধর্মীয় বিষয় ফিল্টার:</strong> &quot;{selectedSubject}&quot; বিষয় নির্বাচিত থাকায় কেবল হিন্দু শিক্ষার্থীদের নামের তালিকা প্রদর্শিত হচ্ছে।</span>
             </span>
-            <span className="px-2.5 py-0.5 bg-amber-200 text-amber-900 rounded-full font-mono text-[11px] shrink-0 font-black">
+            <span className="px-2.5 py-0.5 bg-amber-200 text-amber-900 dark:text-amber-200 rounded-full font-mono text-[11px] shrink-0 font-black">
               মোট: {marks.length} জন
             </span>
           </div>
         )}
 
         {(selectedSubject.toLowerCase().includes('ইসলাম') || selectedSubject.toLowerCase().includes('islam')) && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-950 rounded-2xl text-xs font-bold flex items-center justify-between gap-2">
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200 rounded-2xl text-xs font-bold flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
               <span className="text-base">☪️</span>
               <span><strong>ধর্মীয় বিষয় ফিল্টার:</strong> &quot;{selectedSubject}&quot; বিষয় নির্বাচিত থাকায় কেবল মুসলিম শিক্ষার্থীদের নামের তালিকা প্রদর্শিত হচ্ছে।</span>
             </span>
-            <span className="px-2.5 py-0.5 bg-emerald-200 text-emerald-900 rounded-full font-mono text-[11px] shrink-0 font-black">
+            <span className="px-2.5 py-0.5 bg-emerald-200 text-emerald-900 dark:text-emerald-200 rounded-full font-mono text-[11px] shrink-0 font-black">
               মোট: {marks.length} জন
             </span>
           </div>
@@ -661,7 +663,7 @@ export default function ProfessionalMarkEntryPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse font-sans">
             <thead>
-              <tr className="bg-slate-100/80 text-slate-900 font-black uppercase text-[11px] border-b border-slate-200">
+              <tr className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-900 dark:text-white font-black uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                 <th className="p-3 text-center w-16">রোল</th>
                 <th className="p-3">শিক্ষার্থীর নাম</th>
                 <th className="p-3 w-36 text-center">সিকিউ / লিখিত (CQ max {marksConfig.writtenMax})</th>
@@ -674,15 +676,15 @@ export default function ProfessionalMarkEntryPage() {
                 <th className="p-3 w-28 text-center">মোট নম্বর</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {filteredMarks.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-14 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
                         <UserX className="w-8 h-8 text-indigo-300" />
                       </div>
-                      <p className="text-slate-700 font-bold text-sm">এই শ্রেণি ও শাখায় কোনো শিক্ষার্থী নেই</p>
+                      <p className="text-slate-700 dark:text-slate-300 font-bold text-sm">এই শ্রেণি ও শাখায় কোনো শিক্ষার্থী নেই</p>
                       <p className="text-slate-400 text-xs max-w-xs">শিক্ষার্থী এন্ট্রি করুন বা CSV আপলোড করুন। তারপর এখানে মার্ক এন্ট্রি করতে পারবেন।</p>
                       <Link
                         href="/dashboard/students"
@@ -695,18 +697,18 @@ export default function ProfessionalMarkEntryPage() {
                 </tr>
               ) : (
                 filteredMarks.map((st) => (
-                  <tr key={st.id} className="hover:bg-slate-50/80 transition">
-                    <td className="p-3 text-center font-black font-mono text-slate-900">{st.roll}</td>
-                    <td className="p-3 font-extrabold text-slate-900">
+                  <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800 transition">
+                    <td className="p-3 text-center font-black font-mono text-slate-900 dark:text-white">{st.roll}</td>
+                    <td className="p-3 font-extrabold text-slate-900 dark:text-white">
                       {st.name}
                       <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                         st.religion === 'Hindu'
-                          ? 'bg-amber-100 text-amber-700'
+                          ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                           : st.religion === 'Christian'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                           : st.religion === 'Buddhist'
-                          ? 'bg-violet-100 text-violet-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300'
+                          : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                       }`}>
                         {st.religion === 'Hindu' ? '🕉️ হিন্দু' : st.religion === 'Christian' ? '✝️ খ্রিস্টান' : st.religion === 'Buddhist' ? '☸️ বৌদ্ধ' : '☪️ মুসলিম'}
                       </span>
@@ -722,7 +724,7 @@ export default function ProfessionalMarkEntryPage() {
                         onWheel={(e) => e.currentTarget.blur()}
                         onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); }}
                         onChange={(e) => handleMarkChange(st.id, 'written', Number(e.target.value))}
-                        className="w-24 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-24 px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-center font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900 text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </td>
 
@@ -739,8 +741,8 @@ export default function ProfessionalMarkEntryPage() {
                         onChange={(e) => handleMarkChange(st.id, 'mcq', Number(e.target.value))}
                         className={`w-24 px-2 py-1.5 border rounded-xl text-center font-bold text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                           marksConfig.hasMcq
-                            ? 'bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-200 focus:bg-white'
-                            : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                            ? 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900'
+                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
                         }`}
                       />
                     </td>
@@ -758,14 +760,14 @@ export default function ProfessionalMarkEntryPage() {
                         onChange={(e) => handleMarkChange(st.id, 'practical', Number(e.target.value))}
                         className={`w-24 px-2 py-1.5 border rounded-xl text-center font-bold text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                           marksConfig.hasPractical
-                            ? 'bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-200 focus:bg-white'
-                            : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                            ? 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-200 focus:bg-white dark:focus:bg-slate-900'
+                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
                         }`}
                       />
                     </td>
 
                     {/* Total */}
-                    <td className="p-3 text-center font-black font-mono text-indigo-700 text-sm">
+                    <td className="p-3 text-center font-black font-mono text-indigo-700 dark:text-indigo-300 text-sm">
                       {st.total}
                     </td>
                   </tr>
@@ -776,13 +778,13 @@ export default function ProfessionalMarkEntryPage() {
         </div>
 
         {/* Bottom Live Auto-save bar */}
-        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <p className="text-slate-500 font-medium">
-            তালিকাভুক্ত মোট শিক্ষার্থী: <strong className="text-slate-900 font-bold">{filteredMarks.length} জন</strong>
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            তালিকাভুক্ত মোট শিক্ষার্থী: <strong className="text-slate-900 dark:text-white font-bold">{filteredMarks.length} জন</strong>
           </p>
 
-          <div className="flex items-center gap-2 text-emerald-800 bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-200/80 font-extrabold">
-            <CheckCircle2 size={16} className="text-emerald-600 animate-pulse" />
+          <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/50 px-4 py-2 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 font-extrabold">
+            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 animate-pulse" />
             <span>লাইভ অটো-সেভ সক্রিয় (ইন্সট্যান্ট সেভ হচ্ছে)</span>
           </div>
         </div>
@@ -795,7 +797,7 @@ export default function ProfessionalMarkEntryPage() {
       {/* ═════════════════════════════════════════════════════════════════ */}
       {printMarksheetModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:static print:inset-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto print:max-h-none print:shadow-none print:w-full print:rounded-none">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto print:max-h-none print:shadow-none print:w-full print:rounded-none">
             
             {/* Top Bar */}
             <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 p-4 rounded-t-3xl text-white flex items-center justify-between print:hidden">
@@ -821,16 +823,22 @@ export default function ProfessionalMarkEntryPage() {
             </div>
 
             {/* Paper Sheet */}
-            <div className="p-8 sm:p-10 font-serif text-slate-950 space-y-6 print:p-0 print:m-0">
+            <div className="p-8 sm:p-10 font-serif text-slate-950 dark:text-white space-y-6 print:p-0 print:m-0">
               <div className="text-center border-b-2 border-slate-950 pb-4 space-y-1.5">
-                <h1 className="text-2xl sm:text-3xl font-black uppercase text-slate-950">বরইতলী উচ্চ বিদ্যালয়</h1>
-                <p className="text-xs font-bold text-slate-800">চকরিয়া, কক্সবাজার | EIIN: ১০৮২৩৪</p>
+                <h1 className="text-2xl sm:text-3xl font-black uppercase text-slate-950 dark:text-white">
+                  {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
+                </h1>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {mounted
+                    ? `${settingsService.getSettings().address || ''}${settingsService.getSettings().address && settingsService.getSettings().eiin ? ' | ' : ''}${settingsService.getSettings().eiin ? `EIIN: ${settingsService.getSettings().eiin}` : ''}`
+                    : ''}
+                </p>
                 <div className="pt-1">
                   <span className="inline-block px-5 py-1 bg-slate-950 text-white font-black text-xs rounded-full uppercase">
                     বিষয়ভিত্তিক পরীক্ষা নম্বরপত্র - {selectedExam}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 pt-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 pt-2">
                   <span>শ্রেণি: {gradeNameBn} ({selectedBranch} {selectedGrade === '9th' || selectedGrade === '10th' ? 'গ্রুপ' : 'শাখা'})</span>
                   <span>বিষয়: {selectedSubject}</span>
                   <span>মোট পরীক্ষার্থী: {marks.length} জন</span>
@@ -840,7 +848,7 @@ export default function ProfessionalMarkEntryPage() {
               <div className="overflow-hidden border border-slate-950 rounded-lg">
                 <table className="w-full text-left text-xs border-collapse font-sans">
                   <thead>
-                    <tr className="bg-slate-200 text-slate-950 font-black uppercase text-[11px] border-b border-slate-950">
+                    <tr className="bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white font-black uppercase text-[11px] border-b border-slate-950">
                       <th className="p-2.5 text-center border-r border-slate-950 w-14">রোল</th>
                       <th className="p-2.5 border-r border-slate-950">শিক্ষার্থীর নাম</th>
                       <th className="p-2.5 text-center border-r border-slate-950 w-24">সিকিউ (70)</th>

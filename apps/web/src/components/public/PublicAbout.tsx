@@ -12,9 +12,7 @@ interface PublicAboutProps {
 }
 
 export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps) {
-  if (aboutConfig && aboutConfig.enabled === false) {
-    return null;
-  }
+  const isDisabled = Boolean(aboutConfig && aboutConfig.enabled === false);
 
   const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
   const estd = aboutConfig?.foundingYear || settings?.estdYear || '১৯৬৯';
@@ -32,6 +30,7 @@ export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps)
   const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isDisabled) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -53,7 +52,11 @@ export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps)
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [isDisabled]);
+
+  if (isDisabled) {
+    return null;
+  }
 
   return (
     <section 

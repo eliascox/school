@@ -36,6 +36,9 @@ interface PublicBestStudentsSectionProps {
 }
 
 export default function PublicBestStudentsSection({ achieversConfig, students }: PublicBestStudentsSectionProps = {}) {
+  const [selectedStudent, setSelectedStudent] = useState<BestStudent | null>(null);
+  const [showAllModal, setShowAllModal] = useState<boolean>(false);
+
   if (achieversConfig && achieversConfig.enabled === false) {
     return null;
   }
@@ -129,9 +132,6 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
 
   const sectionTitle = achieversConfig?.title || 'সেরা ছাত্র/ছাত্রী';
   const sectionSubtitle = achieversConfig?.subtitle || 'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';
-
-  const [selectedStudent, setSelectedStudent] = useState<BestStudent | null>(null);
-  const [showAllModal, setShowAllModal] = useState<boolean>(false);
 
   return (
     <section id="best-students" className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">

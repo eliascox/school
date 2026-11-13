@@ -6,6 +6,7 @@ import {
   LicenseHeartbeatResponse 
 } from '@sms/shared-types';
 import { centralAdminService } from './centralAdminService';
+import { getConfiguredCentralApiUrl, getCentralApiBaseUrl } from '@/lib/centralApiConfig';
 
 const STORAGE_KEY_REGISTRATION = 'sms_school_registration_v1';
 const STORAGE_KEY_ENTITLEMENT = 'sms_school_entitlement_v1';
@@ -38,7 +39,9 @@ export interface HardwareInfo {
 }
 
 class ClientLicenseService {
-  private apiBaseUrl: string = process.env.NEXT_PUBLIC_CENTRAL_API_URL || 'http://localhost:3000';
+  private get apiBaseUrl(): string {
+    return getCentralApiBaseUrl();
+  }
   private heartbeatIntervalTimer: any = null;
 
   constructor() {
@@ -508,9 +511,15 @@ class ClientLicenseService {
   /**
    * 6. Remote Deactivation & Heartbeat Watchdog
    */
-  public async sendHeartbeat(): Promise<LicenseHeartbeatResponse | null> {
+  public async sendHeartbeat(forceRemote: boolean = false): Promise<LicenseHeartbeatResponse | null> {
     const state = this.getRegistrationState();
     if (!state.isRegistered || !state.licenseKey) return null;
+
+    // Skip periodic polling when running standalone Web/Firebase mode without a Central API configured
+    if (!forceRemote && !getConfiguredCentralApiUrl()) {
+      this.validateOfflineGracePeriod();
+      return null;
+    }
 
     const hw = await this.getHardwareInfo();
     const req: LicenseHeartbeatRequest = {

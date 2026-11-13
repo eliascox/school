@@ -19,6 +19,7 @@ import {
 import { firebaseSyncService, CloudSyncProgress, CloudSyncStatus } from '@/services/firebaseSyncService';
 import { studentService } from '@/services/studentService';
 import { pushNotificationService } from '@/services/pushNotificationService';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 export default function FirebaseCloudSyncPanel() {
   const [status, setStatus] = useState<CloudSyncStatus>(firebaseSyncService.getStatus());
@@ -55,7 +56,7 @@ export default function FirebaseCloudSyncPanel() {
       if (res.success) {
         setPushStatus({ active: true, message: res.message });
       } else {
-        alert(res.message);
+        showToast(res.message, 'warning');
       }
     } finally {
       setPushSubscribing(false);
@@ -80,7 +81,11 @@ export default function FirebaseCloudSyncPanel() {
   };
 
   const handleUploadAll = async () => {
-    if (!window.confirm(`আপনি কি লোকাল ডিভাইসের সকল ডাটা (${localStudentCount} জন শিক্ষার্থী ও সেটিংস) গুগল ক্লাউড ফায়ারবেসে আপলোড করতে চান?`)) {
+    if (!(await confirmDialog({
+      title: 'ক্লাউডে আপলোড নিশ্চিতকরণ',
+      message: `আপনি কি লোকাল ডিভাইসের সকল ডাটা (${localStudentCount} জন শিক্ষার্থী ও সেটিংস) গুগল ক্লাউড ফায়ারবেসে আপলোড করতে চান?`,
+      confirmLabel: 'আপলোড করুন',
+    }))) {
       return;
     }
 
@@ -99,14 +104,19 @@ export default function FirebaseCloudSyncPanel() {
       });
       setStatus(firebaseSyncService.getStatus());
     } catch (err: any) {
-      console.error(err);
+      console.warn('[FirebaseCloudSyncPanel] Upload warning:', err);
     } finally {
       setIsUploading(false);
     }
   };
 
   const handlePullAll = async () => {
-    if (!window.confirm('আপনি কি গুগল ক্লাউড থেকে সর্বশেষ ডাটা ডাউনলোড করে এই ডিভাইসে প্রতিস্থাপন করতে চান?')) {
+    if (!(await confirmDialog({
+      title: 'ক্লাউড থেকে ডাটা ডাউনলোড',
+      message: 'আপনি কি গুগল ক্লাউড থেকে সর্বশেষ ডাটা ডাউনলোড করে এই ডিভাইসে প্রতিস্থাপন করতে চান?',
+      confirmLabel: 'ডাউনলোড ও প্রতিস্থাপন',
+      danger: true,
+    }))) {
       return;
     }
 
@@ -126,7 +136,7 @@ export default function FirebaseCloudSyncPanel() {
       setLocalStudentCount(res.studentCount);
       setStatus(firebaseSyncService.getStatus());
     } catch (err: any) {
-      console.error(err);
+      console.warn('[FirebaseCloudSyncPanel] Pull warning:', err);
     } finally {
       setIsPulling(false);
     }

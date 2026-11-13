@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { confirmDialog } from '@/components/ui/ToastProvider';
 import {
   Users,
   UserPlus,
@@ -44,82 +45,42 @@ import { teacherRBACService, TeacherRecord, SubjectAssignment, ClassTeacherAssig
 import { leaveService, LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/leaveService';
 import { auditTrailService } from '@/services/auditTrailService';
 import { getSubjectReligion } from '@/lib/religionUtils';
+import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
 
-// ─── DYNAMIC SUBJECTS HELPER ──────────────────────────────────────────
+// ─── DYNAMIC SUBJECTS HELPER (Backed by centralized NCTB curriculumUtils) ────
 const getDynamicConfiguredSubjects = (gradeStr: string, group: string = 'all', isMounted: boolean = false) => {
-  // Convert Bengali digits to ASCII before parsing (৬→6, ৭→7, ৮→8, ৯→9, ১০→10)
   const toBnAscii = (s: string) => s.replace(/[০-৯]/g, (d) => String('০১২৩৪৫৬৭৮৯'.indexOf(d)));
   const normalized = toBnAscii(gradeStr);
-  const gradeNum = parseInt(normalized.replace(/\D/g, '')) || 8;
-  let classSubjects: any[] = [];
+  const gradeNum = parseInt(normalized.replace(/\D/g, ''), 10) || 8;
 
-  if (isMounted && typeof window !== 'undefined') {
-    const savedClasses = localStorage.getItem('sms_academic_classes');
-    if (savedClasses) {
-      try {
-        const parsedClasses = JSON.parse(savedClasses);
-        const targetClass = parsedClasses.find((c: any) => c.name.includes(gradeNum.toString()) || c.name.includes(gradeStr));
-        if (targetClass && targetClass.subjects && targetClass.subjects.length > 0) {
-          classSubjects = targetClass.subjects;
+  if (!isMounted && typeof window === 'undefined') return [];
+
+  const groupsToLoad = gradeNum >= 9 && group === 'all'
+    ? ['science', 'humanities', 'commerce']
+    : [gradeNum >= 9 ? group : 'সাধারণ'];
+
+  const seen = new Set<string>();
+  const combined: { code: string; name: string; category: string }[] = [];
+
+  for (const grp of groupsToLoad) {
+    for (const sub of getActiveCurriculumSubjects(gradeStr, grp)) {
+      if (seen.has(sub.name)) continue;
+      seen.add(sub.name);
+      const isRel = (sub.code || '').includes('REL') || sub.name.includes('ধর্ম');
+      if (isRel) {
+        for (const relName of ['ইসলাম ও নৈতিক শিক্ষা', 'হিন্দুধর্ম ও নৈতিক শিক্ষা']) {
+          if (!seen.has(relName)) {
+            seen.add(relName);
+            combined.push({ code: sub.code, name: relName, category: sub.category || 'আবশ্যিক' });
+          }
         }
-      } catch (e) {
-        console.error(e);
+      } else {
+        combined.push({ code: sub.code, name: sub.name, category: sub.group || sub.category || 'সাধারণ' });
       }
     }
   }
 
-  if (classSubjects.length === 0) {
-    if (gradeNum >= 9) {
-      classSubjects = [
-        { code: 'BAN-101', name: 'বাংলা ১ম পত্র', category: 'আবশ্যিক' },
-        { code: 'BAN-102', name: 'বাংলা ২য় পত্র', category: 'আবশ্যিক' },
-        { code: 'ENG-107', name: 'ইংরেজি ১ম পত্র', category: 'আবশ্যিক' },
-        { code: 'ENG-108', name: 'ইংরেজি ২য় পত্র', category: 'আবশ্যিক' },
-        { code: 'MAT-109', name: 'সাধারণ গণিত', category: 'আবশ্যিক' },
-        { code: 'ICT-154', name: 'তথ্য ও যোগাযোগ প্রযুক্তি (ICT)', category: 'আবশ্যিক' },
-        { code: 'REL-111', name: 'ইসলাম ও নৈতিক শিক্ষা', category: 'আবশ্যিক' },
-        { code: 'REL-112', name: 'হিন্দুধর্ম ও নৈতিক শিক্ষা', category: 'আবশ্যিক' },
-        { code: 'PHY-136', name: 'পদার্থবিজ্ঞান', category: 'বিজ্ঞান' },
-        { code: 'CHE-137', name: 'রসায়ন', category: 'বিজ্ঞান' },
-        { code: 'BIO-138', name: 'জীববিজ্ঞান', category: 'বিজ্ঞান' },
-        { code: 'HMT-126', name: 'উচ্চতর গণিত', category: 'বিজ্ঞান' },
-        { code: 'BGS-150', name: 'বাংলাদেশ ও বিশ্বপরিচয়', category: 'বিজ্ঞান' },
-        { code: 'HIS-153', name: 'বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', category: 'মানবিক' },
-        { code: 'GEO-110', name: 'ভূগোল ও পরিবেশ', category: 'মানবিক' },
-        { code: 'CIV-140', name: 'পৌরনীতি ও নাগরিকতা', category: 'মানবিক' },
-        { code: 'ECO-141', name: 'অর্থনীতি', category: 'মানবিক' },
-        { code: 'SCI-127', name: 'সাধারণ বিজ্ঞান', category: 'মানবিক' },
-        { code: 'ACC-146', name: 'হিসাববিজ্ঞান', category: 'ব্যবসায় শিক্ষা' },
-        { code: 'BUS-147', name: 'ব্যবসায় উদ্যোগ', category: 'ব্যবসায় শিক্ষা' },
-        { code: 'FIN-152', name: 'ফিন্যান্স ও ব্যাংকিং', category: 'ব্যবসায় শিক্ষা' }
-      ];
-    } else {
-      classSubjects = [
-        { code: 'BAN-101', name: 'বাংলা ১ম পত্র', category: 'সাধারণ' },
-        { code: 'BAN-102', name: 'বাংলা ২য় পত্র', category: 'সাধারণ' },
-        { code: 'ENG-107', name: 'ইংরেজি ১ম পত্র', category: 'সাধারণ' },
-        { code: 'ENG-108', name: 'ইংরেজি ২য় পত্র', category: 'সাধারণ' },
-        { code: 'MAT-109', name: 'সাধারণ গণিত', category: 'সাধারণ' },
-        { code: 'SCI-113', name: 'বিজ্ঞান', category: 'সাধারণ' },
-        { code: 'ICT-154', name: 'ডিজিটাল প্রযুক্তি', category: 'সাধারণ' },
-        { code: 'BGS-150', name: 'ইতিহাস ও সামাজিক বিজ্ঞান', category: 'সাধারণ' },
-        { code: 'REL-111', name: 'ইসলাম ও নৈতিক শিক্ষা', category: 'সাধারণ' },
-        { code: 'REL-112', name: 'হিন্দুধর্ম ও নৈতিক শিক্ষা', category: 'সাধারণ' },
-        { code: 'AGR-139', name: 'কৃষি শিক্ষা', category: 'সাধারণ' },
-        { code: 'HMS-140', name: 'গার্হস্থ্য বিজ্ঞান', category: 'সাধারণ' }
-      ];
-    }
-  }
-
-  if (gradeNum >= 9 && group !== 'all') {
-    const groupNameBn = group === 'science' ? 'বিজ্ঞান' : group === 'humanities' ? 'মানবিক' : 'ব্যবসায় শিক্ষা';
-    classSubjects = classSubjects.filter(s => {
-      if (!s.category || s.category === 'আবশ্যিক' || s.category === 'সাধারণ') return true;
-      return s.category.includes(groupNameBn) || groupNameBn.includes(s.category);
-    });
-  }
-
-  return classSubjects;
+  return combined;
 };
 
 // ─── TAB CONFIG ───────────────────────────────────────────────────────
@@ -160,12 +121,12 @@ function TeacherManagementContent() {
   const [designation, setDesignation] = useState('সহকারী শিক্ষক');
   const [dob, setDob] = useState('1990-01-01');
   const [photoUrl, setPhotoUrl] = useState('');
-  const [initialPassword, setInitialPassword] = useState('123456');
+  const [initialPassword, setInitialPassword] = useState('');
   const [showInitialPwd, setShowInitialPwd] = useState(false);
 
   // ─── Modal: Password Reset
   const [resetTeacherId, setResetTeacherId] = useState('');
-  const [newPassword, setNewPassword] = useState('123456');
+  const [newPassword, setNewPassword] = useState('');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showResetPwd, setShowResetPwd] = useState(false);
 
@@ -323,25 +284,25 @@ function TeacherManagementContent() {
   }, []);
 
   // ─── HANDLERS
-  const handleDeleteTeacher = (id: string, tName: string) => {
-    if (confirm(`আপনি কি নিশ্চিতভাবে '${tName}' শিক্ষকের সকল তথ্য ও পারমিশন মুছে ফেলতে চান?`)) {
+  const handleDeleteTeacher = async (id: string, tName: string) => {
+    if (await confirmDialog({ title: 'শিক্ষক মুছে ফেলা', message: `আপনি কি নিশ্চিতভাবে '${tName}' শিক্ষকের সকল তথ্য ও পারমিশন মুছে ফেলতে চান?`, confirmLabel: 'মুছে ফেলুন', danger: true })) {
       const res = teacherRBACService.deleteTeacher(id);
       res.success ? showAlert('success', res.message) : showAlert('error', res.message);
       refreshAllData();
     }
   };
 
-  const handleRemoveClassTeacher = (id: string, className: string) => {
-    if (confirm(`আপনি কি '${className}' শ্রেণির শ্রেণি শিক্ষক নির্বাচন বাতিল করতে চান?`)) {
+  const handleRemoveClassTeacher = async (id: string, className: string) => {
+    if (await confirmDialog({ title: 'শ্রেণি শিক্ষক বাতিল', message: `আপনি কি '${className}' শ্রেণির শ্রেণি শিক্ষক নির্বাচন বাতিল করতে চান?`, confirmLabel: 'বাতিল করুন', danger: true })) {
       const res = teacherRBACService.removeClassTeacher(id);
       res.success ? showAlert('success', res.message) : showAlert('error', res.message);
       refreshAllData();
     }
   };
 
-  const handleClearAllTeachers = () => {
+  const handleClearAllTeachers = async () => {
     if (teachers.length === 0) return;
-    if (confirm('আপনি কি নিশ্চিত যে সকল শিক্ষকের তালিকা ও পারমিশন মুছে ফেলতে চান? এটি অপরিবর্তনীয়!')) {
+    if (await confirmDialog({ title: 'সকল শিক্ষক মুছে ফেলা', message: 'আপনি কি নিশ্চিত যে সকল শিক্ষকের তালিকা ও পারমিশন মুছে ফেলতে চান? এটি অপরিবর্তনীয়!', confirmLabel: 'সব মুছে ফেলুন', danger: true })) {
       const res = teacherRBACService.clearAllTeachers();
       if (res.success) {
         showAlert('success', res.message);
@@ -355,14 +316,15 @@ function TeacherManagementContent() {
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return showAlert('error', 'নাম এবং ফোন নম্বর প্রদান করুন!');
+    if (initialPassword.trim().length < 6) return showAlert('error', 'কমপক্ষে ৬ অক্ষরের প্রাথমিক পাসওয়ার্ড লিখুন!');
     const res = await teacherRBACService.createTeacher({
       name: name.trim(), phone: phone.trim(), designation, dob,
       photoUrl: photoUrl.trim() || undefined, status: 'active',
-      passwordHash: initialPassword.trim() || '123456'
+      passwordHash: initialPassword.trim()
     });
     if (res.success) {
       showAlert('success', res.message);
-      setName(''); setPhone(''); setShowAddTeacherModal(false);
+      setName(''); setPhone(''); setInitialPassword(''); setShowAddTeacherModal(false);
       refreshAllData();
     } else { showAlert('error', res.message); }
   };
@@ -373,17 +335,17 @@ function TeacherManagementContent() {
     const res = await teacherRBACService.resetPassword(resetTeacherId, newPassword.trim());
     if (res.success) {
       showAlert('success', res.message);
-      setShowResetModal(false); setNewPassword('123456');
+      setShowResetModal(false); setNewPassword('');
       refreshAllData();
     } else { showAlert('error', res.message); }
   };
 
-  const handleEditTeacher = (e: React.FormEvent) => {
+  const handleEditTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editTeacherData || !editTeacherData.name.trim() || !editTeacherData.phone.trim()) {
       return showAlert('error', 'নাম এবং ফোন নম্বর প্রদান করুন!');
     }
-    const res = teacherRBACService.updateTeacher(editTeacherData.id, {
+    const res = await teacherRBACService.updateTeacher(editTeacherData.id, {
       name: editTeacherData.name.trim(), phone: editTeacherData.phone.trim(),
       designation: editTeacherData.designation, dob: editTeacherData.dob,
       password: editTeacherData.password?.trim() || undefined, status: editTeacherData.status
@@ -506,11 +468,11 @@ function TeacherManagementContent() {
   if (!mounted) return (
     <div className="w-full py-16" suppressHydrationWarning>
       <div className="animate-pulse space-y-6">
-        <div className="h-28 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded-3xl" />
+        <div className="h-28 bg-gradient-to-r from-slate-200 dark:from-slate-800 via-slate-100 dark:via-slate-800 to-slate-200 dark:to-slate-800 rounded-3xl" />
         <div className="flex gap-3">
-          {[1,2,3,4].map(i => <div key={i} className="h-11 w-40 bg-slate-200 rounded-2xl" />)}
+          {[1,2,3,4].map(i => <div key={i} className="h-11 w-40 bg-slate-200 dark:bg-slate-800 rounded-2xl" />)}
         </div>
-        <div className="h-96 bg-slate-100 rounded-3xl" />
+        <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
       </div>
     </div>
   );
@@ -519,7 +481,7 @@ function TeacherManagementContent() {
   if (session && session.role !== 'admin') {
     return (
       <div className="max-w-2xl mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 text-center space-y-5 shadow-sm" suppressHydrationWarning>
-        <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/70 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+        <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
           <ShieldAlert size={32} />
         </div>
         <div className="space-y-2">
@@ -537,7 +499,7 @@ function TeacherManagementContent() {
           </Link>
           <Link
             href="/dashboard/exam/mark-entry"
-            className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-black transition border border-slate-200 dark:border-slate-700"
+            className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-black transition border border-slate-200 dark:border-slate-700"
           >
             নম্বর এন্ট্রি প্যানেল
           </Link>
@@ -547,7 +509,7 @@ function TeacherManagementContent() {
   }
 
   return (
-    <div className="w-full space-y-5 pb-16 font-sans text-slate-900" suppressHydrationWarning>
+    <div className="w-full space-y-5 pb-16 font-sans text-slate-900 dark:text-white" suppressHydrationWarning>
 
       {/* TOP ACTIONS & STATS ROW (Clean & Compact) */}
       <div className="space-y-4 print:hidden">
@@ -555,10 +517,10 @@ function TeacherManagementContent() {
           {teachers.length > 0 && (
             <button
               onClick={handleClearAllTeachers}
-              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl font-bold text-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
               title="সকল শিক্ষক রেকর্ড সম্পূর্ণ মুছে ফেলুন"
             >
-              <Trash2 size={14} className="text-rose-600" /> সকল শিক্ষক মুছুন
+              <Trash2 size={14} className="text-rose-600 dark:text-rose-400" /> সকল শিক্ষক মুছুন
             </button>
           )}
           <button
@@ -587,16 +549,16 @@ function TeacherManagementContent() {
               onClick={() => setActiveTab(stat.tab)}
               className={`p-3.5 rounded-2xl border shadow-xs text-center cursor-pointer transition hover:scale-[1.02] active:scale-95 ${
                 stat.isAlert
-                  ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 ring-2 ring-amber-400/20'
+                  ? 'bg-gradient-to-br from-amber-50 dark:from-amber-950/50 to-orange-50 dark:to-orange-950/40 border-amber-300 dark:border-amber-800/60 ring-2 ring-amber-400/20'
                   : activeTab === stat.tab
-                  ? 'bg-slate-50 border-slate-300'
-                  : 'bg-white border-slate-200'
+                  ? 'bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
               }`}
             >
-              <span className={`text-xl sm:text-2xl font-black leading-none block ${stat.isAlert ? 'text-amber-700 animate-pulse' : 'text-slate-900'}`}>
+              <span className={`text-xl sm:text-2xl font-black leading-none block ${stat.isAlert ? 'text-amber-700 dark:text-amber-300 animate-pulse' : 'text-slate-900 dark:text-white'}`}>
                 {stat.value}
               </span>
-              <p className={`text-[11px] font-bold mt-1 ${stat.isAlert ? 'text-amber-800' : 'text-slate-500'}`}>
+              <p className={`text-[11px] font-bold mt-1 ${stat.isAlert ? 'text-amber-800 dark:text-amber-200' : 'text-slate-500 dark:text-slate-400'}`}>
                 {stat.label}
               </p>
             </div>
@@ -608,17 +570,17 @@ function TeacherManagementContent() {
       {alertMsg && (
         <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 transition-all duration-300 ${
           alertMsg.type === 'success'
-            ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-sm shadow-emerald-100'
-            : 'bg-rose-50 text-rose-900 border border-rose-200 shadow-sm shadow-rose-100'
+            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 shadow-sm shadow-emerald-100'
+            : 'bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 shadow-sm shadow-rose-100'
         }`}>
-          {alertMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertTriangle size={18} className="text-rose-600 shrink-0" />}
+          {alertMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" /> : <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />}
           <span>{alertMsg.text}</span>
           <button onClick={() => setAlertMsg(null)} className="ml-auto p-1 hover:bg-black/5 rounded-lg cursor-pointer"><X size={14} /></button>
         </div>
       )}
 
       {/* ─── TAB NAVIGATION ─────────────────────────────────────── */}
-      <div className="bg-slate-200/60 rounded-2xl border border-slate-200 p-1.5 shadow-sm">
+      <div className="bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 shadow-sm">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {TAB_CONFIG.map((tab, i) => {
             const isActive = activeTab === tab.id;
@@ -628,24 +590,24 @@ function TeacherManagementContent() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-2 text-xs font-bold whitespace-nowrap ${
                   isActive
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 border-transparent'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800 dark:hover:bg-slate-800/60 border-transparent'
                 }`}
               >
                 {tab.icon}
                 <span>{i + 1}. {tab.label}</span>
                 {tab.id === 'teachers' && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'}`}>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700 dark:text-slate-300'}`}>
                     {teachers.length}
                   </span>
                 )}
                 {tab.id === 'assignments' && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'}`}>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700 dark:text-slate-300'}`}>
                     {subjectAssignments.length}
                   </span>
                 )}
                 {tab.id === 'class_teachers' && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'}`}>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700 dark:text-slate-300'}`}>
                     {classTeachers.length}
                   </span>
                 )}
@@ -653,7 +615,7 @@ function TeacherManagementContent() {
                   <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-black ${
                     pendingLeavesCount > 0 
                       ? 'bg-amber-500 text-white animate-pulse shadow-xs' 
-                      : isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700'
+                      : isActive ? 'bg-slate-900 text-white' : 'bg-slate-300/80 text-slate-700 dark:text-slate-300'
                   }`}>
                     {pendingLeavesCount > 0 ? `${pendingLeavesCount}টি বিবেচনাধীন` : `${leaveApplications.length}`}
                   </span>
@@ -668,16 +630,16 @@ function TeacherManagementContent() {
       {/* TAB 1: শিক্ষক তালিকা                                     */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'teachers' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           {/* Header */}
-          <div className="p-5 border-b border-slate-100">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <Users size={18} className="text-indigo-600" />
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <Users size={18} className="text-indigo-600 dark:text-indigo-400" />
                   শিক্ষক ও ক্রেডেনশিয়াল ব্যবস্থাপনা
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">Username (Phone) ও Password এন্ট্রি, এডিট ও Reset পরিচালনা</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Username (Phone) ও Password এন্ট্রি, এডিট ও Reset পরিচালনা</p>
               </div>
 
               {/* Search */}
@@ -688,7 +650,7 @@ function TeacherManagementContent() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="নাম, ফোন বা আইডি খুঁজুন..."
-                  className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 w-full sm:w-64 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition"
+                  className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white w-full sm:w-64 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition"
                 />
               </div>
             </div>
@@ -697,10 +659,10 @@ function TeacherManagementContent() {
           {/* Table or Empty State */}
           {teachers.length === 0 ? (
             <div className="p-16 text-center space-y-3">
-              <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-100 flex items-center justify-center">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <Users size={36} className="text-slate-300" />
               </div>
-              <h4 className="font-bold text-slate-600 text-sm">কোনো শিক্ষক নিবন্ধিত নেই</h4>
+              <h4 className="font-bold text-slate-600 dark:text-slate-400 text-sm">কোনো শিক্ষক নিবন্ধিত নেই</h4>
               <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
                 &ldquo;নতুন শিক্ষক যোগ&rdquo; বাটনে ক্লিক করে শিক্ষকের তথ্য, ফোন নম্বর ও পাসওয়ার্ড এন্ট্রি করুন।
               </p>
@@ -712,7 +674,7 @@ function TeacherManagementContent() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50/80 text-slate-600 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                  <tr className="bg-slate-50/80 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <th className="px-4 py-3">আইডি</th>
                     <th className="px-4 py-3">শিক্ষকের নাম</th>
                     <th className="px-4 py-3">ইউজারনেম (ফোন)</th>
@@ -724,9 +686,9 @@ function TeacherManagementContent() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredTeachers.map((t) => (
-                    <tr key={t.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <tr key={t.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/50 transition-colors group">
                       <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md text-[10px]">{t.id}</span>
+                        <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md text-[10px]">{t.id}</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
@@ -734,22 +696,22 @@ function TeacherManagementContent() {
                             {t.name.charAt(0)}
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900 block">{t.name}</span>
+                            <span className="font-bold text-slate-900 dark:text-white block">{t.name}</span>
                             <span className="text-[10px] text-slate-400 font-medium">{t.dob}</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-slate-800 flex items-center gap-1">
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
                           <Phone size={11} className="text-slate-400" /> {t.phone}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-600 font-medium">{t.designation}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-medium">{t.designation}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           t.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${t.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {t.status === 'active' ? 'অ্যাক্টিভ' : 'নিষ্ক্রিয়'}
@@ -757,11 +719,11 @@ function TeacherManagementContent() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {t.mustChangePassword ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[10px] rounded-full">
+                          <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 font-bold text-[10px] rounded-full">
                             পরিবর্তন প্রয়োজন
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[10px] rounded-full">
+                          <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 font-bold text-[10px] rounded-full">
                             ভেরিফায়েড
                           </span>
                         )}
@@ -769,22 +731,22 @@ function TeacherManagementContent() {
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => { setViewTeacherRecord(t); setShowViewTeacherModal(true); }}
-                            className="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer" title="প্রোফাইল দেখুন">
+                            className="p-1.5 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 rounded-lg transition cursor-pointer" title="প্রোফাইল দেখুন">
                             <Eye size={14} />
                           </button>
                           <button onClick={() => {
-                            setEditTeacherData({ id: t.id, name: t.name, phone: t.phone, designation: t.designation, dob: t.dob, status: t.status || 'active', password: t.passwordHash || '' });
+                            setEditTeacherData({ id: t.id, name: t.name, phone: t.phone, designation: t.designation, dob: t.dob, status: t.status || 'active', password: '' });
                             setShowEditTeacherModal(true);
                           }}
-                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer" title="এডিট করুন">
+                            className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition cursor-pointer" title="এডিট করুন">
                             <Pencil size={14} />
                           </button>
                           <button onClick={() => { setResetTeacherId(t.id); setShowResetModal(true); }}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer" title="পাসওয়ার্ড রিসেট">
+                            className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer" title="পাসওয়ার্ড রিসেট">
                             <Key size={14} />
                           </button>
                           <button onClick={() => handleDeleteTeacher(t.id, t.name)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer" title="মুছে ফেলুন">
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer" title="মুছে ফেলুন">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -812,15 +774,15 @@ function TeacherManagementContent() {
         <div className="space-y-5">
 
           {/* ── ধর্ম বিষয় বণ্টন প্যানেল (৬ষ্ঠ-১০ম প্রতি শ্রেণিতে আলাদা শিক্ষক সুবিধা) ── */}
-          <div className="bg-gradient-to-br from-amber-50/60 to-orange-50/40 rounded-3xl border border-amber-200/90 shadow-xs p-5 sm:p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/70 pb-4">
+          <div className="bg-gradient-to-br from-amber-50/60 dark:from-amber-950/50 to-orange-50/40 dark:to-orange-950/40 rounded-3xl border border-amber-200/90 dark:border-amber-800/60 shadow-xs p-5 sm:p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/70 dark:border-amber-800/60 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
                   <BookOpen size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-amber-950 text-base">ধর্ম বিষয় শিক্ষক বণ্টন প্যানেল (৬ষ্ঠ - ১০ম শ্রেণি)</h3>
-                  <p className="text-xs text-amber-800 font-medium mt-0.5">
+                  <h3 className="font-black text-amber-950 dark:text-amber-200 text-base">ধর্ম বিষয় শিক্ষক বণ্টন প্যানেল (৬ষ্ঠ - ১০ম শ্রেণি)</h3>
+                  <p className="text-xs text-amber-800 dark:text-amber-200 font-medium mt-0.5">
                     ৬ষ্ঠ থেকে ১০ম শ্রেণির ধর্ম বিষয় একজন শিক্ষককে না দিয়ে বিভিন্ন শিক্ষককে আলাদাভাবে বণ্টন করার পূর্ণ সুবিধা
                   </p>
                 </div>
@@ -830,16 +792,16 @@ function TeacherManagementContent() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
               {/* ☪️ ISLAM & MORAL EDUCATION */}
-              <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm p-4 sm:p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-800/60 pb-3">
                   <div className="flex items-center gap-2.5">
                     <span className="text-2xl">☪️</span>
                     <div>
-                      <h4 className="font-black text-emerald-950 text-sm">ইসলাম ও নৈতিক শিক্ষা</h4>
-                      <p className="text-[11px] text-emerald-700 font-bold">শ্রেণিভিত্তিক আলাদা শিক্ষক নির্বাচন</p>
+                      <h4 className="font-black text-emerald-950 dark:text-emerald-200 text-sm">ইসলাম ও নৈতিক শিক্ষা</h4>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">শ্রেণিভিত্তিক আলাদা শিক্ষক নির্বাচন</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60">
                     আবশ্যিক বিষয়
                   </span>
                 </div>
@@ -854,13 +816,13 @@ function TeacherManagementContent() {
                     const currentTeacher = teachers.find(t => t.id === currentAssignment?.teacherId);
 
                     return (
-                      <div key={cls} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-xl border border-emerald-100 transition">
+                      <div key={cls} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-emerald-50/40 dark:bg-emerald-950/50 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/50 rounded-xl border border-emerald-100 dark:border-emerald-800/60 transition">
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="w-20 px-2 py-1 bg-emerald-700 text-white rounded-lg text-xs font-black text-center shadow-xs">
                             {cls === '6th' ? '৬ষ্ঠ শ্রেণি' : cls === '7th' ? '৭ম শ্রেণি' : cls === '8th' ? '৮ম শ্রেণি' : cls === '9th' ? '৯ম শ্রেণি' : '১০ম শ্রেণি'}
                           </span>
                           {currentTeacher ? (
-                            <span className="text-[11px] font-bold text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded-md truncate max-w-[130px]" title={currentTeacher.name}>
+                            <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200 bg-emerald-100/90 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md truncate max-w-[130px]" title={currentTeacher.name}>
                               ✓ {currentTeacher.name}
                             </span>
                           ) : (
@@ -872,7 +834,7 @@ function TeacherManagementContent() {
                           <select
                             value={currentAssignment?.teacherId || ''}
                             onChange={(e) => handleAssignReligionTeacher(cls, 'ইসলাম ও নৈতিক শিক্ষা', e.target.value)}
-                            className="px-2.5 py-1.5 bg-white border border-emerald-200 hover:border-emerald-400 focus:border-emerald-600 rounded-xl text-xs font-bold text-slate-900 outline-none cursor-pointer w-full sm:w-52 transition"
+                            className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-400 dark:hover:border-emerald-700 focus:border-emerald-600 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer w-full sm:w-52 transition"
                           >
                             <option value="">-- শিক্ষক সিলেক্ট করুন --</option>
                             {teachers.filter(t => t.status === 'active').map(t => (
@@ -883,7 +845,7 @@ function TeacherManagementContent() {
                             <button
                               type="button"
                               onClick={() => handleAssignReligionTeacher(cls, 'ইসলাম ও নৈতিক শিক্ষা', '')}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer shrink-0"
                               title="শিক্ষক বাতিল করুন"
                             >
                               <X size={14} />
@@ -896,11 +858,11 @@ function TeacherManagementContent() {
                 </div>
 
                 {/* Bulk Quick Fill */}
-                <div className="pt-3 border-t border-emerald-100 flex flex-col sm:flex-row items-center gap-2 bg-emerald-50/60 p-3 rounded-xl">
-                  <span className="text-[11px] font-extrabold text-emerald-900 shrink-0">⚡ সব শ্রেণিতে একই শিক্ষক:</span>
+                <div className="pt-3 border-t border-emerald-100 dark:border-emerald-800/60 flex flex-col sm:flex-row items-center gap-2 bg-emerald-50/60 dark:bg-emerald-950/50 p-3 rounded-xl">
+                  <span className="text-[11px] font-extrabold text-emerald-900 dark:text-emerald-200 shrink-0">⚡ সব শ্রেণিতে একই শিক্ষক:</span>
                   <select
                     id="bulk-islam-teacher"
-                    className="px-2.5 py-1.5 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-slate-900 outline-none flex-1 w-full sm:w-auto"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none flex-1 w-full sm:w-auto"
                   >
                     <option value="">-- শিক্ষক সিলেক্ট --</option>
                     {teachers.filter(t => t.status === 'active').map(t => (
@@ -921,16 +883,16 @@ function TeacherManagementContent() {
               </div>
 
               {/* 🕉️ HINDU RELIGION */}
-              <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-4 sm:p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-amber-100 pb-3">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-100 dark:border-amber-800/60 pb-3">
                   <div className="flex items-center gap-2.5">
                     <span className="text-2xl">🕉️</span>
                     <div>
-                      <h4 className="font-black text-amber-950 text-sm">হিন্দুধর্ম ও নৈতিক শিক্ষা</h4>
-                      <p className="text-[11px] text-amber-700 font-bold">শ্রেণিভিত্তিক আলাদা শিক্ষক নির্বাচন</p>
+                      <h4 className="font-black text-amber-950 dark:text-amber-200 text-sm">হিন্দুধর্ম ও নৈতিক শিক্ষা</h4>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300 font-bold">শ্রেণিভিত্তিক আলাদা শিক্ষক নির্বাচন</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60">
                     আবশ্যিক বিষয়
                   </span>
                 </div>
@@ -945,13 +907,13 @@ function TeacherManagementContent() {
                     const currentTeacher = teachers.find(t => t.id === currentAssignment?.teacherId);
 
                     return (
-                      <div key={cls} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-amber-50/40 hover:bg-amber-50/80 rounded-xl border border-amber-100 transition">
+                      <div key={cls} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-amber-50/40 dark:bg-amber-950/50 hover:bg-amber-50/80 dark:hover:bg-amber-950/50 rounded-xl border border-amber-100 dark:border-amber-800/60 transition">
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="w-20 px-2 py-1 bg-amber-700 text-white rounded-lg text-xs font-black text-center shadow-xs">
                             {cls === '6th' ? '৬ষ্ঠ শ্রেণি' : cls === '7th' ? '৭ম শ্রেণি' : cls === '8th' ? '৮ম শ্রেণি' : cls === '9th' ? '৯ম শ্রেণি' : '১০ম শ্রেণি'}
                           </span>
                           {currentTeacher ? (
-                            <span className="text-[11px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md truncate max-w-[130px]" title={currentTeacher.name}>
+                            <span className="text-[11px] font-bold text-amber-900 dark:text-amber-200 bg-amber-100/90 dark:bg-amber-900/40 px-2 py-0.5 rounded-md truncate max-w-[130px]" title={currentTeacher.name}>
                               ✓ {currentTeacher.name}
                             </span>
                           ) : (
@@ -963,7 +925,7 @@ function TeacherManagementContent() {
                           <select
                             value={currentAssignment?.teacherId || ''}
                             onChange={(e) => handleAssignReligionTeacher(cls, 'হিন্দুধর্ম ও নৈতিক শিক্ষা', e.target.value)}
-                            className="px-2.5 py-1.5 bg-white border border-amber-200 hover:border-amber-400 focus:border-amber-600 rounded-xl text-xs font-bold text-slate-900 outline-none cursor-pointer w-full sm:w-52 transition"
+                            className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-700 focus:border-amber-600 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer w-full sm:w-52 transition"
                           >
                             <option value="">-- শিক্ষক সিলেক্ট করুন --</option>
                             {teachers.filter(t => t.status === 'active').map(t => (
@@ -974,7 +936,7 @@ function TeacherManagementContent() {
                             <button
                               type="button"
                               onClick={() => handleAssignReligionTeacher(cls, 'হিন্দুধর্ম ও নৈতিক শিক্ষা', '')}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer shrink-0"
                               title="শিক্ষক বাতিল করুন"
                             >
                               <X size={14} />
@@ -987,11 +949,11 @@ function TeacherManagementContent() {
                 </div>
 
                 {/* Bulk Quick Fill */}
-                <div className="pt-3 border-t border-amber-100 flex flex-col sm:flex-row items-center gap-2 bg-amber-50/60 p-3 rounded-xl">
-                  <span className="text-[11px] font-extrabold text-amber-900 shrink-0">⚡ সব শ্রেণিতে একই শিক্ষক:</span>
+                <div className="pt-3 border-t border-amber-100 dark:border-amber-800/60 flex flex-col sm:flex-row items-center gap-2 bg-amber-50/60 dark:bg-amber-950/50 p-3 rounded-xl">
+                  <span className="text-[11px] font-extrabold text-amber-900 dark:text-amber-200 shrink-0">⚡ সব শ্রেণিতে একই শিক্ষক:</span>
                   <select
                     id="bulk-hindu-teacher"
-                    className="px-2.5 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-900 outline-none flex-1 w-full sm:w-auto"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none flex-1 w-full sm:w-auto"
                   >
                     <option value="">-- শিক্ষক সিলেক্ট --</option>
                     {teachers.filter(t => t.status === 'active').map(t => (
@@ -1017,29 +979,29 @@ function TeacherManagementContent() {
 
           {/* Assignment Form */}
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <BookOpen size={18} className="text-violet-600" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <BookOpen size={18} className="text-violet-600 dark:text-violet-400" />
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">বিষয়ভিত্তিক ক্লাস বণ্টন (সকল বিষয়)</h3>
-                <p className="text-[11px] text-slate-500 font-medium">শ্রেণিভিত্তিক বিষয়সমূহ থেকে শিক্ষক নির্বাচন করে এসাইন করুন</p>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">বিষয়ভিত্তিক ক্লাস বণ্টন (সকল বিষয়)</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">শ্রেণিভিত্তিক বিষয়সমূহ থেকে শিক্ষক নির্বাচন করে এসাইন করুন</p>
               </div>
             </div>
 
-            <form onSubmit={handleAssignSubject} className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3 text-xs font-bold">
+            <form onSubmit={handleAssignSubject} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3 text-xs font-bold">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-slate-700 mb-1.5 text-[11px]">শিক্ষক নির্বাচন *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">শিক্ষক নির্বাচন *</label>
                   <select value={assignTeacherId} onChange={(e) => setAssignTeacherId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer focus:border-indigo-500 transition">
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer focus:border-indigo-500 transition">
                     <option value="">-- শিক্ষক সিলেক্ট --</option>
                     {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.phone})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1.5 text-[11px]">শ্রেণি (Class) *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">শ্রেণি (Class) *</label>
                   <select value={assignClassId} onChange={(e) => setAssignClassId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                     <option value="6th">৬ষ্ঠ শ্রেণি (6th)</option>
                     <option value="7th">৭ম শ্রেণি (7th)</option>
                     <option value="8th">৮ম শ্রেণি (8th)</option>
@@ -1049,9 +1011,9 @@ function TeacherManagementContent() {
                 </div>
                 {isClass9or10 && (
                   <div>
-                    <label className="block text-slate-700 mb-1.5 text-[11px]">বিভাগ (Group) *</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">বিভাগ (Group) *</label>
                     <select value={assignGroup} onChange={(e: any) => setAssignGroup(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                      className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                       <option value="science">🧪 বিজ্ঞান</option>
                       <option value="humanities">📖 মানবিক</option>
                       <option value="commerce">📊 ব্যবসায় শিক্ষা</option>
@@ -1060,9 +1022,9 @@ function TeacherManagementContent() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-slate-700 mb-1.5 text-[11px]">বিষয় (Subject) *</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">বিষয় (Subject) *</label>
                   <select value={assignSubjectId} onChange={(e) => setAssignSubjectId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                     {availableSubjectsList.map(sub => {
                       const subRel = getSubjectReligion(sub.name);
                       const relIcon = subRel === 'Muslim' ? '☪️ ' : subRel === 'Hindu' ? '🕉️ ' : subRel === 'Christian' ? '✝️ ' : subRel === 'Buddhist' ? '☸️ ' : '';
@@ -1084,21 +1046,21 @@ function TeacherManagementContent() {
           </div>
 
           {/* Teacher-Wise Subject List */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <LayoutGrid size={16} className="text-violet-600" />
-                <h4 className="font-extrabold text-slate-900 text-sm">শিক্ষক অনুযায়ী বন্টিত বিষয়ের তালিকা</h4>
+                <LayoutGrid size={16} className="text-violet-600 dark:text-violet-400" />
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">শিক্ষক অনুযায়ী বন্টিত বিষয়ের তালিকা</h4>
               </div>
-              <span className="px-3 py-1 bg-violet-50 text-violet-800 rounded-xl font-bold text-[11px] border border-violet-200">
+              <span className="px-3 py-1 bg-violet-50 dark:bg-violet-950/50 text-violet-800 dark:text-violet-200 rounded-xl font-bold text-[11px] border border-violet-200 dark:border-violet-800/60">
                 মোট বণ্টন: <strong>{subjectAssignments.length}টি</strong>
               </span>
             </div>
 
             {subjectAssignments.length === 0 ? (
               <div className="p-14 text-center space-y-2">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-violet-50 flex items-center justify-center"><BookOpen size={28} className="text-violet-300" /></div>
-                <p className="text-xs text-slate-500 font-bold">কোনো বিষয়ে শিক্ষক এসাইন করা হয়নি</p>
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-violet-50 dark:bg-violet-950/50 flex items-center justify-center"><BookOpen size={28} className="text-violet-300" /></div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">কোনো বিষয়ে শিক্ষক এসাইন করা হয়নি</p>
                 <p className="text-[11px] text-slate-400">ওপরের ফরম থেকে শিক্ষক ও বিষয় নির্বাচন করে এসাইন করুন</p>
               </div>
             ) : (
@@ -1107,19 +1069,19 @@ function TeacherManagementContent() {
                   const teacherSubs = subjectAssignments.filter(sa => sa.teacherId === t.id);
                   if (teacherSubs.length === 0) return null;
                   return (
-                    <div key={t.id} className="p-4 bg-slate-50/60 border border-slate-200 rounded-2xl space-y-3 hover:border-violet-200 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-2.5">
+                    <div key={t.id} className="p-4 bg-slate-50/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3 hover:border-violet-200 dark:hover:border-violet-700 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white font-black text-sm flex items-center justify-center shadow">{t.name.charAt(0)}</div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <strong className="font-black text-slate-900 text-sm">{t.name}</strong>
-                              <span className="text-[10px] font-mono font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">{t.id}</span>
+                              <strong className="font-black text-slate-900 dark:text-white text-sm">{t.name}</strong>
+                              <span className="text-[10px] font-mono font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-2 py-0.5 rounded-lg border border-violet-200 dark:border-violet-800/60">{t.id}</span>
                             </div>
-                            <span className="text-[11px] text-slate-500 font-medium">{t.designation} • {t.phone}</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{t.designation} • {t.phone}</span>
                           </div>
                         </div>
-                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 font-extrabold text-[11px] rounded-xl shrink-0 self-start sm:self-auto">
+                        <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 font-extrabold text-[11px] rounded-xl shrink-0 self-start sm:self-auto">
                           {teacherSubs.length}টি বিষয় দায়িত্বপ্রাপ্ত
                         </span>
                       </div>
@@ -1127,13 +1089,13 @@ function TeacherManagementContent() {
                         {teacherSubs.map((sa) => {
                           const subRel = getSubjectReligion(sa.subjectId);
                           const relBadge = subRel === 'Muslim'
-                            ? <span className="ml-1 text-[8px] bg-emerald-100 text-emerald-700 px-1 rounded font-bold">☪️ ইসলাম</span>
+                            ? <span className="ml-1 text-[8px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1 rounded font-bold">☪️ ইসলাম</span>
                             : subRel === 'Hindu'
-                            ? <span className="ml-1 text-[8px] bg-amber-100 text-amber-700 px-1 rounded font-bold">🕉️ হিন্দু</span>
+                            ? <span className="ml-1 text-[8px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1 rounded font-bold">🕉️ হিন্দু</span>
                             : null;
                           return (
-                          <div key={sa.id} className={`p-2.5 bg-white border rounded-xl flex items-center justify-between group hover:shadow-sm transition ${
-                            subRel === 'Muslim' ? 'border-emerald-200' : subRel === 'Hindu' ? 'border-amber-200' : 'border-slate-200'
+                          <div key={sa.id} className={`p-2.5 bg-white dark:bg-slate-900 border rounded-xl flex items-center justify-between group hover:shadow-sm transition ${
+                            subRel === 'Muslim' ? 'border-emerald-200 dark:border-emerald-800/60' : subRel === 'Hindu' ? 'border-amber-200 dark:border-amber-800/60' : 'border-slate-200 dark:border-slate-800'
                           }`}>
                             <div>
                               <div className="flex items-center gap-1.5">
@@ -1141,15 +1103,15 @@ function TeacherManagementContent() {
                                 <span className="text-[10px] text-slate-400 font-mono">{sa.academicYear}</span>
                               </div>
                               <div className="flex items-center flex-wrap mt-0.5">
-                                <strong className="text-[11px] font-bold text-slate-800">{sa.subjectId}</strong>
+                                <strong className="text-[11px] font-bold text-slate-800 dark:text-slate-100">{sa.subjectId}</strong>
                                 {relBadge}
                               </div>
                             </div>
-                            <button onClick={() => {
-                              if (confirm(`${t.name}-এর ${sa.classId} (${sa.subjectId}) বণ্টন বাতিল?`)) {
+                            <button onClick={async () => {
+                              if (await confirmDialog({ title: 'বিষয় বণ্টন বাতিল', message: `${t.name}-এর ${sa.classId} (${sa.subjectId}) বণ্টন বাতিল করতে চান?`, confirmLabel: 'বাতিল করুন', danger: true })) {
                                 teacherRBACService.removeSubjectAssignment(sa.id); refreshAllData();
                               }
-                            }} className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer opacity-0 group-hover:opacity-100">
+                            }} className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer opacity-0 group-hover:opacity-100">
                               <X size={13} />
                             </button>
                           </div>
@@ -1171,20 +1133,20 @@ function TeacherManagementContent() {
       {activeTab === 'class_teachers' && (
         <div className="space-y-5">
           {/* Assignment Form */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <School size={18} className="text-teal-600" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <School size={18} className="text-teal-600 dark:text-teal-400" />
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">শ্রেণি শিক্ষক নির্বাচন</h3>
-                <p className="text-[11px] text-slate-500 font-medium">প্রতিটি শ্রেণিতে একজন মাত্র শ্রেণি শিক্ষক (UNIQUE constraint)</p>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">শ্রেণি শিক্ষক নির্বাচন</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">প্রতিটি শ্রেণিতে একজন মাত্র শ্রেণি শিক্ষক (UNIQUE constraint)</p>
               </div>
             </div>
 
-            <form onSubmit={handleAssignClassTeacher} className="p-4 bg-teal-50/50 rounded-2xl border border-teal-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
+            <form onSubmit={handleAssignClassTeacher} className="p-4 bg-teal-50/50 dark:bg-teal-950/50 rounded-2xl border border-teal-100 dark:border-teal-800/60 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
               <div>
-                <label className="block text-slate-700 mb-1.5 text-[11px]">শ্রেণি ও শাখা *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">শ্রেণি ও শাখা *</label>
                 <select value={ctClassId} onChange={(e) => setCtClassId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                   <option value="6th-A">৬ষ্ঠ শ্রেণি - শাখা A</option>
                   <option value="7th-A">৭ম শ্রেণি - শাখা A</option>
                   <option value="8th-A">৮ম শ্রেণি - শাখা A</option>
@@ -1193,9 +1155,9 @@ function TeacherManagementContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-slate-700 mb-1.5 text-[11px]">শ্রেণি শিক্ষক নির্বাচন *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">শ্রেণি শিক্ষক নির্বাচন *</label>
                 <select value={ctTeacherId} onChange={(e) => setCtTeacherId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                   <option value="">-- শিক্ষক সিলেক্ট --</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.designation})</option>)}
                 </select>
@@ -1209,40 +1171,40 @@ function TeacherManagementContent() {
           </div>
 
           {/* Class Teacher Cards */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-4">
-            <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-              <Award size={14} className="text-indigo-600" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
+              <Award size={14} className="text-indigo-600 dark:text-indigo-400" />
               মনোনীত শ্রেণি শিক্ষক তালিকা
             </h4>
 
             {classTeachers.length === 0 ? (
               <div className="p-14 text-center space-y-2">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-50 flex items-center justify-center"><School size={28} className="text-indigo-300" /></div>
-                <p className="text-xs text-slate-500 font-bold">কোনো শ্রেণি শিক্ষক নির্বাচন করা হয়নি</p>
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center"><School size={28} className="text-indigo-300" /></div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">কোনো শ্রেণি শিক্ষক নির্বাচন করা হয়নি</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {classTeachers.map((ct) => {
                   const tch = teachers.find(t => t.id === ct.teacherId);
                   return (
-                    <div key={ct.id} className="p-4 bg-white border border-slate-200/80 rounded-2xl space-y-3 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                    <div key={ct.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl space-y-3 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-black text-slate-900">{ct.classId}</span>
-                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full">শ্রেণি শিক্ষক</span>
+                        <span className="text-sm font-black text-slate-900 dark:text-white">{ct.classId}</span>
+                        <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-[10px] font-bold rounded-full">শ্রেণি শিক্ষক</span>
                       </div>
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-black text-xs flex items-center justify-center shadow-sm">
                           {tch?.name?.charAt(0) || '?'}
                         </div>
                         <div>
-                          <strong className="text-slate-900 font-bold text-xs block">{tch?.name || ct.teacherId}</strong>
-                          <span className="text-[10px] text-slate-500 font-mono">{tch?.phone || ''}</span>
+                          <strong className="text-slate-900 dark:text-white font-bold text-xs block">{tch?.name || ct.teacherId}</strong>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{tch?.phone || ''}</span>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                        <span className="text-[10px] text-slate-500 font-medium">শিক্ষাবর্ষ: {ct.academicYear}</span>
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">শিক্ষাবর্ষ: {ct.academicYear}</span>
                         <button onClick={() => handleRemoveClassTeacher(ct.id, ct.classId)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer" title="বাতিল করুন">
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer" title="বাতিল করুন">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -1279,17 +1241,17 @@ function TeacherManagementContent() {
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { icon: <Users size={18} className="text-indigo-600" />, label: 'মোট শিক্ষক', value: teachers.length, iconBg: 'bg-indigo-50 border-indigo-100' },
-              { icon: <BookOpen size={18} className="text-blue-600" />, label: 'বিষয় বণ্টন', value: subjectAssignments.length, iconBg: 'bg-blue-50 border-blue-100' },
-              { icon: <School size={18} className="text-emerald-600" />, label: 'শ্রেণি শিক্ষক', value: classTeachers.length, iconBg: 'bg-emerald-50 border-emerald-100' },
+              { icon: <Users size={18} className="text-indigo-600 dark:text-indigo-400" />, label: 'মোট শিক্ষক', value: teachers.length, iconBg: 'bg-indigo-50 border-indigo-100' },
+              { icon: <BookOpen size={18} className="text-blue-600 dark:text-blue-400" />, label: 'বিষয় বণ্টন', value: subjectAssignments.length, iconBg: 'bg-blue-50 border-blue-100' },
+              { icon: <School size={18} className="text-emerald-600 dark:text-emerald-400" />, label: 'শ্রেণি শিক্ষক', value: classTeachers.length, iconBg: 'bg-emerald-50 border-emerald-100' },
             ].map((s, i) => (
-              <div key={i} className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex items-center gap-3.5">
+              <div key={i} className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center gap-3.5">
                 <div className={`w-11 h-11 rounded-xl ${s.iconBg} border flex items-center justify-center shrink-0`}>
                   {s.icon}
                 </div>
                 <div>
-                  <span className="text-2xl font-black text-slate-900 tracking-tight block leading-none">{s.value}</span>
-                  <p className="text-xs font-semibold text-slate-500 mt-1">{s.label}</p>
+                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight block leading-none">{s.value}</span>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{s.label}</p>
                 </div>
               </div>
             ))}
@@ -1298,17 +1260,17 @@ function TeacherManagementContent() {
           {/* Two Test Panels */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Test 1: Subject Mark Entry */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3 text-xs font-bold">
-              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 pb-2 border-b border-slate-100">
-                <ClipboardCheck size={16} className="text-indigo-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-3 text-xs font-bold">
+              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <ClipboardCheck size={16} className="text-indigo-600 dark:text-indigo-400" />
                 ১. নম্বর এন্ট্রি ওনারশিপ টেস্ট
               </h4>
-              <p className="text-[10px] text-slate-500 font-medium !mt-1">Tab ২ তে এসাইনকৃত শ্রেণি ও বিষয়ের সাথে যাচাই</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium !mt-1">Tab ২ তে এসাইনকৃত শ্রেণি ও বিষয়ের সাথে যাচাই</p>
 
               <div>
-                <label className="block text-slate-600 mb-1">লগইনকৃত শিক্ষক *</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">লগইনকৃত শিক্ষক *</label>
                 <select value={testSubjectTeacherId} onChange={(e) => setTestSubjectTeacherId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                   <option value="">-- শিক্ষক নির্বাচন --</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
                 </select>
@@ -1318,8 +1280,8 @@ function TeacherManagementContent() {
               {testSubjectTeacherId && (() => {
                 const myAssignments = subjectAssignments.filter(sa => sa.teacherId === testSubjectTeacherId);
                 return myAssignments.length > 0 ? (
-                  <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl">
-                    <p className="text-[10px] text-indigo-700 font-bold mb-1.5">📋 এসাইনকৃত বিষয়সমূহ:</p>
+                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl">
+                    <p className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold mb-1.5">📋 এসাইনকৃত বিষয়সমূহ:</p>
                     <div className="flex flex-wrap gap-1">
                       {myAssignments.map(sa => (
                         <span key={sa.id} className="px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-bold rounded">{sa.classId} → {sa.subjectId}</span>
@@ -1327,7 +1289,7 @@ function TeacherManagementContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-800">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-xl text-[10px] text-amber-800 dark:text-amber-200">
                     ⚠️ কোনো বিষয়ে এসাইন করা হয়নি। Tab ২ থেকে এসাইন করুন।
                   </div>
                 );
@@ -1335,16 +1297,16 @@ function TeacherManagementContent() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-600 mb-1">শ্রেণি</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">শ্রেণি</label>
                   <select value={testSubjectClassId} onChange={(e) => setTestSubjectClassId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold cursor-pointer">
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold cursor-pointer">
                     {['6th','7th','8th','9th','10th'].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-600 mb-1">বিষয়</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">বিষয়</label>
                   <select value={testSubjectId} onChange={(e) => setTestSubjectId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold cursor-pointer">
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold cursor-pointer">
                     {getDynamicConfiguredSubjects(testSubjectClassId, 'all', mounted).map(sub => (
                       <option key={sub.name} value={sub.name}>{sub.name}</option>
                     ))}
@@ -1354,41 +1316,41 @@ function TeacherManagementContent() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-600 mb-1">প্রাপ্ত নম্বর</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">প্রাপ্ত নম্বর</label>
                   <input type="number" value={testObtainedMarks} onChange={(e) => setTestObtainedMarks(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold" />
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold" />
                 </div>
                 <div>
-                  <label className="block text-slate-600 mb-1">মোট নম্বর</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">মোট নম্বর</label>
                   <input type="number" value={testFullMarks} onChange={(e) => setTestFullMarks(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold" />
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold" />
                 </div>
               </div>
 
               {/* Result */}
               <div className="pt-1">
                 {(() => {
-                  if (!testSubjectTeacherId) return <div className="p-3 bg-slate-100 text-slate-500 rounded-xl text-center text-[11px]">শিক্ষক নির্বাচন করুন</div>;
+                  if (!testSubjectTeacherId) return <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-center text-[11px]">শিক্ষক নির্বাচন করুন</div>;
                   const isOwner = teacherRBACService.validateSubjectOwnership(testSubjectTeacherId, testSubjectClassId, testSubjectId, 2026);
                   const markVal = teacherRBACService.validateMarkPayload({
                     studentId: 'ST-001', classId: testSubjectClassId, subjectId: testSubjectId, examId: 'EX-1',
                     obtainedMarks: testObtainedMarks, fullMarks: testFullMarks, academicYear: 2026, enteredBy: testSubjectTeacherId
                   });
                   if (!isOwner) return (
-                    <div className="p-3 bg-rose-50 text-rose-900 border border-rose-200 rounded-xl space-y-1">
-                      <strong className="text-rose-700 flex items-center gap-1 text-[11px]"><Lock size={13} /> 403 FORBIDDEN</strong>
+                    <div className="p-3 bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-1">
+                      <strong className="text-rose-700 dark:text-rose-300 flex items-center gap-1 text-[11px]"><Lock size={13} /> 403 FORBIDDEN</strong>
                       <p className="text-[10px]">এই শিক্ষককে {testSubjectClassId} শ্রেণিতে &ldquo;{testSubjectId}&rdquo; বিষয়ে এসাইন করা হয়নি!</p>
                     </div>
                   );
                   if (!markVal.valid) return (
-                    <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 rounded-xl space-y-1">
-                      <strong className="text-amber-700 flex items-center gap-1 text-[11px]"><AlertTriangle size={13} /> INVALID INPUT</strong>
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1">
+                      <strong className="text-amber-700 dark:text-amber-300 flex items-center gap-1 text-[11px]"><AlertTriangle size={13} /> INVALID INPUT</strong>
                       <p className="text-[10px]">{markVal.error}</p>
                     </div>
                   );
                   return (
-                    <div className="p-3 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-xl space-y-1">
-                      <strong className="text-emerald-700 flex items-center gap-1 text-[11px]"><CheckCircle2 size={13} /> 200 AUTHORIZED</strong>
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-1">
+                      <strong className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1 text-[11px]"><CheckCircle2 size={13} /> 200 AUTHORIZED</strong>
                       <p className="text-[10px]">ওনারশিপ ভ্যালিডেশন সফল! entered_by={testSubjectTeacherId}</p>
                     </div>
                   );
@@ -1397,17 +1359,17 @@ function TeacherManagementContent() {
             </div>
 
             {/* Test 2: Attendance Ownership */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3 text-xs font-bold">
-              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 pb-2 border-b border-slate-100">
-                <GraduationCap size={16} className="text-teal-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-3 text-xs font-bold">
+              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <GraduationCap size={16} className="text-teal-600 dark:text-teal-400" />
                 ২. হাজিরা ওনারশিপ টেস্ট
               </h4>
-              <p className="text-[10px] text-slate-500 font-medium !mt-1">Tab ৩ তে নির্বাচিত শ্রেণি শিক্ষকের সাথে যাচাই</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium !mt-1">Tab ৩ তে নির্বাচিত শ্রেণি শিক্ষকের সাথে যাচাই</p>
 
               <div>
-                <label className="block text-slate-600 mb-1">লগইনকৃত শিক্ষক *</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">লগইনকৃত শিক্ষক *</label>
                 <select value={testAttendTeacherId} onChange={(e) => setTestAttendTeacherId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none font-bold text-slate-900 cursor-pointer">
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white cursor-pointer">
                   <option value="">-- শিক্ষক নির্বাচন --</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.id})</option>)}
                 </select>
@@ -1417,8 +1379,8 @@ function TeacherManagementContent() {
               {testAttendTeacherId && (() => {
                 const myClasses = classTeachers.filter(ct => ct.teacherId === testAttendTeacherId);
                 return myClasses.length > 0 ? (
-                  <div className="p-2.5 bg-teal-50 border border-teal-200 rounded-xl">
-                    <p className="text-[10px] text-teal-700 font-bold mb-1.5">👑 শ্রেণি শিক্ষক হিসেবে নির্বাচিত:</p>
+                  <div className="p-2.5 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800/60 rounded-xl">
+                    <p className="text-[10px] text-teal-700 dark:text-teal-300 font-bold mb-1.5">👑 শ্রেণি শিক্ষক হিসেবে নির্বাচিত:</p>
                     <div className="flex flex-wrap gap-1">
                       {myClasses.map(ct => (
                         <span key={ct.id} className="px-2 py-0.5 bg-teal-600 text-white text-[9px] font-bold rounded">{ct.classId}</span>
@@ -1426,16 +1388,16 @@ function TeacherManagementContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-800">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-xl text-[10px] text-amber-800 dark:text-amber-200">
                     ⚠️ কোনো শ্রেণির শ্রেণি শিক্ষক হিসেবে নির্বাচিত নন। Tab ৩ থেকে নির্বাচন করুন।
                   </div>
                 );
               })()}
 
               <div>
-                <label className="block text-slate-600 mb-1">হাজিরা গ্রহণের শ্রেণি</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">হাজিরা গ্রহণের শ্রেণি</label>
                 <select value={testAttendClassId} onChange={(e) => setTestAttendClassId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold cursor-pointer">
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold cursor-pointer">
                   <option value="6th-A">৬ষ্ঠ শ্রেণি - শাখা A</option>
                   <option value="7th-A">৭ম শ্রেণি - শাখা A</option>
                   <option value="8th-A">৮ম শ্রেণি - শাখা A</option>
@@ -1447,17 +1409,17 @@ function TeacherManagementContent() {
               {/* Result */}
               <div className="pt-1">
                 {(() => {
-                  if (!testAttendTeacherId) return <div className="p-3 bg-slate-100 text-slate-500 rounded-xl text-center text-[11px]">শিক্ষক নির্বাচন করুন</div>;
+                  if (!testAttendTeacherId) return <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-center text-[11px]">শিক্ষক নির্বাচন করুন</div>;
                   const isClassTeacher = teacherRBACService.validateClassTeacherOwnership(testAttendTeacherId, testAttendClassId, 2026);
                   if (!isClassTeacher) return (
-                    <div className="p-3 bg-rose-50 text-rose-900 border border-rose-200 rounded-xl space-y-1">
-                      <strong className="text-rose-700 flex items-center gap-1 text-[11px]"><Lock size={13} /> 403 FORBIDDEN</strong>
+                    <div className="p-3 bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-1">
+                      <strong className="text-rose-700 dark:text-rose-300 flex items-center gap-1 text-[11px]"><Lock size={13} /> 403 FORBIDDEN</strong>
                       <p className="text-[10px]">শিক্ষক {testAttendTeacherId} উক্ত {testAttendClassId} শ্রেণির &ldquo;Class Teacher&rdquo; নন!</p>
                     </div>
                   );
                   return (
-                    <div className="p-3 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-xl space-y-1">
-                      <strong className="text-emerald-700 flex items-center gap-1 text-[11px]"><CheckCircle2 size={13} /> 200 AUTHORIZED</strong>
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-1">
+                      <strong className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1 text-[11px]"><CheckCircle2 size={13} /> 200 AUTHORIZED</strong>
                       <p className="text-[10px]">শ্রেণি শিক্ষক ভ্যালিডেশন সফল! marked_by={testAttendTeacherId}</p>
                     </div>
                   );
@@ -1472,24 +1434,24 @@ function TeacherManagementContent() {
       {/* TAB 5: ছুটির আবেদনসমূহ (LEAVE APPLICATIONS REVIEW)       */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'leave_applications' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <Send size={18} className="text-amber-600" />
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <Send size={18} className="text-amber-600 dark:text-amber-400" />
                 শিক্ষকদের ছুটির আবেদনসমূহ (প্রধান শিক্ষক পর্যালোচনা ও অনুমোদন)
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                 সহকারী ও শ্রেণি শিক্ষকদের দাখিলকৃত নৈমিত্তিক ও চিকিৎসা ছুটির আবেদন পর্যালোচনা, সিদ্ধান্ত ও প্রত্যয়ন
               </p>
             </div>
             {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 self-start md:self-auto bg-slate-100 p-1 rounded-2xl">
+            <div className="flex flex-wrap items-center gap-1.5 self-start md:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
               {[
-                { id: 'all' as const, label: 'সব আবেদন', count: leaveApplications.length, color: 'text-slate-700' },
-                { id: 'pending' as const, label: 'বিবেচনাধীন', count: pendingLeavesCount, color: 'text-amber-700' },
-                { id: 'approved' as const, label: 'মঞ্জুরকৃত', count: approvedLeavesCount, color: 'text-emerald-700' },
-                { id: 'rejected' as const, label: 'বাতিলকৃত', count: rejectedLeavesCount, color: 'text-rose-700' },
+                { id: 'all' as const, label: 'সব আবেদন', count: leaveApplications.length, color: 'text-slate-700 dark:text-slate-300' },
+                { id: 'pending' as const, label: 'বিবেচনাধীন', count: pendingLeavesCount, color: 'text-amber-700 dark:text-amber-300' },
+                { id: 'approved' as const, label: 'মঞ্জুরকৃত', count: approvedLeavesCount, color: 'text-emerald-700 dark:text-emerald-300' },
+                { id: 'rejected' as const, label: 'বাতিলকৃত', count: rejectedLeavesCount, color: 'text-rose-700 dark:text-rose-300' },
               ].map(f => (
                 <button
                   key={f.id}
@@ -1497,13 +1459,13 @@ function TeacherManagementContent() {
                   onClick={() => setLeaveFilter(f.id)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     leaveFilter === f.id
-                      ? 'bg-white text-slate-900 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-black'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <span>{f.label}</span>
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    f.id === 'pending' && f.count > 0 ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-200 text-slate-700'
+                    f.id === 'pending' && f.count > 0 ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}>
                     {f.count}
                   </span>
@@ -1514,25 +1476,25 @@ function TeacherManagementContent() {
 
           {filteredLeaves.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-              <div className="w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-100 flex items-center justify-center shadow-sm">
+              <div className="w-20 h-20 rounded-3xl bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-100 dark:border-amber-800/60 flex items-center justify-center shadow-sm">
                 <Send size={36} className="text-amber-400 stroke-1" />
               </div>
               {leaveApplications.length === 0 ? (
                 <>
                   <div>
-                    <p className="text-base font-black text-slate-700">কোনো ছুটির আবেদন নেই</p>
+                    <p className="text-base font-black text-slate-700 dark:text-slate-300">কোনো ছুটির আবেদন নেই</p>
                     <p className="text-xs text-slate-400 font-medium mt-1 max-w-xs mx-auto">
                       শিক্ষকরা ছুটির আবেদন জমা দিলে এখানে তালিকা প্রদর্শিত হবে।
                     </p>
                   </div>
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-xs text-slate-500 font-medium max-w-sm">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3 text-xs text-slate-500 dark:text-slate-400 font-medium max-w-sm">
                     💡 শিক্ষক তালিকা থেকে যেকোনো শিক্ষকের প্রোফাইলে গিয়ে ছুটির আবেদন করা যাবে।
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <p className="text-base font-black text-slate-700">এই ফিল্টারে কোনো আবেদন নেই</p>
+                    <p className="text-base font-black text-slate-700 dark:text-slate-300">এই ফিল্টারে কোনো আবেদন নেই</p>
                     <p className="text-xs text-slate-400 font-medium mt-1">
                       অন্য ফিল্টার নির্বাচন করুন অথবা &quot;সব আবেদন&quot; দেখুন।
                     </p>
@@ -1543,7 +1505,7 @@ function TeacherManagementContent() {
           ) : (
             <div className="space-y-3">
               {filteredLeaves.map(l => (
-                <div key={l.id} className="border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3 hover:border-amber-300 transition shadow-2xs">
+                <div key={l.id} className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 hover:border-amber-300 dark:hover:border-amber-700 transition shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
@@ -1551,12 +1513,12 @@ function TeacherManagementContent() {
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-black text-slate-900 text-sm">{l.teacherName}</span>
-                          <span className="text-[11px] font-bold text-slate-500">({l.designation})</span>
-                          <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{l.teacherId}</span>
+                          <span className="font-black text-slate-900 dark:text-white text-sm">{l.teacherName}</span>
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">({l.designation})</span>
+                          <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">{l.teacherId}</span>
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs font-bold text-amber-800">{LEAVE_TYPE_LABELS[l.leaveType] || l.leaveType}</p>
+                          <p className="text-xs font-bold text-amber-800 dark:text-amber-200">{LEAVE_TYPE_LABELS[l.leaveType] || l.leaveType}</p>
                           <span className="text-[10px] text-slate-400">• আবেদন: {new Date(l.appliedAt).toLocaleDateString('bn-BD')}</span>
                         </div>
                       </div>
@@ -1564,23 +1526,23 @@ function TeacherManagementContent() {
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                       <span className={`text-[11px] font-black px-3 py-1 rounded-full ${
-                        l.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                        l.status === 'rejected' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 
-                        'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                        l.status === 'approved' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60' :
+                        l.status === 'rejected' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60' : 
+                        'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 animate-pulse'
                       }`}>
                         {l.status === 'approved' ? '✓ মঞ্জুরকৃত' : l.status === 'rejected' ? '✕ বাতিলকৃত' : '⏳ বিবেচনাধীন (Pending)'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-3.5 rounded-xl text-xs text-slate-700 font-medium border border-slate-100">
-                    <span className="font-bold text-slate-900 block mb-1">ছুটির কারণ ও বিবরণ:</span>
+                  <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl text-xs text-slate-700 dark:text-slate-300 font-medium border border-slate-100 dark:border-slate-800">
+                    <span className="font-bold text-slate-900 dark:text-white block mb-1">ছুটির কারণ ও বিবরণ:</span>
                     {l.reason}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 font-bold pt-2 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400 font-bold pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-indigo-600 shrink-0" />
+                      <Calendar size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <span>ছুটির মেয়াদ: <strong>{l.startDate}</strong> হতে <strong>{l.endDate}</strong> পর্যন্ত (মোট <strong>{l.totalDays}</strong> দিন)</span>
                     </div>
 
@@ -1590,7 +1552,7 @@ function TeacherManagementContent() {
                           <button
                             type="button"
                             onClick={() => handleOpenReviewModal(l, 'rejected')}
-                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-black transition cursor-pointer active:scale-95"
+                            className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-black transition cursor-pointer active:scale-95"
                           >
                             ✕ বিবেচনা বাতিল
                           </button>
@@ -1609,7 +1571,7 @@ function TeacherManagementContent() {
                             <button
                               type="button"
                               onClick={() => setPrintSlipLeave(l)}
-                              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                              className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 active:scale-95"
                             >
                               <Printer size={13} />
                               ছুটি মঞ্জুরিপত্র প্রিন্ট
@@ -1618,7 +1580,7 @@ function TeacherManagementContent() {
                           <button
                             type="button"
                             onClick={() => handleOpenReviewModal(l, l.status === 'approved' ? 'rejected' : 'approved')}
-                            className="px-2.5 py-1.5 text-slate-400 hover:text-slate-700 text-[11px] font-bold rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                            className="px-2.5 py-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px] font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                           >
                             পুনর্বিবেচনা
                           </button>
@@ -1630,15 +1592,15 @@ function TeacherManagementContent() {
                   {l.remarks && (
                     <div className={`p-3 rounded-xl text-xs font-bold border ${
                       l.status === 'approved' 
-                        ? 'bg-emerald-50/80 text-emerald-950 border-emerald-200' 
-                        : 'bg-rose-50/80 text-rose-950 border-rose-200'
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/50 text-emerald-950 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60' 
+                        : 'bg-rose-50/80 dark:bg-rose-950/50 text-rose-950 dark:text-rose-200 border-rose-200 dark:border-rose-800/60'
                     }`}>
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-bold mb-0.5">
-                        <CheckCircle2 size={13} className={l.status === 'approved' ? 'text-emerald-600' : 'text-rose-600'} />
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-bold mb-0.5">
+                        <CheckCircle2 size={13} className={l.status === 'approved' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} />
                         <span>সিদ্ধান্ত প্রদানকারী ({l.reviewedBy || 'প্রধান শিক্ষক'}):</span>
                         {l.reviewedAt && <span>{new Date(l.reviewedAt).toLocaleDateString('bn-BD')}</span>}
                       </div>
-                      <p className="font-semibold text-slate-800">{l.remarks}</p>
+                      <p className="font-semibold text-slate-800 dark:text-slate-100">{l.remarks}</p>
                     </div>
                   )}
                 </div>
@@ -1652,18 +1614,18 @@ function TeacherManagementContent() {
       {/* TAB 6: অডিট ট্রেইল ও সিকিউরিটি লগ (AUDIT TRAIL LOGS)       */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'audit_trail' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <Clock size={18} className="text-indigo-600" />
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <Clock size={18} className="text-indigo-600 dark:text-indigo-400" />
                 সিস্টেম অডিট ট্রেইল ও সিকিউরিটি লগ
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                 উপস্থিতি, নম্বর এন্ট্রি, প্রোফাইল এডিট, ছুটি ও পারমিশন পরিবর্তনের পূর্ণাঙ্গ লগ হিস্ট্রি
               </p>
             </div>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-800 rounded-xl text-xs font-black self-start sm:self-auto">
+            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-200 rounded-xl text-xs font-black self-start sm:self-auto">
               মোট রেকর্ড: {auditLogsList.length}টি
             </span>
           </div>
@@ -1673,22 +1635,22 @@ function TeacherManagementContent() {
               বর্তমানে কোনো অডিট লগ নেই।
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {auditLogsList.map((log, idx) => (
                 <div key={idx} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-900 text-xs px-2 py-0.5 bg-slate-100 rounded-md font-mono">
+                      <span className="font-black text-slate-900 dark:text-white text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono">
                         {log.action}
                       </span>
-                      <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full">
                         {log.category}
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">
-                        সম্পাদনকারী: <strong className="text-slate-700">{log.performedBy}</strong>
+                        সম্পাদনকারী: <strong className="text-slate-700 dark:text-slate-300">{log.performedBy}</strong>
                       </span>
                     </div>
-                    <p className="text-slate-600 font-medium text-[11px]">{log.details}</p>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium text-[11px]">{log.details}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-[10px] text-slate-400 font-bold block">
@@ -1707,53 +1669,53 @@ function TeacherManagementContent() {
       {/* ══════════════════════════════════════════════════════════ */}
       {showAddTeacherModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddTeacherModal(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center"><UserPlus size={16} className="text-indigo-600" /></div>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center"><UserPlus size={16} className="text-indigo-600 dark:text-indigo-400" /></div>
                 নতুন শিক্ষক এন্ট্রি
               </h3>
-              <button onClick={() => setShowAddTeacherModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
+              <button onClick={() => setShowAddTeacherModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
             </div>
 
             <form onSubmit={handleAddTeacher} className="space-y-3 text-xs font-bold">
               <div>
-                <label className="block text-slate-700 mb-1">শিক্ষকের নাম *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">শিক্ষকের নাম *</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: মোঃ আব্দুর রহিম"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition" />
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition" />
               </div>
               <div>
-                <label className="block text-slate-700 mb-1">ফোন নম্বর (ইউজারনেম) *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">ফোন নম্বর (ইউজারনেম) *</label>
                 <input type="text" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="যেমন: 01812345671"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono focus:bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition" />
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 transition" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1">পদবী</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">পদবী</label>
                   <input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1">জন্ম তারিখ</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">জন্ম তারিখ</label>
                   <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" />
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 mb-1">প্রাথমিক পাসওয়ার্ড</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">প্রাথমিক পাসওয়ার্ড</label>
                 <div className="relative">
-                  <input type={showInitialPwd ? 'text' : 'password'} value={initialPassword} onChange={(e) => setInitialPassword(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono pr-10" />
+                  <input type={showInitialPwd ? 'text' : 'password'} required minLength={6} value={initialPassword} onChange={(e) => setInitialPassword(e.target.value)} placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড লিখুন"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono pr-10" />
                   <button type="button" onClick={() => setShowInitialPwd(!showInitialPwd)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
                     {showInitialPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                <span className="text-[10px] text-amber-600 font-medium block mt-1">⚠️ প্রথম লগইনে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক হবে</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-1">⚠️ প্রথম লগইনে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক হবে</span>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setShowAddTeacherModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs cursor-pointer hover:bg-slate-200 transition">বাতিল</button>
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setShowAddTeacherModal(false)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition">বাতিল</button>
                 <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow cursor-pointer transition active:scale-95">সংরক্ষণ করুন</button>
               </div>
             </form>
@@ -1766,32 +1728,32 @@ function TeacherManagementContent() {
       {/* ══════════════════════════════════════════════════════════ */}
       {showResetModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowResetModal(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center"><Key size={16} className="text-indigo-600" /></div>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center"><Key size={16} className="text-indigo-600 dark:text-indigo-400" /></div>
                 পাসওয়ার্ড রিসেট
               </h3>
-              <button onClick={() => setShowResetModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
+              <button onClick={() => setShowResetModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
             </div>
 
             <form onSubmit={handleResetPassword} className="space-y-3 text-xs font-bold">
               <div>
-                <label className="block text-slate-700 mb-1">নতুন পাসওয়ার্ড *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">নতুন পাসওয়ার্ড *</label>
                 <div className="relative">
                   <input type={showResetPwd ? 'text' : 'password'} required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="নতুন পাসওয়ার্ড"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono pr-10" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono pr-10" />
                   <button type="button" onClick={() => setShowResetPwd(!showResetPwd)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
                     {showResetPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
-              <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-[11px]">
-                ⚠️ রিসেট করলে <code className="bg-amber-100 px-1 rounded">must_change_password</code> ফ্ল্যাগ পুনরায় সক্রিয় হবে।
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 rounded-xl text-[11px]">
+                ⚠️ রিসেট করলে <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">must_change_password</code> ফ্ল্যাগ পুনরায় সক্রিয় হবে।
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setShowResetModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs cursor-pointer">বাতিল</button>
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setShowResetModal(false)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer">বাতিল</button>
                 <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow cursor-pointer transition">পাসওয়ার্ড আপডেট</button>
               </div>
             </form>
@@ -1804,58 +1766,58 @@ function TeacherManagementContent() {
       {/* ══════════════════════════════════════════════════════════ */}
       {showEditTeacherModal && editTeacherData && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEditTeacherModal(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center"><Pencil size={16} className="text-amber-600" /></div>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center"><Pencil size={16} className="text-amber-600 dark:text-amber-400" /></div>
                 শিক্ষকের তথ্য এডিট
               </h3>
-              <button onClick={() => setShowEditTeacherModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
+              <button onClick={() => setShowEditTeacherModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
             </div>
 
             <form onSubmit={handleEditTeacher} className="space-y-3 text-xs font-bold">
               <div>
-                <label className="block text-slate-500 mb-1">আইডি</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">আইডি</label>
                 <input type="text" disabled value={editTeacherData.id}
-                  className="w-full px-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-400 font-mono" />
+                  className="w-full px-3.5 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-400 font-mono" />
               </div>
               <div>
-                <label className="block text-slate-700 mb-1">শিক্ষকের নাম *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">শিক্ষকের নাম *</label>
                 <input type="text" required value={editTeacherData.name} onChange={(e) => setEditTeacherData({ ...editTeacherData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/30 focus:border-amber-300 transition" />
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/30 focus:border-amber-300 transition" />
               </div>
               <div>
-                <label className="block text-slate-700 mb-1">ফোন নম্বর (লগইন আইডি) *</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">ফোন নম্বর (লগইন আইডি) *</label>
                 <input type="text" required value={editTeacherData.phone} onChange={(e) => setEditTeacherData({ ...editTeacherData, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono focus:ring-2 focus:ring-amber-500/30 transition" />
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-amber-500/30 transition" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1">পদবী</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">পদবী</label>
                   <input type="text" value={editTeacherData.designation} onChange={(e) => setEditTeacherData({ ...editTeacherData, designation: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1">জন্ম তারিখ</label>
+                  <label className="block text-slate-700 dark:text-slate-300 mb-1">জন্ম তারিখ</label>
                   <input type="date" value={editTeacherData.dob} onChange={(e) => setEditTeacherData({ ...editTeacherData, dob: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white" />
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 mb-1">পাসওয়ার্ড</label>
+                <label className="block text-slate-700 dark:text-slate-300 mb-1">পাসওয়ার্ড</label>
                 <div className="relative">
                   <input type={showEditPwd ? 'text' : 'password'} value={editTeacherData.password || ''} onChange={(e) => setEditTeacherData({ ...editTeacherData, password: e.target.value })}
                     placeholder="পরিবর্তন করতে নতুন পাসওয়ার্ড লিখুন"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none font-bold text-slate-900 font-mono pr-10" />
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white font-mono pr-10" />
                   <button type="button" onClick={() => setShowEditPwd(!showEditPwd)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
                     {showEditPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setShowEditTeacherModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs cursor-pointer">বাতিল</button>
-                <button type="submit" className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shadow cursor-pointer transition active:scale-95">আপডেট করুন</button>
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setShowEditTeacherModal(false)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer">বাতিল</button>
+                <button type="submit" className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 dark:text-white font-black rounded-xl text-xs shadow cursor-pointer transition active:scale-95">আপডেট করুন</button>
               </div>
             </form>
           </div>
@@ -1867,13 +1829,13 @@ function TeacherManagementContent() {
       {/* ══════════════════════════════════════════════════════════ */}
       {showViewTeacherModal && viewTeacherRecord && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowViewTeacherModal(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-sky-100 flex items-center justify-center"><Eye size={16} className="text-sky-600" /></div>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center"><Eye size={16} className="text-sky-600 dark:text-sky-400" /></div>
                 শিক্ষকের প্রোফাইল
               </h3>
-              <button onClick={() => setShowViewTeacherModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
+              <button onClick={() => setShowViewTeacherModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"><X size={16} className="text-slate-400" /></button>
             </div>
 
             {/* Profile Header */}
@@ -1890,22 +1852,22 @@ function TeacherManagementContent() {
 
             {/* Details Grid */}
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase">ইউজার আইডি (ফোন)</span>
-                <strong className="text-indigo-900 font-mono text-sm flex items-center gap-1 mt-0.5"><Phone size={12} /> {viewTeacherRecord.phone}</strong>
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase">ইউজার আইডি (ফোন)</span>
+                <strong className="text-indigo-900 dark:text-indigo-200 font-mono text-sm flex items-center gap-1 mt-0.5"><Phone size={12} /> {viewTeacherRecord.phone}</strong>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase">লগইন পাসওয়ার্ড</span>
-                <strong className="text-slate-800 font-mono text-xs flex items-center gap-1 mt-0.5"><Key size={12} /> {viewTeacherRecord.passwordHash || '123456'}</strong>
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase">লগইন পাসওয়ার্ড</span>
+                <strong className="text-slate-800 dark:text-slate-100 font-mono text-xs flex items-center gap-1 mt-0.5"><Key size={12} /> {viewTeacherRecord.passwordHash ? '•••••••• (এনক্রিপ্টেড)' : 'সেট করা নেই'}</strong>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase">জন্ম তারিখ</span>
-                <strong className="text-slate-800 font-bold text-xs flex items-center gap-1 mt-0.5"><Calendar size={12} /> {viewTeacherRecord.dob}</strong>
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase">জন্ম তারিখ</span>
+                <strong className="text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center gap-1 mt-0.5"><Calendar size={12} /> {viewTeacherRecord.dob}</strong>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase">স্ট্যাটাস</span>
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase">স্ট্যাটাস</span>
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5 ${
-                  viewTeacherRecord.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                  viewTeacherRecord.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${viewTeacherRecord.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                   {viewTeacherRecord.status === 'active' ? 'অ্যাক্টিভ' : 'নিষ্ক্রিয়'}
@@ -1914,9 +1876,9 @@ function TeacherManagementContent() {
             </div>
 
             {/* Subjects & Classes */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <h5 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <BookOpen size={13} className="text-indigo-600" /> বন্টিত শ্রেণি ও বিষয়:
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen size={13} className="text-indigo-600 dark:text-indigo-400" /> বন্টিত শ্রেণি ও বিষয়:
               </h5>
               {(() => {
                 const subs = subjectAssignments.filter(sa => sa.teacherId === viewTeacherRecord.id);
@@ -1924,7 +1886,7 @@ function TeacherManagementContent() {
                 return (
                   <div className="space-y-2 text-xs">
                     {classTch.length > 0 && (
-                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 font-bold">
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-emerald-950 dark:text-emerald-200 font-bold">
                         👑 শ্রেণি শিক্ষক: <strong>{classTch.map(c => c.classId).join(', ')}</strong>
                       </div>
                     )}
@@ -1933,7 +1895,7 @@ function TeacherManagementContent() {
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {subs.map(s => (
-                          <span key={s.id} className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-900 font-bold text-[11px] rounded-lg">
+                          <span key={s.id} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-[11px] rounded-lg">
                             {s.classId} → {s.subjectId}
                           </span>
                         ))}
@@ -1944,7 +1906,7 @@ function TeacherManagementContent() {
               })()}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
               <button type="button" onClick={() => setShowViewTeacherModal(false)}
                 className="px-5 py-2 bg-slate-900 text-white font-bold rounded-xl text-xs cursor-pointer hover:bg-slate-800 transition">
                 বন্ধ করুন
@@ -1957,46 +1919,46 @@ function TeacherManagementContent() {
       {/* ─── MODAL: LEAVE APPLICATION REVIEW (PRINCIPAL) ────────────────── */}
       {selectedLeaveForReview && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <Send size={18} className="text-amber-600" />
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                <Send size={18} className="text-amber-600 dark:text-amber-400" />
                 ছুটির আবেদন পর্যালোচনা ও সিদ্ধান্ত
               </h3>
               <button 
                 type="button" 
                 onClick={() => setSelectedLeaveForReview(null)} 
-                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Applicant Details */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-black text-slate-900 text-sm">{selectedLeaveForReview.teacherName}</h4>
-                  <p className="text-xs text-slate-500 font-bold">{selectedLeaveForReview.designation} • ID: {selectedLeaveForReview.teacherId}</p>
+                  <h4 className="font-black text-slate-900 dark:text-white text-sm">{selectedLeaveForReview.teacherName}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">{selectedLeaveForReview.designation} • ID: {selectedLeaveForReview.teacherId}</p>
                 </div>
-                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-black">
+                <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-black">
                   {LEAVE_TYPE_LABELS[selectedLeaveForReview.leaveType] || selectedLeaveForReview.leaveType}
                 </span>
               </div>
-              <div className="text-xs text-slate-600 pt-1 border-t border-slate-200/60 flex items-center justify-between">
+              <div className="text-xs text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                 <span>মেয়াদ: <strong>{selectedLeaveForReview.startDate}</strong> হতে <strong>{selectedLeaveForReview.endDate}</strong></span>
-                <span className="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">মোট {selectedLeaveForReview.totalDays} দিন</span>
+                <span className="font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md">মোট {selectedLeaveForReview.totalDays} দিন</span>
               </div>
-              <div className="text-xs bg-white p-2.5 rounded-xl border border-slate-200 text-slate-700">
-                <strong className="text-slate-900 block mb-0.5">আবেদনের কারণ:</strong>
+              <div className="text-xs bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                <strong className="text-slate-900 dark:text-white block mb-0.5">আবেদনের কারণ:</strong>
                 {selectedLeaveForReview.reason}
               </div>
             </div>
 
             {/* Decision Toggle */}
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-700 block">প্রধান শিক্ষকের সিদ্ধান্ত:</label>
+              <label className="text-xs font-black text-slate-700 dark:text-slate-300 block">প্রধান শিক্ষকের সিদ্ধান্ত:</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -2007,7 +1969,7 @@ function TeacherManagementContent() {
                   className={`py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                     reviewDecision === 'approved'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                      : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                   }`}
                 >
                   <Check size={14} /> ✓ মঞ্জুর করুন (Approve)
@@ -2021,7 +1983,7 @@ function TeacherManagementContent() {
                   className={`py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                     reviewDecision === 'rejected'
                       ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                      : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 dark:hover:bg-rose-900/40'
                   }`}
                 >
                   <X size={14} /> ✕ বাতিল করুন (Reject)
@@ -2031,7 +1993,7 @@ function TeacherManagementContent() {
 
             {/* Quick Remarks Chips */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600 block">কুইক মন্তব্য সিলেক্ট করুন:</label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block">কুইক মন্তব্য সিলেক্ট করুন:</label>
               <div className="flex flex-wrap gap-1.5">
                 {(reviewDecision === 'approved' ? [
                   'ছুটি মঞ্জুর করা হলো।',
@@ -2047,7 +2009,7 @@ function TeacherManagementContent() {
                     key={idx}
                     type="button"
                     onClick={() => setReviewRemarks(remark)}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold transition cursor-pointer"
                   >
                     {remark}
                   </button>
@@ -2057,22 +2019,22 @@ function TeacherManagementContent() {
 
             {/* Remarks Textarea */}
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 block">পর্যালোচনা ও নির্দেশনা মন্তব্য:</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">পর্যালোচনা ও নির্দেশনা মন্তব্য:</label>
               <textarea
                 value={reviewRemarks}
                 onChange={(e) => setReviewRemarks(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20"
                 placeholder="কোনো বিশেষ নির্দেশনা থাকলে লিখুন..."
               />
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setSelectedLeaveForReview(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 বাতিল
               </button>
@@ -2094,84 +2056,84 @@ function TeacherManagementContent() {
       {/* ─── MODAL: PRINT OFFICIAL LEAVE SLIP ───────────────────────────── */}
       {printSlipLeave && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
             {/* Dialog Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
               <div className="flex items-center gap-2">
-                <Printer size={18} className="text-indigo-600" />
-                <h3 className="font-extrabold text-slate-900 text-sm">ছুটি মঞ্জুরিপত্র প্রিভিউ ও প্রিন্ট</h3>
+                <Printer size={18} className="text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">ছুটি মঞ্জুরিপত্র প্রিভিউ ও প্রিন্ট</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setPrintSlipLeave(null)}
-                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Printable Letterhead Area */}
-            <div className="border border-slate-200 rounded-2xl p-6 bg-white text-slate-900 space-y-4 font-sans">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-white space-y-4 font-sans">
               <div className="text-center border-b-2 border-slate-900 pb-3 space-y-0.5">
-                <h2 className="text-lg font-black text-slate-900">বরইতলী উচ্চ বিদ্যালয়</h2>
-                <p className="text-[11px] font-bold text-slate-600">ডাকঘর: বরইতলী, চকরিয়া, কক্সবাজার • স্থাপিত: ১৯৬৮ ইং</p>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">বরইতলী উচ্চ বিদ্যালয়</h2>
+                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ডাকঘর: বরইতলী, চকরিয়া, কক্সবাজার • স্থাপিত: ১৯৬৮ ইং</p>
                 <div className="inline-block px-3 py-0.5 mt-1 bg-slate-900 text-white rounded-md text-[11px] font-black uppercase tracking-wider">
                   শিক্ষক ছুটি মঞ্জুরিপত্র (LEAVE APPROVAL SLIP)
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-600 font-bold">
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-bold">
                 <span>স্মারক নং: SMS/LEV/{printSlipLeave.id}/2026</span>
                 <span>তারিখ: {new Date(printSlipLeave.reviewedAt || printSlipLeave.appliedAt).toLocaleDateString('bn-BD')}</span>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">শিক্ষকের নাম:</span>
-                  <strong className="text-slate-900">{printSlipLeave.teacherName}</strong>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">শিক্ষকের নাম:</span>
+                  <strong className="text-slate-900 dark:text-white">{printSlipLeave.teacherName}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">পদবি ও শিক্ষক আইডি:</span>
-                  <span className="text-slate-800 font-bold">{printSlipLeave.designation} ({printSlipLeave.teacherId})</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">পদবি ও শিক্ষক আইডি:</span>
+                  <span className="text-slate-800 dark:text-slate-100 font-bold">{printSlipLeave.designation} ({printSlipLeave.teacherId})</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">ছুটির প্রকারভেদ:</span>
-                  <span className="font-extrabold text-indigo-900">{LEAVE_TYPE_LABELS[printSlipLeave.leaveType] || printSlipLeave.leaveType}</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">ছুটির প্রকারভেদ:</span>
+                  <span className="font-extrabold text-indigo-900 dark:text-indigo-200">{LEAVE_TYPE_LABELS[printSlipLeave.leaveType] || printSlipLeave.leaveType}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">মঞ্জুরকৃত ছুটির মেয়াদ:</span>
-                  <span className="font-extrabold text-emerald-800">{printSlipLeave.startDate} হতে {printSlipLeave.endDate} পর্যন্ত (মোট {printSlipLeave.totalDays} দিন)</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">মঞ্জুরকৃত ছুটির মেয়াদ:</span>
+                  <span className="font-extrabold text-emerald-800 dark:text-emerald-200">{printSlipLeave.startDate} হতে {printSlipLeave.endDate} পর্যন্ত (মোট {printSlipLeave.totalDays} দিন)</span>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 pt-1.5">
-                  <span className="text-slate-500 font-bold">ছুটির কারণ:</span>
-                  <span className="text-slate-800 text-right max-w-xs">{printSlipLeave.reason}</span>
+                <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1.5">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">ছুটির কারণ:</span>
+                  <span className="text-slate-800 dark:text-slate-100 text-right max-w-xs">{printSlipLeave.reason}</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950">
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs text-emerald-950 dark:text-emerald-200">
                 <strong className="block mb-0.5">প্রধান শিক্ষকের অনুমোদন ও নির্দেশনা:</strong>
                 <p className="font-semibold">{printSlipLeave.remarks || 'ছুটি যথাযথ নিয়মে মঞ্জুর করা হলো।'}</p>
               </div>
 
-              <div className="pt-10 flex justify-between items-end text-xs font-bold text-slate-800">
+              <div className="pt-10 flex justify-between items-end text-xs font-bold text-slate-800 dark:text-slate-100">
                 <div className="text-center">
-                  <div className="w-32 border-t border-slate-400 pt-1">শিক্ষকের স্বাক্ষর</div>
+                  <div className="w-32 border-t border-slate-400 dark:border-slate-700 pt-1">শিক্ষকের স্বাক্ষর</div>
                 </div>
                 <div className="text-center">
-                  <div className="w-36 border-t-2 border-slate-900 pt-1 font-black text-slate-900">
+                  <div className="w-36 border-t-2 border-slate-900 pt-1 font-black text-slate-900 dark:text-white">
                     প্রধান শিক্ষক
-                    <span className="block text-[10px] text-slate-500 font-normal">বরইতলী উচ্চ বিদ্যালয়</span>
+                    <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-normal">বরইতলী উচ্চ বিদ্যালয়</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Dialog Footer Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 print:hidden">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 print:hidden">
               <button
                 type="button"
                 onClick={() => setPrintSlipLeave(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 বন্ধ করুন
               </button>
@@ -2197,11 +2159,11 @@ export default function TeacherManagementPage() {
     <Suspense fallback={
       <div className="w-full py-16" suppressHydrationWarning>
         <div className="animate-pulse space-y-6">
-          <div className="h-28 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded-3xl" />
+          <div className="h-28 bg-gradient-to-r from-slate-200 dark:from-slate-800 via-slate-100 dark:via-slate-800 to-slate-200 dark:to-slate-800 rounded-3xl" />
           <div className="flex gap-3">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-11 w-40 bg-slate-200 rounded-2xl" />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-11 w-40 bg-slate-200 dark:bg-slate-800 rounded-2xl" />)}
           </div>
-          <div className="h-96 bg-slate-100 rounded-3xl" />
+          <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
         </div>
       </div>
     }>
