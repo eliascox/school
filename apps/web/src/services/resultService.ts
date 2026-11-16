@@ -4,6 +4,8 @@ import { getStudentReligion, isReligionSubject, ReligionType } from '@/lib/relig
 import { auditTrailService } from './auditTrailService';
 import { syncQueueService } from './syncQueueService';
 
+export type PassEvaluationMode = 'curriculum' | 'total' | 'part_by_part';
+
 export interface SubjectMarkEntry {
   subjectCode: string;
   subjectName: string;
@@ -15,6 +17,10 @@ export interface SubjectMarkEntry {
   totalMarks: number;
   letterGrade: string;
   gradePoint: number;
+  hasMarks?: boolean;
+  isPassed?: boolean;
+  passModeApplied?: 'total' | 'part_by_part';
+  failedComponents?: string[];
   isOptional?: boolean;
   isJointPass?: boolean;
   jointPairCode?: string;
@@ -31,6 +37,7 @@ export interface StudentExamResult {
   group: string;
   totalObtainedMarks: number;
   totalFullMarks: number;
+  obtainedPercentage?: number;
   gpaWithout4th: number;
   bonusGP: number;
   gpa: number;
@@ -38,10 +45,29 @@ export interface StudentExamResult {
   isPassed: boolean;
   failedCount: number;
   failedSubjects: string[];
+  hasIncompleteMarks?: boolean;
+  enteredSubjectsCount?: number;
+  expectedSubjectsCount?: number;
+  pendingSubjectNames?: string[];
+  optionalSubjectName?: string;
   rank?: number;
   subjectMarks: Record<string, SubjectMarkEntry>;
   optionalSubjectMark?: SubjectMarkEntry;
 }
+
+/**
+ * Resolve overall letter grade from GPA according to Bangladesh NCTB scale.
+ */
+export const gpaToLetterGrade = (gpa: number, hasFailed: boolean): string => {
+  if (hasFailed) return 'F';
+  if (gpa >= 5.0) return 'A+';
+  if (gpa >= 4.0) return 'A';
+  if (gpa >= 3.5) return 'A-';
+  if (gpa >= 3.0) return 'B';
+  if (gpa >= 2.0) return 'C';
+  if (gpa >= 1.0) return 'D';
+  return 'F';
+};
 
 /**
  * Standard NCTB Grading Scale calculation based on percentage obtained.
@@ -57,6 +83,109 @@ export const calculateGradeAndPoint = (totalMarks: number, fullMarks: number = 1
   if (percentage >= 39.5) return { letterGrade: 'C', gradePoint: 2.0 };
   if (percentage >= 32.5) return { letterGrade: 'D', gradePoint: 1.0 };
   return { letterGrade: 'F', gradePoint: 0.0 };
+};
+
+/**
+ * Determine whether a subject evaluates pass/fail cumulatively or per-component.
+ */
+export const resolveSubjectPassMode = (
+  subject: Pick<DynamicClassSubject, 'passRules'>,
+  requestedMode: PassEvaluationMode = 'curriculum',
+): 'total' | 'part_by_part' => {
+  if (requestedMode === 'total') return 'total';
+  if (requestedMode === 'part_by_part') return 'part_by_part';
+  const rulesText = (subject.passRules || '').toLowerCase();
+  if (rulesText.includes('পৃথক') || rulesText.includes('আলাদা') || rulesText.includes('part')) {
+    return 'part_by_part';
+  }
+  return 'total';
+};
+
+/**
+ * Evaluate a single subject's grade & pass status supporting both cumulative (Total)
+ * and component-wise (Part by Part) 33% pass rules.
+ */
+export const evaluateSubjectGradeAndPass = (
+  mark: { cq?: number; mcq?: number; practical?: number; ca?: number; total: number },
+  subject: Pick<DynamicClassSubject, 'fullMarks' | 'cq' | 'mcq' | 'practical' | 'ca' | 'passMarks' | 'passRules'>,
+  passMode: PassEvaluationMode = 'curriculum',
+): {
+  letterGrade: string;
+  gradePoint: number;
+  isPassed: boolean;
+  passModeApplied: 'total' | 'part_by_part';
+  failedComponents: string[];
+} => {
+  const fullMarks = Number(subject.fullMarks) || 100;
+  const base = calculateGradeAndPoint(mark.total, fullMarks);
+  const appliedMode = resolveSubjectPassMode(subject, passMode);
+  const failedComponents: string[] = [];
+
+  if (appliedMode === 'part_by_part') {
+    const cqFull = Number(subject.cq) || 0;
+    const mcqFull = Number(subject.mcq) || 0;
+    const prFull = Number(subject.practical) || 0;
+    const caFull = Number(subject.ca) || 0;
+    const cqObt = Number(mark.cq) || 0;
+    const mcqObt = Number(mark.mcq) || 0;
+    const prObt = Number(mark.practical) || 0;
+    const caObt = Number(mark.ca) || 0;
+    const rulesText = (subject.passRules || '').toLowerCase();
+    const combinedCqMcqRule =
+      passMode === 'curriculum' &&
+      rulesText.includes('একত্রে') &&
+      (cqFull > 0 || mcqFull > 0);
+
+    if (combinedCqMcqRule) {
+      const theoryFull = cqFull + mcqFull;
+      if (theoryFull > 0) {
+        const minTheory = Math.round(theoryFull * 0.33);
+        if (cqObt + mcqObt < minTheory) {
+          failedComponents.push(`CQ+MCQ (${cqObt + mcqObt}/${minTheory})`);
+        }
+      }
+    } else {
+      if (cqFull > 0) {
+        const minCq = Math.round(cqFull * 0.33);
+        if (cqObt < minCq) failedComponents.push(`CQ (${cqObt}/${minCq})`);
+      }
+      if (mcqFull > 0) {
+        const minMcq = Math.round(mcqFull * 0.33);
+        if (mcqObt < minMcq) failedComponents.push(`MCQ (${mcqObt}/${minMcq})`);
+      }
+    }
+
+    if (prFull > 0) {
+      const minPr = Math.round(prFull * 0.33);
+      if (prObt < minPr) failedComponents.push(`Practical (${prObt}/${minPr})`);
+    }
+    if (caFull > 0) {
+      const minCa = Math.round(caFull * 0.33);
+      if (caObt < minCa) failedComponents.push(`CA (${caObt}/${minCa})`);
+    }
+  }
+
+  // Also enforce custom passMarks override if higher than standard 33%
+  const customPassThreshold = Number(subject.passMarks) || 0;
+  const failedTotal = base.gradePoint === 0 || (customPassThreshold > 0 && mark.total < customPassThreshold);
+
+  if (failedTotal || failedComponents.length > 0) {
+    return {
+      letterGrade: 'F',
+      gradePoint: 0.0,
+      isPassed: false,
+      passModeApplied: appliedMode,
+      failedComponents,
+    };
+  }
+
+  return {
+    letterGrade: base.letterGrade,
+    gradePoint: base.gradePoint,
+    isPassed: true,
+    passModeApplied: appliedMode,
+    failedComponents: [],
+  };
 };
 
 export const resultService = {
@@ -85,14 +214,26 @@ export const resultService = {
     grade: string;
     branch: string;
     group?: string;
+    passMode?: PassEvaluationMode;
+    customSubjects?: DynamicClassSubject[];
   }): StudentExamResult | null => {
-    const { examId, student, grade, branch } = params;
+    const {
+      examId,
+      student,
+      grade,
+      branch,
+      passMode = 'curriculum',
+      customSubjects,
+    } = params;
     const isClass9or10 = grade === '9th' || grade === '10th';
     const effectiveGroup = isClass9or10 ? (student.group || params.group || 'বিজ্ঞান') : 'সাধারণ';
     const studentRel = getStudentReligion(student);
 
     // Get NCTB / dynamic configured subjects for this grade & group
-    const configuredSubjects = getActiveCurriculumSubjects(grade, effectiveGroup);
+    const configuredSubjects =
+      customSubjects && customSubjects.length > 0
+        ? customSubjects
+        : getActiveCurriculumSubjects(grade, effectiveGroup, student.optionalSubject);
     if (!configuredSubjects || configuredSubjects.length === 0) {
       return null;
     }
@@ -103,16 +244,22 @@ export const resultService = {
     let mainGPPoints = 0;
     let mainUnitsCount = 0;
     let failedCount = 0;
+    let enteredSubjectsCount = 0;
+    let expectedSubjectsCount = 0;
     const failedSubjects: string[] = [];
+    const pendingSubjectNames: string[] = [];
 
     const processedCodes = new Set<string>();
     const processedNames = new Set<string>();
     let hasReligionProcessed = false;
 
     // ─── 4TH / OPTIONAL SUBJECT RESOLUTION PER STUDENT ───
-    const rawOpt = student.optionalSubject && student.optionalSubject !== 'None' && student.optionalSubject !== 'নাই'
-      ? student.optionalSubject.trim()
-      : '';
+    const rawOpt =
+      student.optionalSubject &&
+      student.optionalSubject !== 'None' &&
+      student.optionalSubject !== 'নাই'
+        ? student.optionalSubject.trim()
+        : '';
 
     let effectiveOptName = rawOpt;
     if (!effectiveOptName && isClass9or10) {
@@ -120,6 +267,14 @@ export const resultService = {
     } else if (!effectiveOptName && (grade === '8th' || grade === '7th' || grade === '6th')) {
       effectiveOptName = '';
     }
+
+    const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা'];
+    const OPTIONAL_CODE_PREFIXES = ['AGR', 'HMS', 'HMT', 'CMP'];
+
+    const isDefaultOptionalSlot = (s: DynamicClassSubject) =>
+      s.category === '৪র্থ বিষয়' ||
+      OPTIONAL_KEYWORDS.some((kw) => (s.name || '').includes(kw)) ||
+      OPTIONAL_CODE_PREFIXES.some((pfx) => (s.code || '').startsWith(pfx));
 
     // Match student's designated optional subject cleanly
     const isSubjectMatchingOpt = (s: DynamicClassSubject) => {
@@ -139,8 +294,14 @@ export const resultService = {
       );
     };
 
-    // Compulsory subjects = All configured subjects EXCEPT the student's designated 4th subject
-    const compulsorySubjects = configuredSubjects.filter(s => !isSubjectMatchingOpt(s));
+    // Compulsory subjects exclude both student's optional subject and generic 4th-subject curriculum slots
+    const compulsorySubjects = configuredSubjects.filter(
+      (s) => !isSubjectMatchingOpt(s) && !(isDefaultOptionalSlot(s) && rawOpt !== 'নাই' && rawOpt !== 'None'),
+    );
+
+    const curriculumOptSubject = configuredSubjects.find(
+      (s) => isSubjectMatchingOpt(s) || (effectiveOptName && isDefaultOptionalSlot(s)),
+    );
 
     for (let i = 0; i < compulsorySubjects.length; i++) {
       const sub = compulsorySubjects[i];
@@ -155,13 +316,11 @@ export const resultService = {
       // Check Joint Pass Pair (e.g. Bangla 1st + 2nd, English 1st + 2nd)
       const nextSub = compulsorySubjects[i + 1];
       const isJoint = Boolean(
-        sub.isJointPass ||
-        (nextSub && (
-          (sub.name.includes('বাংলা ১ম') && nextSub.name.includes('বাংলা ২য়')) ||
-          (sub.name.includes('বাংলা ১ম') && nextSub.name.includes('বাংলা ২য়')) ||
-          (sub.name.includes('ইংরেজি ১ম') && nextSub.name.includes('ইংরেজি ২য়')) ||
-          (sub.name.includes('ইংরেজি ১ম') && nextSub.name.includes('ইংরেজি ২য়'))
-        ))
+        nextSub &&
+          (sub.isJointPass ||
+            sub.jointPairCode === nextSub.code ||
+            (sub.name.includes('বাংলা ১ম') && (nextSub.name.includes('বাংলা ২য়') || nextSub.name.includes('বাংলা ২য়'))) ||
+            (sub.name.includes('ইংরেজি ১ম') && (nextSub.name.includes('ইংরেজি ২য়') || nextSub.name.includes('ইংরেজি ২য়')))),
       );
 
       if (isJoint && nextSub) {
@@ -174,7 +333,7 @@ export const resultService = {
           studentRoll: student.roll,
           studentId: student.id,
           studentName: student.name,
-          religion: studentRel
+          religion: studentRel,
         });
 
         const mark2 = getUniversalStudentMark({
@@ -186,14 +345,38 @@ export const resultService = {
           studentRoll: student.roll,
           studentId: student.id,
           studentName: student.name,
-          religion: studentRel
+          religion: studentRel,
         });
+
+        expectedSubjectsCount += 2;
+        if (mark1.hasMarks) enteredSubjectsCount += 1;
+        else pendingSubjectNames.push(sub.name);
+
+        if (mark2.hasMarks) enteredSubjectsCount += 1;
+        else pendingSubjectNames.push(nextSub.name);
 
         const jointTotal = mark1.total + mark2.total;
         const jointFull = (sub.fullMarks || 100) + (nextSub.fullMarks || 100);
-        const { letterGrade, gradePoint } = calculateGradeAndPoint(jointTotal, jointFull);
+        const evalRes = evaluateSubjectGradeAndPass(
+          {
+            cq: mark1.cq + mark2.cq,
+            mcq: mark1.mcq + mark2.mcq,
+            practical: mark1.practical + mark2.practical,
+            ca: mark1.ca + mark2.ca,
+            total: jointTotal,
+          },
+          {
+            fullMarks: jointFull,
+            cq: (Number(sub.cq) || 0) + (Number(nextSub.cq) || 0),
+            mcq: (Number(sub.mcq) || 0) + (Number(nextSub.mcq) || 0),
+            practical: (Number(sub.practical) || 0) + (Number(nextSub.practical) || 0),
+            ca: (Number(sub.ca) || 0) + (Number(nextSub.ca) || 0),
+            passRules: sub.passRules || nextSub.passRules,
+          },
+          passMode,
+        );
 
-        if (gradePoint === 0) {
+        if (!evalRes.isPassed) {
           failedCount++;
           failedSubjects.push(`${sub.name} + ${nextSub.name}`);
         }
@@ -207,11 +390,15 @@ export const resultService = {
           practical: mark1.practical,
           ca: mark1.ca,
           totalMarks: mark1.total,
-          letterGrade,
-          gradePoint,
+          letterGrade: evalRes.letterGrade,
+          gradePoint: evalRes.gradePoint,
+          hasMarks: mark1.hasMarks,
+          isPassed: evalRes.isPassed,
+          passModeApplied: evalRes.passModeApplied,
+          failedComponents: evalRes.failedComponents,
           isJointPass: true,
           jointPairCode: nextSub.code,
-          jointPairName: nextSub.name
+          jointPairName: nextSub.name,
         };
 
         subjectMarks[nextSub.code] = {
@@ -223,16 +410,20 @@ export const resultService = {
           practical: mark2.practical,
           ca: mark2.ca,
           totalMarks: mark2.total,
-          letterGrade,
-          gradePoint,
+          letterGrade: evalRes.letterGrade,
+          gradePoint: evalRes.gradePoint,
+          hasMarks: mark2.hasMarks,
+          isPassed: evalRes.isPassed,
+          passModeApplied: evalRes.passModeApplied,
+          failedComponents: evalRes.failedComponents,
           isJointPass: true,
           jointPairCode: sub.code,
-          jointPairName: sub.name
+          jointPairName: sub.name,
         };
 
         totalObtained += jointTotal;
         totalFull += jointFull;
-        mainGPPoints += gradePoint;
+        mainGPPoints += evalRes.gradePoint;
         mainUnitsCount += 1;
 
         processedCodes.add(sub.code);
@@ -249,13 +440,17 @@ export const resultService = {
           studentRoll: student.roll,
           studentId: student.id,
           studentName: student.name,
-          religion: studentRel
+          religion: studentRel,
         });
 
-        const fullMarks = sub.fullMarks || 100;
-        const { letterGrade, gradePoint } = calculateGradeAndPoint(mark.total, fullMarks);
+        expectedSubjectsCount += 1;
+        if (mark.hasMarks) enteredSubjectsCount += 1;
+        else pendingSubjectNames.push(sub.name);
 
-        if (gradePoint === 0) {
+        const fullMarks = sub.fullMarks || 100;
+        const evalRes = evaluateSubjectGradeAndPass(mark, sub, passMode);
+
+        if (!evalRes.isPassed) {
           failedCount++;
           failedSubjects.push(sub.name);
         }
@@ -269,13 +464,17 @@ export const resultService = {
           practical: mark.practical,
           ca: mark.ca,
           totalMarks: mark.total,
-          letterGrade,
-          gradePoint
+          letterGrade: evalRes.letterGrade,
+          gradePoint: evalRes.gradePoint,
+          hasMarks: mark.hasMarks,
+          isPassed: evalRes.isPassed,
+          passModeApplied: evalRes.passModeApplied,
+          failedComponents: evalRes.failedComponents,
         };
 
         totalObtained += mark.total;
         totalFull += fullMarks;
-        mainGPPoints += gradePoint;
+        mainGPPoints += evalRes.gradePoint;
         mainUnitsCount += 1;
 
         processedCodes.add(sub.code);
@@ -293,19 +492,29 @@ export const resultService = {
         grade,
         branch,
         group: effectiveGroup,
-        subjectCodeOrName: effectiveOptName,
+        subjectCodeOrName: curriculumOptSubject?.code || effectiveOptName,
         studentRoll: student.roll,
         studentId: student.id,
         studentName: student.name,
-        religion: studentRel
+        religion: studentRel,
       });
 
-      const optFullMarks = 100;
-      const optResult = calculateGradeAndPoint(optRetrieved.total, optFullMarks);
-      bonusGP = Math.max(0, Number((optResult.gradePoint - 2.00).toFixed(2)));
+      const optFullMarks = curriculumOptSubject?.fullMarks || 100;
+      const optEval = evaluateSubjectGradeAndPass(
+        optRetrieved,
+        curriculumOptSubject || {
+          fullMarks: optFullMarks,
+          cq: optFullMarks,
+          mcq: 0,
+          practical: 0,
+          ca: 0,
+        },
+        passMode,
+      );
+      bonusGP = Math.max(0, Number((optEval.gradePoint - 2.00).toFixed(2)));
 
       optionalSubjectMark = {
-        subjectCode: 'OPT-4TH',
+        subjectCode: curriculumOptSubject?.code || 'OPT-4TH',
         subjectName: effectiveOptName,
         fullMarks: optFullMarks,
         cq: optRetrieved.cq,
@@ -313,9 +522,13 @@ export const resultService = {
         practical: optRetrieved.practical,
         ca: optRetrieved.ca,
         totalMarks: optRetrieved.total,
-        letterGrade: optResult.letterGrade,
-        gradePoint: optResult.gradePoint,
-        isOptional: true
+        letterGrade: optEval.letterGrade,
+        gradePoint: optEval.gradePoint,
+        hasMarks: optRetrieved.hasMarks,
+        isPassed: optEval.isPassed,
+        passModeApplied: optEval.passModeApplied,
+        failedComponents: optEval.failedComponents,
+        isOptional: true,
       };
 
       totalObtained += optRetrieved.total;
@@ -328,19 +541,8 @@ export const resultService = {
       ? 0.0
       : Math.min(5.00, Number(((mainGPPoints + bonusGP) / mainUnitsCount).toFixed(2)));
 
-    const overallGrade = hasFailed
-      ? 'F'
-      : finalGPA >= 5.0
-      ? 'A+'
-      : finalGPA >= 4.0
-      ? 'A'
-      : finalGPA >= 3.5
-      ? 'A-'
-      : finalGPA >= 3.0
-      ? 'B'
-      : finalGPA >= 2.0
-      ? 'C'
-      : 'D';
+    const overallGrade = gpaToLetterGrade(finalGPA, hasFailed);
+    const obtainedPercentage = totalFull > 0 ? Number(((totalObtained / totalFull) * 100).toFixed(2)) : 0;
 
     return {
       examId,
@@ -352,6 +554,7 @@ export const resultService = {
       group: effectiveGroup,
       totalObtainedMarks: totalObtained,
       totalFullMarks: totalFull,
+      obtainedPercentage,
       gpaWithout4th,
       bonusGP,
       gpa: finalGPA,
@@ -359,8 +562,13 @@ export const resultService = {
       isPassed: !hasFailed,
       failedCount,
       failedSubjects,
+      hasIncompleteMarks: pendingSubjectNames.length > 0,
+      enteredSubjectsCount,
+      expectedSubjectsCount,
+      pendingSubjectNames,
+      optionalSubjectName: effectiveOptName || undefined,
       subjectMarks,
-      optionalSubjectMark
+      optionalSubjectMark,
     };
   },
 

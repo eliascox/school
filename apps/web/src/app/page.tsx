@@ -224,7 +224,7 @@ export default function PublicSchoolHomePage() {
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div className="landing-smooth-root min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative overflow-x-hidden">
+    <div className="landing-smooth-root min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative overflow-x-clip">
       {/* 0. Smooth Scroll Progress Bar & Floating Back-to-Top Orb */}
       <LandingScrollFeatures />
 

@@ -28,9 +28,13 @@ describe('routeAccess and dashboard layout guard', () => {
     expect(canAccessDashboardRoute('teacher', '/dashboard/teacher-portal')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/teacher-portal?tab=routine')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/exam/mark-entry')).toBe(true);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/exam/seat-plan')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/academic/attendance')).toBe(true);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/academic/homework')).toBe(true);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/routine')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/notices')).toBe(true);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/exam/mark-entry')).toBeNull();
+    expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/routine')).toBeNull();
   });
 
   it('teacher is blocked and redirected from admin routes', () => {
@@ -38,12 +42,18 @@ describe('routeAccess and dashboard layout guard', () => {
     expect(canAccessDashboardRoute('teacher', '/dashboard/settings')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/finance')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/students')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/students/id-card')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/academic/classes')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/sms')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/mobile-app')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/analytics')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/library')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/campus')).toBe(false);
+    expect(canAccessDashboardRoute('teacher', '/dashboard/alumni')).toBe(false);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/settings')).toBe(TEACHER_HOME);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/finance')).toBe(TEACHER_HOME);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/mobile-app')).toBe(TEACHER_HOME);
+    expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/analytics')).toBe(TEACHER_HOME);
   });
 
   it('unauthenticated visitor is redirected to /login', () => {

@@ -70,7 +70,7 @@ export async function pingCentralApi(): Promise<{
 }
 
 export async function loginMobileUser(email: string, password: string) {
-  const res = await mobileApiClient.post('/api/v1/auth/login', {
+  const res = await mobileApiClient.post('/auth/login', {
     email,
     password,
   });
@@ -79,6 +79,43 @@ export async function loginMobileUser(email: string, password: string) {
     await mobileStorage.setItem(TOKEN_STORAGE_KEY, token);
   }
   return res.data;
+}
+
+export async function fetchMobileDashboardData(): Promise<{
+  profile: { name: string; email: string; role: string; schoolName?: string } | null;
+  notices: Array<{ id: string; title: string; content?: string; createdAt?: string }>;
+  classesCount: number;
+  routineCount: number;
+  homeworkCount: number;
+  financeSummary: { totalCollected?: number; totalPending?: number; summaryText?: string } | null;
+}> {
+  const [meRes, noticesRes, classesRes, financeRes] = await Promise.allSettled([
+    mobileApiClient.get('/auth/me'),
+    mobileApiClient.get('/communication/notices'),
+    mobileApiClient.get('/academic/classes'),
+    mobileApiClient.get('/finance/report'),
+  ]);
+
+  const profileData = meRes.status === 'fulfilled' ? meRes.value?.data : null;
+  const noticesRaw = noticesRes.status === 'fulfilled' ? noticesRes.value?.data : [];
+  const classesRaw = classesRes.status === 'fulfilled' ? classesRes.value?.data : [];
+  const financeRaw = financeRes.status === 'fulfilled' ? financeRes.value?.data : null;
+
+  return {
+    profile: profileData
+      ? {
+          name: profileData.name || profileData.email || 'ব্যবহারকারী',
+          email: profileData.email || '',
+          role: profileData.role || 'MEMBER',
+          schoolName: profileData.tenant?.name || profileData.schoolName,
+        }
+      : null,
+    notices: Array.isArray(noticesRaw) ? noticesRaw : [],
+    classesCount: Array.isArray(classesRaw) ? classesRaw.length : 0,
+    routineCount: Number(financeRaw?.routineCount ?? (Array.isArray(classesRaw) ? classesRaw.length * 6 : 0)),
+    homeworkCount: Number(financeRaw?.homeworkCount ?? 0),
+    financeSummary: financeRaw || null,
+  };
 }
 
 export async function logoutMobileUser() {

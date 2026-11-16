@@ -18,6 +18,18 @@ export interface ConfirmDialogOptions {
   danger?: boolean;
 }
 
+export interface PromptDialogOptions {
+  title?: string;
+  message: string;
+  placeholder?: string;
+  defaultValue?: string;
+  inputType?: 'text' | 'password';
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  required?: boolean;
+}
+
 interface ToastItem {
   id: string;
   message: string;
@@ -28,15 +40,21 @@ interface PendingConfirm extends ConfirmDialogOptions {
   resolve: (accepted: boolean) => void;
 }
 
+interface PendingPrompt extends PromptDialogOptions {
+  resolve: (value: string | null) => void;
+}
+
 interface ToastContextValue {
   showToast: (message: string, variantOrOptions?: ToastVariant | ToastOptions) => void;
   confirm: (options: string | ConfirmDialogOptions) => Promise<boolean>;
+  prompt: (options: string | PromptDialogOptions) => Promise<string | null>;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 let globalShowToast: ((message: string, variantOrOptions?: ToastVariant | ToastOptions) => void) | null = null;
 let globalConfirm: ((options: string | ConfirmDialogOptions) => Promise<boolean>) | null = null;
+let globalPrompt: ((options: string | PromptDialogOptions) => Promise<string | null>) | null = null;
 
 function inferToastVariant(message: string): ToastVariant {
   const m = String(message || '').toLowerCase();
@@ -107,11 +125,17 @@ export function confirmDialog(options: string | ConfirmDialogOptions): Promise<b
   if (globalConfirm) {
     return globalConfirm(options);
   }
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    const msg = typeof options === 'string' ? options : options.message;
-    return Promise.resolve(window.confirm(msg));
-  }
   return Promise.resolve(false);
+}
+
+/**
+ * Opens an accessible in-app input prompt modal (replaces browser window.prompt).
+ */
+export function promptDialog(options: string | PromptDialogOptions): Promise<string | null> {
+  if (globalPrompt) {
+    return globalPrompt(options);
+  }
+  return Promise.resolve(null);
 }
 
 export function useToast(): ToastContextValue {
@@ -120,6 +144,7 @@ export function useToast(): ToastContextValue {
     return {
       showToast,
       confirm: confirmDialog,
+      prompt: promptDialog,
     };
   }
   return ctx;
@@ -151,8 +176,11 @@ const VARIANT_STYLES: Record<ToastVariant, { container: string; icon: React.Reac
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirmQueue, setConfirmQueue] = useState<PendingConfirm[]>([]);
+  const [promptQueue, setPromptQueue] = useState<PendingPrompt[]>([]);
+  const [promptValue, setPromptValue] = useState('');
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
   const cancelBtnRef = useRef<HTMLButtonElement | null>(null);
+  const promptInputRef = useRef<HTMLInputElement | null>(null);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -186,7 +214,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const triggerPrompt = useCallback((options: string | PromptDialogOptions): Promise<string | null> => {
+    const normalized: PromptDialogOptions =
+      typeof options === 'string' ? { message: options } : options;
+    return new Promise<string | null>((resolve) => {
+      setPromptQueue((prev) => {
+        if (prev.length === 0) {
+          setPromptValue(normalized.defaultValue || '');
+        }
+        return [...prev, { ...normalized, resolve }];
+      });
+    });
+  }, []);
+
   const activeConfirm = confirmQueue[0] || null;
+  const activePrompt = promptQueue[0] || null;
 
   const resolveActiveConfirm = useCallback((accepted: boolean) => {
     setConfirmQueue((prev) => {
@@ -198,9 +240,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const resolveActivePrompt = useCallback((value: string | null) => {
+    setPromptQueue((prev) => {
+      const [first, ...rest] = prev;
+      if (first) {
+        first.resolve(value);
+      }
+      if (rest[0]) {
+        setPromptValue(rest[0].defaultValue || '');
+      } else {
+        setPromptValue('');
+      }
+      return rest;
+    });
+  }, []);
+
   useEffect(() => {
     globalShowToast = triggerToast;
     globalConfirm = triggerConfirm;
+    globalPrompt = triggerPrompt;
 
     const handleToastEvent = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
@@ -212,9 +270,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (globalShowToast === triggerToast) globalShowToast = null;
       if (globalConfirm === triggerConfirm) globalConfirm = null;
+      if (globalPrompt === triggerPrompt) globalPrompt = null;
       window.removeEventListener('sms:toast', handleToastEvent);
     };
-  }, [triggerToast, triggerConfirm]);
+  }, [triggerToast, triggerConfirm, triggerPrompt]);
 
   useEffect(() => {
     if (!activeConfirm) return;
@@ -229,8 +288,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [activeConfirm, resolveActiveConfirm]);
 
+  useEffect(() => {
+    if (!activePrompt) return;
+    setTimeout(() => promptInputRef.current?.focus(), 20);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        resolveActivePrompt(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activePrompt, resolveActivePrompt]);
+
   return (
-    <ToastContext.Provider value={{ showToast: triggerToast, confirm: triggerConfirm }}>
+    <ToastContext.Provider value={{ showToast: triggerToast, confirm: triggerConfirm, prompt: triggerPrompt }}>
       {children}
 
       {/* Stacked Toast Region */}
@@ -327,6 +399,86 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Accessible Prompt Input Modal */}
+      {activePrompt && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs print:hidden"
+          onClick={() => resolveActivePrompt(null)}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sms-prompt-dialog-title"
+            aria-describedby="sms-prompt-dialog-desc"
+            className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 text-slate-900 dark:text-slate-100"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (activePrompt.required && !promptValue.trim()) return;
+              resolveActivePrompt(promptValue);
+            }}
+          >
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`p-2.5 rounded-xl shrink-0 ${
+                  activePrompt.danger
+                    ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400'
+                    : 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400'
+                }`}
+              >
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3
+                  id="sms-prompt-dialog-title"
+                  className="text-base font-bold text-slate-900 dark:text-slate-100"
+                >
+                  {activePrompt.title || 'ইনপুট প্রদান করুন'}
+                </h3>
+                <p
+                  id="sms-prompt-dialog-desc"
+                  className="mt-1.5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line"
+                >
+                  {activePrompt.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <input
+                ref={promptInputRef}
+                type={activePrompt.inputType || 'text'}
+                value={promptValue}
+                onChange={(e) => setPromptValue(e.target.value)}
+                placeholder={activePrompt.placeholder || 'এখানে লিখুন...'}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => resolveActivePrompt(null)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                {activePrompt.cancelLabel || 'বাতিল'}
+              </button>
+              <button
+                type="submit"
+                disabled={Boolean(activePrompt.required && !promptValue.trim())}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 ${
+                  activePrompt.danger
+                    ? 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-600 dark:hover:bg-rose-500'
+                    : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500'
+                }`}
+              >
+                {activePrompt.confirmLabel || 'নিশ্চিত করুন'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </ToastContext.Provider>

@@ -13,7 +13,10 @@ export type SessionRole = 'admin' | 'teacher';
 export const TEACHER_ALLOWED_PREFIXES: readonly string[] = [
   '/dashboard/teacher-portal',
   '/dashboard/exam/mark-entry',
+  '/dashboard/exam/seat-plan',
   '/dashboard/academic/attendance',
+  '/dashboard/academic/homework',
+  '/dashboard/routine',
   '/dashboard/notices',
 ];
 

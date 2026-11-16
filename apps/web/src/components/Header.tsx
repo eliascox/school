@@ -31,8 +31,10 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  Send
+  Send,
+  Search
 } from 'lucide-react';
+import { openCommandPalette } from '@/components/CommandPalette';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -430,8 +432,25 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
         </span>
       </div>
 
-      {/* Right: Theme Toggle + Language Switcher + Notifications + User */}
+      {/* Right: Command Search + Theme Toggle + Language Switcher + Notifications + User */}
       <div className="flex items-center gap-2 lg:gap-3">
+        {/* 🔍 GLOBAL COMMAND PALETTE TRIGGER (Ctrl + K) */}
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 shrink-0"
+          title={currentLang === 'en' ? 'Quick Search & Commands (Ctrl+K)' : 'দ্রুত অনুসন্ধান ও কমান্ড (Ctrl+K)'}
+          aria-label="Open Command Palette"
+        >
+          <Search className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span className="hidden xl:inline text-[11px] font-bold">
+            {currentLang === 'en' ? 'Quick Search...' : 'দ্রুত খুঁজুন...'}
+          </span>
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-md">
+            Ctrl+K
+          </kbd>
+        </button>
+
         {/* 🖨️ BLANK ADMISSION FORM PRINT BUTTON (When on Admission Page) */}
         {pathname.includes('/admission') && (
           <button

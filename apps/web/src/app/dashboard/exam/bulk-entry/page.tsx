@@ -24,6 +24,7 @@ import {
   Layers
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { studentService, Student } from '@/services/studentService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, SubjectAssignment } from '@/services/teacherRBACService';
@@ -103,20 +104,27 @@ export default function BulkMarkEntryPage() {
 
   const [studentRows, setStudentRows] = useState<StudentBulkRow[]>([]);
 
+  const router = useRouter();
   useEffect(() => {
     setMounted(true);
     const s = teacherAuthService.getSession();
-    setSession(s || { role: 'admin' });
+    if (!s) {
+      router.replace('/login');
+      return;
+    }
+    setSession(s);
     setTeacherAssignments(teacherRBACService.getSubjectAssignments());
-  }, []);
+  }, [router]);
 
+  const isAdminRole = session?.role === 'admin';
   const isTeacherRole = session?.role === 'teacher';
   const teacherIdentifier = session?.teacherId || session?.teacherName || '';
 
   const canEditSubject = useCallback((subName: string): boolean => {
-    if (!isTeacherRole || !teacherIdentifier) return true;
+    if (isAdminRole) return true;
+    if (!isTeacherRole || !teacherIdentifier) return false;
     return teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, subName);
-  }, [isTeacherRole, teacherIdentifier, selectedGrade, teacherAssignments]);
+  }, [isAdminRole, isTeacherRole, teacherIdentifier, selectedGrade, teacherAssignments]);
 
   const isClass9or10 = selectedGrade === '9th' || selectedGrade === '10th';
 
@@ -622,7 +630,7 @@ export default function BulkMarkEntryPage() {
 
   const gradeNameBn = selectedGrade === '6th' ? '৬ষ্ঠ শ্রেণি' : selectedGrade === '7th' ? '৭ম শ্রেণি' : selectedGrade === '8th' ? '৮ম শ্রেণি' : selectedGrade === '9th' ? '৯ম শ্রেণি' : '১০ম শ্রেণি';
 
-  if (!mounted) {
+  if (!mounted || !session) {
     return <div className="p-8 text-center text-slate-400 font-bold">বাল্ক মার্ক এন্ট্রি লোড হচ্ছে...</div>;
   }
 

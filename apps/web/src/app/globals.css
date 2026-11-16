@@ -496,6 +496,18 @@ input[type="number"] {
   box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.glass-nav-scrolled {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 20px 44px -12px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.dark .glass-nav-scrolled {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 20px 44px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 .glass-dropdown {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(24px) saturate(200%);

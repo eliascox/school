@@ -22,7 +22,9 @@ import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils
 import { financeService, StudentFeeLedger } from '@/services/financeService';
 import { noticeService, Notice } from '@/services/noticeService';
 import { leaveService, LeaveApplication, LeaveType, LEAVE_TYPE_LABELS } from '@/services/leaveService';
-import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS } from '@/services/routineService';
+import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS, SubstitutionRecord } from '@/services/routineService';
+import { homeworkService, HomeworkAssignment } from '@/services/homeworkService';
+import { localDateKey } from '@/lib/dateUtils';
 import { auditTrailService } from '@/services/auditTrailService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
@@ -48,7 +50,7 @@ const toBnDigit = (num: number | string) => {
   return String(num).replace(/[0-9]/g, (d) => bn[parseInt(d, 10)]);
 };
 
-type NavTab = 'home' | 'marks' | 'attendance' | 'students' | 'routine' | 'leaves' | 'notices' | 'profile';
+type NavTab = 'home' | 'marks' | 'attendance' | 'students' | 'routine' | 'homework' | 'leaves' | 'notices' | 'profile';
 
 export default function TeacherPortalPage() {
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function TeacherPortalPage() {
 
   useEffect(() => {
     const tabParam = searchParams?.get('tab');
-    if (tabParam && ['home', 'marks', 'attendance', 'students', 'routine', 'leaves', 'notices', 'profile'].includes(tabParam)) {
+    if (tabParam && ['home', 'marks', 'attendance', 'students', 'routine', 'homework', 'leaves', 'notices', 'profile'].includes(tabParam)) {
       setActiveTab(tabParam as NavTab);
     }
   }, [searchParams]);
@@ -69,6 +71,15 @@ export default function TeacherPortalPage() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [leaves, setLeaves] = useState<LeaveApplication[]>([]);
   const [routines, setRoutines] = useState<RoutineSlot[]>([]);
+  const [todaySubstitutions, setTodaySubstitutions] = useState<SubstitutionRecord[]>([]);
+  const [homeworks, setHomeworks] = useState<HomeworkAssignment[]>([]);
+  const [hwGrade, setHwGrade] = useState('10th');
+  const [hwSection, setHwSection] = useState('all');
+  const [hwSubject, setHwSubject] = useState('');
+  const [hwTitle, setHwTitle] = useState('');
+  const [hwDueDate, setHwDueDate] = useState('');
+  const [hwDesc, setHwDesc] = useState('');
+  const [hwLink, setHwLink] = useState('');
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   
   // Today's Attendance stats for Class Teacher (ছাত্র, ছাত্রী, মোট, অনুপস্থিত, এনরোল্ড)
@@ -197,8 +208,13 @@ export default function TeacherPortalPage() {
     // Leaves
     setLeaves(leaveService.getTeacherLeaves(myId));
 
-    // Routines
+    // Routines & Today's Proxy Substitutions
     setRoutines(routineService.getRoutines());
+    setTodaySubstitutions(routineService.getSubstitutions(localDateKey()));
+
+    // Homework Assignments
+    setHomeworks(homeworkService.getHomeworks({ includeArchived: true }));
+    setHwDueDate((prev) => prev || localDateKey());
 
     // Audit logs for this teacher
     if (typeof window !== 'undefined') {
@@ -369,10 +385,7 @@ export default function TeacherPortalPage() {
   }, [loadAllPortalData]);
 
   const handleLogout = useCallback(() => {
-    teacherAuthService.setSession({ role: 'admin' });
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('sms_current_session');
-    }
+    teacherAuthService.logout();
     router.push('/login');
   }, [router]);
 
@@ -818,6 +831,23 @@ export default function TeacherPortalPage() {
                 </div>
               </button>
 
+              {/* Card 9: ডিজিটাল হোমওয়ার্ক ও লেকচার */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('homework')}
+                className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-xs border border-slate-200/90 dark:border-slate-800 text-left hover:border-indigo-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between group min-h-[165px]"
+              >
+                <div className="w-13 h-13 bg-gradient-to-tr from-violet-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:scale-110 group-hover:rotate-2 transition-transform">
+                  <BookOpen size={26} />
+                </div>
+                <div className="mt-5">
+                  <p className="font-black text-base sm:text-lg text-slate-900 dark:text-slate-100 leading-tight">ডিজিটাল হোমওয়ার্ক</p>
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    {toBnDigit(homeworks.filter((h) => h.status === 'active').length)}টি সক্রিয় পাঠ
+                  </p>
+                </div>
+              </button>
+
             </div>
 
             {/* ─── CLASS-WISE ASSIGNED SUBJECTS TABLE (শ্রেণিভিত্তিক বরাদ্দকৃত বিষয়ের টেবল) ─── */}
@@ -1234,6 +1264,43 @@ export default function TeacherPortalPage() {
               ))}
             </div>
 
+            {/* Today's Proxy / Substitution Duties Assigned to Logged-in Teacher */}
+            {todaySubstitutions.filter((sub) => {
+              const myId = (teacher?.id || session?.teacherId || '').toLowerCase();
+              const myName = (teacher?.name || session?.teacherName || '').toLowerCase();
+              return (
+                (sub.substituteTeacherId && sub.substituteTeacherId.toLowerCase() === myId) ||
+                sub.substituteTeacherName.toLowerCase() === myName
+              );
+            }).length > 0 && (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-2">
+                <p className="text-xs font-black text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <AlertCircle size={15} /> আজ আপনার জন্য নির্ধারিত প্রক্সি (বিকল্প) ক্লাস:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {todaySubstitutions
+                    .filter((sub) => {
+                      const myId = (teacher?.id || session?.teacherId || '').toLowerCase();
+                      const myName = (teacher?.name || session?.teacherName || '').toLowerCase();
+                      return (
+                        (sub.substituteTeacherId && sub.substituteTeacherId.toLowerCase() === myId) ||
+                        sub.substituteTeacherName.toLowerCase() === myName
+                      );
+                    })
+                    .map((sub) => (
+                      <div key={sub.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs">
+                        <p className="font-black text-slate-900 dark:text-white">
+                          {sub.classId} • {sub.subject} (পিরিয়ড {toBnDigit(sub.periodNo)})
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-bold">
+                          মূল শিক্ষক: {sub.absentTeacherName} • রুম: {sub.roomNo || '—'}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* Slots Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {currentDayRoutines.length === 0 ? (
@@ -1260,6 +1327,198 @@ export default function TeacherPortalPage() {
                     </span>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            TAB 5B: HOMEWORK & LECTURE SHEET COMPOSER
+        ════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'homework' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-black text-slate-900 dark:text-slate-100 text-base flex items-center gap-2">
+                  <BookOpen size={18} className="text-indigo-600" />
+                  নতুন হোমওয়ার্ক ও পাঠ্য প্রকাশ
+                </h2>
+                <Link
+                  href="/dashboard/academic/homework"
+                  className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  পূর্ণ প্যানেল →
+                </Link>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const res = homeworkService.createHomework({
+                    title: hwTitle.trim(),
+                    description: hwDesc.trim(),
+                    grade: hwGrade,
+                    section: hwSection,
+                    subject: hwSubject.trim(),
+                    teacherId: teacher?.id || session?.teacherId,
+                    teacherName: teacher?.name || session?.teacherName || 'বিষয় শিক্ষক',
+                    dueDate: hwDueDate || localDateKey(),
+                    attachmentUrl: hwLink.trim() || undefined,
+                    attachmentName: hwLink.trim() ? 'সংযুক্ত লেকচার শিট' : undefined,
+                  });
+                  if (!res.success) {
+                    showAlert('error', res.message);
+                    return;
+                  }
+                  showAlert('success', res.message);
+                  setHwTitle('');
+                  setHwDesc('');
+                  setHwLink('');
+                  setHomeworks(homeworkService.getHomeworks({ includeArchived: true }));
+                }}
+                className="space-y-3 text-xs font-bold"
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 mb-1">শ্রেণি</label>
+                    <select
+                      value={hwGrade}
+                      onChange={(e) => setHwGrade(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                    >
+                      {['6th', '7th', '8th', '9th', '10th'].map((g) => (
+                        <option key={g} value={g}>{gradeLabel(g)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 mb-1">শাখা</label>
+                    <select
+                      value={hwSection}
+                      onChange={(e) => setHwSection(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                    >
+                      <option value="all">সকল শাখা</option>
+                      <option value="A">ক শাখা (A)</option>
+                      <option value="B">খ শাখা (B)</option>
+                      <option value="C">গ শাখা (C)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 mb-1">বিষয় *</label>
+                    <input
+                      type="text"
+                      value={hwSubject}
+                      onChange={(e) => setHwSubject(e.target.value)}
+                      placeholder="যেমন: গণিত"
+                      required
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 mb-1">জমার শেষ তারিখ *</label>
+                    <input
+                      type="date"
+                      value={hwDueDate}
+                      onChange={(e) => setHwDueDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">শিরোনাম *</label>
+                  <input
+                    type="text"
+                    value={hwTitle}
+                    onChange={(e) => setHwTitle(e.target.value)}
+                    placeholder="বাড়ির কাজের শিরোনাম লিখুন"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">নির্দেশনা</label>
+                  <textarea
+                    rows={3}
+                    value={hwDesc}
+                    onChange={(e) => setHwDesc(e.target.value)}
+                    placeholder="শিক্ষার্থীদের জন্য নির্দেশনা..."
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">পিডিএফ / ড্রাইভ লিংক (ঐচ্ছিক)</label>
+                  <input
+                    type="url"
+                    value={hwLink}
+                    onChange={(e) => setHwLink(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black cursor-pointer"
+                >
+                  হোমওয়ার্ক প্রকাশ করুন
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-black text-slate-900 dark:text-slate-100 text-base">
+                  প্রকাশিত হোমওয়ার্ক তালিকা ({toBnDigit(homeworks.length)})
+                </h2>
+                <Link
+                  href="/dashboard/academic/homework"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-black"
+                >
+                  জমা ট্র্যাকার খুলুন
+                </Link>
+              </div>
+              {homeworks.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-bold">
+                  এখনো কোনো হোমওয়ার্ক প্রকাশ করা হয়নি।
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {homeworks.map((hw) => (
+                    <div key={hw.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                          {gradeLabel(hw.grade)} • {hw.subject}
+                        </span>
+                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                          জমা: {hw.dueDate}
+                        </span>
+                      </div>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{hw.title}</p>
+                      {hw.description && <p className="text-xs text-slate-500 dark:text-slate-400">{hw.description}</p>}
+                      <div className="flex items-center justify-between pt-1 text-[11px] font-bold text-slate-400">
+                        <span>শিক্ষক: {hw.teacherName} • জমা: {toBnDigit(hw.submittedStudentIds.length)} জন</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const ok = await confirmDialog({
+                              title: 'হোমওয়ার্ক মুছুন',
+                              message: `"${hw.title}" মুছে ফেলবেন?`,
+                              danger: true,
+                            });
+                            if (!ok) return;
+                            homeworkService.deleteHomework(hw.id);
+                            setHomeworks(homeworkService.getHomeworks({ includeArchived: true }));
+                          }}
+                          className="text-rose-600 hover:underline cursor-pointer"
+                        >
+                          মুছুন
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

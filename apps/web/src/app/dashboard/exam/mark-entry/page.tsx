@@ -23,6 +23,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { studentService } from '@/services/studentService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, SubjectAssignment } from '@/services/teacherRBACService';
@@ -106,10 +107,15 @@ export default function ProfessionalMarkEntryPage() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [teacherAssignments, setTeacherAssignments] = useState<SubjectAssignment[]>([]);
 
+  const router = useRouter();
   useEffect(() => {
     setMounted(true);
     const activeSession = teacherAuthService.getSession();
-    setSession(activeSession || { role: 'admin' });
+    if (!activeSession) {
+      router.replace('/login');
+      return;
+    }
+    setSession(activeSession);
     const assignments = teacherRBACService.getSubjectAssignments();
     setTeacherAssignments(assignments);
 
@@ -161,6 +167,7 @@ export default function ProfessionalMarkEntryPage() {
   const allSubjectNames = configuredSubjectsList.map(s => s.name);
 
   // ─── RBAC: শিক্ষক লগইন হলে শুধু assigned বিষয় দেখাবে ───
+  const isAdminRole = session?.role === 'admin';
   const isTeacherRole = session?.role === 'teacher';
   const teacherIdentifier = session?.teacherId || session?.teacherName || '';
 
@@ -208,12 +215,13 @@ export default function ProfessionalMarkEntryPage() {
 
     const allCandidateSubjects = Array.from(subjectPool);
 
-    if (!isTeacherRole) return allCandidateSubjects;
+    if (isAdminRole) return allCandidateSubjects;
+    if (!isTeacherRole) return [];
 
     return allCandidateSubjects.filter(name =>
       teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, name)
     );
-  }, [isTeacherRole, teacherIdentifier, selectedGrade, configuredSubjectsList, myAssignedSubjectsForGrade]);
+  }, [isAdminRole, isTeacherRole, teacherIdentifier, selectedGrade, configuredSubjectsList, myAssignedSubjectsForGrade]);
 
   // শিক্ষক যদি অন্য শ্রেণিতে assigned থাকেন, কিন্তু বর্তমান নির্বাচিত শ্রেণিতে কোনো বিষয় না থাকে
   const hasNoSubjectsInSelectedGrade = isTeacherRole && myAllAssignedSubjects.length > 0 && availableSubjects.length === 0;
@@ -304,7 +312,11 @@ export default function ProfessionalMarkEntryPage() {
 
   // Instant Change Handler & Auto Save
   const handleMarkChange = (id: string, field: 'written' | 'mcq' | 'practical', value: number) => {
-    // RBAC: Verify teacher owns this subject before writing marks
+    // RBAC: Require authenticated session and verify teacher owns this subject
+    if (!session) {
+      showToast('অনুগ্রহ করে আগে লগইন করুন।', 'error');
+      return;
+    }
     if (isTeacherRole && !teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, selectedSubject)) {
       showToast('আপনার এই শ্রেণিতে এই বিষয়ের নম্বর পরিবর্তন করার অনুমতি নেই!', 'error');
       return;
@@ -408,7 +420,7 @@ export default function ProfessionalMarkEntryPage() {
 
   const marksConfig = getSubjectMarksConfig(selectedSubject, configuredSubjectsList);
 
-  if (!mounted) {
+  if (!mounted || !session) {
     return <div className="p-8 text-center text-slate-400 font-bold">মার্ক এন্ট্রি পেজ লোড হচ্ছে...</div>;
   }
 

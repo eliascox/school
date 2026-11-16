@@ -24,6 +24,7 @@ import { studentService } from '@/services/studentService';
 import Link from 'next/link';
 import {
   MarksheetSheetCard,
+  MARKSHEET_A4_PRINT_STYLES,
   generateStudentMarksheetData as calculateMarksheetData,
   getStudentsForClassSectionGroup,
   calculateGradeAndPoint,
@@ -393,6 +394,7 @@ export default function AcademicMarksheetPage() {
               data={generateStudentMarksheetData(st)}
               borderImageUrl={borderImageUrl}
               lang={marksheetLang}
+              includePrintStyles={false}
             />
           ))}
         </div>
@@ -405,54 +407,12 @@ export default function AcademicMarksheetPage() {
           data={currentMarksheetData || generateStudentMarksheetData(currentStudent)}
           borderImageUrl={borderImageUrl}
           lang={marksheetLang}
+          includePrintStyles={false}
         />
       )}
 
-      {/* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES (0.5IN MARGINS ON ALL 4 SIDES & MULTI-PAGE BULK PRINT) */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait !important;
-            margin: 0mm !important;
-          }
-          html, body {
-            margin: 0mm !important;
-            padding: 0mm !important;
-            height: auto !important;
-            min-height: 100% !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .marksheet-bulk-container {
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-          }
-          .marksheet-card-wrapper {
-            width: 210mm !important;
-            min-height: 297mm !important;
-            height: 297mm !important;
-            max-height: 297mm !important;
-            padding: 0.5in !important;
-            box-sizing: border-box !important;
-            margin: 0 auto !important;
-            box-shadow: none !important;
-            border: none !important;
-            page-break-after: always !important;
-            break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            overflow: hidden !important;
-          }
-          .marksheet-card-wrapper:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
-          }
-        }
-      `}</style>
+      {/* 🖨️ CANONICAL A4 PRINT & BULK PRINT STYLES (SINGLE SHARED INSTANCE) */}
+      <style>{MARKSHEET_A4_PRINT_STYLES}</style>
 
     </div>
   );

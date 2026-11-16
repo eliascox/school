@@ -471,6 +471,83 @@ export const generateStudentMarksheetData = (
   };
 };
 
+export const MARKSHEET_A4_PRINT_STYLES = `
+  @media print {
+    @page {
+      size: A4 portrait !important;
+      margin: 0mm !important;
+    }
+    html, body {
+      margin: 0mm !important;
+      padding: 0mm !important;
+      width: 210mm !important;
+      height: auto !important;
+      min-height: 100% !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* Eliminate any non-printable element spacing completely */
+    header, footer, nav, aside, .print\\:hidden {
+      display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      max-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      overflow: hidden !important;
+    }
+    /* Force parent containers to have zero margins/paddings */
+    main, #marksheet-result-container, [id^="marksheet"] {
+      margin: 0mm !important;
+      padding: 0mm !important;
+      border: none !important;
+      display: block !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+    /* Neutralize Tailwind sibling vertical space-y margins */
+    [class*="space-y-"] > * {
+      margin-top: 0mm !important;
+      margin-bottom: 0mm !important;
+    }
+    .marksheet-bulk-container {
+      display: block !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+    .marksheet-card-wrapper {
+      width: 210mm !important;
+      max-width: 210mm !important;
+      min-height: 297mm !important;
+      height: 297mm !important;
+      max-height: 297mm !important;
+      padding: 0.5in !important;
+      box-sizing: border-box !important;
+      margin: 0mm auto !important;
+      box-shadow: none !important;
+      border: none !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      overflow: hidden !important;
+    }
+    /* Multi-page bulk marksheet */
+    .marksheet-bulk-container .marksheet-card-wrapper:not(:last-child) {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    /* Single or last marksheet MUST NEVER create an extra trailing blank page */
+    .marksheet-card-wrapper:only-child,
+    .marksheet-card-wrapper:last-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+  }
+`;
+
 // ═════════════════════════════════════════════════════════════════
 // 🖨️ A4 PRINTABLE MARKSHEET SHEET COMPONENT (EXACT MASTER TEMPLATE)
 // ═════════════════════════════════════════════════════════════════
@@ -480,7 +557,8 @@ export function MarksheetSheetCard({
   examName,
   data,
   borderImageUrl = '',
-  lang = 'bn'
+  lang = 'bn',
+  includePrintStyles = true,
 }: {
   student: StudentProfile;
   settings: any;
@@ -488,6 +566,7 @@ export function MarksheetSheetCard({
   data: any;
   borderImageUrl?: string;
   lang?: 'bn' | 'en';
+  includePrintStyles?: boolean;
 }) {
   // Marksheet is ALWAYS in English as requested by user ("মার্কশীট সবসময় ইংরেজীতে থাকবে")
   const isEn = true;
@@ -1092,83 +1171,8 @@ export function MarksheetSheetCard({
 
       </div>
 
-      {/* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES (EXACT ZERO-OFFSET 1-PAGE A4) */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait !important;
-            margin: 0mm !important;
-          }
-          html, body {
-            margin: 0mm !important;
-            padding: 0mm !important;
-            width: 210mm !important;
-            height: auto !important;
-            min-height: 100% !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* Eliminate any non-printable element spacing completely */
-          header, footer, nav, aside, .print\\:hidden {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-            max-height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            overflow: hidden !important;
-          }
-          /* Force parent containers to have zero margins/paddings */
-          main, #marksheet-result-container, [id^="marksheet"] {
-            margin: 0mm !important;
-            padding: 0mm !important;
-            border: none !important;
-            display: block !important;
-            width: 100% !important;
-            max-width: none !important;
-          }
-          /* Neutralize Tailwind sibling vertical space-y margins */
-          [class*="space-y-"] > * {
-            margin-top: 0mm !important;
-            margin-bottom: 0mm !important;
-          }
-          .marksheet-bulk-container {
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-          }
-          .marksheet-card-wrapper {
-            width: 210mm !important;
-            max-width: 210mm !important;
-            min-height: 295mm !important;
-            height: 296mm !important;
-            max-height: 296mm !important;
-            padding: 0.45in !important;
-            box-sizing: border-box !important;
-            margin: 0mm auto !important;
-            box-shadow: none !important;
-            border: none !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            overflow: hidden !important;
-          }
-          /* Single marksheet MUST NEVER create page 2 */
-          .marksheet-card-wrapper:only-child,
-          .marksheet-card-wrapper:last-child {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
-          }
-          /* Multi-page bulk marksheet */
-          .marksheet-bulk-container .marksheet-card-wrapper:not(:last-child) {
-            page-break-after: always !important;
-            break-after: page !important;
-          }
-        }
-      `}</style>
+      {/* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES (SHARED CANONICAL 1-PAGE A4) */}
+      {includePrintStyles && <style>{MARKSHEET_A4_PRINT_STYLES}</style>}
 
     </div>
   );

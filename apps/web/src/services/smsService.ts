@@ -63,21 +63,28 @@ const DEFAULT_CONFIG: SMSGatewayConfig = {
 
 // ─── HELPER: PROXIED OR DIRECT FETCH TO OVERCOME CORS ──────────────
 async function fetchSMSGateway(url: string): Promise<{ success: boolean; text: string }> {
-  // If in browser environment, try local proxy route first to avoid CORS restriction
+  // In browser context, always route through POST /api/sms-proxy (no insecure direct browser GET or URL query key exposure)
   if (typeof window !== 'undefined') {
     try {
-      const proxyUrl = `/api/sms-proxy?url=${encodeURIComponent(url)}`;
-      const proxyRes = await fetch(proxyUrl);
+      const proxyRes = await fetch('/api/sms-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const text = await proxyRes.text();
       if (proxyRes.ok) {
-        const text = await proxyRes.text();
         return { success: true, text };
       }
-    } catch (e) {
-      // Local proxy failed or not in node server mode, proceed to direct fetch
+      return { success: false, text: text || `Proxy HTTP ${proxyRes.status}` };
+    } catch {
+      return {
+        success: false,
+        text: 'SMS প্রক্সি (/api/sms-proxy) অনুপলব্ধ। নিরাপত্তা কারণে সরাসরি ব্রাউজার GET কল বন্ধ রয়েছে।'
+      };
     }
   }
 
-  // Direct fetch fallback
+  // Server / Node runtime only
   try {
     const res = await fetch(url, { method: 'GET' });
     const text = await res.text();

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
 import { examService, ExamItem } from '@/services/examService';
+import { alumniService } from '@/services/alumniService';
 import { generateStudentMarksheetData } from '@/components/OfficialMarksheetSheet';
 
 interface StudentPromotionItem {
@@ -243,10 +244,24 @@ export default function StudentPromotionPage() {
       return showAlert('error', 'অনুগ্রহ করে অন্তত একজন শিক্ষার্থী নির্বাচন করুন!');
     }
 
+    const graduatingStudents =
+      targetGradeKey === 'Alumni'
+        ? studentService.getAllStudents().filter((s) => selectedIds.includes(s.id))
+        : [];
+
     const groupOverride = targetGradeKey === '9th' ? targetGroup : undefined;
     const res = studentService.promoteStudents(selectedIds, targetGradeKey, targetSession, groupOverride);
 
     if (res.success) {
+      let archivedCount = 0;
+      if (targetGradeKey === 'Alumni' && graduatingStudents.length > 0) {
+        archivedCount = alumniService.archiveGraduatingStudents(
+          graduatingStudents,
+          targetSession,
+          `এসএসসি ব্যাচ ${targetSession}`
+        );
+      }
+
       // Add log
       const newLog: PromotionLog = {
         id: `LOG-${Date.now()}`,
@@ -265,7 +280,12 @@ export default function StudentPromotionPage() {
         localStorage.setItem('sms_promotion_history', JSON.stringify(updatedLogs));
       }
 
-      showAlert('success', res.message);
+      showAlert(
+        'success',
+        archivedCount > 0
+          ? `${res.message} (${archivedCount} জন অ্যালুমনাই পোর্টালে সংরক্ষিত হয়েছে)`
+          : res.message
+      );
       loadStudents(fromGrade);
     } else {
       showAlert('error', res.message);

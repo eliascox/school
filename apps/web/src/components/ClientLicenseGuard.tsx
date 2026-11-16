@@ -1,5 +1,7 @@
 'use client';
 
+import LicenseKeyActivationBox from './LicenseKeyActivationBox';
+
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -104,27 +106,13 @@ export default function ClientLicenseGuard({ children }: { children: React.React
             </p>
           </div>
           
-          <div className="space-y-3 pt-2">
-            {/* ⚡ 1-Click Instant License Activation */}
-            <button
-              onClick={() => {
-                clientLicenseService.autoActivateDefaultSchool();
-                refreshState();
-                router.push('/dashboard');
-              }}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-600/30 cursor-pointer active:scale-95"
-            >
-              <span>⚡ লাইসেন্স সক্রিয় করুন ও প্রবেশ করুন</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => router.push('/register-school')}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs flex items-center justify-center space-x-2 transition-all border border-slate-700 cursor-pointer"
-            >
-              <span>নতুন প্রতিষ্ঠান হিসেবে রেজিস্ট্রেশন</span>
-            </button>
-          </div>
+          <LicenseKeyActivationBox
+            onActivated={() => {
+              refreshState();
+              router.push('/dashboard');
+            }}
+            onRegister={() => router.push('/register-school')}
+          />
         </div>
       </div>
     );

@@ -20,10 +20,8 @@ import { studentService } from '@/services/studentService';
 import {
   getStudentReligion,
   ReligionType,
-  isReligionSubject,
 } from '@/lib/religionUtils';
-import { getUniversalStudentMark } from '@/lib/markStorageUtils';
-import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
+import { resultService } from '@/services/resultService';
 import SchoolPadWrapper from '@/components/SchoolPadWrapper';
 
 interface StudentInfo {
@@ -142,149 +140,59 @@ export default function FreshRankBasedResultPage() {
   const targetGradeNum = gradeNumMap[selectedGrade] || 8;
   const isClass9or10 = targetGradeNum >= 9;
 
-  const calculateGP = (obtained: number, full: number) => {
-    const pct = full > 0 ? (obtained / full) * 100 : 0;
-    if (pct >= 80) return { grade: 'A+', point: 5.0 };
-    if (pct >= 70) return { grade: 'A', point: 4.0 };
-    if (pct >= 60) return { grade: 'A-', point: 3.5 };
-    if (pct >= 50) return { grade: 'B', point: 3.0 };
-    if (pct >= 40) return { grade: 'C', point: 2.0 };
-    if (pct >= 33) return { grade: 'D', point: 1.0 };
-    return { grade: 'F', point: 0.0 };
-  };
-
-  const getSubjectMarkForStudent = (student: StudentInfo, subCode: string, subName: string, examName: string, gradeStr: string, branchStr: string) => {
-    const is9or10 = (gradeNumMap[gradeStr] || 6) >= 9;
-    const retrieved = getUniversalStudentMark({
-      exam: examName,
+  const computeStudentMetrics = (student: StudentInfo, examName: string, gradeStr: string, branchStr: string): RankedStudent => {
+    const evaluated = resultService.calculateStudentResult({
+      examId: examName,
+      student,
       grade: gradeStr,
       branch: branchStr,
-      group: is9or10 ? student.group : 'সাধারণ',
-      subjectCodeOrName: subCode || subName,
-      studentRoll: student.roll,
-      studentId: student.id,
-      studentName: student.name,
-      religion: student.religion
+      group: student.group,
     });
-    return retrieved.total;
-  };
-
-  const computeStudentMetrics = (student: StudentInfo, examName: string, gradeStr: string, branchStr: string): RankedStudent => {
-    const configuredSubs = getActiveCurriculumSubjects(gradeStr, student.group).map((s: any) => ({
-      code: s.code,
-      name: s.name,
-      fullMarks: s.fullMarks || 100,
-      jointPass: s.isJointPass,
-      jointWith: s.jointPairCode
-    }));
-
-    let totalObtained = 0;
-    let totalFull = 0;
-    let mainGPPoints = 0;
-    let mainUnitsCount = 0;
-    let failedCount = 0;
-    const failedSubjects: string[] = [];
-
-    const processedCodes = new Set<string>();
-    const processedNames = new Set<string>();
-    let hasReligionProcessed = false;
-
-    for (let i = 0; i < configuredSubs.length; i++) {
-      const sub = configuredSubs[i];
-      const isRel = isReligionSubject(sub.code + " " + sub.name);
-
-      if (processedCodes.has(sub.code) || processedNames.has(sub.name)) continue;
-      if (isRel) {
-        if (hasReligionProcessed) continue;
-        hasReligionProcessed = true;
-      }
-
-      const nextSub = configuredSubs[i + 1];
-      const isJointPair = Boolean(nextSub && (
-        (sub.name.includes('বাংলা ১ম') && nextSub.name.includes('বাংলা ২য়')) ||
-        (sub.name.includes('ইংরেজি ১ম') && nextSub.name.includes('ইংরেজি ২য়')) ||
-        (sub.jointPass && sub.jointWith === nextSub.name)
-      ));
-
-      if (isJointPair) {
-        const mark1 = getSubjectMarkForStudent(student, sub.code, sub.name, examName, gradeStr, branchStr);
-        const mark2 = getSubjectMarkForStudent(student, nextSub.code, nextSub.name, examName, gradeStr, branchStr);
-        const jointTotal = mark1 + mark2;
-        const jointFull = sub.fullMarks + nextSub.fullMarks;
-        const jointCalc = calculateGP(jointTotal, jointFull);
-
-        if (jointCalc.grade === 'F') {
-          failedCount++;
-          failedSubjects.push(sub.name + " + " + nextSub.name);
-        }
-
-        totalObtained += jointTotal;
-        totalFull += jointFull;
-        mainGPPoints += jointCalc.point;
-        mainUnitsCount++;
-
-        processedCodes.add(sub.code);
-        processedCodes.add(nextSub.code);
-        processedNames.add(sub.name);
-        processedNames.add(nextSub.name);
-      } else {
-        const mark = getSubjectMarkForStudent(student, sub.code, sub.name, examName, gradeStr, branchStr);
-        const calc = calculateGP(mark, sub.fullMarks || 100);
-
-        if (calc.grade === 'F') {
-          failedCount++;
-          failedSubjects.push(sub.name);
-        }
-
-        totalObtained += mark;
-        totalFull += sub.fullMarks || 100;
-        mainGPPoints += calc.point;
-        mainUnitsCount++;
-
-        processedCodes.add(sub.code);
-        processedNames.add(sub.name);
-      }
+    const isConsidered = specialConsideredIds.includes(student.id);
+    if (!evaluated) {
+      return {
+        ...student,
+        totalObtained: 0,
+        totalFull: 0,
+        obtainedPercentage: 0,
+        gpaWithout4th: 0,
+        bonusGP: 0,
+        finalGPA: 0,
+        overallGrade: 'F',
+        hasFailed: true,
+        failedCount: 0,
+        failedSubjects: [],
+        isConsidered,
+        position: 0,
+        classPosition: 0,
+        schoolPosition: 0,
+        badge: '',
+      };
     }
 
-    const is9or10 = (gradeNumMap[gradeStr] || 6) >= 9;
-    // Determine optional subject name (4th subject) — excluded from main GPA loop
-    const optSubjectName = student.optionalSubject || (is9or10 && student.group === 'বিজ্ঞান' ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা');
-
-    // Re-compute excluding optional subject from main GPA (it was already included in the loop above — remove it)
-    // The configuredSubs loop above may have already included the optional subject; we re-derive finalGPA correctly:
-    const optMark = getSubjectMarkForStudent(student, optSubjectName, optSubjectName, examName, gradeStr, branchStr);
-    const optCalc = calculateGP(optMark, 100);
-    // NCTB bonus: optional subject adds (GP - 2) but minimum 0 — only when student has NOT failed core subjects
-    const bonusGP = Math.max(0, optCalc.point - 2.00);
-
-    const hasFailed = failedCount > 0;
-    const gpaWithout4th = hasFailed || mainUnitsCount === 0 ? 0.0 : Number((mainGPPoints / mainUnitsCount).toFixed(2));
-    // NCTB formula: GPA = (sum of core GPs + bonus) / number of core units — optional subject NOT in denominator
-    const finalGPA = hasFailed || mainUnitsCount === 0 ? 0.0 : Math.min(5.00, Number(((mainGPPoints + bonusGP) / mainUnitsCount).toFixed(2)));
-    const overallGrade = hasFailed ? 'F' : finalGPA >= 5.0 ? 'A+' : finalGPA >= 4.0 ? 'A' : finalGPA >= 3.5 ? 'A-' : finalGPA >= 3.0 ? 'B' : finalGPA >= 2.0 ? 'C' : 'D';
-    const isConsidered = specialConsideredIds.includes(student.id);
-
-    const totalCalculatedObtained = totalObtained + optMark;
-    const totalCalculatedFull = totalFull + 100;
-    const obtainedPercentage = totalCalculatedFull > 0 ? Number(((totalCalculatedObtained / totalCalculatedFull) * 100).toFixed(2)) : 0;
+    const totalFull = evaluated.totalFullMarks;
+    const totalObtained = evaluated.totalObtainedMarks;
+    const obtainedPercentage =
+      evaluated.obtainedPercentage ??
+      (totalFull > 0 ? Number(((totalObtained / totalFull) * 100).toFixed(2)) : 0);
 
     return {
       ...student,
-      totalObtained: totalCalculatedObtained,
-      totalFull: totalCalculatedFull,
+      totalObtained,
+      totalFull,
       obtainedPercentage,
-      gpaWithout4th,
-      bonusGP,
-      finalGPA,
-      overallGrade,
-      hasFailed,
-      failedCount,
-      failedSubjects,
+      gpaWithout4th: evaluated.gpaWithout4th,
+      bonusGP: evaluated.bonusGP,
+      finalGPA: evaluated.gpa,
+      overallGrade: evaluated.letterGrade,
+      hasFailed: !evaluated.isPassed,
+      failedCount: evaluated.failedCount,
+      failedSubjects: evaluated.failedSubjects,
       isConsidered,
       position: 0,
       classPosition: 0,
       schoolPosition: 0,
-      badge: ''
+      badge: '',
     };
   };
 

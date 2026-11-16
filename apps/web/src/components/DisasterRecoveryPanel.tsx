@@ -23,7 +23,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { backupService, BackupMetadata, BackupRecordCounts } from '@/services/backupService';
-import { showToast } from '@/components/ui/ToastProvider';
+import { showToast, promptDialog } from '@/components/ui/ToastProvider';
 
 export default function DisasterRecoveryPanel() {
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
@@ -91,7 +91,20 @@ export default function DisasterRecoveryPanel() {
   const handleVerifyBackup = async (b: BackupMetadata) => {
     setVerificationResult(null);
     try {
-      const res = await backupService.verifyBackup(b.filePath, b.isPasswordProtected ? prompt('এই ব্যাকআপ ফাইলের পাসওয়ার্ড দিন:') || '' : undefined);
+      let backupPassword: string | undefined;
+      if (b.isPasswordProtected) {
+        const entered = await promptDialog({
+          title: 'ব্যাকআপ ফাইল যাচাইকরণ',
+          message: 'এই এনক্রিপ্টেড ব্যাকআপ ফাইলের পাসওয়ার্ড দিন:',
+          inputType: 'password',
+          placeholder: 'ব্যাকআপ পাসওয়ার্ড...',
+          confirmLabel: 'যাচাই করুন',
+          required: true
+        });
+        if (entered === null) return;
+        backupPassword = entered;
+      }
+      const res = await backupService.verifyBackup(b.filePath, backupPassword);
       setVerificationResult({
         fileName: b.fileName,
         isValid: res.isValid,

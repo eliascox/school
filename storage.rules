@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// Enterprise Cloud Storage Security Rules for Smart School Management System
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'teacher'
+      );
+    }
+
+    function isSafeImage() {
+      return request.resource != null &&
+        request.resource.size < 2 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)');
+    }
+
+    function isSafeDocument() {
+      return request.resource != null &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        (
+          request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)') ||
+          request.resource.contentType == 'application/pdf'
+        );
+    }
+
+    // Public school branding, hero & notice attachments (read public, write admin only)
+    match /public/{folder}/{fileName} {
+      allow read: if folder in ['branding', 'notices', 'hero', 'gallery'];
+      allow write: if isAdmin() && isSafeDocument();
+      allow delete: if isAdmin();
+    }
+
+    // Student photos & academic documents (staff read/create, admin full manage)
+    match /students/{studentId}/{fileName} {
+      allow read: if isStaff();
+      allow write: if isStaff() && isSafeImage();
+      allow delete: if isAdmin();
+    }
+
+    // Teacher profile photos & documents
+    match /teachers/{teacherId}/{fileName} {
+      allow read: if isStaff();
+      allow write: if isAdmin() && isSafeDocument();
+      allow delete: if isAdmin();
+    }
+
+    // Public online admission photo uploads (bounded image-only create, staff read, admin delete)
+    match /public_applications/{appId}/{fileName} {
+      allow read: if isStaff();
+      allow create: if isSafeImage();
+      allow update, delete: if isAdmin();
+    }
+
+    // Encrypted system backups (admin only)
+    match /backups/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (request.resource == null || request.resource.size < 25 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+
+    // Default deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

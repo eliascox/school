@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGradeAndPoint, resultService } from '../src/services/resultService';
+import {
+  calculateGradeAndPoint,
+  evaluateSubjectGradeAndPass,
+  resultService,
+} from '../src/services/resultService';
 
 describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
   it('correctly maps percentage to standard NCTB Letter Grades and Grade Points', () => {
@@ -98,5 +102,70 @@ describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
 
     const optGP1Bonus = Math.max(0, Number((1.0 - 2.0).toFixed(2)));
     expect(optGP1Bonus).toBe(0.0);
+  });
+
+  it('distinguishes cumulative Total Pass vs strict Part-by-Part 33% component pass rules', () => {
+    const mathSubject = {
+      fullMarks: 100,
+      cq: 70,
+      mcq: 30,
+      practical: 0,
+      ca: 0,
+      passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস আবশ্যক)',
+    };
+
+    // Total is 42 >= 33, but MCQ = 6 < 10 -> fails under part_by_part & curriculum
+    const splitFailMark = { cq: 36, mcq: 6, practical: 0, ca: 0, total: 42 };
+    expect(evaluateSubjectGradeAndPass(splitFailMark, mathSubject, 'total')).toMatchObject({
+      isPassed: true,
+      letterGrade: 'C',
+      gradePoint: 2.0,
+      passModeApplied: 'total',
+    });
+
+    const strictFail = evaluateSubjectGradeAndPass(splitFailMark, mathSubject, 'part_by_part');
+    expect(strictFail.isPassed).toBe(false);
+    expect(strictFail.letterGrade).toBe('F');
+    expect(strictFail.gradePoint).toBe(0.0);
+    expect(strictFail.failedComponents).toEqual(['MCQ (6/10)']);
+
+    const curriculumFail = evaluateSubjectGradeAndPass(splitFailMark, mathSubject, 'curriculum');
+    expect(curriculumFail.isPassed).toBe(false);
+
+    // Passing all parts (CQ 32 >= 23, MCQ 10 >= 10)
+    const splitPassMark = { cq: 32, mcq: 10, practical: 0, ca: 0, total: 42 };
+    expect(evaluateSubjectGradeAndPass(splitPassMark, mathSubject, 'part_by_part')).toMatchObject({
+      isPassed: true,
+      letterGrade: 'C',
+      gradePoint: 2.0,
+    });
+  });
+
+  it('supports combined CQ+MCQ pass with separate Practical in curriculum mode for science subjects', () => {
+    const physicsSubject = {
+      fullMarks: 100,
+      cq: 50,
+      mcq: 25,
+      practical: 25,
+      ca: 0,
+      passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)',
+    };
+
+    // CQ=20, MCQ=6 -> combined 26 >= 25 (passes in curriculum CQ+MCQ combined!), Practical=10 >= 8
+    const resCurriculum = evaluateSubjectGradeAndPass(
+      { cq: 20, mcq: 6, practical: 10, ca: 0, total: 36 },
+      physicsSubject,
+      'curriculum',
+    );
+    expect(resCurriculum.isPassed).toBe(true);
+
+    // Fails if practical is 5 < 8
+    const resPracticalFail = evaluateSubjectGradeAndPass(
+      { cq: 40, mcq: 20, practical: 5, ca: 0, total: 65 },
+      physicsSubject,
+      'curriculum',
+    );
+    expect(resPracticalFail.isPassed).toBe(false);
+    expect(resPracticalFail.failedComponents).toContain('Practical (5/8)');
   });
 });

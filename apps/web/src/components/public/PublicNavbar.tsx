@@ -225,17 +225,15 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
     }`;
 
   return (
-    <div
-      className={`sticky top-3 sm:top-4 z-50 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none transition-all duration-300 ${
-        isOverHero ? '-mb-20 sm:-mb-24' : 'mb-4'
-      }`}
-    >
-      <nav
-        aria-label="প্রধান নেভিগেশন"
-        className={`glass-nav rounded-2xl px-4 sm:px-6 flex items-center justify-between gap-4 pointer-events-auto transition-all duration-300 ease-out ${
-          isScrolled ? 'py-2 sm:py-2.5 shadow-xl shadow-slate-900/10' : 'py-2.5 sm:py-3.5'
-        }`}
-      >
+    <>
+      {!isOverHero && <div className="h-20 sm:h-24 shrink-0 print:hidden" aria-hidden="true" />}
+      <div className="fixed top-3 sm:top-4 left-0 right-0 z-50 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none transition-all duration-300 print:hidden">
+        <nav
+          aria-label="প্রধান নেভিগেশন"
+          className={`glass-nav rounded-2xl px-4 sm:px-6 flex items-center justify-between gap-4 pointer-events-auto transition-all duration-300 ease-out ${
+            isScrolled ? 'glass-nav-scrolled py-2 sm:py-2.5 shadow-xl shadow-slate-900/15' : 'py-2.5 sm:py-3.5'
+          }`}
+        >
         {/* School Logo & Title */}
         <Link href="/#home" onClick={handleHomeClick} className="flex items-center gap-3 group shrink-0 min-w-0">
           <PublicLogoMark
@@ -462,6 +460,7 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

@@ -287,8 +287,15 @@ class ClientLicenseService {
     const lockoutData = localStorage.getItem(STORAGE_KEY_LOCKOUT);
 
     if (!regData) {
-      // 🛡️ CRITICAL FIX: Automatically activate and persist default enterprise license so users are never locked out
-      return this.autoActivateDefaultSchool();
+      return {
+        isRegistered: false,
+        status: 'PENDING',
+        schoolCode: '',
+        schoolName: '',
+        isLocked: false,
+        isClockTampered: this.isClockTampered(),
+        hardwareFingerprint: localStorage.getItem(STORAGE_KEY_HARDWARE_FALLBACK) || 'UNBOUND',
+      };
     }
 
     try {
@@ -596,14 +603,123 @@ class ClientLicenseService {
   }
 
   /**
-   * Unlock school after reactivation
+   * Activate client installation with an approved license key (no silent bypass).
+   */
+  public async activateByLicenseKey(
+    licenseKeyInput: string,
+    schoolCodeInput?: string
+  ): Promise<{ success: boolean; message: string; state?: ClientRegistrationState }> {
+    if (typeof window === 'undefined') {
+      return { success: false, message: 'ব্রাউজার এনভায়রনমেন্ট পাওয়া যায়নি।' };
+    }
+
+    const cleanKey = licenseKeyInput.trim().toUpperCase();
+    const cleanCode = schoolCodeInput ? schoolCodeInput.trim().toUpperCase() : '';
+    if (!cleanKey || cleanKey.length < 8) {
+      return { success: false, message: 'অনুগ্রহ করে সঠিক লাইসেন্স কী লিখুন (যেমন: SCH-XXXX-XXXX-XXXX)।' };
+    }
+
+    const hwInfo = await this.getHardwareInfo();
+    const centralUrl = getConfiguredCentralApiUrl();
+
+    // 1. Try Central License Server when configured and schoolCode is supplied
+    if (centralUrl && cleanCode) {
+      try {
+        const res = await fetch(`${centralUrl}/api/v1/schools/status/${encodeURIComponent(cleanCode)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (
+            data.status === 'APPROVED' &&
+            data.license?.licenseKey &&
+            String(data.license.licenseKey).toUpperCase() === cleanKey
+          ) {
+            const state: ClientRegistrationState = {
+              isRegistered: true,
+              status: 'APPROVED',
+              schoolCode: data.schoolCode || cleanCode,
+              schoolName: data.schoolName || 'অনুমোদিত প্রতিষ্ঠান',
+              registeredAt: new Date().toISOString(),
+              licenseKey: cleanKey,
+              isLocked: false,
+              isClockTampered: false,
+              lastHeartbeatEpoch: Date.now(),
+              hardwareFingerprint: hwInfo.fingerprint,
+              plan: data.license.planType || 'PRO',
+              validUntil: data.license.validUntil
+            };
+            localStorage.setItem(STORAGE_KEY_REGISTRATION, JSON.stringify(state));
+            localStorage.removeItem(STORAGE_KEY_LOCKOUT);
+            window.dispatchEvent(new CustomEvent('sms:school-unlocked'));
+            window.dispatchEvent(new Event('storage'));
+            return { success: true, message: 'লাইসেন্স সফলভাবে সক্রিয় হয়েছে!', state };
+          }
+        }
+      } catch {
+        // Offline / server unreachable: continue to verified local registry check
+      }
+    }
+
+    // 2. Offline / Local Central Registry verification against APPROVED license records
+    const matchedSchool = centralAdminService.getSchools().find((s) => {
+      if (s.status !== 'APPROVED' || !s.license?.licenseKey) return false;
+      const keyMatch = s.license.licenseKey.trim().toUpperCase() === cleanKey;
+      const codeMatch = !cleanCode || s.schoolCode.trim().toUpperCase() === cleanCode;
+      return keyMatch && codeMatch;
+    });
+
+    if (!matchedSchool || !matchedSchool.license) {
+      return {
+        success: false,
+        message: 'অবৈধ অথবা অননুমোদিত লাইসেন্স কী! সঠিক কী দিন অথবা সুপার অ্যাডমিন থেকে অনুমোদন নিন।'
+      };
+    }
+
+    const state: ClientRegistrationState = {
+      isRegistered: true,
+      status: 'APPROVED',
+      schoolCode: matchedSchool.schoolCode,
+      schoolName: matchedSchool.schoolName,
+      registeredAt: new Date().toISOString(),
+      licenseKey: matchedSchool.license.licenseKey,
+      isLocked: false,
+      isClockTampered: false,
+      lastHeartbeatEpoch: Date.now(),
+      hardwareFingerprint: hwInfo.fingerprint,
+      plan: matchedSchool.license.planType,
+      validUntil: matchedSchool.license.validUntil
+    };
+
+    localStorage.setItem(STORAGE_KEY_REGISTRATION, JSON.stringify(state));
+    localStorage.removeItem(STORAGE_KEY_LOCKOUT);
+    localStorage.removeItem('sms_client_remote_lockout');
+    window.dispatchEvent(new CustomEvent('sms:school-unlocked'));
+    window.dispatchEvent(new Event('storage'));
+    return { success: true, message: 'লাইসেন্স সফলভাবে যাচাই ও সক্রিয় হয়েছে!', state };
+  }
+
+  /**
+   * Unlock school after reactivation (only clears lockouts for already licensed registrations)
    */
   public unlockSchool() {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(STORAGE_KEY_LOCKOUT);
     localStorage.removeItem('sms_school_lockout_v1');
     localStorage.removeItem('sms_client_remote_lockout');
-    this.autoActivateDefaultSchool();
+    const regRaw = localStorage.getItem(STORAGE_KEY_REGISTRATION);
+    if (regRaw) {
+      try {
+        const reg = JSON.parse(regRaw) as ClientRegistrationState;
+        if (reg.licenseKey) {
+          reg.isRegistered = true;
+          reg.status = 'APPROVED';
+          reg.isLocked = false;
+          reg.lockoutReason = undefined;
+          localStorage.setItem(STORAGE_KEY_REGISTRATION, JSON.stringify(reg));
+        }
+      } catch {
+        // Ignore malformed JSON; leave unregistered
+      }
+    }
     window.dispatchEvent(new CustomEvent('sms:school-unlocked'));
     window.dispatchEvent(new Event('storage'));
   }

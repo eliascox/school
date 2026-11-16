@@ -14,7 +14,7 @@ export interface TeacherAccount {
   mobile: string;
   phone?: string;
   email: string;
-  password?: string; // Admin-configured password e.g. "123456"
+  password?: string; // Legacy plaintext field (automatically migrated to passwordHash)
   passwordHash?: string;
   isClassTeacherOf?: string; // e.g. "8th - A"
 }
@@ -269,13 +269,61 @@ export const teacherAuthService = {
     localStorage.removeItem(key);
   },
 
+  // Check if initial admin password has been configured (no hardcoded password fallback)
+  isAdminInitialized: (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(localStorage.getItem('sms_admin_password'));
+  },
+
+  // First-time Admin Password Setup (rejects weak/default passwords & hashes via PBKDF2)
+  initializeAdminPassword: async (
+    newPassword: string,
+    adminIdentifier = 'admin'
+  ): Promise<{ success: boolean; message: string }> => {
+    if (typeof window === 'undefined') {
+      return { success: false, message: 'ব্রাউজার এনভায়রনমেন্ট পাওয়া যায়নি।' };
+    }
+    if (localStorage.getItem('sms_admin_password')) {
+      return { success: false, message: 'অ্যাডমিন পাসওয়ার্ড ইতিমধ্যেই সেট করা আছে। লগইন করে পরিবর্তন করুন।' };
+    }
+    const cleanPass = newPassword.trim();
+    const lowerPass = cleanPass.toLowerCase();
+    if (cleanPass.length < 6) {
+      return { success: false, message: 'নিরাপত্তার জন্য পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।' };
+    }
+    if (
+      /^(.)\1+$/.test(cleanPass) ||
+      '0123456789'.includes(cleanPass) ||
+      '9876543210'.includes(cleanPass) ||
+      lowerPass === 'password' ||
+      lowerPass === 'qwerty' ||
+      (lowerPass.startsWith('admin') && cleanPass.length <= 8)
+    ) {
+      return { success: false, message: 'অনুগ্রহ করে আরও শক্তিশালী পাসওয়ার্ড দিন (সহজ বা ধারাবাহিক সংখ্যা নয়)।' };
+    }
+
+    const cleanId = adminIdentifier.trim() || 'admin';
+    const secureHash = await hashPassword(cleanPass);
+    localStorage.setItem('sms_admin_password', secureHash);
+    localStorage.setItem('sms_admin_phone', cleanId);
+    auditTrailService.addLog({
+      action: 'ADMIN_INITIAL_SETUP',
+      category: 'Security',
+      details: `প্রথমবার অ্যাডমিন পাসওয়ার্ড সেটআপ সম্পন্ন হয়েছে (আইডি: ${cleanId})।`,
+      performedBy: cleanId,
+      severity: 'info',
+      status: 'Success'
+    });
+    return { success: true, message: 'অ্যাডমিন পাসওয়ার্ড সফলভাবে সেট করা হয়েছে!' };
+  },
+
   // Unified Login (Teacher User ID is Phone Number, Admin is 'admin' or admin phone)
   // SEC-102: Uses PBKDF2 WebCrypto verification with transparent legacy migration
   // SEC-105: Enforces brute-force lockout & enterprise security audit logging
   unifiedLogin: async (
     identifier: string,
     passwordInput: string
-  ): Promise<{ success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount; mustChangePassword?: boolean }> => {
+  ): Promise<{ success: boolean; message: string; role?: 'admin' | 'teacher'; teacher?: TeacherAccount; mustChangePassword?: boolean; requiresSetup?: boolean }> => {
     if (typeof window === 'undefined') return { success: false, message: 'ক্লিপবোর্ড বা ব্রাউজার অনুপস্থিত' };
 
     const cleanInput = identifier.trim();
@@ -307,7 +355,7 @@ export const teacherAuthService = {
     }
 
     // 1. Check Admin Credentials
-    const storedAdminPass = localStorage.getItem('sms_admin_password') || 'admin123';
+    const storedAdminPass = localStorage.getItem('sms_admin_password');
     const storedAdminPhone = (localStorage.getItem('sms_admin_phone') || 'admin').toLowerCase();
     const adminDigits = normalizePhoneNumber(storedAdminPhone);
 
@@ -319,6 +367,13 @@ export const teacherAuthService = {
       cleanInput === '01700000000';
     
     if (isAdminIdentifier) {
+      if (!storedAdminPass) {
+        return {
+          success: false,
+          requiresSetup: true,
+          message: 'সিস্টেমে এখনো কোনো অ্যাডমিন পাসওয়ার্ড সেট করা হয়নি। প্রথমে অ্যাডমিন পাসওয়ার্ড সেটআপ করুন।'
+        };
+      }
       const verification = await verifyPassword(cleanPass, storedAdminPass);
       if (verification.valid) {
         // SEC-105: Clear failed attempts on valid login
@@ -333,24 +388,24 @@ export const teacherAuthService = {
             console.error('Failed to migrate admin password to secure hash', e);
           }
         }
-        const isUsingDefaultPass = cleanPass === 'admin123';
-        const session: UserSession = { role: 'admin', mustChangePassword: isUsingDefaultPass };
+        const isWeakLegacyPass = verification.needsRehash || cleanPass.length < 6;
+        const session: UserSession = { role: 'admin', mustChangePassword: isWeakLegacyPass };
         teacherAuthService.setSession(session);
         auditTrailService.addLog({
           action: 'LOGIN_SUCCESS',
           category: 'Security',
           details: 'প্রধান শিক্ষক / অ্যাডমিন সফলভাবে লগইন করেছেন।',
           performedBy: 'অ্যাডমিন',
-          severity: isUsingDefaultPass ? 'warning' : 'info',
+          severity: isWeakLegacyPass ? 'warning' : 'info',
           status: 'Success'
         });
         return {
           success: true,
-          message: isUsingDefaultPass
-            ? 'অ্যাডমিন হিসেবে লগইন সফল হয়েছে (নিরাপত্তার জন্য ডিফল্ট পাসওয়ার্ড পরিবর্তন করুন)।'
+          message: isWeakLegacyPass
+            ? 'অ্যাডমিন হিসেবে লগইন সফল হয়েছে (নিরাপত্তার জন্য শক্তিশালী পাসওয়ার্ড সেট করুন)।'
             : 'প্রধান শিক্ষক / অ্যাডমিন হিসেবে লগইন সফল হয়েছে!',
           role: 'admin',
-          mustChangePassword: isUsingDefaultPass
+          mustChangePassword: isWeakLegacyPass
         };
       } else {
         // Failed admin password attempt
@@ -400,9 +455,13 @@ export const teacherAuthService = {
 
     if (found) {
       const storedTeacherPass = found.passwordHash || found.password || '';
-      const verification = storedTeacherPass
-        ? await verifyPassword(cleanPass, storedTeacherPass)
-        : { valid: false, needsRehash: false };
+      if (!storedTeacherPass) {
+        return {
+          success: false,
+          message: 'এই শিক্ষকের একাউন্টে এখনো পাসওয়ার্ড সেট করা হয়নি। প্রধান শিক্ষকের মাধ্যমে পাসওয়ার্ড সেট করুন অথবা ওটিপি রিসেট ব্যবহার করুন।'
+        };
+      }
+      const verification = await verifyPassword(cleanPass, storedTeacherPass);
       if (verification.valid) {
         // SEC-105: Clear failed attempts on valid login
         teacherAuthService.clearFailedAttempts(cleanInput);

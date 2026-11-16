@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import CommandPalette from '@/components/CommandPalette';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { getDashboardRedirect } from '@/lib/routeAccess';
 
@@ -70,14 +71,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden print:block print:w-full">
-          <div className="print:hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-clip lg:h-full lg:overflow-hidden print:block print:w-full">
+          <div className="sticky top-0 z-40 print:hidden">
             <Header onMenuToggle={toggleSidebar} isSidebarOpen={isSidebarOpen} />
           </div>
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:overflow-visible print:block print:w-full">
             {children}
           </main>
         </div>
+        <CommandPalette />
       </div>
     </Suspense>
   );

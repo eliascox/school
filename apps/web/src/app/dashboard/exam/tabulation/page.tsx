@@ -6,11 +6,10 @@ import Link from 'next/link';
 import { studentService } from '@/services/studentService';
 import {
   getStudentReligion,
-  getReligionSubjectKeys,
   ReligionType,
 } from '@/lib/religionUtils';
-import { getUniversalStudentMark } from '@/lib/markStorageUtils';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
+import { resultService } from '@/services/resultService';
 
 interface StudentInfo {
   id: string;
@@ -83,19 +82,7 @@ export default function DynamicTabulationSheetPage() {
 
   const configuredSubjects = getNormalizedSubjects(selectedGrade, selectedGroup);
 
-  // Helper to calculate Grade & Point
-  const calculateGP = (obtained: number, full: number) => {
-    const pct = full > 0 ? (obtained / full) * 100 : 0;
-    if (pct >= 80) return { grade: 'A+', point: 5.0 };
-    if (pct >= 70) return { grade: 'A', point: 4.0 };
-    if (pct >= 60) return { grade: 'A-', point: 3.5 };
-    if (pct >= 50) return { grade: 'B', point: 3.0 };
-    if (pct >= 40) return { grade: 'C', point: 2.0 };
-    if (pct >= 33) return { grade: 'D', point: 1.0 };
-    return { grade: 'F', point: 0.0 };
-  };
-
-  // 2. Compute Tabulation Data for each student dynamically from storage
+  // 2. Compute Tabulation Data for each student dynamically via centralized resultService
   const getTabulationStudents = (): StudentInfo[] => {
     let combinedRaw: any[] = [];
     if (typeof window !== 'undefined') {
@@ -160,142 +147,49 @@ export default function DynamicTabulationSheetPage() {
     if (searchQuery && !st.name.toLowerCase().includes(searchQuery.toLowerCase()) && !st.roll.includes(searchQuery)) return false;
     return true;
   }).map(student => {
-    let totalObtained = 0;
-    let totalFull = 0;
-    let mainGPPoints = 0;
-    let mainUnitsCount = 0;
-    let hasFailed = false;
+    const evaluated = resultService.calculateStudentResult({
+      examId: selectedExam,
+      student,
+      grade: selectedGrade,
+      branch: selectedBranch,
+      group: isClass9or10 ? student.group : 'সাধারণ',
+    });
 
     const subjectMarksMap: Record<string, { total: number; grade: string; point: number }> = {};
-
-    const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা'];
-    const OPTIONAL_CODE_PREFIXES = ['AGR', 'HMS', 'HMT', 'CMP'];
-    const isOptionalSub = (s: any) =>
-      OPTIONAL_KEYWORDS.some(kw => s.name && s.name.includes(kw)) ||
-      OPTIONAL_CODE_PREFIXES.some(pfx => s.code && String(s.code).startsWith(pfx));
-
-    const mainSubjects = configuredSubjects.filter((s: any) => !isOptionalSub(s));
-    const optSubject = configuredSubjects.find((s: any) => isOptionalSub(s));
-
-    const processedCodes = new Set<string>();
-
-    for (let i = 0; i < mainSubjects.length; i++) {
-      const sub = mainSubjects[i];
-      if (processedCodes.has(sub.code)) continue;
-
-      const nextSub = mainSubjects[i + 1];
-      const isJointPair = Boolean(nextSub && (
-        (sub.name.includes('বাংলা ১ম') && nextSub.name.includes('বাংলা ২য়')) ||
-        (sub.name.includes('ইংরেজি ১ম') && nextSub.name.includes('ইংরেজি ২য়')) ||
-        (sub.isJointPass && (
-          (sub.code.startsWith('BAN') && nextSub.code.startsWith('BAN')) ||
-          (sub.code.startsWith('ENG') && nextSub.code.startsWith('ENG')) ||
-          sub.jointPairCode === nextSub.code
-        ))
-      ));
-
-      if (isJointPair) {
-        const ret1 = getUniversalStudentMark({
-          exam: selectedExam,
-          grade: selectedGrade,
-          branch: selectedBranch,
-          group: isClass9or10 ? student.group : 'সাধারণ',
-          subjectCodeOrName: sub.code || sub.name,
-          studentRoll: student.roll,
-          studentId: student.id,
-          studentName: student.name,
-          religion: student.religion
-        });
-        const ret2 = getUniversalStudentMark({
-          exam: selectedExam,
-          grade: selectedGrade,
-          branch: selectedBranch,
-          group: isClass9or10 ? student.group : 'সাধারণ',
-          subjectCodeOrName: nextSub.code || nextSub.name,
-          studentRoll: student.roll,
-          studentId: student.id,
-          studentName: student.name,
-          religion: student.religion
-        });
-
-        const jointTotal = ret1.total + ret2.total;
-        const jointFull = (sub.fullMarks || 100) + (nextSub.fullMarks || 100);
-        const jointCalc = calculateGP(jointTotal, jointFull);
-
-        if (jointCalc.grade === 'F') hasFailed = true;
-
-        subjectMarksMap[sub.code] = { total: ret1.total, grade: jointCalc.grade, point: jointCalc.point };
-        subjectMarksMap[nextSub.code] = { total: ret2.total, grade: jointCalc.grade, point: jointCalc.point };
-
-        totalObtained += jointTotal;
-        totalFull += jointFull;
-        mainGPPoints += jointCalc.point;
-        mainUnitsCount++;
-
-        processedCodes.add(sub.code);
-        processedCodes.add(nextSub.code);
-      } else {
-        const ret = getUniversalStudentMark({
-          exam: selectedExam,
-          grade: selectedGrade,
-          branch: selectedBranch,
-          group: isClass9or10 ? student.group : 'সাধারণ',
-          subjectCodeOrName: sub.code || sub.name,
-          studentRoll: student.roll,
-          studentId: student.id,
-          studentName: student.name,
-          religion: student.religion
-        });
-
-        const calc = calculateGP(ret.total, sub.fullMarks || 100);
-        if (calc.grade === 'F') hasFailed = true;
-
-        subjectMarksMap[sub.code] = { total: ret.total, grade: calc.grade, point: calc.point };
-
-        totalObtained += ret.total;
-        totalFull += (sub.fullMarks || 100);
-        mainGPPoints += calc.point;
-        mainUnitsCount++;
-
-        processedCodes.add(sub.code);
+    if (evaluated) {
+      for (const [code, entry] of Object.entries(evaluated.subjectMarks)) {
+        subjectMarksMap[code] = {
+          total: entry.totalMarks,
+          grade: entry.letterGrade,
+          point: entry.gradePoint,
+        };
+      }
+      if (evaluated.optionalSubjectMark) {
+        const opt = evaluated.optionalSubjectMark;
+        const matchedCfg = configuredSubjects.find(
+          (s: any) =>
+            s.code === opt.subjectCode ||
+            s.name.includes(opt.subjectName) ||
+            opt.subjectName.includes(s.name),
+        );
+        const targetKey = matchedCfg ? matchedCfg.code : opt.subjectCode;
+        subjectMarksMap[targetKey] = {
+          total: opt.totalMarks,
+          grade: opt.letterGrade,
+          point: opt.gradePoint,
+        };
       }
     }
-
-    // 4th Subject Bonus (GP > 2.00)
-    let bonusGP = 0;
-    if (optSubject) {
-      const optRet = getUniversalStudentMark({
-        exam: selectedExam,
-        grade: selectedGrade,
-        branch: selectedBranch,
-        group: isClass9or10 ? student.group : 'সাধারণ',
-        subjectCodeOrName: student.optionalSubject || optSubject.name || optSubject.code,
-        studentRoll: student.roll,
-        studentId: student.id,
-        studentName: student.name,
-        religion: student.religion
-      });
-
-      const optCalc = calculateGP(optRet.total, optSubject.fullMarks || 100);
-      subjectMarksMap[optSubject.code] = { total: optRet.total, grade: optCalc.grade, point: optCalc.point };
-      totalObtained += optRet.total;
-      totalFull += (optSubject.fullMarks || 100);
-      bonusGP = Math.max(0, optCalc.point - 2.00);
-    }
-
-    const gpaWithout4th = hasFailed || mainUnitsCount === 0 ? 0.0 : Number((mainGPPoints / mainUnitsCount).toFixed(2));
-    const finalGPA = hasFailed || mainUnitsCount === 0 ? 0.0 : Math.min(5.00, Number(((mainGPPoints + bonusGP) / mainUnitsCount).toFixed(2)));
-    const overallGrade = hasFailed ? 'F' : finalGPA >= 5.0 ? 'A+' : finalGPA >= 4.0 ? 'A' : finalGPA >= 3.5 ? 'A-' : finalGPA >= 3.0 ? 'B' : finalGPA >= 2.0 ? 'C' : 'D';
 
     return {
       ...student,
       subjectMarksMap,
-      totalObtained,
-      totalFull,
-      gpaWithout4th,
-      finalGPA,
-      overallGrade,
-      hasFailed
+      totalObtained: evaluated?.totalObtainedMarks ?? 0,
+      totalFull: evaluated?.totalFullMarks ?? 0,
+      gpaWithout4th: evaluated?.gpaWithout4th ?? 0,
+      finalGPA: evaluated?.gpa ?? 0,
+      overallGrade: evaluated?.letterGrade ?? 'F',
+      hasFailed: evaluated ? !evaluated.isPassed : true,
     };
   });
 

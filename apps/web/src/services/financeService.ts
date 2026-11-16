@@ -57,7 +57,7 @@ export interface VoucherRecord {
   narration: string;
   entries: JournalLine[];
   totalAmount: number;
-  sourceModule: 'student_fees' | 'payroll' | 'expenses' | 'cash_bank' | 'waivers_refunds' | 'manual_voucher';
+  sourceModule: 'student_fees' | 'payroll' | 'expenses' | 'cash_bank' | 'waivers_refunds' | 'manual_voucher' | 'library';
   sourceId?: string;
   createdBy: string;
 }

@@ -20,7 +20,9 @@ import {
   BookOpen,
   ChevronRight,
   ShieldCheck,
-  Clock
+  Clock,
+  Send,
+  QrCode
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
@@ -28,9 +30,10 @@ import { teacherRBACService, ClassTeacherAssignment } from '@/services/teacherRB
 import { auditTrailService } from '@/services/auditTrailService';
 import { attendanceService, StudentAttendanceRecord } from '@/services/attendanceService';
 import { settingsService } from '@/services/settingsService';
-import { showToast } from '@/components/ui/ToastProvider';
+import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
+import { QrAndBiometricAttendancePanel } from '@/components/attendance/QrAndBiometricAttendancePanel';
 
-type AttendanceTab = 'register' | 'absentee_panel' | 'reports';
+type AttendanceTab = 'register' | 'scanner' | 'absentee_panel' | 'reports';
 
 export default function AttendancePage() {
   const [mounted, setMounted] = useState(false);
@@ -297,7 +300,17 @@ export default function AttendancePage() {
             <UserCheck size={15} />
             <span>১. হাজিরা গ্রহণ করুন (Mark Attendance)</span>
           </button>
-          
+
+          <button
+            onClick={() => setActiveTab('scanner')}
+            className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold shrink-0 ${
+              activeTab === 'scanner' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-800 font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <QrCode size={15} />
+            <span>QR / বায়োমেট্রিক স্ক্যানার</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('absentee_panel')}
             className={`px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 text-xs font-bold ${
@@ -305,7 +318,7 @@ export default function AttendancePage() {
             }`}
           >
             <UserX size={15} />
-            <span>২. অনুপস্থিত কেন্দ্রীয় প্যানেল (Absentee Board)</span>
+            <span>২. অনুপস্থিত কেন্দ্রীয় প্যানেল</span>
           </button>
 
           <button
@@ -315,7 +328,7 @@ export default function AttendancePage() {
             }`}
           >
             <Printer size={15} />
-            <span>৩. হাজিরা রিপোর্ট ও প্রিন্ট (Attendance Report)</span>
+            <span>৩. হাজিরা রিপোর্ট ও প্রিন্ট</span>
           </button>
         </div>
 
@@ -464,7 +477,16 @@ export default function AttendancePage() {
                         {st.roll}
                       </div>
                       <div>
-                        <strong className="font-extrabold text-slate-900 dark:text-white block">{st.name}</strong>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <strong className="font-extrabold text-slate-900 dark:text-white">{st.name}</strong>
+                          {(st.verificationMethod === 'qr' || st.verificationMethod === 'biometric') && (
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-mono text-[9px] font-black">
+                              {st.verificationMethod === 'biometric' ? 'BIO' : 'QR'}
+                              {st.checkInTime ? ` ${st.checkInTime}` : ''}
+                              {st.checkOutTime ? `→${st.checkOutTime}` : ''}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">পিতা/অভিভাবক: {st.guardian} | {st.mobile}</span>
                       </div>
                     </div>
@@ -506,6 +528,20 @@ export default function AttendancePage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════ */}
+      {/* TAB: QR / বায়োমেট্রিক স্ক্যানার                          */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'scanner' && (
+        <QrAndBiometricAttendancePanel
+          selectedDate={selectedDate}
+          selectedGrade={selectedGrade}
+          selectedBranch={selectedBranch}
+          performedBy={session?.teacherName || (session?.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক')}
+          canTakeAttendance={canTakeAttendance}
+          onAttendanceUpdated={loadAttendanceStudents}
+        />
+      )}
+
+      {/* ══════════════════════════════════════════════════════════ */}
       {/* TAB 2: অনুপস্থিত কেন্দ্রীয় প্যানেল                          */}
       {/* ══════════════════════════════════════════════════════════ */}
       {activeTab === 'absentee_panel' && (
@@ -519,16 +555,46 @@ export default function AttendancePage() {
               <p className="text-xs text-slate-500 dark:text-slate-400">বিদ্যালয়ের সকল ক্লাসের আজকের ({selectedDate}) অনুপস্থিতির তালিকা।</p>
             </div>
             
-            <button
-              onClick={() => {
-                setPrintScope(isTeacherRole ? 'single' : 'all');
-                setPrintReportType('absent');
-                setActiveTab('reports');
-              }}
-              className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 cursor-pointer"
-            >
-              <Printer size={13} /> {isTeacherRole ? `${gradeNameBn} অনুপস্থিত তালিকা প্রিন্ট` : 'সম্পূর্ণ অনুপস্থিত তালিকা প্রিন্ট সেটিংস'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {centralAbsenteeList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const absentOnly = centralAbsenteeList.filter((s) => s.status === 'Absent');
+                    const validCount = absentOnly.filter((s) => s.mobile && s.mobile.replace(/\D/g, '').length >= 11).length;
+                    const ok = await confirmDialog({
+                      title: 'অভিভাবকদের অনুপস্থিতির SMS পাঠাবেন?',
+                      message: `${selectedDate} তারিখে মোট ${absentOnly.length} জন অনুপস্থিত শিক্ষার্থীর মধ্যে ${validCount} জন অভিভাবকের বৈধ মোবাইল নম্বরে SMS সতর্কবার্তা পাঠানো হবে। এতে আনুমানিক ${validCount}টি SMS ক্রেডিট খরচ হবে।`,
+                      confirmLabel: 'নিশ্চিত ও SMS পাঠান',
+                    });
+                    if (!ok) return;
+                    const settings = settingsService.getSettings();
+                    const res = await attendanceService.dispatchAbsentAlerts({
+                      date: selectedDate,
+                      absentees: absentOnly,
+                      sendSms: true,
+                      sendPush: true,
+                      schoolName: settings.schoolName || 'স্মার্ট স্কুল',
+                      performedBy: session?.teacherName || session?.role,
+                    });
+                    showToast(res.message, 'success');
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Send size={13} /> অভিভাবককে অনুপস্থিতি এলার্ট SMS
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setPrintScope(isTeacherRole ? 'single' : 'all');
+                  setPrintReportType('absent');
+                  setActiveTab('reports');
+                }}
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 cursor-pointer"
+              >
+                <Printer size={13} /> {isTeacherRole ? `${gradeNameBn} অনুপস্থিত তালিকা প্রিন্ট` : 'সম্পূর্ণ অনুপস্থিত তালিকা প্রিন্ট সেটিংস'}
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

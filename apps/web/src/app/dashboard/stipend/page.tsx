@@ -32,6 +32,8 @@ import {
 import { studentService, Student } from '@/services/studentService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
+import { downloadStipendBoardWorkbook } from '@/lib/boardExcelExport';
+import { showToast } from '@/components/ui/ToastProvider';
 
 export interface StipendStudentItem extends Student {
   attRate: number;            // Attendance percentage (0-100)
@@ -425,6 +427,19 @@ export default function StipendPage() {
             </button>
 
             <button
+              onClick={() => {
+                const count = downloadStipendBoardWorkbook(
+                  filteredBeneficiaries,
+                  schoolSettings || settingsService.getSettings()
+                );
+                showToast(`${count} জন উপবৃত্তি শিক্ষার্থীর বোর্ড এক্সেল (.xlsx) ডাউনলোড হয়েছে।`, 'success');
+              }}
+              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-1 transition cursor-pointer"
+            >
+              <Download size={13} /> বোর্ড এক্সেল (.xlsx)
+            </button>
+
+            <button
               onClick={triggerPrint}
               className="px-5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black rounded-xl shadow transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
             >
@@ -613,10 +628,10 @@ export default function StipendPage() {
         </div>
 
         {/* ─── PRINT MEDIA CSS OVERRIDES ─────────────────────────────────────── */}
-        <style jsx global>{`
+        <style>{`
           @media print {
             @page {
-              size: auto;
+              size: ${printOrientation === 'landscape' ? 'A4 landscape' : 'A4 portrait'};
               margin: 0.45in;
             }
             html, body {
@@ -709,6 +724,20 @@ export default function StipendPage() {
           >
             <Download size={13} />
             CSV এক্সপোর্ট
+          </button>
+
+          <button
+            onClick={() => {
+              const count = downloadStipendBoardWorkbook(
+                filteredBeneficiaries,
+                schoolSettings || settingsService.getSettings()
+              );
+              showToast(`${count} জন উপবৃত্তি শিক্ষার্থীর বোর্ড এক্সেল (.xlsx) ডাউনলোড হয়েছে।`, 'success');
+            }}
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download size={13} />
+            বোর্ড এক্সেল (.xlsx)
           </button>
 
           <button

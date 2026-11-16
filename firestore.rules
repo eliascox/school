@@ -132,6 +132,15 @@ rules_version = '2';
 // Collection: teacher_leaves/{leaveId}           (Admin full; Staff self-read & create with status Pending/pending)
 // Collection: _system_health/{docId}             (Signed-in read; Admin write)
 // Collection: fcm_tokens/{tokenId}               (Admin read/update/delete; Authenticated role-scoped create)
+// Collection: routine_substitutions/{docId}      (Public/mobile read; Staff create/update; Admin delete)
+// Collection: fee_payment_transactions/{docId}   (Public single-doc get if verified; Admin list & CRUD)
+// Collection: exam_seat_plans/{docId}            (Signed-in read; Admin write)
+// Collection: homework_assignments/{docId}       (Public/mobile read; Staff CRUD)
+// Collection: library_books/{docId}              (Signed-in read; Staff create/update; Admin delete)
+// Collection: library_loans/{docId}              (Staff read/create/update; Admin delete — borrowerMeta may contain phone PII)
+// Collection: transport_routes/{docId}           (Staff read; Admin write — contains driverPhone PII)
+// Collection: hostel_allocations/{docId}         (Staff read; Admin write)
+// Collection: alumni_archive/{docId}             (Admin read/write — matches ssc_testimonials PII protection)
 //
 // =============================================================================
 
@@ -1183,6 +1192,251 @@ service cloud.firestore {
              isOptTimestamp(data, 'lastActiveAt');
     }
 
+    function isValidRoutineSubstitution(data) {
+      let allowed = [
+        'id', 'date', 'day', 'periodNo', 'classId', 'subject',
+        'absentTeacherId', 'absentTeacherName', 'substituteTeacherId',
+        'substituteTeacherName', 'roomNo', 'reason', 'status',
+        'createdAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'date', 'day', 'periodNo', 'classId', 'subject', 'absentTeacherName', 'substituteTeacherName', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.date, 4, 40) &&
+             data.day in ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'] &&
+             data.periodNo is int && data.periodNo >= 1 && data.periodNo <= 12 &&
+             isStr(data.classId, 1, 64) &&
+             isStr(data.subject, 1, 120) &&
+             isOptStr(data, 'absentTeacherId', 0, 64) &&
+             isStr(data.absentTeacherName, 1, 120) &&
+             isOptStr(data, 'substituteTeacherId', 0, 64) &&
+             isStr(data.substituteTeacherName, 1, 120) &&
+             isOptStr(data, 'roomNo', 0, 40) &&
+             isOptStr(data, 'reason', 0, 500) &&
+             data.status in ['assigned', 'completed', 'cancelled'] &&
+             (isOptTimestamp(data, 'createdAt') || isOptStr(data, 'createdAt', 0, 64)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidFeePaymentTransaction(data) {
+      let allowed = [
+        'id', 'receiptId', 'provider', 'studentId', 'studentName', 'roll',
+        'grade', 'section', 'amount', 'trxId', 'signature', 'mode',
+        'status', 'monthsPaid', 'extraFeeIds', 'createdAt', 'verifiedAt',
+        'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 20 &&
+             data.keys().hasAll(['id', 'receiptId', 'studentId', 'studentName', 'amount', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.receiptId, 1, 100) &&
+             (!('provider' in data) || data.provider in ['bKash', 'Nagad', 'SSLCommerz', 'Cash', 'Bank Transfer']) &&
+             isStr(data.studentId, 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             data.amount is number && data.amount >= 0 && data.amount <= 100000000 &&
+             isOptStr(data, 'trxId', 0, 120) &&
+             isOptStr(data, 'signature', 0, 256) &&
+             (!('mode' in data) || data.mode in ['live', 'sandbox', 'manual']) &&
+             data.status in ['initiated', 'verified', 'failed'] &&
+             isOptList(data, 'monthsPaid', 24) &&
+             isOptList(data, 'extraFeeIds', 50) &&
+             (isOptTimestamp(data, 'createdAt') || isOptStr(data, 'createdAt', 0, 64)) &&
+             (isOptTimestamp(data, 'verifiedAt') || isOptStr(data, 'verifiedAt', 0, 64)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidExamSeatPlan(data) {
+      let allowed = [
+        'id', 'examId', 'examTitle', 'roomId', 'roomNo', 'roomName',
+        'benchNo', 'rowIndex', 'colIndex', 'seatPosition', 'studentId',
+        'studentName', 'roll', 'grade', 'section', 'group',
+        'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 18 &&
+             data.keys().hasAll(['id', 'examId', 'roomId', 'benchNo', 'studentId', 'studentName']) &&
+             isStr(data.id, 1, 120) &&
+             isStr(data.examId, 1, 100) &&
+             isOptStr(data, 'examTitle', 0, 160) &&
+             isStr(data.roomId, 1, 64) &&
+             isOptStr(data, 'roomNo', 0, 40) &&
+             isOptStr(data, 'roomName', 0, 120) &&
+             data.benchNo is int && data.benchNo >= 1 && data.benchNo <= 500 &&
+             (!('rowIndex' in data) || (data.rowIndex is int && data.rowIndex >= 1 && data.rowIndex <= 200)) &&
+             (!('colIndex' in data) || (data.colIndex is int && data.colIndex >= 1 && data.colIndex <= 200)) &&
+             (!('seatPosition' in data) || data.seatPosition in ['L', 'M', 'R']) &&
+             isStr(data.studentId, 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidHomeworkAssignment(data) {
+      let allowed = [
+        'id', 'title', 'description', 'grade', 'section', 'subject',
+        'teacherId', 'teacherName', 'dueDate', 'attachmentName',
+        'attachmentUrl', 'submittedStudentIds', 'status', 'createdAt',
+        'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 16 &&
+             data.keys().hasAll(['id', 'title', 'grade', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.title, 1, 200) &&
+             isOptStr(data, 'description', 0, 10000) &&
+             isStr(data.grade, 1, 30) &&
+             isOptStr(data, 'section', 0, 40) &&
+             isOptStr(data, 'subject', 0, 120) &&
+             isOptStr(data, 'teacherId', 0, 64) &&
+             isOptStr(data, 'teacherName', 0, 120) &&
+             isOptStr(data, 'dueDate', 0, 40) &&
+             isOptStr(data, 'attachmentName', 0, 200) &&
+             (!('attachmentUrl' in data) || isValidAttachmentOrMedia(data.attachmentUrl, 500000)) &&
+             isOptList(data, 'submittedStudentIds', 500) &&
+             data.status in ['active', 'archived'] &&
+             (isOptTimestamp(data, 'createdAt') || isOptStr(data, 'createdAt', 0, 64)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidLibraryBook(data) {
+      let allowed = [
+        'id', 'accessionNo', 'title', 'author', 'category', 'shelfNo',
+        'totalCopies', 'availableCopies', 'addedAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 12 &&
+             data.keys().hasAll(['id', 'accessionNo', 'title', 'totalCopies', 'availableCopies']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.accessionNo, 1, 64) &&
+             isStr(data.title, 1, 250) &&
+             isOptStr(data, 'author', 0, 160) &&
+             isOptStr(data, 'category', 0, 100) &&
+             isOptStr(data, 'shelfNo', 0, 64) &&
+             data.totalCopies is int && data.totalCopies >= 1 && data.totalCopies <= 10000 &&
+             data.availableCopies is int && data.availableCopies >= 0 && data.availableCopies <= data.totalCopies &&
+             (isOptTimestamp(data, 'addedAt') || isOptStr(data, 'addedAt', 0, 64)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidLibraryLoan(data) {
+      let allowed = [
+        'id', 'bookId', 'accessionNo', 'bookTitle', 'borrowerType',
+        'borrowerId', 'borrowerName', 'borrowerMeta', 'issueDate',
+        'dueDate', 'returnDate', 'finePerDay', 'calculatedFine',
+        'finePaid', 'status', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 18 &&
+             data.keys().hasAll(['id', 'bookId', 'borrowerType', 'borrowerId', 'borrowerName', 'issueDate', 'dueDate', 'status']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.bookId, 1, 100) &&
+             isOptStr(data, 'accessionNo', 0, 64) &&
+             isOptStr(data, 'bookTitle', 0, 250) &&
+             data.borrowerType in ['student', 'teacher'] &&
+             isStr(data.borrowerId, 1, 120) &&
+             isStr(data.borrowerName, 1, 120) &&
+             isOptStr(data, 'borrowerMeta', 0, 200) &&
+             isStr(data.issueDate, 4, 40) &&
+             isStr(data.dueDate, 4, 40) &&
+             isOptStr(data, 'returnDate', 0, 40) &&
+             isOptNum(data, 'finePerDay', 0, 10000) &&
+             isOptNum(data, 'calculatedFine', 0, 1000000) &&
+             isOptBool(data, 'finePaid') &&
+             data.status in ['issued', 'returned'] &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidTransportRoute(data) {
+      let allowed = [
+        'id', 'routeCode', 'routeName', 'vehicleNo', 'driverName',
+        'driverPhone', 'stops', 'monthlyFee', 'capacity',
+        'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 12 &&
+             data.keys().hasAll(['id', 'routeCode', 'routeName']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.routeCode, 1, 40) &&
+             isStr(data.routeName, 1, 160) &&
+             isOptStr(data, 'vehicleNo', 0, 64) &&
+             isOptStr(data, 'driverName', 0, 120) &&
+             isOptStr(data, 'driverPhone', 0, 40) &&
+             isOptList(data, 'stops', 50) &&
+             isOptNum(data, 'monthlyFee', 0, 1000000) &&
+             (!('capacity' in data) || (data.capacity is int && data.capacity >= 1 && data.capacity <= 500)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidHostelAllocation(data) {
+      let allowed = [
+        'id', 'roomId', 'roomNo', 'building', 'bedNo', 'studentId',
+        'studentName', 'roll', 'grade', 'monthlyFee', 'active',
+        'joinedAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 15 &&
+             data.keys().hasAll(['id', 'roomId', 'studentId', 'studentName', 'active']) &&
+             isStr(data.id, 1, 100) &&
+             isStr(data.roomId, 1, 64) &&
+             isOptStr(data, 'roomNo', 0, 40) &&
+             isOptStr(data, 'building', 0, 120) &&
+             isOptStr(data, 'bedNo', 0, 40) &&
+             isStr(data.studentId, 1, 120) &&
+             isStr(data.studentName, 1, 120) &&
+             isOptStr(data, 'roll', 0, 30) &&
+             isOptStr(data, 'grade', 0, 30) &&
+             isOptNum(data, 'monthlyFee', 0, 1000000) &&
+             data.active is bool &&
+             isOptStr(data, 'joinedAt', 0, 64) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
+    function isValidAlumniArchive(data) {
+      let allowed = [
+        'id', 'studentId', 'name', 'fatherName', 'motherName',
+        'passingYear', 'batch', 'sscRoll', 'regNo', 'group', 'gpa',
+        'phone', 'email', 'currentStatus', 'institutionOrWork',
+        'address', 'archivedAt', 'updatedAt', 'schoolId'
+      ];
+      return data.keys().hasOnly(allowed) &&
+             data.keys().size() <= 20 &&
+             data.keys().hasAll(['id', 'name', 'passingYear']) &&
+             isStr(data.id, 1, 120) &&
+             isOptStr(data, 'studentId', 0, 120) &&
+             isStr(data.name, 1, 120) &&
+             isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'motherName', 0, 120) &&
+             isStr(data.passingYear, 1, 20) &&
+             isOptStr(data, 'batch', 0, 80) &&
+             isOptStr(data, 'sscRoll', 0, 40) &&
+             isOptStr(data, 'regNo', 0, 40) &&
+             isOptStr(data, 'group', 0, 60) &&
+             isOptStr(data, 'gpa', 0, 20) &&
+             isOptStr(data, 'phone', 0, 40) &&
+             (!('email' in data) || data.email == '' || isValidEmail(data.email)) &&
+             (!('currentStatus' in data) || data.currentStatus in ['উচ্চশিক্ষা', 'চাকরি', 'ব্যবসা', 'প্রবাসী', 'অন্যান্য']) &&
+             isOptStr(data, 'institutionOrWork', 0, 200) &&
+             isOptStr(data, 'address', 0, 400) &&
+             (isOptTimestamp(data, 'archivedAt') || isOptStr(data, 'archivedAt', 0, 64)) &&
+             isOptTimestamp(data, 'updatedAt') &&
+             isOptStr(data, 'schoolId', 0, 64);
+    }
+
     // =========================================================================
     // Collection Rules
     // =========================================================================
@@ -1427,6 +1681,101 @@ service cloud.firestore {
                          request.resource.data.role == resource.data.role &&
                          areImmutableFieldsUnchanged(['subscribedAt', 'token', 'role', 'uid']))) &&
                        areImmutableFieldsUnchanged(['subscribedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 15. Phase 3 Synced Modules
+    // =========================================================================
+
+    // 15a. Routine Substitutions (public/mobile read for proxy badge; staff create/update; admin delete)
+    match /routine_substitutions/{docId} {
+      allow read: if true;
+      allow create: if isStaff() && isValidRoutineSubstitution(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidRoutineSubstitution(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 15b. Online Fee Payment Transactions (public single-doc get if verified; admin list & CRUD)
+    match /fee_payment_transactions/{docId} {
+      allow get: if isAdmin() || (resource != null && resource.data.status == 'verified');
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidFeePaymentTransaction(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidFeePaymentTransaction(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'receiptId', 'studentId', 'createdAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 15c. Exam Seat Plans (signed-in read; admin CRUD)
+    match /exam_seat_plans/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidExamSeatPlan(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidExamSeatPlan(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'examId', 'studentId']);
+      allow delete: if isAdmin();
+    }
+
+    // 15d. Homework Assignments (public/mobile read for /mobile-app; staff CRUD)
+    match /homework_assignments/{docId} {
+      allow read: if true;
+      allow create: if isStaff() && isValidHomeworkAssignment(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidHomeworkAssignment(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'createdAt']);
+      allow delete: if isStaff();
+    }
+
+    // 15e. Library Books Catalog (signed-in read; staff create/update; admin delete)
+    match /library_books/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isStaff() && isValidLibraryBook(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidLibraryBook(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'addedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 15f. Library Loans (staff read/create/update; admin delete — borrowerMeta may include teacher phone PII)
+    match /library_loans/{docId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidLibraryLoan(request.resource.data);
+      allow update: if isStaff() &&
+                       isValidLibraryLoan(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'bookId', 'borrowerId', 'issueDate']);
+      allow delete: if isAdmin();
+    }
+
+    // 15g. Campus Transport Routes (staff read; admin CRUD — contains driverPhone PII)
+    match /transport_routes/{docId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() && isValidTransportRoute(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidTransportRoute(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id']);
+      allow delete: if isAdmin();
+    }
+
+    // 15h. Hostel Allocations (staff read; admin CRUD)
+    match /hostel_allocations/{docId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() && isValidHostelAllocation(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidHostelAllocation(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'studentId', 'joinedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 15i. Alumni Archive (admin read/CRUD — matches ssc_testimonials PII protection for phone/email/address)
+    match /alumni_archive/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidAlumniArchive(request.resource.data);
+      allow update: if isAdmin() &&
+                       isValidAlumniArchive(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['id', 'studentId', 'archivedAt']);
       allow delete: if isAdmin();
     }
   }

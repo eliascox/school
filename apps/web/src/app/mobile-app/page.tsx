@@ -12,8 +12,12 @@ import {
 import { firebaseSyncService } from '@/services/firebaseSyncService';
 import { studentService, Student } from '@/services/studentService';
 import { financeService, StudentFeeLedger } from '@/services/financeService';
+import { paymentGatewayService, PaymentGatewayProvider } from '@/services/paymentGatewayService';
+import { PaymentRecord } from '@/components/finance/financeShared';
 import { noticeService, Notice } from '@/services/noticeService';
-import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS } from '@/services/routineService';
+import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS, SubstitutionRecord } from '@/services/routineService';
+import { homeworkService, HomeworkAssignment } from '@/services/homeworkService';
+import { localDateKey } from '@/lib/dateUtils';
 import { landingPageService } from '@/services/landingPageService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
@@ -46,7 +50,7 @@ const DAY_BN: Record<string, string> = {
   Thursday: 'বৃহস্পতিবার',
 };
 
-type AppTab = 'home' | 'attendance' | 'results' | 'fees' | 'notices';
+type AppTab = 'home' | 'attendance' | 'homework' | 'results' | 'fees' | 'notices';
 
 export default function PublicMobileAppPage() {
   const [activeTab, setActiveTab] = useState<AppTab>('home');
@@ -58,6 +62,8 @@ export default function PublicMobileAppPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [routines, setRoutines] = useState<RoutineSlot[]>([]);
+  const [todaySubstitutions, setTodaySubstitutions] = useState<SubstitutionRecord[]>([]);
+  const [homeworks, setHomeworks] = useState<HomeworkAssignment[]>([]);
   const [session, setSession] = useState<UserSession | null>(null);
 
   // Student Selector (Staff Only) & Guardian Privacy Verification State
@@ -69,6 +75,13 @@ export default function PublicMobileAppPage() {
   const [verifyPhoneInput, setVerifyPhoneInput] = useState<string>('');
   const [verifyError, setVerifyError] = useState<string>('');
   const [selectedDay, setSelectedDay] = useState<RoutineSlot['day']>('Sunday');
+  const [feeRefreshTick, setFeeRefreshTick] = useState(0);
+  const [pgProvider, setPgProvider] = useState<PaymentGatewayProvider>('bKash');
+  const [pgTrxId, setPgTrxId] = useState('');
+  const [pgInitiatedTrx, setPgInitiatedTrx] = useState('');
+  const [pgStatusMsg, setPgStatusMsg] = useState('');
+  const [pgReceipt, setPgReceipt] = useState<PaymentRecord | null>(null);
+  const [pgBusy, setPgBusy] = useState(false);
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -102,6 +115,8 @@ export default function PublicMobileAppPage() {
 
     const allRoutines = routineService.getRoutines();
     setRoutines(allRoutines);
+    setTodaySubstitutions(routineService.getSubstitutions(localDateKey()));
+    setHomeworks(homeworkService.getHomeworks());
 
     try {
       const savedVerified = sessionStorage.getItem('mobile_app_verified_student_id') || '';
@@ -238,7 +253,7 @@ export default function PublicMobileAppPage() {
     } catch {
       return null;
     }
-  }, [activeStudent]);
+  }, [activeStudent, feeRefreshTick]);
 
   // Active Student Real Attendance Status computed from sms_attendance_* logs
   const attendanceInfo = useMemo(() => {
@@ -822,6 +837,25 @@ export default function PublicMobileAppPage() {
                     <span className="text-xs font-extrabold text-slate-900 dark:text-white">সনদ যাচাই</span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400">প্রত্যয়ন ভেরিফাই</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('homework')}
+                    className="col-span-3 p-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/60 dark:to-violet-950/50 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-xs font-black text-slate-900 dark:text-white block">ডিজিটাল হোমওয়ার্ক ও লেকচার</span>
+                        <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
+                          সক্রিয় পাঠ: {toBnDigit(homeworks.filter((h) => !selectedGrade || h.grade === selectedGrade).length)}টি
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
+                  </button>
                 </div>
               </div>
 
@@ -1109,8 +1143,236 @@ export default function PublicMobileAppPage() {
                     </div>
                   </div>
                 )}
+                {/* Online Fee Checkout & Verification */}
+                {(feeLedger?.totalDue ?? 0) > 0 && activeStudent && (
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-indigo-900 dark:text-indigo-200">
+                        অনলাইন ফি পরিশোধ (Gateway)
+                      </span>
+                      <span className="text-[11px] font-black text-rose-600 dark:text-rose-400">
+                        বকেয়া: ৳{toBnDigit(feeLedger?.totalDue ?? 0)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['bKash', 'Nagad', 'SSLCommerz'] as PaymentGatewayProvider[]).map((prov) => (
+                        <button
+                          key={prov}
+                          type="button"
+                          onClick={() => setPgProvider(prov)}
+                          className={`py-2 rounded-xl text-[11px] font-black border transition cursor-pointer ${
+                            pgProvider === prov
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {prov}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        disabled={pgBusy}
+                        onClick={async () => {
+                          if (!feeLedger) return;
+                          setPgBusy(true);
+                          setPgStatusMsg('');
+                          try {
+                            const dueMonths = feeLedger.months
+                              .filter((m) => m.dueAmount > 0)
+                              .map((m) => m.month);
+                            const res = await paymentGatewayService.initiateCheckout({
+                              provider: pgProvider,
+                              student: activeStudent,
+                              amount: feeLedger.totalDue,
+                              monthsPaid: dueMonths,
+                            });
+                            if (res.success && res.transaction) {
+                              setPgInitiatedTrx(res.transaction.trxId);
+                              if (!pgTrxId) setPgTrxId(res.transaction.trxId);
+                              setPgStatusMsg(
+                                res.gatewayUrl
+                                  ? `${pgProvider} পেমেন্ট সেশন তৈরি হয়েছে। ট্রানজেকশন আইডি: ${res.transaction.trxId}`
+                                  : `স্যান্ডবক্স/ম্যানুয়াল সেশন: ${res.transaction.trxId} — নিচে যাচাই করে রসিদ নিশ্চিত করুন।`
+                              );
+                            } else {
+                              setPgStatusMsg(res.message);
+                            }
+                          } finally {
+                            setPgBusy(false);
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer shrink-0"
+                      >
+                        ১. সেশন শুরু করুন
+                      </button>
+
+                      <input
+                        value={pgTrxId}
+                        onChange={(e) => setPgTrxId(e.target.value)}
+                        placeholder={pgInitiatedTrx || 'TrxID লিখুন (যেমন: BKS123456)'}
+                        className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={pgBusy}
+                        onClick={async () => {
+                          if (!feeLedger) return;
+                          setPgBusy(true);
+                          try {
+                            const dueMonths = feeLedger.months
+                              .filter((m) => m.dueAmount > 0)
+                              .map((m) => m.month);
+                            const res = await paymentGatewayService.verifyAndSettlePayment({
+                              provider: pgProvider,
+                              student: activeStudent,
+                              amount: feeLedger.totalDue,
+                              trxId: pgTrxId || pgInitiatedTrx,
+                              monthsPaid: dueMonths,
+                              collectedBy: `মোবাইল অ্যাপ (${pgProvider})`,
+                            });
+                            setPgStatusMsg(res.message);
+                            if (res.success && res.receipt) {
+                              setPgReceipt(res.receipt);
+                              setFeeRefreshTick((t) => t + 1);
+                              setPgTrxId('');
+                            }
+                          } finally {
+                            setPgBusy(false);
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black cursor-pointer shrink-0"
+                      >
+                        ২. যাচাই ও পরিশোধ
+                      </button>
+                    </div>
+
+                    {pgStatusMsg && (
+                      <p className="text-[11px] font-bold text-indigo-800 dark:text-indigo-200">{pgStatusMsg}</p>
+                    )}
+                  </div>
+                )}
+
+                {pgReceipt && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2 text-xs">
+                    <div className="flex items-center justify-between font-black text-emerald-800 dark:text-emerald-200">
+                      <span>ডিজিটাল রসিদ নিশ্চিত হয়েছে!</span>
+                      <span className="font-mono">{pgReceipt.receiptId}</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                      পরিশোধ: ৳{toBnDigit(pgReceipt.paidAmount)} ({pgReceipt.paymentMethod}) • তারিখ: {pgReceipt.date}
+                    </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Link
+                        href={`/verify-certificate?type=receipt&id=${encodeURIComponent(pgReceipt.receiptId)}`}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-700 text-white text-[11px] font-black"
+                      >
+                        রসিদ যাচাই পাতা খুলুন
+                      </Link>
+                      <a
+                        href={paymentGatewayService.buildWhatsAppShareUrl(pgReceipt, schoolName)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-[11px] font-black flex items-center gap-1"
+                      >
+                        <Share2 className="w-3 h-3" /> WhatsApp শেয়ার
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
               )}
+            </div>
+          )}
+
+          {/* ── TAB 4B: HOMEWORK & LECTURE SHEETS ── */}
+          {activeTab === 'homework' && (
+            <div className="space-y-3">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                      ডিজিটাল হোমওয়ার্ক ({gradeLabel(activeStudent?.grade || selectedGrade)})
+                    </h3>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
+                    {toBnDigit(
+                      homeworks.filter((h) => {
+                        const targetG = activeStudent?.grade || selectedGrade;
+                        if (targetG && h.grade !== targetG) return false;
+                        if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
+                        return true;
+                      }).length
+                    )}টি
+                  </span>
+                </div>
+
+                {homeworks.filter((h) => {
+                  const targetG = activeStudent?.grade || selectedGrade;
+                  if (targetG && h.grade !== targetG) return false;
+                  if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
+                  return true;
+                }).length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-6 font-bold">
+                    এই শ্রেণির জন্য বর্তমানে কোনো সক্রিয় হোমওয়ার্ক বা লেকচার নেই।
+                  </p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {homeworks
+                      .filter((h) => {
+                        const targetG = activeStudent?.grade || selectedGrade;
+                        if (targetG && h.grade !== targetG) return false;
+                        if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
+                        return true;
+                      })
+                      .map((hw) => {
+                        const submitted = activeStudent ? hw.submittedStudentIds.includes(activeStudent.id) : false;
+                        return (
+                          <div
+                            key={hw.id}
+                            className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
+                                {hw.subject}
+                              </span>
+                              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                                জমার শেষ তারিখ: {hw.dueDate}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">{hw.title}</h4>
+                            {hw.description && (
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{hw.description}</p>
+                            )}
+                            <div className="flex items-center justify-between pt-1 text-[10px] font-bold">
+                              <span className="text-slate-400">শিক্ষক: {hw.teacherName}</span>
+                              {activeStudent && (
+                                <span className={submitted ? 'text-emerald-600' : 'text-amber-600'}>
+                                  {submitted ? 'জমা হয়েছে ✓' : 'জমা বাকি'}
+                                </span>
+                              )}
+                            </div>
+                            {hw.attachmentUrl && (
+                              <a
+                                href={hw.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline pt-1"
+                              >
+                                <ExternalLink className="w-3 h-3" /> {hw.attachmentName || 'লেকচার শিট খুলুন'}
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1160,20 +1422,33 @@ export default function PublicMobileAppPage() {
                       )
                       .map((slot) => {
                         const periodMeta = ROUTINE_PERIODS.find((p) => p.periodNo === slot.periodNo);
+                        const todayKey = localDateKey();
+                        const todayDay = routineService.getDayFromDate(todayKey);
+                        const activeSub =
+                          todayDay === selectedDay
+                            ? todaySubstitutions.find(
+                                (sub) => sub.classId === slot.classId && sub.periodNo === slot.periodNo
+                              )
+                            : undefined;
                         return (
                           <div
                             key={slot.id}
-                            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between"
+                            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2"
                           >
                             <div>
                               <span className="text-xs font-black text-slate-900 dark:text-white block">
                                 {slot.subject}
                               </span>
                               <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                শিক্ষক: {slot.teacherName} • কক্ষ: {slot.roomNo || 'মূল ভবন'}
+                                শিক্ষক: {activeSub ? `${activeSub.substituteTeacherName} (প্রক্সি)` : slot.teacherName} • কক্ষ: {slot.roomNo || 'মূল ভবন'}
                               </span>
+                              {activeSub && (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[9.5px] font-black">
+                                  আজকের বিকল্প শিক্ষক নির্ধারিত
+                                </span>
+                              )}
                             </div>
-                            <span className="px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-bold text-[10px]">
+                            <span className="px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] shrink-0">
                               {periodMeta ? `${periodMeta.startTime} - ${periodMeta.endTime}` : `পিরিয়ড ${toBnDigit(slot.periodNo)}`}
                             </span>
                           </div>
@@ -1220,11 +1495,11 @@ export default function PublicMobileAppPage() {
         </main>
 
         {/* Bottom App Navigation Bar */}
-        <nav className="absolute bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex items-center justify-around z-20">
+        <nav className="absolute bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-1.5 py-2 flex items-center justify-around z-20">
           <button
             type="button"
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition cursor-pointer ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
               activeTab === 'home' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
             }`}
           >
@@ -1235,7 +1510,7 @@ export default function PublicMobileAppPage() {
           <button
             type="button"
             onClick={() => setActiveTab('attendance')}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition cursor-pointer ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
               activeTab === 'attendance' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
             }`}
           >
@@ -1245,8 +1520,19 @@ export default function PublicMobileAppPage() {
 
           <button
             type="button"
+            onClick={() => setActiveTab('homework')}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
+              activeTab === 'homework' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
+            }`}
+          >
+            <BookOpen className="w-5 h-5" />
+            <span className="text-[10px]">পাঠ</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('results')}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition cursor-pointer ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
               activeTab === 'results' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
             }`}
           >
@@ -1257,18 +1543,18 @@ export default function PublicMobileAppPage() {
           <button
             type="button"
             onClick={() => setActiveTab('fees')}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition cursor-pointer ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
               activeTab === 'fees' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
             }`}
           >
             <CreditCard className="w-5 h-5" />
-            <span className="text-[10px]">বেতন ও ফি</span>
+            <span className="text-[10px]">বেতন</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('notices')}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition cursor-pointer ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition cursor-pointer ${
               activeTab === 'notices' ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-400 font-semibold'
             }`}
           >

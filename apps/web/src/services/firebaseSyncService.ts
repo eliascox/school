@@ -98,6 +98,59 @@ const ALLOWED_SSC_TESTIMONIAL_KEYS = new Set([
   'issueDate', 'refNo', 'characterRemarks'
 ]);
 
+const ALLOWED_ROUTINE_SUBSTITUTION_KEYS = new Set([
+  'id', 'date', 'day', 'periodNo', 'classId', 'subject',
+  'absentTeacherId', 'absentTeacherName', 'substituteTeacherId',
+  'substituteTeacherName', 'roomNo', 'reason', 'status', 'createdAt'
+]);
+
+const ALLOWED_PAYMENT_TRANSACTION_KEYS = new Set([
+  'id', 'receiptId', 'provider', 'studentId', 'studentName', 'roll',
+  'grade', 'section', 'amount', 'trxId', 'signature', 'mode',
+  'status', 'monthsPaid', 'extraFeeIds', 'createdAt', 'verifiedAt'
+]);
+
+const ALLOWED_EXAM_SEAT_PLAN_KEYS = new Set([
+  'id', 'examId', 'examTitle', 'roomId', 'roomNo', 'roomName',
+  'benchNo', 'rowIndex', 'colIndex', 'seatPosition', 'studentId',
+  'studentName', 'roll', 'grade', 'section', 'group'
+]);
+
+const ALLOWED_HOMEWORK_KEYS = new Set([
+  'id', 'title', 'description', 'grade', 'section', 'subject',
+  'teacherId', 'teacherName', 'dueDate', 'attachmentName',
+  'attachmentUrl', 'submittedStudentIds', 'status', 'createdAt'
+]);
+
+const ALLOWED_LIBRARY_BOOK_KEYS = new Set([
+  'id', 'accessionNo', 'title', 'author', 'category',
+  'shelfNo', 'totalCopies', 'availableCopies', 'addedAt'
+]);
+
+const ALLOWED_LIBRARY_LOAN_KEYS = new Set([
+  'id', 'bookId', 'accessionNo', 'bookTitle', 'borrowerType',
+  'borrowerId', 'borrowerName', 'borrowerMeta', 'issueDate',
+  'dueDate', 'returnDate', 'finePerDay', 'calculatedFine',
+  'finePaid', 'status'
+]);
+
+const ALLOWED_TRANSPORT_ROUTE_KEYS = new Set([
+  'id', 'routeCode', 'routeName', 'vehicleNo', 'driverName',
+  'driverPhone', 'stops', 'monthlyFee', 'capacity'
+]);
+
+const ALLOWED_HOSTEL_ALLOCATION_KEYS = new Set([
+  'id', 'roomId', 'roomNo', 'building', 'bedNo', 'studentId',
+  'studentName', 'roll', 'grade', 'monthlyFee', 'active', 'joinedAt'
+]);
+
+const ALLOWED_ALUMNI_ARCHIVE_KEYS = new Set([
+  'id', 'studentId', 'name', 'fatherName', 'motherName',
+  'passingYear', 'batch', 'sscRoll', 'regNo', 'group', 'gpa',
+  'phone', 'email', 'currentStatus', 'institutionOrWork',
+  'address', 'archivedAt'
+]);
+
 const VALID_ROUTINE_DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
 
 export interface LandingPageCloudData {
@@ -1453,6 +1506,76 @@ class FirebaseSyncService {
       testimonialMap.set(docId, { docId, data: this.sanitizeFirestoreObject(normalized, ALLOWED_SSC_TESTIMONIAL_KEYS) });
     });
 
+    const routineSubstitutions = this.readLocalJson<any[]>('sms_routine_substitutions', [])
+      .filter((s) => s && s.id && s.date && s.classId && s.substituteTeacherName)
+      .map((s) => ({
+        docId: String(s.id),
+        data: this.sanitizeFirestoreObject({ ...s, id: String(s.id) }, ALLOWED_ROUTINE_SUBSTITUTION_KEYS),
+      }));
+
+    const feePaymentTransactions = this.readLocalJson<any[]>('sms_payment_transactions', [])
+      .filter((tx) => tx && tx.id && tx.receiptId && tx.studentId)
+      .map((tx) => ({
+        docId: String(tx.id),
+        data: this.sanitizeFirestoreObject({ ...tx, id: String(tx.id) }, ALLOWED_PAYMENT_TRANSACTION_KEYS),
+      }));
+
+    const examSeatPlans = this.readLocalJson<any[]>('sms_exam_seat_plans', [])
+      .filter((sp) => sp && sp.id && sp.examId && sp.studentId)
+      .map((sp) => ({
+        docId: String(sp.id),
+        data: this.sanitizeFirestoreObject({ ...sp, id: String(sp.id) }, ALLOWED_EXAM_SEAT_PLAN_KEYS),
+      }));
+
+    const homeworkAssignments = this.readLocalJson<any[]>('sms_homework_assignments', [])
+      .filter((hw) => hw && hw.id && hw.title && hw.grade)
+      .map((hw) => {
+        const safeAttachment =
+          typeof hw.attachmentUrl === 'string' && hw.attachmentUrl.length <= 400_000 ? hw.attachmentUrl : undefined;
+        return {
+          docId: String(hw.id),
+          data: this.sanitizeFirestoreObject(
+            { ...hw, id: String(hw.id), attachmentUrl: safeAttachment },
+            ALLOWED_HOMEWORK_KEYS
+          ),
+        };
+      });
+
+    const libraryBooks = this.readLocalJson<any[]>('sms_library_books', [])
+      .filter((b) => b && b.id && b.accessionNo && b.title)
+      .map((b) => ({
+        docId: String(b.id),
+        data: this.sanitizeFirestoreObject({ ...b, id: String(b.id) }, ALLOWED_LIBRARY_BOOK_KEYS),
+      }));
+
+    const libraryLoans = this.readLocalJson<any[]>('sms_library_loans', [])
+      .filter((l) => l && l.id && l.bookId && l.borrowerId)
+      .map((l) => ({
+        docId: String(l.id),
+        data: this.sanitizeFirestoreObject({ ...l, id: String(l.id) }, ALLOWED_LIBRARY_LOAN_KEYS),
+      }));
+
+    const transportRoutes = this.readLocalJson<any[]>('sms_campus_transport', [])
+      .filter((r) => r && r.id && r.routeCode && r.routeName)
+      .map((r) => ({
+        docId: String(r.id),
+        data: this.sanitizeFirestoreObject({ ...r, id: String(r.id) }, ALLOWED_TRANSPORT_ROUTE_KEYS),
+      }));
+
+    const hostelAllocations = this.readLocalJson<any[]>('sms_hostel_allocations', [])
+      .filter((h) => h && h.id && h.roomId && h.studentId)
+      .map((h) => ({
+        docId: String(h.id),
+        data: this.sanitizeFirestoreObject({ ...h, id: String(h.id) }, ALLOWED_HOSTEL_ALLOCATION_KEYS),
+      }));
+
+    const alumniArchive = this.readLocalJson<any[]>('sms_alumni_archive', [])
+      .filter((a) => a && a.id && a.name && a.passingYear)
+      .map((a) => ({
+        docId: String(a.id),
+        data: this.sanitizeFirestoreObject({ ...a, id: String(a.id) }, ALLOWED_ALUMNI_ARCHIVE_KEYS),
+      }));
+
     return {
       invoices,
       feeLedgers,
@@ -1463,6 +1586,15 @@ class FirebaseSyncService {
       teacherLeaves,
       classRoutines,
       sscTestimonials: Array.from(testimonialMap.values()),
+      routineSubstitutions,
+      feePaymentTransactions,
+      examSeatPlans,
+      homeworkAssignments,
+      libraryBooks,
+      libraryLoans,
+      transportRoutes,
+      hostelAllocations,
+      alumniArchive,
     };
   }
 
@@ -1540,6 +1672,15 @@ class FirebaseSyncService {
       ['teacher_leaves', data.teacherLeaves],
       ['class_routines', data.classRoutines],
       ['ssc_testimonials', data.sscTestimonials],
+      ['routine_substitutions', data.routineSubstitutions],
+      ['fee_payment_transactions', data.feePaymentTransactions],
+      ['exam_seat_plans', data.examSeatPlans],
+      ['homework_assignments', data.homeworkAssignments],
+      ['library_books', data.libraryBooks],
+      ['library_loans', data.libraryLoans],
+      ['transport_routes', data.transportRoutes],
+      ['hostel_allocations', data.hostelAllocations],
+      ['alumni_archive', data.alumniArchive],
     ];
 
     let total = 0;
@@ -1561,6 +1702,15 @@ class FirebaseSyncService {
       ['teacher_leaves', 'sms_teacher_leave_applications'],
       ['class_routines', 'sms_master_class_routine'],
       ['ssc_testimonials', 'sms_ssc_testimonials'],
+      ['routine_substitutions', 'sms_routine_substitutions'],
+      ['fee_payment_transactions', 'sms_payment_transactions'],
+      ['exam_seat_plans', 'sms_exam_seat_plans'],
+      ['homework_assignments', 'sms_homework_assignments'],
+      ['library_books', 'sms_library_books'],
+      ['library_loans', 'sms_library_loans'],
+      ['transport_routes', 'sms_campus_transport'],
+      ['hostel_allocations', 'sms_hostel_allocations'],
+      ['alumni_archive', 'sms_alumni_archive'],
     ];
 
     for (const [colName, storageKey] of directArrayPulls) {

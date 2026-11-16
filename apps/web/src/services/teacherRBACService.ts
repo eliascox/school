@@ -79,7 +79,7 @@ class TeacherRBACService {
           designation: t.designation || 'সহকারী শিক্ষক',
           dob: t.dob || '1990-01-01',
           status: 'active',
-          passwordHash: t.password || t.passwordHash || '123456',
+          passwordHash: t.passwordHash || t.password || '',
           mustChangePassword: t.mustChangePassword !== undefined ? t.mustChangePassword : true,
           createdAt: t.createdAt || new Date().toISOString()
         }));

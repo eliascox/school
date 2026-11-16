@@ -8,12 +8,48 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import {
+  API_BASE_URL,
+  fetchMobileDashboardData,
   getStoredAuthToken,
+  loginMobileUser,
+  logoutMobileUser,
   pingCentralApi,
 } from './services/mobileApiClient';
-import { getOfflineQueue, syncMobileQueue } from './services/offlineSync';
+import {
+  getOfflineQueue,
+  mobileStorage,
+  syncMobileQueue,
+} from './services/offlineSync';
+
+const DASHBOARD_CACHE_KEY = '@sms_mobile_dashboard_cache_v1';
+
+interface CachedMobileData {
+  profile: {
+    name: string;
+    email: string;
+    role: string;
+    schoolName?: string;
+  } | null;
+  notices: Array<{
+    id: string;
+    title: string;
+    content?: string;
+    createdAt?: string;
+  }>;
+  classesCount: number;
+  routineCount?: number;
+  homeworkCount?: number;
+  financeSummary: {
+    totalCollected?: number;
+    totalPending?: number;
+    summaryText?: string;
+  } | null;
+  lastUpdatedAt?: string;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'results' | 'fees'>('home');
@@ -22,11 +58,67 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<string>('সার্ভার সংযোগ যাচাই করা হচ্ছে...');
 
+  // Auth & Live Data State
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
+  const [emailInput, setEmailInput] = useState<string>('');
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string>('');
+
+  const [dashboardData, setDashboardData] = useState<CachedMobileData>({
+    profile: null,
+    notices: [],
+    classesCount: 0,
+    financeSummary: null,
+  });
+
+  const loadCachedOrLiveData = useCallback(async (token: string | null) => {
+    // Load persisted offline snapshot first so UI responds immediately even offline
+    const cachedRaw = await mobileStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (cachedRaw) {
+      try {
+        const parsed = JSON.parse(cachedRaw) as CachedMobileData;
+        setDashboardData(parsed);
+      } catch {
+        // Ignore corrupt cache
+      }
+    }
+
+    if (!token) {
+      return;
+    }
+
+    const [{ online }] = await Promise.all([pingCentralApi()]);
+    if (!online) {
+      return;
+    }
+
+    try {
+      const live = await fetchMobileDashboardData();
+      const snapshot: CachedMobileData = {
+        profile: live.profile,
+        notices: live.notices,
+        classesCount: live.classesCount,
+        routineCount: live.routineCount,
+        homeworkCount: live.homeworkCount,
+        financeSummary: live.financeSummary,
+        lastUpdatedAt: new Date().toISOString(),
+      };
+      setDashboardData(snapshot);
+      await mobileStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Keep last cached snapshot when API call fails
+    }
+  }, []);
+
   const refreshSyncState = useCallback(async () => {
-    const [{ online }, queue] = await Promise.all([
+    const [{ online }, queue, token] = await Promise.all([
       pingCentralApi(),
       getOfflineQueue(),
+      getStoredAuthToken(),
     ]);
+    setAuthToken(token);
     setIsOnline(online);
     setPendingSyncCount(queue.length);
     if (online && queue.length === 0) {
@@ -36,11 +128,54 @@ export default function App() {
     } else {
       setSyncMessage('অফলাইন মোড সক্রিয় — নেটওয়ার্ক ফিরলে স্বয়ংক্রিয় সিঙ্ক হবে');
     }
-  }, []);
+    await loadCachedOrLiveData(token);
+    setIsLoadingSession(false);
+  }, [loadCachedOrLiveData]);
 
   useEffect(() => {
     void refreshSyncState();
   }, [refreshSyncState]);
+
+  const handleLogin = async () => {
+    setLoginError('');
+    if (!emailInput.trim() || !passwordInput.trim()) {
+      setLoginError('অনুগ্রহ করে ইমেইল ও পাসওয়ার্ড দিন।');
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      const res = await loginMobileUser(emailInput.trim(), passwordInput.trim());
+      if (res?.offline) {
+        setLoginError('অফলাইন অবস্থায় নতুন লগইন করা যাচ্ছে না। সার্ভার সংযোগ চেক করুন।');
+        return;
+      }
+      const token = await getStoredAuthToken();
+      if (!token) {
+        setLoginError('সঠিক টোকেন পাওয়া যায়নি। তথ্য যাচাই করুন।');
+        return;
+      }
+      setAuthToken(token);
+      setPasswordInput('');
+      await refreshSyncState();
+    } catch {
+      setLoginError('লগইন ব্যর্থ হয়েছে! ইমেইল, পাসওয়ার্ড বা সার্ভার সংযোগ পরীক্ষা করুন।');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutMobileUser();
+    await mobileStorage.removeItem(DASHBOARD_CACHE_KEY);
+    setAuthToken(null);
+    setDashboardData({
+      profile: null,
+      notices: [],
+      classesCount: 0,
+      financeSummary: null,
+    });
+    setActiveTab('home');
+  };
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -51,32 +186,27 @@ export default function App() {
       setPendingSyncCount(result.remaining);
       if (!result.online) {
         setSyncMessage('অফলাইন মোড — কেন্দ্রীয় সার্ভার পাওয়া যায়নি');
-        Alert.alert('অফলাইন', 'ইন্টারনেট বা সার্ভার সংযোগ না থাকায় ডাটা লোকাল কিউতে সংরক্ষিত আছে।');
-      } else if (result.synced > 0) {
-        setSyncMessage(`${result.synced}টি তথ্য সফলভাবে সার্ভারে সিঙ্ক হয়েছে`);
-        Alert.alert('সিঙ্ক সম্পন্ন', `${result.synced}টি অফলাইন তথ্য সার্ভারে আপডেট হয়েছে।`);
+        Alert.alert('অফলাইন', 'সার্ভার সংযোগ না থাকায় ডাটা লোকাল কিউতে সংরক্ষিত আছে।');
       } else {
-        setSyncMessage('রিয়েল-টাইম সার্ভার সংযুক্ত ও আপডেটেড');
-        Alert.alert('সিঙ্ক স্ট্যাটাস', 'সকল তথ্য ইতিমধ্যেই আপডেটেড রয়েছে।');
+        await loadCachedOrLiveData(token);
+        if (result.synced > 0) {
+          setSyncMessage(`${result.synced}টি তথ্য সফলভাবে সার্ভারে সিঙ্ক হয়েছে`);
+          Alert.alert('সিঙ্ক সম্পন্ন', `${result.synced}টি অফলাইন তথ্য সার্ভারে আপডেট হয়েছে।`);
+        } else {
+          setSyncMessage('রিয়েল-টাইম সার্ভার সংযুক্ত ও আপডেটেড');
+          Alert.alert('সিঙ্ক স্ট্যাটাস', 'সকল তথ্য সার্ভার থেকে হালনাগাদ করা হয়েছে।');
+        }
       }
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const schoolName = 'বরইতলী উচ্চ বিদ্যালয়';
-  const student = {
-    name: 'তানভীর আহমেদ',
-    roll: '০১',
-    class: '১০ম শ্রেণি',
-    section: 'ক (বিজ্ঞান শাখা)',
-    attendanceRate: '৯৮.৫%',
-    todayStatus: 'উপস্থিত (সকাল ০৯:১৫)',
-  };
-
-  const handleActionPress = (title: string) => {
-    Alert.alert('স্মার্ট ক্যাম্পাস', `${title} মডিউলে সংযুক্ত হচ্ছে...`);
-  };
+  const schoolName = dashboardData.profile?.schoolName || 'স্মার্ট ডিজিটাল ক্যাম্পাস';
+  const userName = dashboardData.profile?.name || dashboardData.profile?.email || 'অ্যাকাউন্ট প্রোফাইল';
+  const userRole = dashboardData.profile?.role || 'সদস্য';
+  const latestNotice = dashboardData.notices[0] || null;
+  const initials = userName.slice(0, 2).toUpperCase();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -93,179 +223,229 @@ export default function App() {
             <Text style={styles.schoolSubtitle}>স্মার্ট ডিজিটাল ক্যাম্পাস মোবাইল অ্যাপ</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.notificationBtn}
-          onPress={() => Alert.alert('বিজ্ঞপ্তি', 'নতুন ৩টি নোটিশ রয়েছে')}
-        >
-          <Text style={styles.bellIcon}>🔔</Text>
-          <View style={styles.notifBadge}>
-            <Text style={styles.notifBadgeText}>৩</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.notificationBtn}
+            onPress={() =>
+              Alert.alert(
+                'নোটিশ বোর্ড',
+                dashboardData.notices.length > 0
+                  ? `${dashboardData.notices.length}টি নোটিশ: ${latestNotice?.title || ''}`
+                  : 'এই মুহূর্তে কোনো নতুন নোটিশ নেই।'
+              )
+            }
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {dashboardData.notices.length > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{dashboardData.notices.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {authToken && (
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+              <Text style={styles.logoutBtnText}>লগআউট</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {/* Student Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>তা</Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.studentName}>{student.name}</Text>
-                <View style={styles.activePill}>
-                  <Text style={styles.activePillText}>সক্রিয়</Text>
+        {isLoadingSession ? (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color="#059669" />
+            <Text style={styles.loadingText}>সেশন ও অফলাইন ক্যাশ লোড হচ্ছে...</Text>
+          </View>
+        ) : !authToken ? (
+          /* Unauthenticated State — Real API Login Screen (No Hardcoded Demo Student Data) */
+          <View style={styles.profileCard}>
+            <Text style={styles.loginTitle}>অ্যাকাউন্টে প্রবেশ করুন</Text>
+            <Text style={styles.loginSubtitle}>
+              প্রতিষ্ঠানের রিয়েল-টাইম তথ্য, হাজিরা, ফলাফল ও বেতন দেখতে আপনার নিবন্ধিত ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন।
+            </Text>
+
+            <Text style={styles.inputLabel}>ইমেইল ঠিকানা</Text>
+            <TextInput
+              style={styles.input}
+              value={emailInput}
+              onChangeText={setEmailInput}
+              placeholder="name@school.edu.bd"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Text style={styles.inputLabel}>পাসওয়ার্ড</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordInput}
+              onChangeText={setPasswordInput}
+              placeholder="••••••••"
+              secureTextEntry
+            />
+
+            {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.primaryButton, isLoggingIn && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoggingIn}
+            >
+              <Text style={styles.primaryButtonText}>
+                {isLoggingIn ? 'যাচাই করা হচ্ছে...' : 'লগইন করুন'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.apiEndpointNote}>সার্ভার ঠিকানা: {API_BASE_URL}</Text>
+          </View>
+        ) : (
+          /* Authenticated Live Profile & Data */
+          <>
+            <View style={styles.profileCard}>
+              <View style={styles.profileRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials}</Text>
+                </View>
+                <View style={styles.profileInfo}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.studentName}>{userName}</Text>
+                    <View style={styles.activePill}>
+                      <Text style={styles.activePillText}>{userRole}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.studentDetails}>
+                    {dashboardData.profile?.email || 'সক্রিয় অ্যাকাউন্ট'}
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.studentDetails}>
-                {student.class} • রোল: {student.roll} • {student.section}
+
+              <View style={styles.profileDivider} />
+
+              <View style={styles.profileStatsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statLabel}>মোট শ্রেণি</Text>
+                  <Text style={styles.statValueBlue}>{dashboardData.classesCount}টি</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statLabel}>সক্রিয় নোটিশ / পাঠ</Text>
+                  <Text style={styles.statValueGreen}>
+                    {dashboardData.notices.length} / {dashboardData.homeworkCount ?? 0}টি
+                  </Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statLabel}>সংযোগ ({dashboardData.routineCount ?? 0} রুটিন)</Text>
+                  <Text style={styles.statValueGreen}>{isOnline ? 'অনলাইন' : 'অফলাইন ক্যাশ'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Tab-Specific Detail Section */}
+            {activeTab === 'attendance' && (
+              <View style={styles.profileCard}>
+                <Text style={styles.sectionHeaderTitle}>📊 ডিজিটাল হাজিরা</Text>
+                <View style={styles.profileDivider} />
+                <Text style={styles.emptyInfoText}>
+                  {isOnline
+                    ? 'উপস্থিতি তথ্য কেন্দ্রীয় সার্ভারের সাথে সিঙ্ক অবস্থায় আছে।'
+                    : 'অফলাইন অবস্থায় সর্বশেষ ক্যাশকৃত তথ্য প্রদর্শিত হচ্ছে।'}
+                </Text>
+              </View>
+            )}
+
+            {activeTab === 'results' && (
+              <View style={styles.profileCard}>
+                <Text style={styles.sectionHeaderTitle}>🏆 একাডেমিক ফলাফল ও শ্রেণি তালিকা</Text>
+                <View style={styles.profileDivider} />
+                <Text style={styles.emptyInfoText}>
+                  নিবন্ধিত শ্রেণি সংখ্যা: {dashboardData.classesCount}টি। প্রকাশিত ফলাফল ওয়েব ও কেন্দ্রীয় পোর্টাল থেকে হালনাগাদ হয়।
+                </Text>
+              </View>
+            )}
+
+            {activeTab === 'fees' && (
+              <View style={styles.profileCard}>
+                <Text style={styles.sectionHeaderTitle}>💳 বেতন ও ফি সারসংক্ষেপ</Text>
+                <View style={styles.profileDivider} />
+                {dashboardData.financeSummary ? (
+                  <View style={styles.profileStatsRow}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>মোট আদায়</Text>
+                      <Text style={styles.statValueGreen}>
+                        ৳{dashboardData.financeSummary.totalCollected ?? 0}
+                      </Text>
+                    </View>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>মোট বকেয়া</Text>
+                      <Text style={styles.statValueBlue}>
+                        ৳{dashboardData.financeSummary.totalPending ?? 0}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.emptyInfoText}>
+                    এখনো কোনো আর্থিক সারসংক্ষেপ পাওয়া যায়নি। সিঙ্ক বাটনে চাপ দিয়ে আপডেট করুন।
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* Quick Action Grid */}
+            <Text style={styles.sectionHeaderTitle}>ডিজিটাল সেবাসমূহ</Text>
+            <View style={styles.gridContainer}>
+              <TouchableOpacity
+                style={[styles.gridCard, { backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }]}
+                onPress={() => setActiveTab('attendance')}
+              >
+                <Text style={styles.gridIcon}>📅</Text>
+                <Text style={styles.gridTitle}>ডিজিটাল হাজিরা</Text>
+                <Text style={styles.gridDesc}>কেন্দ্রীয় হাজিরা স্থিতি</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.gridCard, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}
+                onPress={() => setActiveTab('results')}
+              >
+                <Text style={styles.gridIcon}>🏆</Text>
+                <Text style={styles.gridTitle}>শ্রেণি ও ফলাফল</Text>
+                <Text style={styles.gridDesc}>{dashboardData.classesCount}টি শ্রেণি যুক্ত</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.gridCard, { backgroundColor: '#fdf4ff', borderColor: '#f5d0fe' }]}
+                onPress={() => setActiveTab('fees')}
+              >
+                <Text style={styles.gridIcon}>💳</Text>
+                <Text style={styles.gridTitle}>ফি সারসংক্ষেপ</Text>
+                <Text style={styles.gridDesc}>রিয়েল-টাইম হিসাব</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.gridCard, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}
+                onPress={handleManualSync}
+              >
+                <Text style={styles.gridIcon}>🔄</Text>
+                <Text style={styles.gridTitle}>ডাটা সিঙ্ক</Text>
+                <Text style={styles.gridDesc}>সর্বশেষ তথ্য আনুন</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Live Notice Board Preview */}
+            <View style={styles.noticeCard}>
+              <View style={styles.noticeHeader}>
+                <Text style={styles.noticeTitle}>📢 নোটিশ বোর্ড</Text>
+                <Text style={styles.noticeDate}>
+                  {latestNotice?.createdAt
+                    ? new Date(latestNotice.createdAt).toLocaleDateString('bn-BD')
+                    : 'হালনাগাদ'}
+                </Text>
+              </View>
+              <Text style={styles.noticeBody}>
+                {latestNotice
+                  ? `${latestNotice.title}${latestNotice.content ? ' — ' + latestNotice.content : ''}`
+                  : 'এখনো কোনো নোটিশ প্রকাশ করা হয়নি।'}
               </Text>
             </View>
-          </View>
-
-          <View style={styles.profileDivider} />
-
-          <View style={styles.profileStatsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>বার্ষিক উপস্থিতি</Text>
-              <Text style={styles.statValueGreen}>{student.attendanceRate}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>সর্বশেষ জিপিএ</Text>
-              <Text style={styles.statValueBlue}>৫.০০ (A+)</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>ফি স্ট্যাটাস</Text>
-              <Text style={styles.statValueGreen}>পরিশোধিত</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Live Attendance Alert Banner */}
-        <View style={styles.attendanceBanner}>
-          <View style={styles.liveDot} />
-          <View style={styles.attendanceTextWrapper}>
-            <Text style={styles.attendanceTitle}>আজকের ডিজিটাল হাজিরা</Text>
-            <Text style={styles.attendanceSubtitle}>{student.todayStatus}</Text>
-          </View>
-          <Text style={styles.checkIcon}>✅</Text>
-        </View>
-
-        {/* Tab-Specific Detail Section */}
-        {activeTab === 'attendance' && (
-          <View style={styles.profileCard}>
-            <Text style={styles.sectionHeaderTitle}>📊 মাসিক ডিজিটাল হাজিরা প্রতিবেদন</Text>
-            <View style={styles.profileDivider} />
-            <View style={styles.profileStatsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>মোট কার্যদিবস</Text>
-                <Text style={styles.statValueBlue}>২৬ দিন</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>উপস্থিত</Text>
-                <Text style={styles.statValueGreen}>২৫ দিন</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>অনুপস্থিত</Text>
-                <Text style={styles.statValueBlue}>১ দিন</Text>
-              </View>
-            </View>
-          </View>
+          </>
         )}
-
-        {activeTab === 'results' && (
-          <View style={styles.profileCard}>
-            <Text style={styles.sectionHeaderTitle}>🏆 একাডেমিক পরীক্ষার ফলাফল (২০২৬)</Text>
-            <View style={styles.profileDivider} />
-            <View style={styles.profileStatsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>পরীক্ষা</Text>
-                <Text style={styles.statValueBlue}>বার্ষিক ২০২৬</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>প্রাপ্ত জিপিএ</Text>
-                <Text style={styles.statValueGreen}>৫.০০ (A+)</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>মেধাক্রম</Text>
-                <Text style={styles.statValueGreen}>১ম স্থান</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {activeTab === 'fees' && (
-          <View style={styles.profileCard}>
-            <Text style={styles.sectionHeaderTitle}>💳 বেতন ও ফি খতিয়ান (২০২৬)</Text>
-            <View style={styles.profileDivider} />
-            <View style={styles.profileStatsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>মোট ধার্য</Text>
-                <Text style={styles.statValueBlue}>৳৪,৮০০</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>পরিশোধিত</Text>
-                <Text style={styles.statValueGreen}>৳৪,৮০০</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>বর্তমান বকেয়া</Text>
-                <Text style={styles.statValueGreen}>৳০</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Quick Action Grid */}
-        <Text style={styles.sectionHeaderTitle}>ডিজিটাল সেবাসমূহ</Text>
-        <View style={styles.gridContainer}>
-          <TouchableOpacity
-            style={[styles.gridCard, { backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }]}
-            onPress={() => setActiveTab('attendance')}
-          >
-            <Text style={styles.gridIcon}>📅</Text>
-            <Text style={styles.gridTitle}>ডিজিটাল হাজিরা</Text>
-            <Text style={styles.gridDesc}>দৈনিক প্রবেশ/প্রস্থান</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.gridCard, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}
-            onPress={() => setActiveTab('results')}
-          >
-            <Text style={styles.gridIcon}>🏆</Text>
-            <Text style={styles.gridTitle}>পরীক্ষার ফলাফল</Text>
-            <Text style={styles.gridDesc}>গ্রেডশিট ও মার্কশিট</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.gridCard, { backgroundColor: '#fdf4ff', borderColor: '#f5d0fe' }]}
-            onPress={() => setActiveTab('fees')}
-          >
-            <Text style={styles.gridIcon}>💳</Text>
-            <Text style={styles.gridTitle}>ফি পরিশোধ</Text>
-            <Text style={styles.gridDesc}>বিকাশ / নগদ পেমেন্ট</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.gridCard, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}
-            onPress={() => handleActionPress('ক্লাস রুটিন')}
-          >
-            <Text style={styles.gridIcon}>📖</Text>
-            <Text style={styles.gridTitle}>ক্লাস রুটিন</Text>
-            <Text style={styles.gridDesc}>আজ ৪টি ক্লাস বাকি</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Notice Board Preview */}
-        <View style={styles.noticeCard}>
-          <View style={styles.noticeHeader}>
-            <Text style={styles.noticeTitle}>📢 সর্বশেষ নোটিশ</Text>
-            <Text style={styles.noticeDate}>২৪ অক্টোবর ২০২৬</Text>
-          </View>
-          <Text style={styles.noticeBody}>
-            ২০২৬ শিক্ষাবর্ষের বার্ষিক পরীক্ষার চূড়ান্ত সময়সূচি ও আসন বিন্যাস প্রকাশিত হয়েছে। প্রবেশপত্র সংগ্রহ করতে যোগাযোগ করুন।
-          </Text>
-        </View>
 
         {/* Offline Sync Status Badge */}
         <TouchableOpacity
@@ -289,27 +469,29 @@ export default function App() {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
-          <Text style={styles.navIcon}>🏠</Text>
-          <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>হোম</Text>
-        </TouchableOpacity>
+      {authToken && (
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
+            <Text style={styles.navIcon}>🏠</Text>
+            <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>হোম</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('attendance')}>
-          <Text style={styles.navIcon}>📊</Text>
-          <Text style={[styles.navLabel, activeTab === 'attendance' && styles.navLabelActive]}>হাজিরা</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('attendance')}>
+            <Text style={styles.navIcon}>📊</Text>
+            <Text style={[styles.navLabel, activeTab === 'attendance' && styles.navLabelActive]}>হাজিরা</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('results')}>
-          <Text style={styles.navIcon}>📝</Text>
-          <Text style={[styles.navLabel, activeTab === 'results' && styles.navLabelActive]}>ফলাফল</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('results')}>
+            <Text style={styles.navIcon}>📝</Text>
+            <Text style={[styles.navLabel, activeTab === 'results' && styles.navLabelActive]}>ফলাফল</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('fees')}>
-          <Text style={styles.navIcon}>💳</Text>
-          <Text style={[styles.navLabel, activeTab === 'fees' && styles.navLabelActive]}>বেতন ও ফি</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('fees')}>
+            <Text style={styles.navIcon}>💳</Text>
+            <Text style={[styles.navLabel, activeTab === 'fees' && styles.navLabelActive]}>বেতন ও ফি</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -334,6 +516,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoutBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  logoutBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   logoBadge: {
     width: 38,
@@ -391,6 +590,72 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
     gap: 14,
+  },
+  centerBox: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    color: '#64748b',
+    fontSize: 12,
+  },
+  loginTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  loginSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    backgroundColor: '#f8fafc',
+    color: '#0f172a',
+  },
+  errorText: {
+    color: '#e11d48',
+    fontSize: 12,
+    marginTop: 10,
+    fontWeight: '600',
+  },
+  primaryButton: {
+    marginTop: 16,
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  apiEndpointNote: {
+    marginTop: 12,
+    fontSize: 10,
+    color: '#94a3b8',
+    textAlign: 'center',
   },
   profileCard: {
     backgroundColor: '#ffffff',
@@ -481,36 +746,10 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     marginTop: 2,
   },
-  attendanceBanner: {
-    backgroundColor: '#ecfdf5',
-    borderRadius: 14,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-    gap: 10,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10b981',
-  },
-  attendanceTextWrapper: {
-    flex: 1,
-  },
-  attendanceTitle: {
+  emptyInfoText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#065f46',
-  },
-  attendanceSubtitle: {
-    fontSize: 11,
-    color: '#047857',
-  },
-  checkIcon: {
-    fontSize: 16,
+    color: '#475569',
+    lineHeight: 18,
   },
   sectionHeaderTitle: {
     fontSize: 14,
