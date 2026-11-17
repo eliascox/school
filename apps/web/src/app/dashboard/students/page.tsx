@@ -171,11 +171,20 @@ export default function StudentListPage() {
   const [selectedCertForPrint, setSelectedCertForPrint] = useState<CertificateRecord | null>(null);
 
   useEffect(() => {
-    if (selectedStudent?.id) {
-      setStudentCertificates(certificateService.getCertificatesByStudentId(selectedStudent.id));
-    } else {
-      setStudentCertificates([]);
-    }
+    const syncCerts = () => {
+      if (selectedStudent?.id) {
+        setStudentCertificates(certificateService.getCertificatesByStudentId(selectedStudent.id));
+      } else {
+        setStudentCertificates([]);
+      }
+    };
+    syncCerts();
+    window.addEventListener('storage', syncCerts);
+    window.addEventListener('focus', syncCerts);
+    return () => {
+      window.removeEventListener('storage', syncCerts);
+      window.removeEventListener('focus', syncCerts);
+    };
   }, [selectedStudent]);
 
   // ─── 📸 DRAG & DROP PHOTO UPLOAD STATE ────────────────────────────────────

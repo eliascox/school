@@ -7,7 +7,6 @@ import {
   Award,
   CheckCircle2,
   ExternalLink,
-  Printer,
   QrCode,
   Search,
   Sparkles,
@@ -249,20 +248,6 @@ export function TranscriptWorkspace({
               />
               {lang === 'bn' ? 'যাচাই তথ্য' : 'Verify Info'}
             </label>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-xs cursor-pointer"
-            >
-              <Printer size={14} />
-              {mode === 'batch_transcript'
-                ? lang === 'bn'
-                  ? `ব্যাচ প্রিন্ট (${toBnDigits(targets.length)})`
-                  : `Batch Print (${targets.length})`
-                : lang === 'bn'
-                ? 'প্রিন্ট / PDF'
-                : 'Print / PDF'}
-            </button>
           </div>
         </div>
 

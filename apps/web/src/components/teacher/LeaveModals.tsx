@@ -3,6 +3,7 @@
 import React from 'react';
 import { Check, Printer, Send, X } from 'lucide-react';
 import { LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/leaveService';
+import { settingsService } from '@/services/settingsService';
 
 interface LeaveReviewModalProps {
   leave: LeaveApplication | null;
@@ -173,9 +174,15 @@ export function PrintLeaveSlipModal({
 }) {
   if (!leave) return null;
 
+  const schoolSettings = settingsService.getSettings();
+  const schoolName = schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান';
+  const schoolAddress = schoolSettings.address || '';
+  const estdYear = schoolSettings.estdYear || '';
+  const principalTitle = schoolSettings.principalTitle || 'প্রধান শিক্ষক';
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+    <div className="print-modal-active fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 print:static print:bg-white print:p-0">
+      <div className="bg-white dark:bg-slate-900 print:bg-white print:text-black rounded-3xl max-w-xl w-full p-6 shadow-2xl print:shadow-none print:max-w-none space-y-5 animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 print:hidden">
           <div className="flex items-center gap-2">
             <Printer size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -190,62 +197,66 @@ export function PrintLeaveSlipModal({
           </button>
         </div>
 
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-white space-y-4 font-sans">
+        <div className="border border-slate-200 dark:border-slate-800 print:border-slate-900 rounded-2xl p-6 bg-white dark:bg-slate-900 print:bg-white text-slate-900 dark:text-white print:text-black space-y-4 font-sans">
           <div className="text-center border-b-2 border-slate-900 pb-3 space-y-0.5">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">বরইতলী উচ্চ বিদ্যালয়</h2>
-            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ডাকঘর: বরইতলী, চকরিয়া, কক্সবাজার • স্থাপিত: ১৯৬৮ ইং</p>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white print:text-black">{schoolName}</h2>
+            <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 print:text-slate-800">
+              {schoolAddress}
+              {schoolAddress && estdYear ? ' • ' : ''}
+              {estdYear ? `স্থাপিত: ${estdYear} ইং` : ''}
+            </p>
             <div className="inline-block px-3 py-0.5 mt-1 bg-slate-900 text-white rounded-md text-[11px] font-black uppercase tracking-wider">
               শিক্ষক ছুটি মঞ্জুরিপত্র (LEAVE APPROVAL SLIP)
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-bold">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 print:text-slate-800 font-bold">
             <span>স্মারক নং: SMS/LEV/{leave.id}/2026</span>
             <span>তারিখ: {new Date(leave.reviewedAt || leave.appliedAt).toLocaleDateString('bn-BD')}</span>
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-1.5 text-xs">
+          <div className="bg-slate-50 dark:bg-slate-950 print:bg-white border border-slate-200 dark:border-slate-800 print:border-slate-300 rounded-xl p-3.5 space-y-1.5 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-bold">শিক্ষকের নাম:</span>
-              <strong className="text-slate-900 dark:text-white">{leave.teacherName}</strong>
+              <span className="text-slate-500 dark:text-slate-400 print:text-slate-700 font-bold">শিক্ষকের নাম:</span>
+              <strong className="text-slate-900 dark:text-white print:text-black">{leave.teacherName}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-bold">পদবি ও শিক্ষক আইডি:</span>
-              <span className="text-slate-800 dark:text-slate-100 font-bold">
+              <span className="text-slate-500 dark:text-slate-400 print:text-slate-700 font-bold">পদবি ও শিক্ষক আইডি:</span>
+              <span className="text-slate-800 dark:text-slate-100 print:text-black font-bold">
                 {leave.designation} ({leave.teacherId})
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-bold">ছুটির প্রকারভেদ:</span>
-              <span className="font-extrabold text-indigo-900 dark:text-indigo-200">
+              <span className="text-slate-500 dark:text-slate-400 print:text-slate-700 font-bold">ছুটির প্রকারভেদ:</span>
+              <span className="font-extrabold text-indigo-900 dark:text-indigo-200 print:text-black">
                 {LEAVE_TYPE_LABELS[leave.leaveType] || leave.leaveType}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-bold">মঞ্জুরকৃত ছুটির মেয়াদ:</span>
-              <span className="font-extrabold text-emerald-800 dark:text-emerald-200">
+              <span className="text-slate-500 dark:text-slate-400 print:text-slate-700 font-bold">মঞ্জুরকৃত ছুটির মেয়াদ:</span>
+              <span className="font-extrabold text-emerald-800 dark:text-emerald-200 print:text-black">
                 {leave.startDate} হতে {leave.endDate} পর্যন্ত (মোট {leave.totalDays} দিন)
               </span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-bold">ছুটির কারণ:</span>
-              <span className="text-slate-800 dark:text-slate-100 text-right max-w-xs">{leave.reason}</span>
+            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 print:border-slate-300 pt-1.5">
+              <span className="text-slate-500 dark:text-slate-400 print:text-slate-700 font-bold">ছুটির কারণ:</span>
+              <span className="text-slate-800 dark:text-slate-100 print:text-black text-right max-w-xs">{leave.reason}</span>
             </div>
           </div>
 
-          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs text-emerald-950 dark:text-emerald-200">
-            <strong className="block mb-0.5">প্রধান শিক্ষকের অনুমোদন ও নির্দেশনা:</strong>
+          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/50 print:bg-slate-50 border border-emerald-200 dark:border-emerald-800/60 print:border-slate-300 rounded-xl text-xs text-emerald-950 dark:text-emerald-200 print:text-black">
+            <strong className="block mb-0.5">{principalTitle}-এর অনুমোদন ও নির্দেশনা:</strong>
             <p className="font-semibold">{leave.remarks || 'ছুটি যথাযথ নিয়মে মঞ্জুর করা হলো।'}</p>
           </div>
 
-          <div className="pt-10 flex justify-between items-end text-xs font-bold text-slate-800 dark:text-slate-100">
+          <div className="pt-10 flex justify-between items-end text-xs font-bold text-slate-800 dark:text-slate-100 print:text-black">
             <div className="text-center">
-              <div className="w-32 border-t border-slate-400 dark:border-slate-700 pt-1">শিক্ষকের স্বাক্ষর</div>
+              <div className="w-32 border-t border-slate-400 dark:border-slate-700 print:border-slate-900 pt-1">শিক্ষকের স্বাক্ষর</div>
             </div>
             <div className="text-center">
-              <div className="w-36 border-t-2 border-slate-900 pt-1 font-black text-slate-900 dark:text-white">
-                প্রধান শিক্ষক
-                <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-normal">বরইতলী উচ্চ বিদ্যালয়</span>
+              <div className="w-36 border-t-2 border-slate-900 pt-1 font-black text-slate-900 dark:text-white print:text-black">
+                {principalTitle}
+                <span className="block text-[10px] text-slate-500 dark:text-slate-400 print:text-slate-700 font-normal">{schoolName}</span>
               </div>
             </div>
           </div>

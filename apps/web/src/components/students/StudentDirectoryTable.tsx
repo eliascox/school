@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, X, Camera, Printer, Plus, Eye, Pencil, Trash2, CreditCard } from 'lucide-react';
+import { Search, X, Camera, Printer, Plus, Eye, Pencil, Trash2, CreditCard, Award, FileCheck } from 'lucide-react';
 import { AppLanguage } from '@/services/languageService';
+import { settingsService } from '@/services/settingsService';
 import { StudentRecord, toBanglaNumeral, isFemaleGender } from './studentTypes';
 
 interface StudentDirectoryTableProps<T extends StudentRecord> {
@@ -67,6 +68,8 @@ export function StudentDirectoryTable<T extends StudentRecord>({
   onEditStudent,
   onDeleteStudent,
 }: StudentDirectoryTableProps<T>) {
+  const [openCertMenuId, setOpenCertMenuId] = useState<string | null>(null);
+
   return (
     <div className="space-y-4">
       {/* Top Compact Filter & Action Bar */}
@@ -193,6 +196,41 @@ export function StudentDirectoryTable<T extends StudentRecord>({
           </Link>
         </div>
       </div>
+
+      {/* Bulk Selection Certificate & Testimonial Action Bar */}
+      {selectedStudentIds.length > 0 && (
+        <div className="bg-gradient-to-r from-indigo-600 to-violet-700 text-white px-4 py-2.5 rounded-2xl shadow-md flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2 text-xs font-black">
+            <span className="px-2.5 py-0.5 bg-white/20 rounded-full font-mono">
+              {toBanglaNumeral(selectedStudentIds.length)} জন নির্বাচিত
+            </span>
+            <span className="hidden sm:inline text-indigo-100 font-semibold">
+              এক ক্লিকে সবার জন্য আলাদা সনদ বা প্রশংসাপত্র প্রস্তুত করুন
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/dashboard/certificates?action=batch&type=current_student&studentIds=${encodeURIComponent(selectedStudentIds.join(','))}`}
+              className="px-3 py-1.5 bg-white text-indigo-900 hover:bg-indigo-50 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-xs"
+            >
+              <FileCheck size={14} /> ব্যাচ প্রত্যয়নপত্র
+            </Link>
+            <Link
+              href={`/dashboard/certificates?action=batch&type=ssc_testimonial&studentIds=${encodeURIComponent(selectedStudentIds.join(','))}`}
+              className="px-3 py-1.5 bg-amber-400 text-slate-950 hover:bg-amber-300 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-xs"
+            >
+              <Award size={14} /> ব্যাচ প্রশংসাপত্র (Testimonial)
+            </Link>
+            <button
+              type="button"
+              onClick={() => setSelectedStudentIds([])}
+              className="px-2.5 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+            >
+              বাতিল
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Directory Table */}
       <div id="student-directory-table-top" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -331,7 +369,7 @@ export function StudentDirectoryTable<T extends StudentRecord>({
                     </td>
 
                     <td className="p-3.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1 relative">
                         <button
                           onClick={() => onViewStudent(st)}
                           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer"
@@ -339,6 +377,60 @@ export function StudentDirectoryTable<T extends StudentRecord>({
                         >
                           <Eye size={15} />
                         </button>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setOpenCertMenuId((prev) => (prev === st.id ? null : st.id))}
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${
+                              openCertMenuId === st.id
+                                ? 'bg-indigo-600 text-white'
+                                : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50'
+                            }`}
+                            title="এক-ক্লিক প্রত্যয়ন বা প্রশংসাপত্র তৈরি করুন"
+                          >
+                            <Award size={15} />
+                          </button>
+                          {openCertMenuId === st.id && (
+                            <div
+                              onMouseLeave={() => setOpenCertMenuId(null)}
+                              className="absolute right-0 top-8 z-30 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-1.5 text-left space-y-0.5"
+                            >
+                              <div className="px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
+                                সরাসরি সনদ ইস্যু
+                              </div>
+                              <Link
+                                href={`/dashboard/certificates?action=create&studentId=${st.id}&type=current_student`}
+                                className="block px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-700"
+                              >
+                                অধ্যয়নরত প্রত্যয়ন পত্র
+                              </Link>
+                              <Link
+                                href={`/dashboard/certificates?action=create&studentId=${st.id}&type=character_certificate`}
+                                className="block px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-sky-50 dark:hover:bg-sky-950/50 hover:text-sky-700"
+                              >
+                                চারিত্রিক সনদ পত্র
+                              </Link>
+                              <Link
+                                href={`/dashboard/certificates?action=create&studentId=${st.id}&type=transfer_certificate`}
+                                className="block px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-700"
+                              >
+                                ছাড়পত্র / টিসি (TC)
+                              </Link>
+                              <Link
+                                href={`/dashboard/certificates?action=create&studentId=${st.id}&type=ssc_testimonial`}
+                                className="block px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100"
+                              >
+                                প্রশংসাপত্র (স্টুডিও)
+                              </Link>
+                              <Link
+                                href={`/dashboard/ssc-transcript?studentId=${st.id}`}
+                                className="block px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                              >
+                                SSC অফিসিয়াল প্রশংসাপত্র
+                              </Link>
+                            </div>
+                          )}
+                        </div>
                         <button
                           onClick={() => onPrintStudentForm(st)}
                           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition cursor-pointer"
@@ -382,7 +474,7 @@ export function StudentDirectoryTable<T extends StudentRecord>({
             মোট রেজিস্টার্ড শিক্ষার্থী: <strong>{toBanglaNumeral(totalStudents)}</strong> জন (তালিকায় প্রদর্শিত:{' '}
             <strong>{toBanglaNumeral(filteredStudents.length)}</strong> জন)
           </span>
-          <span>বরইতলী উচ্চ বিদ্যালয় ডিজিটাল ডিরেক্টরি</span>
+          <span>{settingsService.getSettings().schoolName || 'প্রতিষ্ঠান'} ডিজিটাল ডিরেক্টরি</span>
         </div>
       </div>
     </div>

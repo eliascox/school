@@ -4,6 +4,7 @@ import {
   evaluateSubjectGradeAndPass,
   resultService,
 } from '../src/services/resultService';
+import { generateStudentMarksheetData } from '../src/components/OfficialMarksheetSheet';
 
 describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
   it('correctly maps percentage to standard NCTB Letter Grades and Grade Points', () => {
@@ -141,23 +142,35 @@ describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
     });
   });
 
-  it('supports combined CQ+MCQ pass with separate Practical in curriculum mode for science subjects', () => {
+  it('fails curriculum mode whenever EITHER CQ, MCQ, or Practical falls below 33%', () => {
     const physicsSubject = {
       fullMarks: 100,
       cq: 50,
       mcq: 25,
       practical: 25,
       ca: 0,
-      passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)',
+      passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)',
     };
 
-    // CQ=20, MCQ=6 -> combined 26 >= 25 (passes in curriculum CQ+MCQ combined!), Practical=10 >= 8
-    const resCurriculum = evaluateSubjectGradeAndPass(
-      { cq: 20, mcq: 6, practical: 10, ca: 0, total: 36 },
+    // CQ=40 (pass), MCQ=5 < 8 (fail!), Practical=20 (pass) -> total=65, MUST FAIL because MCQ failed
+    const resMcqFail = evaluateSubjectGradeAndPass(
+      { cq: 40, mcq: 5, practical: 20, ca: 0, total: 65 },
       physicsSubject,
       'curriculum',
     );
-    expect(resCurriculum.isPassed).toBe(true);
+    expect(resMcqFail.isPassed).toBe(false);
+    expect(resMcqFail.letterGrade).toBe('F');
+    expect(resMcqFail.failedComponents).toContain('MCQ (5/8)');
+
+    // CQ=10 < 17 (fail!), MCQ=22 (pass), Practical=20 (pass) -> total=52, MUST FAIL because CQ failed
+    const resCqFail = evaluateSubjectGradeAndPass(
+      { cq: 10, mcq: 22, practical: 20, ca: 0, total: 52 },
+      physicsSubject,
+      'curriculum',
+    );
+    expect(resCqFail.isPassed).toBe(false);
+    expect(resCqFail.letterGrade).toBe('F');
+    expect(resCqFail.failedComponents).toContain('CQ (10/17)');
 
     // Fails if practical is 5 < 8
     const resPracticalFail = evaluateSubjectGradeAndPass(
@@ -167,5 +180,76 @@ describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
     );
     expect(resPracticalFail.isPassed).toBe(false);
     expect(resPracticalFail.failedComponents).toContain('Practical (5/8)');
+
+    // Passes only when all components meet 33%
+    const resAllPass = evaluateSubjectGradeAndPass(
+      { cq: 17, mcq: 8, practical: 8, ca: 0, total: 33 },
+      physicsSubject,
+      'curriculum',
+    );
+    expect(resAllPass.isPassed).toBe(true);
+    expect(resAllPass.letterGrade).toBe('D');
+  });
+
+  it('maintains 100% parity between OfficialMarksheetSheet and resultService for component fail & 4th subject full marks', () => {
+    const store: Record<string, string> = {};
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => { store[k] = v; },
+      removeItem: (k: string) => { delete store[k]; },
+      clear: () => { for (const k of Object.keys(store)) delete store[k]; }
+    };
+    (globalThis as any).window = { dispatchEvent: () => true };
+
+    const student = {
+      id: 'STD-901',
+      roll: '01',
+      name: 'তানভীর আহমেদ',
+      grade: '9th',
+      gradeBn: '৯ম শ্রেণি',
+      section: 'A',
+      group: 'বিজ্ঞান',
+      fatherName: 'আব্দুল করিম',
+      motherName: 'রাহেলা বেগম',
+      session: '২০২৬',
+      optionalSubject: 'উচ্চতর গণিত',
+    };
+
+    // Physics: CQ=45, MCQ=5 (FAIL < 8), Practical=25 -> Total 75, MUST FAIL in both resultService and marksheet!
+    store['sms_marks_exam_test_9th_A_বিজ্ঞান_PHY-136'] = JSON.stringify([
+      { roll: '01', cq: 45, mcq: 5, practical: 25, total: 75 },
+    ]);
+    // Higher Math (4th optional): CQ=45, MCQ=20, Practical=20 -> Total 85 (GP 5.0, Bonus 3.0)
+    store['sms_marks_exam_test_9th_A_বিজ্ঞান_HMT-126'] = JSON.stringify([
+      { roll: '01', cq: 45, mcq: 20, practical: 20, total: 85 },
+    ]);
+
+    const resEngine = resultService.calculateStudentResult({
+      examId: 'exam_test',
+      student,
+      grade: '9th',
+      branch: 'A',
+      group: 'বিজ্ঞান',
+    });
+
+    const marksheet = generateStudentMarksheetData(student, {
+      selectedExam: 'exam_test',
+      selectedGrade: '9th',
+      selectedBranch: 'A',
+    });
+
+    const phyMarksheet = marksheet.subjects.find((s) => s.code === 'PHY-136');
+    expect(phyMarksheet?.letterGrade).toBe('F');
+    expect(phyMarksheet?.gradePoint).toBe(0.0);
+    expect(marksheet.hasFailed).toBe(true);
+    expect(marksheet.overallGrade).toBe('F');
+    expect(resEngine?.subjectMarks['PHY-136']?.letterGrade).toBe('F');
+    expect(resEngine?.isPassed).toBe(false);
+
+    // Compulsory (1050) + Optional (100) = 1150, matching resultService 100%
+    expect(marksheet.totalFull).toBe(resEngine?.totalFullMarks);
+    expect(marksheet.totalObtained).toBe(resEngine?.totalObtainedMarks);
+    expect(marksheet.optionalSubject?.name).toBe('উচ্চতর গণিত');
+    expect(marksheet.bonusGP).toBe(3.0);
   });
 });

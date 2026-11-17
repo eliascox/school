@@ -808,8 +808,8 @@ export default function ProfessionalMarkEntryPage() {
       {/* 🖨️ MODAL: PRINTABLE SUBJECT MARKSHEET REPORT                       */}
       {/* ═════════════════════════════════════════════════════════════════ */}
       {printMarksheetModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:static print:inset-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto print:max-h-none print:shadow-none print:w-full print:rounded-none">
+        <div className="print-modal-active fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:text-black print:static print:inset-auto">
+          <div className="bg-white dark:bg-slate-900 print:bg-white print:text-black rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto print:overflow-visible print:max-h-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
             
             {/* Top Bar */}
             <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 p-4 rounded-t-3xl text-white flex items-center justify-between print:hidden">
@@ -835,12 +835,12 @@ export default function ProfessionalMarkEntryPage() {
             </div>
 
             {/* Paper Sheet */}
-            <div className="p-8 sm:p-10 font-serif text-slate-950 dark:text-white space-y-6 print:p-0 print:m-0">
+            <div className="p-8 sm:p-10 font-serif text-slate-950 dark:text-white print:bg-white print:text-black space-y-6 print:p-0 print:m-0">
               <div className="text-center border-b-2 border-slate-950 pb-4 space-y-1.5">
-                <h1 className="text-2xl sm:text-3xl font-black uppercase text-slate-950 dark:text-white">
+                <h1 className="text-2xl sm:text-3xl font-black uppercase text-slate-950 dark:text-white print:text-black">
                   {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
                 </h1>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 print:text-slate-800">
                   {mounted
                     ? `${settingsService.getSettings().address || ''}${settingsService.getSettings().address && settingsService.getSettings().eiin ? ' | ' : ''}${settingsService.getSettings().eiin ? `EIIN: ${settingsService.getSettings().eiin}` : ''}`
                     : ''}
@@ -850,7 +850,7 @@ export default function ProfessionalMarkEntryPage() {
                     বিষয়ভিত্তিক পরীক্ষা নম্বরপত্র - {selectedExam}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 pt-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 print:text-slate-900 pt-2">
                   <span>শ্রেণি: {gradeNameBn} ({selectedBranch} {selectedGrade === '9th' || selectedGrade === '10th' ? 'গ্রুপ' : 'শাখা'})</span>
                   <span>বিষয়: {selectedSubject}</span>
                   <span>মোট পরীক্ষার্থী: {marks.length} জন</span>
@@ -860,7 +860,7 @@ export default function ProfessionalMarkEntryPage() {
               <div className="overflow-hidden border border-slate-950 rounded-lg">
                 <table className="w-full text-left text-xs border-collapse font-sans">
                   <thead>
-                    <tr className="bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white font-black uppercase text-[11px] border-b border-slate-950">
+                    <tr className="bg-slate-200 dark:bg-slate-800 print:bg-slate-100 text-slate-950 dark:text-white print:text-black font-black uppercase text-[11px] border-b border-slate-950">
                       <th className="p-2.5 text-center border-r border-slate-950 w-14">রোল</th>
                       <th className="p-2.5 border-r border-slate-950">শিক্ষার্থীর নাম</th>
                       <th className="p-2.5 text-center border-r border-slate-950 w-24">সিকিউ (70)</th>

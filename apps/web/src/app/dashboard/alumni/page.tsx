@@ -311,6 +311,13 @@ export default function AlumniPortalPage() {
                 </div>
 
                 <div className="flex items-center gap-1 no-print">
+                  <Link
+                    href={`/dashboard/certificates?action=create&alumniId=${a.id}&type=ssc_testimonial`}
+                    className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-[10px] font-black transition flex items-center gap-1"
+                    title="এই প্রাক্তন শিক্ষার্থীর প্রশংসাপত্র / সনদ তৈরি করুন"
+                  >
+                    <Award className="w-3 h-3" /> প্রশংসাপত্র
+                  </Link>
                   <button
                     type="button"
                     onClick={() => openEditModal(a)}

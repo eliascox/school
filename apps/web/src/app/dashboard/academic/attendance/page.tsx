@@ -725,17 +725,17 @@ export default function AttendancePage() {
           <div className="lg:col-span-2 space-y-4">
             
             {/* White paper card */}
-            <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md text-slate-950 dark:text-white font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
+            <div className="bg-white dark:bg-slate-900 print:bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md text-slate-950 dark:text-white print:text-black font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
               
               {/* Document Header */}
               <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
                 <div className="flex items-center justify-center gap-2">
-                  <Building2 className="w-7 h-7 text-slate-900 dark:text-white" />
-                  <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white font-sans">
+                  <Building2 className="w-7 h-7 text-slate-900 dark:text-white print:text-black" />
+                  <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white print:text-black font-sans">
                     {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
                   </h2>
                 </div>
-                <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 font-sans">
+                <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 print:text-slate-800 font-sans">
                   {mounted
                     ? `${settingsService.getSettings().address || ''}${settingsService.getSettings().eiin ? ` | EIIN: ${settingsService.getSettings().eiin}` : ''}${settingsService.getSettings().estdYear ? ` | স্থাপিত: ${settingsService.getSettings().estdYear}` : ''}`
                     : ''}
@@ -749,7 +749,7 @@ export default function AttendancePage() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700 dark:text-slate-300 pt-3 px-1 font-sans">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700 dark:text-slate-300 print:text-black pt-3 px-1 font-sans">
                   <span>শ্রেণি পরিসর: {(isAdminRole && printScope === 'all') ? 'সকল শ্রেণি (৬ষ্ঠ - ১০ম)' : `${gradeNameBn} (${branchNameBn})`}</span>
                   <span>তারিখ: {selectedDate}</span>
                   <span>মোট ডাটা সংখ্যা: {printableList.length} জন</span>
@@ -760,7 +760,7 @@ export default function AttendancePage() {
               <div className="overflow-hidden border border-slate-950 rounded-lg">
                 <table className="w-full text-left text-xs border-collapse font-sans">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white font-black border-b border-slate-950 text-[10px] uppercase">
+                    <tr className="bg-slate-50 dark:bg-slate-950 print:bg-slate-100 text-slate-950 dark:text-white print:text-black font-black border-b border-slate-950 text-[10px] uppercase">
                       <th className="p-2 border-r border-slate-950 w-28">শ্রেণি ও বিভাগ</th>
                       <th className="p-2 text-center border-r border-slate-950 w-12">রোল</th>
                       <th className="p-2 border-r border-slate-950">শিক্ষার্থীর নাম</th>
@@ -770,7 +770,7 @@ export default function AttendancePage() {
                       {printReportType === 'all' && <th className="p-2">মন্তব্য / কারণ</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-950 text-slate-950 dark:text-white font-medium">
+                  <tbody className="divide-y divide-slate-950 text-slate-950 dark:text-white print:text-black font-medium">
                     {printableList.length === 0 ? (
                       <tr>
                         <td colSpan={printReportType === 'all' ? 7 : 6} className="p-4 text-center text-slate-500 dark:text-slate-400 font-bold italic">

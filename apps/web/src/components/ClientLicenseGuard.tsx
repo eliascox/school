@@ -17,6 +17,9 @@ import {
 import { clientLicenseService, ClientRegistrationState } from '@/services/clientLicenseService';
 import AutoUpdateModal from '@/components/AutoUpdateModal';
 
+const IS_LICENSE_GUARD_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_LICENSE_GUARD === 'true';
+
 export default function ClientLicenseGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,6 +38,8 @@ export default function ClientLicenseGuard({ children }: { children: React.React
 
   useEffect(() => {
     setMounted(true);
+    if (!IS_LICENSE_GUARD_ENABLED) return;
+
     refreshState();
 
     // Start Real-Time Watchdog Heartbeat
@@ -81,7 +86,16 @@ export default function ClientLicenseGuard({ children }: { children: React.React
     pathname?.startsWith('/login') ||
     pathname?.startsWith('/teacher-login');
 
-  // If on public routes, super admin, or registration page, bypass client locking
+  // If license system is turned off or route is public/register/super-admin, render directly
+  if (!IS_LICENSE_GUARD_ENABLED) {
+    return (
+      <>
+        {children}
+        {mounted && <AutoUpdateModal />}
+      </>
+    );
+  }
+
   if (isSuperAdminRoute || isRegisterRoute || isPublicRoute) {
     return <>{children}</>;
   }

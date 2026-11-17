@@ -28,8 +28,14 @@ import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
 import { studentService, Student } from '@/services/studentService';
+import { alumniService } from '@/services/alumniService';
 import { settingsService, SchoolSettings, CustomPngBorder } from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
+import {
+  buildDefaultRefNo,
+  parseAddressParts,
+  resolveStudentLatestResultGpa,
+} from '@/lib/certificateEngine';
 import {
   buildRecordFromStudent,
   cleanFatherName,
@@ -129,10 +135,10 @@ function SSCTestimonialsContent() {
   const [singleStudentName, setSingleStudentName] = useState('');
   const [singleFatherName, setSingleFatherName] = useState('');
   const [singleMotherName, setSingleMotherName] = useState('');
-  const [singleVillage, setSingleVillage] = useState('Boraitoli');
-  const [singlePostOffice, setSinglePostOffice] = useState('Boraitoli');
-  const [singleUpazilla, setSingleUpazilla] = useState('Chakaria');
-  const [singleDistrict, setSingleDistrict] = useState("Cox's Bazar");
+  const [singleVillage, setSingleVillage] = useState('');
+  const [singlePostOffice, setSinglePostOffice] = useState('');
+  const [singleUpazilla, setSingleUpazilla] = useState('');
+  const [singleDistrict, setSingleDistrict] = useState('');
   const [singleDob, setSingleDob] = useState('2009-05-14');
   const [singleGender, setSingleGender] = useState<'Male' | 'Female' | 'Other'>('Male');
   const [singleGroup, setSingleGroup] = useState('Science');
@@ -176,9 +182,7 @@ function SSCTestimonialsContent() {
     const unsubLang = languageService.subscribe((l) => setCurrentLang(l));
     loadData();
 
-    const year = new Date().getFullYear();
-    const rand = Math.floor(100 + Math.random() * 900);
-    setSingleRefNo(`BHS/SSC-TEST/${year}/${rand}`);
+    setSingleRefNo(buildDefaultRefNo(settingsService.getSettings()));
 
     const handleSyncSettings = () => {
       setSchoolSettings(settingsService.getSettings());
@@ -219,11 +223,11 @@ function SSCTestimonialsContent() {
         studentName: record.studentName,
         fatherName: cleanFatherName(record.fatherName),
         motherName: cleanMotherName(record.motherName),
-        village: record.village || 'Boraitoli',
-        postOffice: record.postOffice || 'Boraitoli',
-        upazila: record.upazilla || 'Chakaria',
-        district: record.district || "Cox's Bazar",
-        dob: record.dob || '2009-05-14',
+        village: record.village || '',
+        postOffice: record.postOffice || '',
+        upazila: record.upazilla || '',
+        district: record.district || '',
+        dob: record.dob || '',
         grade: '10th',
         roll: record.boardRoll || '01',
         section: 'A',
@@ -396,30 +400,81 @@ function SSCTestimonialsContent() {
     showAlert('success', 'পিএনজি বর্ডার মুছে ফেলা হয়েছে!');
   };
 
+  const populateSingleFromStudent = useCallback(
+    (s: Student, switchTab = true) => {
+      setSelectedStudent(s);
+      setSingleStudentName(s.nameEn || s.name || '');
+      setSingleFatherName(s.fatherNameEn || s.fatherName || s.guardian || '');
+      setSingleMotherName(s.motherNameEn || s.motherName || '');
+      const parsedAddr = parseAddressParts(s.permanentAddress || s.currentAddress || '', schoolSettings);
+      setSingleVillage(getStudentExtraField(s, 'village') || parsedAddr.village || '');
+      setSinglePostOffice(getStudentExtraField(s, 'postOffice') || parsedAddr.postOffice || '');
+      setSingleUpazilla(
+        getStudentExtraField(s, 'upazilla') || getStudentExtraField(s, 'upazila') || parsedAddr.upazila || ''
+      );
+      setSingleDistrict(getStudentExtraField(s, 'district') || parsedAddr.district || '');
+      setSingleDob(s.dob || '');
+      const normalizedGender: 'Male' | 'Female' | 'Other' =
+        s.gender === 'Female' || s.gender?.includes('মহিলা') || s.gender?.includes('নারী') || s.gender?.includes('মেয়ে')
+          ? 'Female'
+          : s.gender === 'Other'
+            ? 'Other'
+            : 'Male';
+      setSingleGender(normalizedGender);
+      setSingleRemarks(
+        normalizedGender === 'Female'
+          ? 'She bears an exemplary moral character.'
+          : 'He bears an exemplary moral character.'
+      );
+      setSingleGroup(translateGroupToEnglish(s.group));
+      const pseudoBoardRoll = s.sscRoll || (102000 + parseInt(s.roll || '1', 10)).toString();
+      const pseudoRegNo = s.registrationNo || `1810293${s.roll?.padStart(3, '0') || '001'}`;
+      setSingleBoardRoll(pseudoBoardRoll);
+      setSingleBoardReg(pseudoRegNo);
+      const gpaRes = resolveStudentLatestResultGpa(s);
+      if (gpaRes.gpa) {
+        setSingleGpa(gpaRes.gpa);
+        if (gpaRes.gradeLetter) setSingleGradeLetter(gpaRes.gradeLetter);
+      }
+      if (switchTab) setActiveTab('single_generator');
+    },
+    [schoolSettings]
+  );
+
   const handleSelectStudentForSingle = (s: Student) => {
-    setSelectedStudent(s);
-    setSingleStudentName(s.name || '');
-    setSingleFatherName(s.fatherName || 'Md. Ibrahim');
-    setSingleMotherName(s.motherName || 'Fatema Begum');
-    setSingleVillage(getStudentExtraField(s, 'village') || 'Boraitoli');
-    setSinglePostOffice(getStudentExtraField(s, 'postOffice') || 'Boraitoli');
-    setSingleUpazilla(getStudentExtraField(s, 'upazilla') || getStudentExtraField(s, 'upazila') || 'Chakaria');
-    setSingleDistrict(getStudentExtraField(s, 'district') || "Cox's Bazar");
-    setSingleDob(s.dob || '2009-05-14');
-    const normalizedGender: 'Male' | 'Female' | 'Other' =
-      s.gender === 'Female' || s.gender?.includes('মহিলা') || s.gender?.includes('নারী') || s.gender?.includes('মেয়ে')
-        ? 'Female'
-        : s.gender === 'Other'
-          ? 'Other'
-          : 'Male';
-    setSingleGender(normalizedGender);
-    setSingleGroup(translateGroupToEnglish(s.group));
-    const pseudoBoardRoll = (102000 + parseInt(s.roll || '1', 10)).toString();
-    const pseudoRegNo = `1810293${s.roll?.padStart(3, '0') || '001'}`;
-    setSingleBoardRoll(pseudoBoardRoll);
-    setSingleBoardReg(pseudoRegNo);
+    populateSingleFromStudent(s, true);
     handleTabChange('single_generator');
   };
+
+  useEffect(() => {
+    const sid = searchParams?.get('studentId');
+    if (!sid || !mounted) return;
+    const activeMatch = students.find((s) => s.id === sid);
+    if (activeMatch) {
+      populateSingleFromStudent(activeMatch, true);
+      return;
+    }
+    const alm = alumniService.getAlumni().find((a) => a.id === sid || a.studentId === sid);
+    if (alm) {
+      const synthetic: Student = {
+        id: alm.studentId || alm.id,
+        name: alm.name,
+        roll: alm.sscRoll || '',
+        grade: '10th',
+        section: 'A',
+        group: alm.group || 'সাধারণ',
+        fatherName: alm.fatherName,
+        motherName: alm.motherName,
+        sscRoll: alm.sscRoll,
+        registrationNo: alm.regNo,
+        session: alm.batch || alm.passingYear,
+        gpa: alm.gpa,
+        permanentAddress: alm.address,
+      };
+      populateSingleFromStudent(synthetic, true);
+      if (alm.passingYear) setSinglePassingYear(alm.passingYear);
+    }
+  }, [searchParams, students, mounted, populateSingleFromStudent]);
 
   const handleDownloadExcelTemplate = () => {
     try {
@@ -448,10 +503,10 @@ function SSCTestimonialsContent() {
             gender === 'Female'
               ? 'She bears an exemplary moral character.'
               : 'He bears an exemplary moral character.',
-          Village: 'Boraitoli',
-          Post_Office: 'Boraitoli',
-          Upazilla: 'Chakaria',
-          District: "Cox's Bazar",
+          Village: '',
+          Post_Office: '',
+          Upazilla: '',
+          District: '',
         };
       });
 
@@ -576,10 +631,10 @@ function SSCTestimonialsContent() {
           14,
           genderVal === 'Female' ? 'She bears an exemplary moral character.' : 'He bears an exemplary moral character.'
         );
-        const village = cell(15, 'Boraitoli');
-        const postOffice = cell(16, 'Boraitoli');
-        const upazilla = cell(17, 'Chakaria');
-        const district = cell(18, "Cox's Bazar");
+        const village = cell(15, '');
+        const postOffice = cell(16, '');
+        const upazilla = cell(17, '');
+        const district = cell(18, '');
 
         const rec: SSCTestimonialRecord = {
           id: `TESTIMONIAL-SSC-${yearVal}-${idx + 1}`,
@@ -600,7 +655,7 @@ function SSCTestimonialsContent() {
           schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
           eiin: schoolSettings.eiin || '---',
           boardName: 'Board of Intermediate and Secondary Education, Chattogram',
-          centerName: 'Chakaria-1',
+          centerName: schoolSettings.address || '—',
           group: grp,
           boardRoll: bRoll,
           boardReg: bReg,
@@ -677,10 +732,10 @@ function SSCTestimonialsContent() {
       studentName: singleStudentName,
       fatherName: singleFatherName,
       motherName: singleMotherName,
-      village: singleVillage.trim() || 'Boraitoli',
-      postOffice: singlePostOffice.trim() || 'Boraitoli',
-      upazilla: singleUpazilla.trim() || 'Chakaria',
-      district: singleDistrict.trim() || "Cox's Bazar",
+      village: singleVillage.trim(),
+      postOffice: singlePostOffice.trim(),
+      upazilla: singleUpazilla.trim(),
+      district: singleDistrict.trim(),
       dob: singleDob,
       dobWords: formatDobInWords(singleDob),
       gender: singleGender,
@@ -690,7 +745,7 @@ function SSCTestimonialsContent() {
       schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
       eiin: schoolSettings.eiin || '---',
       boardName: 'Board of Intermediate and Secondary Education, Chattogram',
-      centerName: 'Chakaria-1',
+      centerName: singleUpazilla.trim() || 'Exam Center',
       group: translateGroupToEnglish(singleGroup),
       boardRoll: singleBoardRoll,
       boardReg: singleBoardReg,
@@ -711,10 +766,10 @@ function SSCTestimonialsContent() {
       studentName: singleStudentName,
       fatherName: singleFatherName,
       motherName: singleMotherName,
-      village: singleVillage.trim() || 'Boraitoli',
-      postOffice: singlePostOffice.trim() || 'Boraitoli',
-      upazila: singleUpazilla.trim() || 'Chakaria',
-      district: singleDistrict.trim() || "Cox's Bazar",
+      village: singleVillage.trim(),
+      postOffice: singlePostOffice.trim(),
+      upazila: singleUpazilla.trim(),
+      district: singleDistrict.trim(),
       dob: singleDob,
       grade: '10th',
       roll: selectedStudent?.roll || '01',
@@ -947,10 +1002,10 @@ function SSCTestimonialsContent() {
                     studentName: 'MOHAMMAD SHIHAB UDDIN',
                     fatherName: 'MD. IBRAHIM',
                     motherName: 'BEGUM FATEMA',
-                    village: 'Boraitoli',
-                    postOffice: 'Boraitoli',
-                    upazilla: 'Chakaria',
-                    district: "Cox's Bazar",
+                    village: '—',
+                    postOffice: '—',
+                    upazilla: '—',
+                    district: '—',
                     gender: 'Male',
                     dob: '2009-05-14',
                     dobWords: 'Fourteenth May Two Thousand and Nine',
@@ -959,7 +1014,7 @@ function SSCTestimonialsContent() {
                     schoolAddress: schoolSettings.address || '',
                     schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
                     eiin: schoolSettings.eiin || '---',
-                    centerName: 'Chakaria-1',
+                    centerName: schoolSettings.address || '—',
                     group: 'Science',
                     boardRoll: '102931',
                     boardReg: '1810293819',

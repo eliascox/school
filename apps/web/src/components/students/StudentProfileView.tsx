@@ -51,7 +51,7 @@ export function StudentProfileView({
   return (
     <div className="space-y-6">
       {/* Executive Top Navigation Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm ${selectedCertForPrint ? 'print:hidden' : ''}`}>
         <button
           onClick={onBackToList}
           className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-xs transition cursor-pointer self-start sm:self-auto"
@@ -76,7 +76,7 @@ export function StudentProfileView({
       </div>
 
       {/* Profile Main Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden space-y-6">
+      <div className={`bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden space-y-6 ${selectedCertForPrint ? 'print:hidden' : ''}`}>
         {/* Banner Header */}
         <div className="bg-gradient-to-br from-indigo-800 via-indigo-900 to-slate-950 p-6 sm:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
@@ -292,11 +292,11 @@ export function StudentProfileView({
                 <div className="space-y-2 text-xs font-bold text-slate-800 dark:text-slate-100">
                   <div>
                     <span className="text-[10px] text-slate-400 block uppercase">বর্তমান ঠিকানা</span>
-                    <span>{selectedStudent.currentAddress || 'বরইতলী, চকরিয়া'}</span>
+                    <span>{selectedStudent.currentAddress || '—'}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block uppercase">স্থায়ী ঠিকানা</span>
-                    <span>{selectedStudent.permanentAddress || selectedStudent.currentAddress || 'বরইতলী, চকরিয়া'}</span>
+                    <span>{selectedStudent.permanentAddress || selectedStudent.currentAddress || '—'}</span>
                   </div>
                   <div className="pt-2 flex items-center gap-3 border-t border-amber-200/60 dark:border-amber-800/60">
                     {qrCodeUrl && (
@@ -324,12 +324,32 @@ export function StudentProfileView({
                 </p>
               </div>
 
-              <Link
-                href={`/dashboard/certificates?action=create&studentId=${selectedStudent.id}`}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm self-start sm:self-auto"
-              >
-                <Plus size={14} /> নতুন সনদ তৈরি করুন
-              </Link>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link
+                  href={`/dashboard/certificates?action=create&studentId=${selectedStudent.id}&type=current_student`}
+                  className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                >
+                  অধ্যয়নরত প্রত্যয়ন
+                </Link>
+                <Link
+                  href={`/dashboard/certificates?action=create&studentId=${selectedStudent.id}&type=character_certificate`}
+                  className="px-3 py-2 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 text-sky-800 dark:text-sky-200 border border-sky-200 dark:border-sky-800 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                >
+                  চারিত্রিক সনদ
+                </Link>
+                <Link
+                  href={`/dashboard/certificates?action=create&studentId=${selectedStudent.id}&type=transfer_certificate`}
+                  className="px-3 py-2 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                >
+                  ছাড়পত্র (TC)
+                </Link>
+                <Link
+                  href={`/dashboard/certificates?action=create&studentId=${selectedStudent.id}&type=ssc_testimonial`}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus size={14} /> প্রশংসাপত্র / সনদ স্টুডিও
+                </Link>
+              </div>
             </div>
 
             {studentCertificates.length > 0 ? (
@@ -421,7 +441,7 @@ export function StudentProfileView({
 
         {/* Certificate Print Preview Modal */}
         {selectedCertForPrint && (
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto print:p-0 print:bg-white print:relative print:z-auto print:block">
+          <div className="print-modal-active fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto print:p-0 print:bg-white print:relative print:z-auto print:block">
             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[96vh] overflow-y-auto print:overflow-visible print:shadow-none print:max-w-none print:rounded-none">
               <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 print:hidden">
                 <div>

@@ -145,6 +145,39 @@ export function StudentEditFormView<T extends StudentRecord>({
               </div>
 
               <div>
+                <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">ইংরেজি নাম (সনদ/প্রশংসাপত্রের জন্য)</label>
+                <input
+                  type="text"
+                  value={editFormData.nameEn || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, nameEn: e.target.value })}
+                  placeholder="Student Name in English"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">পিতার ইংরেজি নাম (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={editFormData.fatherNameEn || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, fatherNameEn: e.target.value })}
+                  placeholder="Father Name in English"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">মাতার ইংরেজি নাম (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={editFormData.motherNameEn || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, motherNameEn: e.target.value })}
+                  placeholder="Mother Name in English"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
                 <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-1">জন্ম তারিখ (DOB)</label>
                 <input
                   type="date"

@@ -4,6 +4,7 @@ import {
   buildClassSectionSummary,
   buildFailList,
   buildSubjectWiseReport,
+  getPopulatedCohorts,
   sortStudentResults,
   TieBreakerRule,
 } from '../src/lib/resultAnalyticsEngine';
@@ -275,5 +276,21 @@ describe('SchoolPro Result Analytics Engine & Reports Suite', () => {
       },
     });
     expect(wb.SheetNames).toEqual(['Report_Info', 'Fail_Analysis']);
+  });
+
+  it('discovers populated cohorts and grade counts accurately for smart default selection', () => {
+    const students: Student[] = [
+      { id: '1', roll: '01', name: 'Nusrat', grade: '6th', section: 'A', group: 'সাধারণ' },
+      { id: '2', roll: '02', name: 'Karim', grade: '6th', section: 'A', group: 'সাধারণ' },
+      { id: '3', roll: '01', name: 'Tariq', grade: '9th', section: 'Science', group: 'বিজ্ঞান' },
+    ];
+    const meta = getPopulatedCohorts(students);
+    expect(meta.gradeCounts['6th']).toBe(2);
+    expect(meta.gradeCounts['9th']).toBe(1);
+    expect(meta.gradeCounts['8th']).toBe(0);
+    expect(meta.cohorts).toEqual([
+      { grade: '6th', branch: 'A', group: 'সাধারণ', count: 2 },
+      { grade: '9th', branch: 'Science', group: 'বিজ্ঞান', count: 1 },
+    ]);
   });
 });

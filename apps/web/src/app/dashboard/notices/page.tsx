@@ -466,7 +466,7 @@ export default function NoticesPage() {
       publisherRole,
     };
 
-    const text = `${schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}\n${schoolSettings.address || 'বরইতলী, চকরিয়া, কক্সবাজার।'}\nEIIN: ${schoolSettings.eiin || '106184'} , স্থাপিত: ${schoolSettings.estdYear || '1969'} খ্রি .\nমোবাইল নম্বর: ${schoolSettings.phone || '01819-000000'}\n\nস্মারক নং: ${activeNotice.refNo || ''}   তারিখ: ${formatNoticeDate(activeNotice.publishedAt)}\n\nবিজ্ঞপ্তি / নোটিশ\n\n${activeNotice.content}\n\n${activeNotice.publisherName || schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}\n${activeNotice.publisherRole || schoolSettings.principalTitle || 'প্রধান শিক্ষক'}\n${schoolSettings.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}`;
+    const text = `${schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান'}\n${schoolSettings.address || ''}\nEIIN: ${schoolSettings.eiin || '—'}${schoolSettings.estdYear ? ` , স্থাপিত: ${schoolSettings.estdYear} খ্রি.` : ''}\nমোবাইল নম্বর: ${schoolSettings.phone || '—'}\n\nস্মারক নং: ${activeNotice.refNo || ''}   তারিখ: ${formatNoticeDate(activeNotice.publishedAt)}\n\nবিজ্ঞপ্তি / নোটিশ\n\n${activeNotice.content}\n\n${activeNotice.publisherName || schoolSettings.principalName || '—'}\n${activeNotice.publisherRole || schoolSettings.principalTitle || 'প্রধান শিক্ষক'}\n${schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান'}`;
     navigator.clipboard.writeText(text);
     showAlert('success', 'নোটিশের পূর্ণাঙ্গ টেক্সট ক্লিপবোর্ডে কপি করা হয়েছে!');
   };

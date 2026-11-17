@@ -435,8 +435,28 @@ input[type="number"] {
     print-color-adjust: exact !important;
   }
 
-  aside, header, nav, .print\:hidden, [data-print-hidden="true"] {
+  aside, header, nav, .print\:hidden, .no-print, [data-print-hidden="true"] {
     display: none !important;
+  }
+
+  /* Isolate active print modals so underlying dashboard tables do not bleed through */
+  body:has(.print-modal-active) main *:not(.print-modal-active):not(.print-modal-active *):not(:has(.print-modal-active)),
+  body:has(.print-modal-active) .print-hide-when-modal {
+    display: none !important;
+  }
+
+  .print-modal-active {
+    position: static !important;
+    inset: auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
   }
 
   main {

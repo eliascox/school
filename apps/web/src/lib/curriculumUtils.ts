@@ -38,12 +38,12 @@ export const DEFAULT_6_TO_8_SUBJECTS = (gradeNum: number): DynamicClassSubject[]
     { code: `BAN-${p}02`, name: 'বাংলা ২য় পত্র',             fullMarks: 50,  cq: 50,  mcq: 0,  practical: 0,  ca: 0,  passMarks: 17, isJointPass: true, jointPairCode: `BAN-${p}01`, category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: `ENG-${p}01`, name: 'ইংরেজি ১ম পত্র',            fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0,  passMarks: 33, isJointPass: true, jointPairCode: `ENG-${p}02`, category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: `ENG-${p}02`, name: 'ইংরেজি ২য় পত্র',           fullMarks: 50,  cq: 50,  mcq: 0,  practical: 0,  ca: 0,  passMarks: 17, isJointPass: true, jointPairCode: `ENG-${p}01`, category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: `MAT-${p}03`, name: 'গণিত',                       fullMarks: 100, cq: 70,  mcq: 0,  practical: 0,  ca: 30, passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: `MAT-${p}03`, name: 'গণিত',                       fullMarks: 100, cq: 70,  mcq: 0,  practical: 0,  ca: 30, passMarks: 33, passRules: 'লিখিত ও সিএ-তে আলাদা পাস (৩৩%)', isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: `SCI-${p}04`, name: 'বিজ্ঞান',                    fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0,  passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: `ICT-${p}05`, name: 'ডিজিটাল প্রযুক্তি',          fullMarks: 50,  cq: 25,  mcq: 0,  practical: 25, ca: 0,  passMarks: 17, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: `ICT-${p}05`, name: 'ডিজিটাল প্রযুক্তি',          fullMarks: 50,  cq: 25,  mcq: 0,  practical: 25, ca: 0,  passMarks: 17, passRules: 'লিখিত ও ব্যবহারিকে পৃথক পাস (৩৩%)', isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: `BGS-${p}06`, name: 'ইতিহাস ও সামাজিক বিজ্ঞান', fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0,  passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: `REL-${p}10`, name: 'ধর্ম ও নৈতিক শিক্ষা',       fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0,  passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: `AGR-${p}07`, name: 'কৃষি শিক্ষা',               fullMarks: 100, cq: 50,  mcq: 25, practical: 25, ca: 0,  passMarks: 33, isJointPass: false, category: '৪র্থ বিষয়', group: 'সাধারণ' }
+    { code: `AGR-${p}07`, name: 'কৃষি শিক্ষা',               fullMarks: 100, cq: 50,  mcq: 25, practical: 25, ca: 0,  passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', isJointPass: false, category: '৪র্থ বিষয়', group: 'সাধারণ' }
   ];
 };
 
@@ -52,41 +52,41 @@ export const DEFAULT_9_TO_10_SUBJECTS = (group: string = 'সাধারণ'): 
   const isComm = group.includes('ব্যবসায়') || group === 'commerce';
 
   const compulsory: DynamicClassSubject[] = [
-    { code: 'BAN-101', name: 'বাংলা ১ম পত্র',             fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, isJointPass: true, jointPairCode: 'BAN-102', category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: 'BAN-102', name: 'বাংলা ২য় পত্র',             fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, isJointPass: true, jointPairCode: 'BAN-101', category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: 'BAN-101', name: 'বাংলা ১ম পত্র',             fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, passRules: 'যৌথ পত্রের CQ ও MCQ-তে পৃথক পাস', isJointPass: true, jointPairCode: 'BAN-102', category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: 'BAN-102', name: 'বাংলা ২য় পত্র',             fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, passRules: 'যৌথ পত্রের CQ ও MCQ-তে পৃথক পাস', isJointPass: true, jointPairCode: 'BAN-101', category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: 'ENG-107', name: 'ইংরেজি ১ম পত্র',            fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0, passMarks: 33, isJointPass: true, jointPairCode: 'ENG-108', category: 'আবশ্যিক', group: 'সাধারণ' },
     { code: 'ENG-108', name: 'ইংরেজি ২য় পত্র',           fullMarks: 100, cq: 100, mcq: 0,  practical: 0,  ca: 0, passMarks: 33, isJointPass: true, jointPairCode: 'ENG-107', category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: 'MAT-109', name: 'সাধারণ গণিত',                fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: 'ICT-154', name: 'তথ্য ও যোগাযোগ প্রযুক্তি', fullMarks: 50,  cq: 0,   mcq: 25, practical: 25, ca: 0, passMarks: 17, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
-    { code: 'REL-111', name: 'ধর্ম ও নৈতিক শিক্ষা',       fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: 'MAT-109', name: 'সাধারণ গণিত',                fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস আবশ্যক)', isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: 'ICT-154', name: 'তথ্য ও যোগাযোগ প্রযুক্তি', fullMarks: 50,  cq: 0,   mcq: 25, practical: 25, ca: 0, passMarks: 17, passRules: 'MCQ ৮ + Practical ৮ (পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
+    { code: 'REL-111', name: 'ধর্ম ও নৈতিক শিক্ষা',       fullMarks: 100, cq: 70,  mcq: 30, practical: 0,  ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক', group: 'সাধারণ' },
   ];
 
   let groupSubjects: DynamicClassSubject[] = [];
 
   if (isScience) {
     groupSubjects = [
-      { code: 'BGS-150', name: 'বাংলাদেশ ও বিশ্বপরিচয়', fullMarks: 100, cq: 70, mcq: 30, practical: 0,  ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'বিজ্ঞান' },
-      { code: 'PHY-136', name: 'পদার্থবিজ্ঞান',            fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'বিজ্ঞান' },
-      { code: 'CHE-137', name: 'রসায়ন',                   fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'বিজ্ঞান' },
-      { code: 'BIO-138', name: 'জীববিজ্ঞান',              fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'বিজ্ঞান' },
-      { code: 'HMT-126', name: 'উচ্চতর গণিত',             fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: '৪র্থ বিষয়', group: 'বিজ্ঞান' }
+      { code: 'BGS-150', name: 'বাংলাদেশ ও বিশ্বপরিচয়', fullMarks: 100, cq: 70, mcq: 30, practical: 0,  ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'বিজ্ঞান' },
+      { code: 'PHY-136', name: 'পদার্থবিজ্ঞান',            fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: 'আবশ্যিক', group: 'বিজ্ঞান' },
+      { code: 'CHE-137', name: 'রসায়ন',                   fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: 'আবশ্যিক', group: 'বিজ্ঞান' },
+      { code: 'BIO-138', name: 'জীববিজ্ঞান',              fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: 'আবশ্যিক', group: 'বিজ্ঞান' },
+      { code: 'HMT-126', name: 'উচ্চতর গণিত',             fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: '৪র্থ বিষয়', group: 'বিজ্ঞান' }
     ];
   } else if (isComm) {
     groupSubjects = [
-      { code: 'GSCI-127', name: 'সাধারণ বিজ্ঞান',       fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
-      { code: 'ACC-146', name: 'হিসাববিজ্ঞান',        fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
-      { code: 'BUS-147', name: 'ব্যবসায় উদ্যোগ',      fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
-      { code: 'FIN-152', name: 'ফিন্যান্স ও ব্যাংকিং', fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
-      { code: 'AGR-139', name: 'কৃষি শিক্ষা',          fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: '৪র্থ বিষয়', group: 'ব্যবসায় শিক্ষা' }
+      { code: 'GSCI-127', name: 'সাধারণ বিজ্ঞান',       fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
+      { code: 'ACC-146', name: 'হিসাববিজ্ঞান',        fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
+      { code: 'BUS-147', name: 'ব্যবসায় উদ্যোগ',      fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
+      { code: 'FIN-152', name: 'ফিন্যান্স ও ব্যাংকিং', fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'ব্যবসায় শিক্ষা' },
+      { code: 'AGR-139', name: 'কৃষি শিক্ষা',          fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: '৪র্থ বিষয়', group: 'ব্যবসায় শিক্ষা' }
     ];
   } else {
     // Humanities (মানবিক)
     groupSubjects = [
-      { code: 'GSCI-127', name: 'সাধারণ বিজ্ঞান',                  fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'মানবিক' },
-      { code: 'HIS-153', name: 'বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'মানবিক' },
-      { code: 'GEO-110', name: 'ভূগোল ও পরিবেশ',                   fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'মানবিক' },
-      { code: 'CIV-140', name: 'পৌরনীতি ও নাগরিকতা',              fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, category: 'আবশ্যিক', group: 'মানবিক' },
-      { code: 'AGR-139', name: 'কৃষি শিক্ষা',                      fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, category: '৪র্থ বিষয়', group: 'মানবিক' }
+      { code: 'GSCI-127', name: 'সাধারণ বিজ্ঞান',                  fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'মানবিক' },
+      { code: 'HIS-153', name: 'বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'মানবিক' },
+      { code: 'GEO-110', name: 'ভূগোল ও পরিবেশ',                   fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'মানবিক' },
+      { code: 'CIV-140', name: 'পৌরনীতি ও নাগরিকতা',              fullMarks: 100, cq: 70, mcq: 30, practical: 0, ca: 0, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (পৃথক পাস)', category: 'আবশ্যিক', group: 'মানবিক' },
+      { code: 'AGR-139', name: 'কৃষি শিক্ষা',                      fullMarks: 100, cq: 50, mcq: 25, practical: 25, ca: 0, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (পৃথক পাস)', category: '৪র্থ বিষয়', group: 'মানবিক' }
     ];
   }
 

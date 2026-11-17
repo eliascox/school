@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
+import { settingsService } from '@/services/settingsService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 interface SectionBranch {
@@ -440,9 +441,21 @@ export default function ClassesClient() {
   const totalStudentsCount = allStudents.length;
 
   return (
-    <div className="w-full space-y-5 pb-12">
+    <div className="w-full space-y-5 pb-12 print:pb-0">
+      {/* ─── PRINT INSTITUTIONAL HEADER ──────────────────────────── */}
+      <div className="hidden print:block text-center border-b-2 border-slate-900 pb-3 mb-4 text-black">
+        <h1 className="text-2xl font-black">{settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান'}</h1>
+        <p className="text-xs font-bold text-slate-700">
+          {settingsService.getSettings().address || ''}
+          {settingsService.getSettings().eiin ? ` | EIIN: ${settingsService.getSettings().eiin}` : ''}
+        </p>
+        <p className="mt-1 inline-block px-4 py-0.5 bg-slate-900 text-white rounded-full text-[11px] font-black">
+          একাডেমিক শ্রেণি ও শাখা রেজিস্টার তালিকা — {new Date().toLocaleDateString('bn-BD')}
+        </p>
+      </div>
+
       {/* ─── 4 SUMMARY KPI METRICS (Directly at top) ───────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">মোট শ্রেণি (Classes)</p>
@@ -489,7 +502,7 @@ export default function ClassesClient() {
       </div>
 
       {/* ─── FILTER, SEARCH & ACTIONS TOOLBAR ROW ───────────────────── */}
-      <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 print:hidden">
         
         {/* Left: Class Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0 scrollbar-none">
@@ -568,39 +581,39 @@ export default function ClassesClient() {
       </div>
 
       {/* ─── PROFESSIONAL DATA TABLE VIEW ─────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 print:bg-white print:text-black rounded-2xl border border-slate-200 dark:border-slate-800 print:border-slate-900 shadow-xs print:shadow-none overflow-hidden print:overflow-visible">
         
         {/* Table Title Bar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-950/40 print:bg-white">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold print:hidden">
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white print:text-black">
                 একাডেমিক শ্রেণি ও শাখা রেজিস্টার তালিকা ({filteredClasses.length}টি শ্রেণি)
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">প্রতিটি শ্রেণির শাখা, শিক্ষক, শিফট ও আসন বিন্যাস</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-700">প্রতিটি শ্রেণির শাখা, শিক্ষক, শিফট ও আসন বিন্যাস</p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-400">💡 সারিতে ক্লিক করে শাখা বিস্তারিত দেখুন</span>
+          <span className="text-[11px] font-bold text-slate-400 print:hidden">💡 সারিতে ক্লিক করে শাখা বিস্তারিত দেখুন</span>
         </div>
 
         {/* Responsive Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-100/80 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800 text-[11px]">
+              <tr className="bg-slate-100/80 dark:bg-slate-950 print:bg-slate-100 text-slate-700 dark:text-slate-300 print:text-black font-extrabold border-b border-slate-200 dark:border-slate-800 print:border-slate-900 text-[11px]">
                 <th className="p-3.5 pl-4 w-12 text-center">ক্রম</th>
                 <th className="p-3.5 min-w-[160px]">শ্রেণির নাম ও কোড</th>
                 <th className="p-3.5 min-w-[140px]">শিফট ও গ্রুপ</th>
                 <th className="p-3.5 min-w-[170px]">শ্রেণি শিক্ষক (Class Teacher)</th>
                 <th className="p-3.5 min-w-[220px]">সক্রিয় শাখাসমূহ (আসন)</th>
                 <th className="p-3.5 min-w-[130px] text-center">মোট শিক্ষার্থী</th>
-                <th className="p-3.5 pr-4 min-w-[160px] text-right">অ্যাকশন</th>
+                <th className="p-3.5 pr-4 min-w-[160px] text-right print:hidden">অ্যাকশন</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-200">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-200 print:text-black">
               {filteredClasses.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-10 text-center text-xs text-slate-400 font-bold">
@@ -671,7 +684,7 @@ export default function ClassesClient() {
                                     shift: cls.shift
                                   });
                                 }}
-                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden"
                               >
                                 + শিক্ষক যুক্ত করুন
                               </button>
@@ -699,7 +712,7 @@ export default function ClassesClient() {
                             <button
                               type="button"
                               onClick={() => setAddBranchModal(cls)}
-                              className="px-1.5 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold border border-amber-200 dark:border-amber-800 transition cursor-pointer"
+                              className="px-1.5 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold border border-amber-200 dark:border-amber-800 transition cursor-pointer print:hidden"
                               title="নতুন শাখা যোগ করুন"
                             >
                               + শাখা
@@ -709,16 +722,16 @@ export default function ClassesClient() {
 
                         {/* 6. মোট শিক্ষার্থী */}
                         <td className="p-3.5 text-center">
-                          <span className="font-mono font-black text-slate-900 dark:text-white text-xs">
+                          <span className="font-mono font-black text-slate-900 dark:text-white print:text-black text-xs">
                             {classStudentCount} জন
                           </span>
-                          <span className="text-[10px] text-slate-400 block font-normal font-mono">
+                          <span className="text-[10px] text-slate-400 print:text-slate-700 block font-normal font-mono">
                             আসন: {totalCapacity}
                           </span>
                         </td>
 
                         {/* 7. অ্যাকশন */}
-                        <td className="p-3.5 pr-4 text-right">
+                        <td className="p-3.5 pr-4 text-right print:hidden">
                           <div className="flex items-center justify-end gap-1.5">
                             <Link
                               href="/dashboard/academic/curriculum"

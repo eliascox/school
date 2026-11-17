@@ -328,15 +328,15 @@ export default function OfficialAdmissionForm({
             <div className="p-2.5 space-y-1 divide-y divide-slate-200">
               <div className="pt-0.5">
                 <span className="text-slate-600 block text-[10px]">বর্তমান ঠিকানা:</span>
-                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? 'গ্রাম: ____________ ডাকঘর: ____________ উপজেলা: ____________ জেলা: ____________' : (data?.currentAddress || 'বরইতলী, চকরিয়া, কক্সবাজার')}</strong>
+                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? 'গ্রাম: ____________ ডাকঘর: ____________ উপজেলা: ____________ জেলা: ____________' : (data?.currentAddress || '—')}</strong>
               </div>
               <div className="pt-1">
                 <span className="text-slate-600 block text-[10px]">স্থায়ী ঠিকানা:</span>
-                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? 'গ্রাম: ____________ ডাকঘর: ____________ উপজেলা: ____________ জেলা: ____________' : (data?.permanentAddress || data?.currentAddress || 'বরইতলী, চকরিয়া, কক্সবাজার')}</strong>
+                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? 'গ্রাম: ____________ ডাকঘর: ____________ উপজেলা: ____________ জেলা: ____________' : (data?.permanentAddress || data?.currentAddress || '—')}</strong>
               </div>
               <div className="pt-1">
                 <span className="text-slate-600 block text-[10px]">পূর্ববর্তী বিদ্যালয়ের নাম:</span>
-                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? '________________________________________' : (data?.prevSchoolName || 'বরইতলী সরকারি প্রাথমিক বিদ্যালয়')}</strong>
+                <strong className="text-slate-900 text-[11px] block truncate">{isBlank ? '________________________________________' : (data?.prevSchoolName || '—')}</strong>
               </div>
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function OfficialAdmissionForm({
         {/* ─── 9. FOOTER SYSTEM BRANDING ─── */}
         <div className="pt-2 border-t border-slate-300 flex justify-between text-[9px] text-slate-400 font-mono">
           <span>প্রিন্ট তারিখ: {new Date().toLocaleString('bn-BD')}</span>
-          <span>বরইতলী উচ্চ বিদ্যালয় — অফিশিয়াল ভর্তি আবেদন নথি</span>
+          <span>{schoolName} — অফিশিয়াল ভর্তি আবেদন নথি</span>
         </div>
 
       </div>

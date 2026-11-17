@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Award,
   CheckCircle2,
-  Printer,
   Search,
   SlidersHorizontal,
   Trophy,
@@ -168,15 +167,6 @@ export function TabulationMatrixView({
               <option value="70">70%</option>
               <option value="60">60%</option>
             </select>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-            >
-              <Printer size={13} />
-              {lang === 'bn' ? 'টেবুলেশন প্রিন্ট' : 'Print Sheet'}
-            </button>
           </div>
         </div>
       </div>
@@ -443,14 +433,6 @@ export function MeritListView({
             <SlidersHorizontal size={13} />
             {lang === 'bn' ? 'র‍্যাংকিং নিয়ম' : 'Rank Order'}
           </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-          >
-            <Printer size={13} />
-            {lang === 'bn' ? 'প্রিন্ট' : 'Print'}
-          </button>
         </div>
       </div>
 
@@ -648,15 +630,6 @@ export function FailAnalysisView({
             </span>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-        >
-          <Printer size={13} />
-          {lang === 'bn' ? 'প্রিন্ট' : 'Print'}
-        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs print:bg-white print:text-slate-950 print:border-none print:shadow-none print:p-0 overflow-x-auto">
@@ -845,14 +818,6 @@ export function FullResultRegisterView({
           >
             <SlidersHorizontal size={13} />
             {lang === 'bn' ? 'টাই-ব্রেকার ক্রম' : 'Result Order'}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-          >
-            <Printer size={13} />
-            {lang === 'bn' ? 'প্রিন্ট' : 'Print'}
           </button>
         </div>
       </div>

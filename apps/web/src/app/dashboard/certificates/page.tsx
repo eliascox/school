@@ -15,7 +15,7 @@
  * ═════════════════════════════════════════════════════════════════════════════
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { confirmDialog } from '@/components/ui/ToastProvider';
@@ -25,109 +25,73 @@ import {
   Printer,
   PlusCircle,
   Search,
-  Users,
   Trash2,
+  Check,
   CheckCircle2,
   AlertTriangle,
-  Check,
   X,
   FileCheck,
   UserCheck,
-  GraduationCap,
   ShieldCheck,
-  ChevronRight,
-  Eye,
   CalendarDays,
   BookOpen,
-  Filter,
   Sparkles,
   QrCode as QrIcon,
   Ban,
-  Clock,
   Settings2,
-  Copy,
-  Download,
-  ExternalLink,
   History,
   Layers,
-  ChevronDown,
-  Sliders
+  Sliders,
+  Download,
+  Edit3,
+  GraduationCap,
 } from 'lucide-react';
 import {
   certificateService,
   CertificateRecord,
   CertificateType,
   CertificateTemplate,
-  CertificateStatus,
-  CertificateLayoutStyle
+  CertificateLayoutStyle,
 } from '@/services/certificateService';
 import { studentService, Student } from '@/services/studentService';
+import { alumniService, AlumniRecord } from '@/services/alumniService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
 import PadSettingsPanel from '@/components/PadSettingsPanel';
+import CertificateStudioWorkspace from '@/components/certificates/CertificateStudioWorkspace';
+import BatchCertificateStudio from '@/components/certificates/BatchCertificateStudio';
+import { ALL_CERTIFICATE_TYPES } from '@/components/certificates/certificateThemes';
+import { exportElementToPng } from '@/lib/certificatePngExport';
 
-type MainTab = 'register' | 'create' | 'pad-settings' | 'templates' | 'audit';
+type MainTab = 'register' | 'create' | 'batch' | 'pad-settings' | 'templates' | 'audit';
 
-// ─── 6 OFFICIAL TESTIMONIAL & CERTIFICATE TYPES ──────────────────────────────
-const ALL_CERT_TYPES: {
-  id: CertificateType;
-  title: string;
-  desc: string;
-  icon: any;
-  defaultLayout: CertificateLayoutStyle;
-  color: string;
-  bgColor: string;
-}[] = [
-  {
-    id: 'current_student',
-    title: 'অধ্যয়নরত প্রত্যয়ন পত্র',
-    desc: 'বর্তমান ও নিয়মিত অধ্যয়নরত শিক্ষার্থীর পরিচয় ও প্রত্যয়ন',
-    icon: FileText,
-    defaultLayout: 'pad',
-    color: 'text-emerald-700 dark:text-emerald-300',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/50'
-  },
-  {
-    id: 'character_certificate',
-    title: 'চারিত্রিক সনদ পত্র',
-    desc: 'নৈতিক চরিত্র, আচরণ ও স্বভাব সম্পর্কিত প্রত্যয়ন',
-    icon: Award,
-    defaultLayout: 'pad',
-    color: 'text-sky-700 dark:text-sky-300',
-    bgColor: 'bg-sky-50 dark:bg-sky-950/50'
-  },
-  {
-    id: 'transfer_certificate',
-    title: 'ছাড়পত্র / টিসি (TC)',
-    desc: 'বিদ্যালয় ছাড়পত্র ও ট্রান্সফার প্রত্যয়ন সনদ',
-    icon: ShieldCheck,
-    defaultLayout: 'pad',
-    color: 'text-rose-700 dark:text-rose-300',
-    bgColor: 'bg-rose-50 dark:bg-rose-950/50'
-  },
-  {
-    id: 'student_verification',
-    title: 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন',
-    desc: 'পাসপোর্ট, ব্যাংক বা সরকারি কাজে প্রাতিষ্ঠানিক তথ্য যাচাই',
-    icon: UserCheck,
-    defaultLayout: 'pad',
-    color: 'text-teal-700 dark:text-teal-300',
-    bgColor: 'bg-teal-50 dark:bg-teal-950/50'
-  },
-  {
-    id: 'custom_certificate',
-    title: 'বিশেষ প্রাতিষ্ঠানিক প্রত্যয়ন',
-    desc: 'বিদ্যালয় কর্তৃপক্ষের যেকোনো বিশেষ উদ্দেশ্যের প্রত্যয়ন পত্র',
-    icon: FileCheck,
-    defaultLayout: 'pad',
-    color: 'text-slate-700 dark:text-slate-300',
-    bgColor: 'bg-slate-50 dark:bg-slate-950'
-  }
-];
+const CERT_ICON_MAP: Record<CertificateType, any> = {
+  current_student: FileText,
+  ssc_testimonial: GraduationCap,
+  character_certificate: Award,
+  transfer_certificate: ShieldCheck,
+  student_verification: UserCheck,
+  merit_certificate: Sparkles,
+  appreciation: Award,
+  participation: Layers,
+  activity_certificate: FileCheck,
+  custom_certificate: FileCheck,
+};
+
+const ALL_CERT_TYPES = ALL_CERTIFICATE_TYPES.map((t) => ({
+  id: t.id,
+  title: t.titleBn,
+  desc: t.descBn,
+  icon: CERT_ICON_MAP[t.id] || FileCheck,
+  defaultLayout: t.defaultLayout,
+  color: 'text-indigo-700 dark:text-indigo-300',
+  bgColor: 'bg-indigo-50 dark:bg-indigo-950/50',
+}));
 
 export default function CertificatesPage() {
   const searchParams = useSearchParams();
+  const modalSheetRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>('register');
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(settingsService.getSettings());
@@ -136,44 +100,18 @@ export default function CertificatesPage() {
   // Core Data
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [alumniList, setAlumniList] = useState<AlumniRecord[]>([]);
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
 
-  // ── Form State (Create / Edit) ──
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [certType, setCertType] = useState<CertificateType>('current_student');
-  const [layoutStyle, setLayoutStyle] = useState<CertificateLayoutStyle>('pad');
-  const [refNo, setRefNo] = useState<string>('');
-  const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [customTitle, setCustomTitle] = useState<string>('');
-  const [achievementTitle, setAchievementTitle] = useState<string>('');
-  const [characterRemarks, setCharacterRemarks] = useState<string>(
-    'এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, শৃঙ্খলা ও আচার-আচরণ প্রশংসনীয় ছিল।'
-  );
-  const [customBody, setCustomBody] = useState<string>('');
-  const [isAlumni, setIsAlumni] = useState<boolean>(false);
-
-  // Manual Overrides
-  const [studentName, setStudentName] = useState('');
-  const [studentNameEn, setStudentNameEn] = useState('');
-  const [fatherName, setFatherName] = useState('');
-  const [motherName, setMotherName] = useState('');
-  const [village, setVillage] = useState('');
-  const [postOffice, setPostOffice] = useState('');
-  const [upazila, setUpazila] = useState('');
-  const [district, setDistrict] = useState('');
-  const [dob, setDob] = useState('2010-05-15');
-  const [grade, setGrade] = useState('10th');
-  const [roll, setRoll] = useState('01');
-  const [section, setSection] = useState('A');
-  const [group, setGroup] = useState('বিজ্ঞান');
-  const [session, setSession] = useState('২০২৬');
-  const [boardRoll, setBoardRoll] = useState('');
-  const [boardReg, setBoardReg] = useState('');
-  const [passingYear, setPassingYear] = useState('2026');
-  const [gpa, setGpa] = useState('5.00');
+  // Studio & Batch Sync Context (URL deep-link or Register Edit)
+  const [studioStudentId, setStudioStudentId] = useState<string | undefined>(undefined);
+  const [studioAlumniId, setStudioAlumniId] = useState<string | undefined>(undefined);
+  const [studioCertType, setStudioCertType] = useState<CertificateType | undefined>(undefined);
+  const [editingCert, setEditingCert] = useState<CertificateRecord | null>(null);
+  const [batchStudentIds, setBatchStudentIds] = useState<string[]>([]);
+  const [batchCertType, setBatchCertType] = useState<CertificateType>('current_student');
 
   // Search & Filter in Register Tab
-  const [studentSearch, setStudentSearch] = useState('');
   const [listSearch, setListSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterClass, setFilterClass] = useState<string>('all');
@@ -195,8 +133,8 @@ export default function CertificatesPage() {
   const loadData = useCallback(() => {
     if (typeof window === 'undefined') return;
     setCertificates(certificateService.getCertificates());
-    const allSt = studentService.getAllStudents();
-    setStudents(allSt);
+    setStudents(studentService.getAllStudents());
+    setAlumniList(alumniService.getAlumni());
     setSchoolSettings(settingsService.getSettings());
     setTemplates(certificateService.getTemplates());
     setCurrentUser(teacherAuthService.getSession());
@@ -206,167 +144,44 @@ export default function CertificatesPage() {
     setMounted(true);
     loadData();
 
-    // Check URL params e.g. ?action=create&studentId=xxx
     const action = searchParams.get('action');
     const studentIdParam = searchParams.get('studentId');
+    const alumniIdParam = searchParams.get('alumniId');
+    const studentIdsParam = searchParams.get('studentIds');
+    const typeParam = searchParams.get('type') as CertificateType | null;
+    const certIdParam = searchParams.get('certId');
 
-    if (action === 'create' || studentIdParam) {
+    if (typeParam) {
+      setStudioCertType(typeParam);
+      setBatchCertType(typeParam);
+    }
+
+    if (action === 'batch' || studentIdsParam) {
+      const ids = (studentIdsParam || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      setBatchStudentIds(ids);
+      setActiveTab('batch');
+    } else if (action === 'viewCert' && certIdParam) {
+      const found = certificateService.getCertificateById(certIdParam);
+      if (found) {
+        setShowPrintModal(found);
+        setPrintLayoutOverride(found.layoutStyle || 'pad');
+      }
+      setActiveTab('register');
+    } else if (action === 'create' || studentIdParam || alumniIdParam) {
+      setStudioStudentId(studentIdParam || undefined);
+      setStudioAlumniId(alumniIdParam || undefined);
+      setEditingCert(null);
       setActiveTab('create');
     }
-
-    // Default ref number
-    const year = new Date().getFullYear();
-    const rand = Math.floor(100 + Math.random() * 900);
-    setRefNo(`ব.উ.বি/সনদ/${year}/${rand}`);
   }, [loadData, searchParams]);
-
-  // When students load or studentIdParam changes, select student
-  useEffect(() => {
-    const studentIdParam = searchParams.get('studentId');
-    if (studentIdParam && students.length > 0) {
-      const match = students.find((s) => s.id === studentIdParam);
-      if (match) {
-        setSelectedStudent(match);
-      }
-    }
-  }, [students, searchParams]);
-
-  // Auto-populate when student selected
-  useEffect(() => {
-    if (!selectedStudent) return;
-    setStudentName(selectedStudent.name || '');
-    setStudentNameEn((selectedStudent as any).nameEn || '');
-    setFatherName(selectedStudent.fatherName || selectedStudent.guardian || '');
-    setMotherName(selectedStudent.motherName || '');
-    setGrade(selectedStudent.grade || '10th');
-    setRoll(selectedStudent.roll || '01');
-    setSection(selectedStudent.section || (selectedStudent as any).branch || 'A');
-    setGroup(selectedStudent.group || 'বিজ্ঞান');
-    setDob(selectedStudent.dob || '2010-05-15');
-    
-    // Auto-populate student address components
-    const rawAddr = (selectedStudent as any).permanentAddress || selectedStudent.currentAddress || '';
-    if (rawAddr) {
-      const cleanAddr = rawAddr
-        .replace(/গ্রাম\s*[:ঃ]?\s*/gi, '')
-        .replace(/ডাকঘর\s*[:ঃ]?\s*/gi, '')
-        .replace(/উপজেলা\s*[:ঃ]?\s*/gi, '')
-        .replace(/জেলা\s*[:ঃ]?\s*/gi, '');
-      const schoolAddrParts = (schoolSettings.address || '').split(',').map((p: string) => p.trim()).filter(Boolean);
-      const fallbackUpazila = schoolAddrParts[1] || schoolAddrParts[0] || '';
-      const fallbackDistrict = schoolAddrParts[2] || schoolAddrParts[schoolAddrParts.length - 1] || '';
-      const parts = cleanAddr.split(',').map((p: string) => p.trim()).filter(Boolean);
-      if (parts.length >= 4) {
-        setVillage(parts[0] || '');
-        setPostOffice(parts[1] || '');
-        setUpazila(parts[2] || fallbackUpazila);
-        setDistrict(parts[3] || fallbackDistrict);
-      } else if (parts.length === 3) {
-        setVillage(parts[0] || '');
-        setPostOffice(parts[0] || '');
-        setUpazila(parts[1] || fallbackUpazila);
-        setDistrict(parts[2] || fallbackDistrict);
-      } else if (parts.length === 2) {
-        setVillage(parts[0] || '');
-        setPostOffice(parts[0] || '');
-        setUpazila(parts[1] || fallbackUpazila);
-        setDistrict(fallbackDistrict);
-      } else if (parts.length === 1 && parts[0]) {
-        setVillage(parts[0]);
-      }
-    } else {
-      setVillage('');
-      setPostOffice('');
-      setUpazila('');
-      setDistrict('');
-    }
-
-    setSession(selectedStudent.session || '২০২৬');
-  }, [selectedStudent]);
-
-  // When Cert Type Changes, update default layout style & template body
-  useEffect(() => {
-    const typeConfig = ALL_CERT_TYPES.find((t) => t.id === certType);
-    if (typeConfig) {
-      setLayoutStyle(typeConfig.defaultLayout);
-    }
-    const tmpl = certificateService.getTemplateForType(certType);
-    if (tmpl) {
-      setCustomTitle(tmpl.title);
-      // Generate interpolated preview
-      const interpolated = certificateService.interpolateTemplate(tmpl.bodyTemplate, {
-        student_name: studentName || 'শিক্ষার্থীর নাম',
-        student_id: selectedStudent?.id || 'ID-XXXX',
-        roll_no: roll,
-        class: grade,
-        section,
-        group,
-        session,
-        father_name: fatherName || 'পিতার নাম',
-        mother_name: motherName || 'মাতার নাম',
-        date_of_birth: dob,
-        village,
-        post_office: postOffice,
-        upazila,
-        district,
-        school_name: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
-        gpa,
-        board_roll: boardRoll,
-        board_reg: boardReg,
-        passing_year: passingYear,
-        achievement: achievementTitle || 'বিশেষ কৃতিত্ব',
-        remarks: characterRemarks
-      });
-      setCustomBody(interpolated);
-    }
-
-    if (certType === 'ssc_testimonial' || certType === 'transfer_certificate') {
-      setIsAlumni(true);
-    } else {
-      setIsAlumni(false);
-    }
-  }, [
-    certType,
-    studentName,
-    fatherName,
-    motherName,
-    grade,
-    roll,
-    section,
-    group,
-    session,
-    dob,
-    village,
-    postOffice,
-    upazila,
-    district,
-    schoolSettings.schoolName,
-    gpa,
-    boardRoll,
-    boardReg,
-    passingYear,
-    achievementTitle,
-    characterRemarks,
-    selectedStudent?.id
-  ]);
 
   const showAlert = (type: 'success' | 'error', text: string) => {
     setAlertMsg({ type, text });
     setTimeout(() => setAlertMsg(null), 4000);
   };
-
-  // Filtered Students for Selection
-  const filteredStudents = useMemo(() => {
-    if (!studentSearch.trim()) return students;
-    const q = studentSearch.toLowerCase();
-    return students.filter(
-      (s) =>
-        s.name?.toLowerCase().includes(q) ||
-        s.roll?.includes(q) ||
-        s.id?.toLowerCase().includes(q) ||
-        s.grade?.toLowerCase().includes(q)
-    );
-  }, [students, studentSearch]);
 
   // Filtered Register Table
   const filteredCerts = useMemo(() => {
@@ -388,63 +203,12 @@ export default function CertificatesPage() {
     });
   }, [certificates, filterType, filterClass, filterStatus, listSearch]);
 
-  // Save / Generate Certificate Handler
-  const handleSaveCertificate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentName.trim()) {
-      return showAlert('error', 'অনুগ্রহ করে শিক্ষার্থীর নাম প্রদান করুন!');
-    }
-
-    const creatorName =
-      currentUser?.role === 'admin'
-        ? 'প্রধান শিক্ষক / অ্যাডমিন'
-        : currentUser?.teacherName
-        ? `${currentUser.teacherName} (শিক্ষক)`
-        : 'প্রধান শিক্ষক / অ্যাডমিন';
-
-    const payload = {
-      type: certType,
-      title: customTitle.trim() || undefined,
-      refNo: refNo.trim() || `ব.উ.বি/সনদ/${new Date().getFullYear()}/${Math.floor(100 + Math.random() * 900)}`,
-      issueDate,
-      layoutStyle,
-      status: 'valid' as CertificateStatus,
-
-      studentId: selectedStudent?.id || `STU-${Date.now().toString().slice(-5)}`,
-      studentName: studentName.trim(),
-      studentNameEn: studentNameEn.trim() || undefined,
-      fatherName: fatherName.trim(),
-      motherName: motherName.trim(),
-      roll,
-      grade,
-      section,
-      group,
-      session,
-      dob,
-      village: village.trim(),
-      postOffice: postOffice.trim(),
-      upazila: upazila.trim(),
-      district: district.trim(),
-      address: [village.trim(), postOffice.trim(), upazila.trim(), district.trim()].filter(Boolean).join(', '),
-
-      boardRoll: boardRoll.trim() || undefined,
-      boardReg: boardReg.trim() || undefined,
-      passingYear: passingYear.trim() || undefined,
-      gpa: gpa.trim() || undefined,
-      isAlumni,
-
-      achievementTitle: achievementTitle.trim() || undefined,
-      characterRemarks: characterRemarks.trim() || undefined,
-      customBody: customBody.trim(),
-      createdBy: creatorName
-    };
-
-    const saved = certificateService.saveCertificate(payload);
-    loadData();
-    setShowPrintModal(saved);
-    setPrintLayoutOverride(saved.layoutStyle || 'pad');
-    showAlert('success', `সনদপত্রটি (${saved.id}) সফলভাবে প্রস্তুত ও সংরক্ষিত হয়েছে!`);
-  };
+  const creatorLabel =
+    currentUser?.role === 'admin'
+      ? 'প্রধান শিক্ষক / অ্যাডমিন'
+      : currentUser?.teacherName
+      ? `${currentUser.teacherName} (শিক্ষক)`
+      : 'প্রধান শিক্ষক / অ্যাডমিন';
 
   // Cancel Certificate Action
   const handleConfirmCancel = () => {
@@ -570,7 +334,8 @@ export default function CertificatesPage() {
         <div className="flex items-center gap-1 overflow-x-auto">
           {[
             { id: 'register', label: 'প্রত্যয়ন রেজিস্টার ও তালিকা', icon: BookOpen },
-            { id: 'create', label: 'নতুন প্রত্যয়ন প্রস্তুত', icon: PlusCircle },
+            { id: 'create', label: 'সনদ ও প্রশংসাপত্র স্টুডিও', icon: PlusCircle },
+            { id: 'batch', label: 'ব্যাচ সনদ জেনারেটর', icon: Layers },
             { id: 'pad-settings', label: 'লেটারহেড প্যাড ও মার্জিন', icon: Sliders },
             { id: 'templates', label: 'টেমপ্লেট ব্যবস্থাপনা', icon: Settings2 },
             { id: 'audit', label: 'অডিট লগ ও হিস্ট্রি', icon: History }
@@ -580,7 +345,12 @@ export default function CertificatesPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as MainTab)}
+                onClick={() => {
+                  if (tab.id === 'create' && activeTab !== 'create') {
+                    setEditingCert(null);
+                  }
+                  setActiveTab(tab.id as MainTab);
+                }}
                 className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-sm'
@@ -596,10 +366,15 @@ export default function CertificatesPage() {
 
         {activeTab !== 'create' && (
           <button
-            onClick={() => setActiveTab('create')}
+            onClick={() => {
+              setEditingCert(null);
+              setStudioStudentId(undefined);
+              setStudioAlumniId(undefined);
+              setActiveTab('create');
+            }}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
           >
-            <PlusCircle size={15} /> নতুন প্রত্যয়ন তৈরি
+            <PlusCircle size={15} /> সনদ / প্রশংসাপত্র স্টুডিও
           </button>
         )}
       </div>
@@ -780,6 +555,18 @@ export default function CertificatesPage() {
                               <Printer size={12} /> প্রিন্ট
                             </button>
 
+                            {/* Re-open in Studio for Editing */}
+                            <button
+                              onClick={() => {
+                                setEditingCert(c);
+                                setActiveTab('create');
+                              }}
+                              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer"
+                              title="স্টুডিওতে সম্পাদনা করুন"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+
                             {/* Public Verify Link */}
                             <Link
                               href={`/verify-certificate?id=${c.id}`}
@@ -845,368 +632,38 @@ export default function CertificatesPage() {
       )}
 
       {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* TAB 2: নতুন প্রত্যয়ন প্রস্তুত (CREATE CERTIFICATE)                  */}
+      {/* TAB 2: সনদ ও প্রশংসাপত্র লাইভ স্টুডিও (UNIFIED SPLIT STUDIO)      */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'create' && (
-        <form onSubmit={handleSaveCertificate} className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden">
-          
-          {/* ── LEFT PANEL: Type & Student Selection (4 Cols) ──────────── */}
-          <div className="lg:col-span-4 space-y-4">
-            
-            {/* Step 1: Certificate Type Selector */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">১</span>
-                  প্রত্যয়নের ধরন নির্বাচন করুন
-                </span>
-                <span className="text-[10px] font-bold text-slate-400 font-mono">11 Types</span>
-              </div>
+        <CertificateStudioWorkspace
+          students={students}
+          alumniList={alumniList}
+          schoolSettings={schoolSettings}
+          createdByName={creatorLabel}
+          initialStudentId={studioStudentId}
+          initialAlumniId={studioAlumniId}
+          initialType={studioCertType}
+          editingCert={editingCert}
+          onSaved={() => loadData()}
+          onOpenPadSettings={() => setShowPadSettingsModal(true)}
+          onStudentUpdated={() => loadData()}
+          onNotify={(type, text) => showAlert(type, text)}
+        />
+      )}
 
-              <div className="p-2 space-y-1 max-h-[300px] overflow-y-auto">
-                {ALL_CERT_TYPES.map((t) => {
-                  const Icon = t.icon;
-                  const isSelected = certType === t.id;
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => setCertType(t.id)}
-                      className={`p-2.5 rounded-xl border transition cursor-pointer flex items-center gap-2.5 ${
-                        isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100'
-                      }`}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isSelected ? 'bg-amber-400 text-slate-950 font-black' : `${t.bgColor} ${t.color}`
-                        }`}
-                      >
-                        <Icon size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold truncate">{t.title}</p>
-                        <p className={`text-[10px] truncate ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                          {t.desc}
-                        </p>
-                      </div>
-                      {isSelected && <CheckCircle2 size={16} className="text-amber-400 shrink-0" />}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 2: Student Database Selector */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">২</span>
-                  ডাটাবেস থেকে শিক্ষার্থী নির্বাচন
-                </span>
-                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-mono bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md">
-                  {students.length} জন শিক্ষার্থী
-                </span>
-              </div>
-
-              <div className="p-3 space-y-2">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    placeholder="নাম, রোল, শ্রেণি বা আইডি দিয়ে খুঁজুন..."
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
-
-                <div className="space-y-1 max-h-[220px] overflow-y-auto">
-                  {filteredStudents.map((s) => {
-                    const isSelected = selectedStudent?.id === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={() => setSelectedStudent(s)}
-                        className={`p-2 rounded-xl border text-xs transition cursor-pointer flex items-center justify-between ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
-                            : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <p className="font-bold">{s.name}</p>
-                          <p className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
-                            রোল: {s.roll} | শ্রেণি: {s.grade} ({s.section || (s as any).branch || 'A'}) | আইডি: {s.id}
-                          </p>
-                        </div>
-                        {isSelected && <Check size={14} className="text-white shrink-0" />}
-                      </div>
-                    );
-                  })}
-                  {filteredStudents.length === 0 && (
-                    <p className="text-center py-4 text-xs text-slate-400">কোনো শিক্ষার্থী পাওয়া যায়নি</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Pad Format Info */}
-            <div className="bg-indigo-50/70 dark:bg-indigo-950/50 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 p-4 shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                <FileText size={18} />
-              </div>
-              <div className="text-xs">
-                <p className="font-bold text-indigo-950 dark:text-indigo-200">অফিশিয়াল স্কুল লেটারহেড প্যাড</p>
-                <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">সকল প্রত্যয়ন পত্র স্কুলের প্রাতিষ্ঠানিক লেটারহেড প্যাডে মুদ্রিত হবে।</p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ── RIGHT PANEL: Auto-Populated Form & Live Text (8 Cols) ───── */}
-          <div className="lg:col-span-8 space-y-4">
-            
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Sparkles size={16} className="text-indigo-600 dark:text-indigo-400" />
-                    শিক্ষার্থী তথ্য ও প্রত্যয়ন বিবরণী
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    ডাটাবেস থেকে স্বয়ংক্রিয়ভাবে যুক্ত হয়েছে। প্রয়োজনে যেকোনো তথ্য ম্যানুয়ালি সম্পাদন করা যাবে।
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isAlumni}
-                      onChange={(e) => setIsAlumni(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500"
-                    />
-                    <span>সাবেক শিক্ষার্থী (Ex-Student)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Grid 1: Basic Identifiers */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">স্মারক নম্বর (Ref No)</label>
-                  <input
-                    type="text"
-                    value={refNo}
-                    onChange={(e) => setRefNo(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ইস্যুর তারিখ</label>
-                  <input
-                    type="date"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">সনদের শিরোনাম</label>
-                  <input
-                    type="text"
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder="যেমন: অধ্যয়নরত প্রত্যয়ন পত্র"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Grid 2: Student & Parents */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষার্থীর নাম (বাংলায়) *</label>
-                  <input
-                    type="text"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষার্থীর নাম (English)</label>
-                  <input
-                    type="text"
-                    value={studentNameEn}
-                    onChange={(e) => setStudentNameEn(e.target.value)}
-                    placeholder="e.g. MOHAMMAD SAIF"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-serif focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">জন্ম তারিখ</label>
-                  <input
-                    type="text"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    placeholder="YYYY-MM-DD"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">পিতার নাম *</label>
-                  <input
-                    type="text"
-                    value={fatherName}
-                    onChange={(e) => setFatherName(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">মাতার নাম *</label>
-                  <input
-                    type="text"
-                    value={motherName}
-                    onChange={(e) => setMotherName(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শিক্ষাবর্ষ / সেশন</label>
-                  <input
-                    type="text"
-                    value={session}
-                    onChange={(e) => setSession(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Grid 3: Class, Section, Roll */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শ্রেণি</label>
-                  <input
-                    type="text"
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">শাখা (Section)</label>
-                  <input
-                    type="text"
-                    value={section}
-                    onChange={(e) => setSection(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">রোল নম্বর</label>
-                  <input
-                    type="text"
-                    value={roll}
-                    onChange={(e) => setRoll(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">গ্রুপ / বিভাগ</label>
-                  <input
-                    type="text"
-                    value={group}
-                    onChange={(e) => setGroup(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Grid 4: Address Details */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">গ্রাম</label>
-                  <input
-                    type="text"
-                    value={village}
-                    onChange={(e) => setVillage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ডাকঘর</label>
-                  <input
-                    type="text"
-                    value={postOffice}
-                    onChange={(e) => setPostOffice(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">উপজেলা</label>
-                  <input
-                    type="text"
-                    value={upazila}
-                    onChange={(e) => setUpazila(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">জেলা</label>
-                  <input
-                    type="text"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Editable Body Text */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                  সনদপত্রের মূল বিবরণী (Dynamic Certificate Body)
-                </label>
-                <textarea
-                  rows={6}
-                  value={customBody}
-                  onChange={(e) => setCustomBody(e.target.value)}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-serif leading-relaxed text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('register')}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                >
-                  বাতিল করুন
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
-                >
-                  <Printer size={15} /> প্রস্তুত ও প্রিন্ট প্রিভিউ দেখুন
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-
-        </form>
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 2B: ব্যাচ সনদ ও প্রশংসাপত্র জেনারেটর                           */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'batch' && (
+        <BatchCertificateStudio
+          students={students}
+          initialSelectedIds={batchStudentIds}
+          initialCertType={batchCertType}
+          schoolSettings={schoolSettings}
+          createdByName={creatorLabel}
+          onBatchSaved={() => loadData()}
+          onNotify={(type, text) => showAlert(type, text)}
+        />
       )}
 
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -1340,7 +797,13 @@ export default function CertificatesPage() {
                         '{{achievement}}',
                         '{{board_roll}}',
                         '{{board_reg}}',
-                        '{{gpa}}'
+                        '{{gpa}}',
+                        '{{son_daughter}}',
+                        '{{He_She}}',
+                        '{{his_her}}',
+                        '{{student_noun_bn}}',
+                        '{{traits_line}}',
+                        '{{purpose_line}}',
                       ].map((v) => (
                         <button
                           key={v}
@@ -1537,6 +1000,19 @@ export default function CertificatesPage() {
                 </button>
 
                 <button
+                  type="button"
+                  onClick={async () => {
+                    if (!modalSheetRef.current || !showPrintModal) return;
+                    const res = await exportElementToPng(modalSheetRef.current, `${showPrintModal.id}.png`);
+                    if (res.ok) showAlert('success', 'PNG ছবি ডাউনলোড হয়েছে!');
+                    else showAlert('error', 'PNG ডাউনলোডে সমস্যা হয়েছে — প্রিন্ট / PDF ব্যবহার করুন।');
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+                >
+                  <Download size={14} /> PNG ছবি
+                </button>
+
+                <button
                   onClick={() => {
                     certificateService.logPrintAction(showPrintModal.id, currentUser?.teacherName || 'অ্যাডমিন');
                     window.print();
@@ -1558,6 +1034,7 @@ export default function CertificatesPage() {
             {/* Document Render Area */}
             <div className="bg-slate-100/70 p-4 sm:p-6 flex justify-center overflow-x-auto print:p-0 print:bg-transparent">
               <OfficialCertificateDoc
+                sheetRef={modalSheetRef}
                 cert={showPrintModal}
                 settings={schoolSettings}
                 overrideStyle={printLayoutOverride || showPrintModal.layoutStyle}

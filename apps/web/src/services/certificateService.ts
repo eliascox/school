@@ -66,6 +66,12 @@ export interface CertificateRecord {
   boardReg?: string;
   passingYear?: string;
   gpa?: string;
+  gradeLetter?: string;
+  gpaScale?: string;
+  examType?: string;
+  boardName?: string;
+  studyPeriod?: string;
+  currentlyStudying?: boolean;
   isAlumni?: boolean;
 
   // Content & Customization
@@ -73,11 +79,32 @@ export interface CertificateRecord {
   characterRemarks?: string;
   customBody?: string;
   templateId?: string;
+  language?: 'bn' | 'en';
+  traits?: string[];
+  purposeCode?: string;
+  purposeText?: string;
+
+  // Studio Visual & Print Controls
+  orientation?: 'portrait' | 'landscape';
+  themeColor?: string;
+  titleVariant?: 'ribbon' | 'underline' | 'minimal';
+  borderPreset?: string;
+  customBorderUrl?: string;
+  showHeader?: boolean;
+  showPhotoBox?: boolean;
+  photoUrl?: string;
+  showOfficeStub?: boolean;
+  showCornerBands?: boolean;
+  fontSize?: number;
+  showQrCode?: boolean;
 
   // Signatures & School Pad
   padType?: 'digital_server' | 'manual_printed' | 'blank_pad';
   principalTitle?: string;
   authorizedPersonTitle?: string;
+  showSecondarySigner?: boolean;
+  secondarySignerName?: string;
+  secondarySignerTitle?: string;
 
   // Cancellation Information
   cancelledAt?: string;
@@ -116,7 +143,7 @@ export interface CertificateTemplate {
 const STORAGE_KEY = 'sms_certificates_history';
 const TEMPLATES_STORAGE_KEY = 'sms_certificate_templates';
 const TEMPLATES_VERSION_KEY = 'sms_templates_version';
-const CURRENT_TEMPLATES_VERSION = 'v6_bold_title_3in_margin';
+const CURRENT_TEMPLATES_VERSION = 'v7_smart_bilingual_gender';
 
 // ─── DEFAULT TEMPLATES WITH DYNAMIC VARIABLES ──────────────────────────────
 export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
@@ -128,9 +155,9 @@ export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে **অধ্যয়নরত প্রত্যয়ন পত্র** প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে এই বিদ্যালয়ের {{class}} শ্রেণির {{group}} বিভাগের একজন নিয়মিত ও শান্ত স্বভাবের শিক্ষার্থী হিসেবে বর্তমানে অধ্যয়নরত আছে। তার শ্রেণি রোল নম্বর: {{roll_no}} এবং ভর্তিবহি মতে জন্ম তারিখ: {{date_of_birth}} খ্রি.।
+    bodyTemplate: `এই মর্মে **অধ্যয়নরত প্রত্যয়ন পত্র** প্রদান করা যাচ্ছে যে, **{{student_name}}**, পিতা: **{{father_name}}**, মাতা: **{{mother_name}}**, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}। সে এই বিদ্যালয়ের {{class}} শ্রেণির {{group}} বিভাগের একজন নিয়মিত ও শান্ত স্বভাবের {{student_noun_bn}} হিসেবে বর্তমানে অধ্যয়নরত আছে। তার শ্রেণি রোল নম্বর: {{roll_no}} এবং ভর্তিবহি মতে জন্ম তারিখ: {{date_of_birth}} খ্রি.।
 
-এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, সামাজিক শৃঙ্খলাবোধ ও আচার-ব্যবহার অত্যন্ত প্রশংসনীয়। আমার জানামতে সে কোন প্রকার রাষ্ট্রবিরোধী বা শৃঙ্খলাপরিপন্থী কর্মকাণ্ডে জড়িত নয়।
+এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, সামাজিক শৃঙ্খলাবোধ ও আচার-ব্যবহার {{traits_line}}। আমার জানামতে সে কোনো প্রকার রাষ্ট্রবিরোধী বা শৃঙ্খলাপরিপন্থী কর্মকাণ্ডে জড়িত নয়। {{purpose_line}}
 
 আমি তার জীবনের সর্বাঙ্গীন মঙ্গল, সুস্বাস্থ্য ও উত্তরোত্তর সমৃদ্ধি কামনা করি।`
   },
@@ -142,9 +169,9 @@ export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
     layoutStyle: 'pad',
     language: 'bn',
     isDefault: true,
-    bodyTemplate: `এই মর্মে **চারিত্রিক সনদ পত্র** প্রদান করা যাচ্ছে যে, {{student_name}}, পিতা: {{father_name}}, মাতা: {{mother_name}}, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, জন্ম তারিখ: {{date_of_birth}} খ্রি.। সে এই বিদ্যালয়ের {{class}} শ্রেণির একজন নিয়মিত শিক্ষার্থী ছিল/আছে (রোল: {{roll_no}}, সেশন: {{session}})।
+    bodyTemplate: `এই মর্মে **চারিত্রিক সনদ পত্র** প্রদান করা যাচ্ছে যে, **{{student_name}}**, পিতা: **{{father_name}}**, মাতা: **{{mother_name}}**, গ্রাম: {{village}}, ডাকঘর: {{post_office}}, উপজেলা: {{upazila}}, জেলা: {{district}}, জন্ম তারিখ: {{date_of_birth}} খ্রি.। সে এই বিদ্যালয়ের {{class}} শ্রেণির একজন নিয়মিত {{student_noun_bn}} (রোল: {{roll_no}}, সেশন: {{session}})।
 
-এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, আচার-আচরণ ও স্বভাব অত্যন্ত উত্তম ও সন্তোষজনক ছিল। আমার জানামতে সে কোনো রাষ্ট্র, সমাজ বা বিদ্যালয় শৃঙ্খলাপরিপন্থী কাজে কখনোই জড়িত ছিল না।
+এই বিদ্যালয়ে অধ্যয়নকালে তার নৈতিক চরিত্র, আচার-আচরণ ও স্বভাব {{traits_line}}। আমার জানামতে সে কোনো রাষ্ট্র, সমাজ বা বিদ্যালয় শৃঙ্খলাপরিপন্থী কাজে কখনোই জড়িত ছিল না। {{purpose_line}}
 
 আমি তার জীবনের সার্বিক সাফল্য ও উজ্জ্বল ভবিষ্যৎ কামনা করি।`
   },
@@ -156,13 +183,13 @@ export const DEFAULT_CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
     layoutStyle: 'royal_border',
     language: 'en',
     isDefault: true,
-    bodyTemplate: `This is to certify that **{{student_name}}**, son/daughter of Mr. {{father_name}} and Mrs. {{mother_name}}, Village: {{village}}, Post Office: {{post_office}}, Upazilla: {{upazila}}, District: {{district}}, was a bona fide student of {{school_name}}.
+    bodyTemplate: `This is to certify that **{{student_name}}**, {{son_daughter}} **{{father_name}}** and **{{mother_name}}**, Village: {{village}}, Post Office: {{post_office}}, Upazila: {{upazila}}, District: {{district}}, was a bona fide student of **{{school_name}}**.
 
-He/She bore Roll No. {{board_roll}}, Registration No. {{board_reg}}, Session {{session}}, Group {{group}}. He/She has duly passed the Secondary School Certificate (S.S.C.) Examination held in {{passing_year}} and secured GPA {{gpa}} out of 5.00 under the Board of Intermediate and Secondary Education, Chattogram.
+{{He_She}} bore Roll No. {{board_roll}}, Registration No. {{board_reg}}, Session {{session}}, {{group}} Group. {{He_She}} duly passed the {{exam_type}} held in {{passing_year}} securing GPA {{gpa}} out of 5.00 under the {{board_name}}.
 
-During the period of study in this institution, his/her moral character and conduct were found to be excellent. There is no adverse record against him/her regarding state security or institutional discipline.
+During the period of study in this institution, {{his_her}} moral character and conduct were found to be {{traits_line}}. To the best of my knowledge, {{he_she}} took no part in any activity subversive of the state or institutional discipline.
 
-We wish him/her every success in all future academic and personal endeavors.`
+{{purpose_line}} We wish {{him_her}} every success in all future academic and personal endeavors.`
   },
   {
     id: 'tmpl_transfer_certificate',
@@ -558,46 +585,74 @@ class CertificateService {
       achievement?: string;
       remarks?: string;
       birth_reg_no?: string;
+      son_daughter?: string;
+      son_daughter_bn?: string;
+      student_noun_bn?: string;
+      he_she?: string;
+      He_She?: string;
+      his_her?: string;
+      His_Her?: string;
+      him_her?: string;
+      traits_line?: string;
+      purpose_line?: string;
+      exam_type?: string;
+      board_name?: string;
+      study_period?: string;
     }
   ): string {
     if (!templateStr) return '';
 
+    const blank = '........................';
     let res = templateStr;
+    const combinedAddr = [vars.village, vars.post_office, vars.upazila, vars.district].filter(Boolean).join(', ');
     const mapping: Record<string, string> = {
-      '{{student_name}}': vars.student_name || '—',
-      '{{student_id}}': vars.student_id || '—',
-      '{{admission_no}}': vars.admission_no || vars.student_id || '—',
-      '{{roll_no}}': vars.roll_no || '—',
-      '{{class}}': vars.class || '—',
+      '{{student_name}}': vars.student_name || blank,
+      '{{student_id}}': vars.student_id || blank,
+      '{{admission_no}}': vars.admission_no || vars.student_id || blank,
+      '{{roll_no}}': vars.roll_no || blank,
+      '{{class}}': vars.class || blank,
       '{{section}}': vars.section || 'A',
-      '{{session}}': vars.session || '২০২৬',
-      '{{father_name}}': vars.father_name || '—',
-      '{{mother_name}}': vars.mother_name || '—',
-      '{{date_of_birth}}': vars.date_of_birth || '—',
+      '{{session}}': vars.session || blank,
+      '{{father_name}}': vars.father_name || blank,
+      '{{mother_name}}': vars.mother_name || blank,
+      '{{date_of_birth}}': vars.date_of_birth || blank,
       '{{issue_date}}': vars.issue_date || new Date().toLocaleDateString('bn-BD'),
-      '{{certificate_no}}': vars.certificate_no || '—',
-      '{{school_name}}': vars.school_name || 'বরইতলী উচ্চ বিদ্যালয়',
-      '{{address}}': vars.address || [vars.village, vars.post_office, vars.upazila, vars.district].filter(Boolean).join(', ') || 'বরইতলী, চকরিয়া, কক্সবাজার',
-      '{{student_address}}': [vars.village, vars.post_office, vars.upazila, vars.district].filter(Boolean).join(', ') || vars.address || 'বরইতলী, চকরিয়া, কক্সবাজার',
-      '{{village}}': vars.village || 'বরইতলী',
-      '{{post_office}}': vars.post_office || 'বরইতলী',
-      '{{upazila}}': vars.upazila || 'চকরিয়া',
-      '{{district}}': vars.district || 'কক্সবাজার',
+      '{{certificate_no}}': vars.certificate_no || blank,
+      '{{school_name}}': vars.school_name || 'অত্র বিদ্যালয়',
+      '{{address}}': vars.address || combinedAddr || blank,
+      '{{student_address}}': combinedAddr || vars.address || blank,
+      '{{village}}': vars.village || blank,
+      '{{post_office}}': vars.post_office || blank,
+      '{{upazila}}': vars.upazila || blank,
+      '{{district}}': vars.district || blank,
       '{{group}}': vars.group || 'সাধারণ',
-      '{{board_roll}}': vars.board_roll || '—',
-      '{{board_reg}}': vars.board_reg || '—',
-      '{{gpa}}': vars.gpa || '5.00',
-      '{{passing_year}}': vars.passing_year || '২০২৬',
+      '{{board_roll}}': vars.board_roll || blank,
+      '{{board_reg}}': vars.board_reg || blank,
+      '{{gpa}}': vars.gpa || blank,
+      '{{passing_year}}': vars.passing_year || String(new Date().getFullYear()),
       '{{achievement}}': vars.achievement || 'বিশেষ কৃতিত্ব ও অবদানের জন্য',
       '{{remarks}}': vars.remarks || '',
-      '{{birth_reg_no}}': vars.birth_reg_no || '—'
+      '{{birth_reg_no}}': vars.birth_reg_no || blank,
+      '{{son_daughter}}': vars.son_daughter || 'ward of',
+      '{{son_daughter_bn}}': vars.son_daughter_bn || 'সন্তান',
+      '{{student_noun_bn}}': vars.student_noun_bn || 'শিক্ষার্থী',
+      '{{he_she}}': vars.he_she || 'they',
+      '{{He_She}}': vars.He_She || 'They',
+      '{{his_her}}': vars.his_her || 'their',
+      '{{His_Her}}': vars.His_Her || 'Their',
+      '{{him_her}}': vars.him_her || 'them',
+      '{{traits_line}}': vars.traits_line || 'অত্যন্ত প্রশংসনীয় ও সন্তোষজনক',
+      '{{purpose_line}}': vars.purpose_line || '',
+      '{{exam_type}}': vars.exam_type || 'Secondary School Certificate (S.S.C.) Examination',
+      '{{board_name}}': vars.board_name || 'Board of Intermediate and Secondary Education',
+      '{{study_period}}': vars.study_period || vars.session || blank,
     };
 
     for (const [key, value] of Object.entries(mapping)) {
       res = res.split(key).join(value);
     }
 
-    return res;
+    return res.replace(/\n{3,}/g, '\n\n').trim();
   }
 }
 

@@ -13,6 +13,11 @@ import {
   getEnglishAddress as resolveEnglishAddress,
   getSchoolInitials,
 } from '@/services/settingsService';
+import {
+  evaluateSubjectGradeAndPass,
+  gpaToLetterGrade,
+  PassEvaluationMode,
+} from '@/services/resultService';
 
 export interface StudentProfile {
   id: string;
@@ -37,6 +42,14 @@ export interface SubjectMark {
   practical: number;
   ca: number;
   totalMarks: number;
+  cqFull?: number;
+  mcqFull?: number;
+  practicalFull?: number;
+  caFull?: number;
+  passMarks?: number;
+  passRules?: string;
+  isPassed?: boolean;
+  failedComponents?: string[];
   isJointPass?: boolean;
   jointPairCode?: string;
   jointPairName?: string;
@@ -165,13 +178,14 @@ export interface MarksheetCalculationOptions {
   selectedExam: string;
   selectedGrade: string;
   selectedBranch: string;
+  passMode?: PassEvaluationMode;
 }
 
 export const generateStudentMarksheetData = (
   targetStudent: StudentProfile,
   options: MarksheetCalculationOptions
 ) => {
-  const { selectedExam, selectedGrade, selectedBranch } = options;
+  const { selectedExam, selectedGrade, selectedBranch, passMode = 'curriculum' } = options;
   const gradeNumMap: Record<string, number> = { '6th': 6, '7th': 7, '8th': 8, '9th': 9, '10th': 10 };
   const targetGradeNum = gradeNumMap[selectedGrade] || 8;
 
@@ -267,6 +281,12 @@ export const generateStudentMarksheetData = (
       practical: retrieved.practical,
       ca: retrieved.ca,
       totalMarks: retrieved.total,
+      cqFull: Number(sub.cq) || 0,
+      mcqFull: Number(sub.mcq) || 0,
+      practicalFull: Number(sub.practical) || 0,
+      caFull: Number(sub.ca) || 0,
+      passMarks: Number(sub.passMarks) || 0,
+      passRules: sub.passRules || '',
       hasEnteredMarks: retrieved.hasMarks,
       isJointPass: Boolean(sub.isJointPass),
       jointPairCode: sub.jointPairCode
@@ -319,13 +339,17 @@ export const generateStudentMarksheetData = (
       'কম্পিউটার শিক্ষা': 'CMP-135'
     };
     const optCode = optionalCodeMap[optName] || `AGR-${targetGradeNum}07`;
+    const matchedOptConfig = religionMatchedConfigured.find(
+      (s: any) => s.code === optCode || (s.name && s.name.includes(optName)) || isOptionalSub(s)
+    );
+    const optFullMarks = matchedOptConfig?.fullMarks || 100;
 
     const optRetrieved = getUniversalStudentMark({
       exam: selectedExam,
       grade: selectedGrade,
       branch: selectedBranch,
       group: targetStudent.group,
-      subjectCodeOrName: optName,
+      subjectCodeOrName: matchedOptConfig?.code || optName,
       studentRoll: targetStudent.roll,
       studentId: targetStudent.id,
       studentName: targetStudent.name,
@@ -333,24 +357,42 @@ export const generateStudentMarksheetData = (
     });
 
     const optTotal = optRetrieved.hasMarks ? optRetrieved.total : 0;
-    const optCalc = calculateGradeAndPoint(optTotal, 100);
+    const optEval = evaluateSubjectGradeAndPass(
+      {
+        cq: optRetrieved.cq,
+        mcq: optRetrieved.mcq,
+        practical: optRetrieved.practical,
+        ca: optRetrieved.ca,
+        total: optTotal,
+      },
+      matchedOptConfig || {
+        fullMarks: optFullMarks,
+        cq: optFullMarks,
+        mcq: 0,
+        practical: 0,
+        ca: 0,
+      },
+      passMode,
+    );
 
     optionalSubjectMarkData = {
       code: optCode,
       name: optName,
-      fullMarks: 100,
+      fullMarks: optFullMarks,
       cq: optRetrieved.cq,
       mcq: optRetrieved.mcq,
       practical: optRetrieved.practical || optRetrieved.ca,
       totalMarks: optTotal,
       hasEnteredMarks: optRetrieved.hasMarks,
-      letterGrade: optRetrieved.hasMarks ? optCalc.grade : '-',
-      gradePoint: optRetrieved.hasMarks ? optCalc.point : 0
+      isPassed: optRetrieved.hasMarks ? optEval.isPassed : false,
+      failedComponents: optRetrieved.hasMarks ? optEval.failedComponents : [],
+      letterGrade: optRetrieved.hasMarks ? optEval.letterGrade : '-',
+      gradePoint: optRetrieved.hasMarks ? optEval.gradePoint : 0
     };
 
+    totalFull += optFullMarks;
     if (optRetrieved.hasMarks) {
       totalObtained += optTotal;
-      totalFull += 100;
       totalCq += optRetrieved.cq;
       totalMcq += optRetrieved.mcq;
       totalPrac += (optRetrieved.practical || optRetrieved.ca);
@@ -373,8 +415,8 @@ export const generateStudentMarksheetData = (
     // Check if this subject is part of a joint pass pair
     const nextSub = filteredRawSubjects[i + 1];
     const isJointPair = Boolean(nextSub && (
-      (sub.name.includes('বাংলা ১ম') && nextSub.name.includes('বাংলা ২য়')) ||
-      (sub.name.includes('ইংরেজি ১ম') && nextSub.name.includes('ইংরেজি ২য়')) ||
+      (sub.name.includes('বাংলা ১ম') && (nextSub.name.includes('বাংলা ২য়') || nextSub.name.includes('বাংলা ২য়'))) ||
+      (sub.name.includes('ইংরেজি ১ম') && (nextSub.name.includes('ইংরেজি ২য়') || nextSub.name.includes('ইংরেজি ২য়'))) ||
       (sub.isJointPass && (
         (sub.code.startsWith('BAN') && nextSub.code.startsWith('BAN')) ||
         (sub.code.startsWith('ENG') && nextSub.code.startsWith('ENG')) ||
@@ -386,33 +428,55 @@ export const generateStudentMarksheetData = (
       // Master = sub, Slave = nextSub
       const jointCombinedTotal = sub.totalMarks + nextSub.totalMarks;
       const jointCombinedFull = sub.fullMarks + nextSub.fullMarks;
-      const jointCalc = calculateGradeAndPoint(jointCombinedTotal, jointCombinedFull);
+      const jointEval = evaluateSubjectGradeAndPass(
+        {
+          cq: (sub.cq || 0) + (nextSub.cq || 0),
+          mcq: (sub.mcq || 0) + (nextSub.mcq || 0),
+          practical: (sub.practical || 0) + (nextSub.practical || 0),
+          ca: (sub.ca || 0) + (nextSub.ca || 0),
+          total: jointCombinedTotal,
+        },
+        {
+          fullMarks: jointCombinedFull,
+          cq: (sub.cqFull || 0) + (nextSub.cqFull || 0),
+          mcq: (sub.mcqFull || 0) + (nextSub.mcqFull || 0),
+          practical: (sub.practicalFull || 0) + (nextSub.practicalFull || 0),
+          ca: (sub.caFull || 0) + (nextSub.caFull || 0),
+          passMarks: (sub.passMarks || 0) + (nextSub.passMarks || 0),
+          passRules: sub.passRules || nextSub.passRules,
+        },
+        passMode,
+      );
 
-      if (jointCalc.grade === 'F') hasFailed = true;
+      if (!jointEval.isPassed) hasFailed = true;
 
       totalObtained += jointCombinedTotal;
       totalFull += jointCombinedFull;
       totalCq += (sub.cq || 0) + (nextSub.cq || 0);
       totalMcq += (sub.mcq || 0) + (nextSub.mcq || 0);
       totalPrac += (sub.practical || sub.ca || 0) + (nextSub.practical || nextSub.ca || 0);
-      mainGradePoints += jointCalc.point;
+      mainGradePoints += jointEval.gradePoint;
       mainUnitsCount++;
 
       processedSubjects.push({
         ...sub,
         isJointMaster: true,
+        isPassed: jointEval.isPassed,
+        failedComponents: jointEval.failedComponents,
         jointCombinedTotal,
-        jointCombinedGrade: jointCalc.grade,
-        jointCombinedPoint: jointCalc.point,
-        letterGrade: jointCalc.grade,
-        gradePoint: jointCalc.point
+        jointCombinedGrade: jointEval.letterGrade,
+        jointCombinedPoint: jointEval.gradePoint,
+        letterGrade: jointEval.letterGrade,
+        gradePoint: jointEval.gradePoint
       });
 
       processedSubjects.push({
         ...nextSub,
         isJointSlave: true,
-        letterGrade: jointCalc.grade,
-        gradePoint: jointCalc.point
+        isPassed: jointEval.isPassed,
+        failedComponents: jointEval.failedComponents,
+        letterGrade: jointEval.letterGrade,
+        gradePoint: jointEval.gradePoint
       });
 
       processedCodes.add(sub.code);
@@ -421,21 +485,41 @@ export const generateStudentMarksheetData = (
       processedNames.add(nextSub.name);
     } else {
       // Single non-joint subject
-      const calc = calculateGradeAndPoint(sub.totalMarks, sub.fullMarks);
-      if (calc.grade === 'F') hasFailed = true;
+      const evalRes = evaluateSubjectGradeAndPass(
+        {
+          cq: sub.cq,
+          mcq: sub.mcq,
+          practical: sub.practical,
+          ca: sub.ca,
+          total: sub.totalMarks,
+        },
+        {
+          fullMarks: sub.fullMarks,
+          cq: sub.cqFull || 0,
+          mcq: sub.mcqFull || 0,
+          practical: sub.practicalFull || 0,
+          ca: sub.caFull || 0,
+          passMarks: sub.passMarks,
+          passRules: sub.passRules,
+        },
+        passMode,
+      );
+      if (!evalRes.isPassed) hasFailed = true;
 
       totalObtained += sub.totalMarks;
       totalFull += sub.fullMarks;
       totalCq += (sub.cq || 0);
       totalMcq += (sub.mcq || 0);
       totalPrac += (sub.practical || sub.ca || 0);
-      mainGradePoints += calc.point;
+      mainGradePoints += evalRes.gradePoint;
       mainUnitsCount++;
 
       processedSubjects.push({
         ...sub,
-        letterGrade: calc.grade,
-        gradePoint: calc.point
+        isPassed: evalRes.isPassed,
+        failedComponents: evalRes.failedComponents,
+        letterGrade: evalRes.letterGrade,
+        gradePoint: evalRes.gradePoint
       });
 
       processedCodes.add(sub.code);
@@ -445,12 +529,12 @@ export const generateStudentMarksheetData = (
 
   // 4th Subject Bonus Calculation (GP > 2.00)
   const optionalGP = optionalSubjectMarkData?.gradePoint || 0;
-  const bonusGP = Math.max(0, optionalGP - 2.00);
+  const bonusGP = Math.max(0, Number((optionalGP - 2.00).toFixed(2)));
 
   const gpaWithout4th = hasFailed || mainUnitsCount === 0 ? 0.0 : Number((mainGradePoints / mainUnitsCount).toFixed(2));
   const finalGPA = hasFailed || mainUnitsCount === 0 ? 0.0 : Math.min(5.00, Number(((mainGradePoints + bonusGP) / mainUnitsCount).toFixed(2)));
 
-  const overallGrade = hasFailed ? 'F' : finalGPA >= 5.0 ? 'A+' : finalGPA >= 4.0 ? 'A' : finalGPA >= 3.5 ? 'A-' : finalGPA >= 3.0 ? 'B' : finalGPA >= 2.0 ? 'C' : 'D';
+  const overallGrade = gpaToLetterGrade(finalGPA, hasFailed);
 
   const safeSubjects = processedSubjects.filter((s: any) => !isOptionalSub(s));
 

@@ -791,3 +791,52 @@ export function computeCohortSnapshot(params: {
     allSubjectsSummary,
   };
 }
+
+export interface PopulatedCohort {
+  grade: string;
+  branch: string;
+  group: string;
+  count: number;
+}
+
+const STANDARD_GRADES = ['6th', '7th', '8th', '9th', '10th'] as const;
+
+/**
+ * Discovers populated (grade, branch, group) cohorts from enrolled students
+ * so Result Studio can auto-select real data and show live student counts.
+ */
+export function getPopulatedCohorts(allStudents: Student[]): {
+  cohorts: PopulatedCohort[];
+  gradeCounts: Record<string, number>;
+} {
+  const gradeCounts: Record<string, number> = {
+    '6th': 0,
+    '7th': 0,
+    '8th': 0,
+    '9th': 0,
+    '10th': 0,
+  };
+
+  for (const g of STANDARD_GRADES) {
+    gradeCounts[g] = filterStudentsForCohort(allStudents, g, 'all', 'সকল').length;
+  }
+
+  const cohorts: PopulatedCohort[] = [];
+  for (const g of STANDARD_GRADES) {
+    if (gradeCounts[g] === 0) continue;
+    if (g === '9th' || g === '10th') {
+      for (const grp of ['বিজ্ঞান', 'মানবিক', 'ব্যবসায় শিক্ষা']) {
+        const branchName = grp === 'বিজ্ঞান' ? 'Science' : grp === 'মানবিক' ? 'Humanities' : 'Commerce';
+        const cnt = filterStudentsForCohort(allStudents, g, 'all', grp).length;
+        if (cnt > 0) cohorts.push({ grade: g, branch: branchName, group: grp, count: cnt });
+      }
+    } else {
+      for (const sec of ['A', 'B', 'C']) {
+        const cnt = filterStudentsForCohort(allStudents, g, sec, 'সাধারণ').length;
+        if (cnt > 0) cohorts.push({ grade: g, branch: sec, group: 'সাধারণ', count: cnt });
+      }
+    }
+  }
+
+  return { cohorts, gradeCounts };
+}

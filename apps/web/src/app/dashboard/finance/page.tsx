@@ -68,10 +68,10 @@ const FEE_SUB_TABS: { id: FeeSubTab; label: string; icon: React.ComponentType<{ 
 ];
 
 const DEFAULT_SCHOOL_INFO: SchoolInfoState = {
-  nameBn: 'বরইতলী উচ্চ বিদ্যালয়',
-  eiin: '106224',
-  address: 'চকরিয়া, কক্সবাজার',
-  established: '1969',
+  nameBn: 'শিক্ষা প্রতিষ্ঠান',
+  eiin: '',
+  address: '',
+  established: '',
   session: String(new Date().getFullYear())
 };
 

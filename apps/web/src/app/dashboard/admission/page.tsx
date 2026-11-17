@@ -381,9 +381,9 @@ export default function AdmissionPage() {
   const isGroupDisabled = selectedClass === '6th' || selectedClass === '7th' || selectedClass === '8th';
   const isOptionalDisabled = group === 'মানবিক' || group === 'ব্যবসায় শিক্ষা';
 
-  const schoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const schoolAddress = schoolSettings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার';
-  const eiinNumber = schoolSettings?.eiin || '১০৬২৮৮';
+  const schoolName = schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান';
+  const schoolAddress = schoolSettings?.address || '';
+  const eiinNumber = schoolSettings?.eiin || '';
   const schoolLogo = schoolSettings?.schoolLogo;
 
   return (

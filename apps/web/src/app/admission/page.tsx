@@ -346,9 +346,9 @@ export default function PublicOnlineAdmissionPage() {
     setSmsDeliveryStatus(null);
   };
 
-  const schoolName = schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const schoolAddress = schoolSettings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার';
-  const eiinNumber = schoolSettings?.eiin || '১০৬১৮৪';
+  const schoolName = schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান';
+  const schoolAddress = schoolSettings?.address || '';
+  const eiinNumber = schoolSettings?.eiin || '';
   const schoolLogo = schoolSettings?.schoolLogo;
 
   const isGroupDisabled = selectedClass === '6th' || selectedClass === '7th' || selectedClass === '8th';

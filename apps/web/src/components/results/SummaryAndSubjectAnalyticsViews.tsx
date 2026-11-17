@@ -2,12 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  AlertTriangle,
-  Award,
-  BarChart3,
   BookOpen,
-  CheckCircle2,
-  Printer,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -17,7 +12,6 @@ import {
   ClassSectionSummaryRow,
   createEmptyGradeDistribution,
   GRADE_BUCKETS,
-  incrementGradeBucket,
   SubjectWiseReport,
 } from '@/lib/resultAnalyticsEngine';
 import { AppLanguage } from '@/services/languageService';
@@ -84,17 +78,6 @@ export function ClassSectionSummaryView({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end print:hidden">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer shadow-xs"
-        >
-          <Printer size={13} />
-          {lang === 'bn' ? 'সারসংক্ষেপ প্রিন্ট' : 'Print Summary'}
-        </button>
-      </div>
-
       {/* Bento KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 print:border-slate-300">
@@ -334,15 +317,6 @@ export function SubjectWiseAnalysisView({
             ))}
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-        >
-          <Printer size={13} />
-          {lang === 'bn' ? 'প্রিন্ট' : 'Print'}
-        </button>
       </div>
 
       {!report ? (
@@ -597,15 +571,6 @@ export function AllSubjectsHeatmapView({
             {lang === 'bn' ? 'পাস < ৫০%' : 'Pass < 50%'}
           </span>
         </div>
-
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black cursor-pointer"
-        >
-          <Printer size={13} />
-          {lang === 'bn' ? 'সব বিষয় প্রিন্ট' : 'Print Matrix'}
-        </button>
       </div>
 
       {/* 4 Bento KPIs + Highlights */}

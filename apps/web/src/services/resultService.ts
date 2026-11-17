@@ -87,9 +87,11 @@ export const calculateGradeAndPoint = (totalMarks: number, fullMarks: number = 1
 
 /**
  * Determine whether a subject evaluates pass/fail cumulatively or per-component.
+ * Any subject with multiple assessment components (e.g. CQ + MCQ, or + Practical/CA)
+ * enforces component-wise (part_by_part) passing by default so failing CQ or MCQ fails the subject.
  */
 export const resolveSubjectPassMode = (
-  subject: Pick<DynamicClassSubject, 'passRules'>,
+  subject: Pick<DynamicClassSubject, 'passRules'> & Partial<Pick<DynamicClassSubject, 'cq' | 'mcq' | 'practical' | 'ca'>>,
   requestedMode: PassEvaluationMode = 'curriculum',
 ): 'total' | 'part_by_part' => {
   if (requestedMode === 'total') return 'total';
@@ -98,12 +100,19 @@ export const resolveSubjectPassMode = (
   if (rulesText.includes('পৃথক') || rulesText.includes('আলাদা') || rulesText.includes('part')) {
     return 'part_by_part';
   }
+  const activeComponents = [subject.cq, subject.mcq, subject.practical, subject.ca].filter(
+    (v) => Number(v) > 0,
+  ).length;
+  if (activeComponents > 1) {
+    return 'part_by_part';
+  }
   return 'total';
 };
 
 /**
  * Evaluate a single subject's grade & pass status supporting both cumulative (Total)
  * and component-wise (Part by Part) 33% pass rules.
+ * Failing either CQ, MCQ, Practical, or CA independently results in Fail (F).
  */
 export const evaluateSubjectGradeAndPass = (
   mark: { cq?: number; mcq?: number; practical?: number; ca?: number; total: number },
@@ -130,31 +139,15 @@ export const evaluateSubjectGradeAndPass = (
     const mcqObt = Number(mark.mcq) || 0;
     const prObt = Number(mark.practical) || 0;
     const caObt = Number(mark.ca) || 0;
-    const rulesText = (subject.passRules || '').toLowerCase();
-    const combinedCqMcqRule =
-      passMode === 'curriculum' &&
-      rulesText.includes('একত্রে') &&
-      (cqFull > 0 || mcqFull > 0);
 
-    if (combinedCqMcqRule) {
-      const theoryFull = cqFull + mcqFull;
-      if (theoryFull > 0) {
-        const minTheory = Math.round(theoryFull * 0.33);
-        if (cqObt + mcqObt < minTheory) {
-          failedComponents.push(`CQ+MCQ (${cqObt + mcqObt}/${minTheory})`);
-        }
-      }
-    } else {
-      if (cqFull > 0) {
-        const minCq = Math.round(cqFull * 0.33);
-        if (cqObt < minCq) failedComponents.push(`CQ (${cqObt}/${minCq})`);
-      }
-      if (mcqFull > 0) {
-        const minMcq = Math.round(mcqFull * 0.33);
-        if (mcqObt < minMcq) failedComponents.push(`MCQ (${mcqObt}/${minMcq})`);
-      }
+    if (cqFull > 0) {
+      const minCq = Math.round(cqFull * 0.33);
+      if (cqObt < minCq) failedComponents.push(`CQ (${cqObt}/${minCq})`);
     }
-
+    if (mcqFull > 0) {
+      const minMcq = Math.round(mcqFull * 0.33);
+      if (mcqObt < minMcq) failedComponents.push(`MCQ (${mcqObt}/${minMcq})`);
+    }
     if (prFull > 0) {
       const minPr = Math.round(prFull * 0.33);
       if (prObt < minPr) failedComponents.push(`Practical (${prObt}/${minPr})`);

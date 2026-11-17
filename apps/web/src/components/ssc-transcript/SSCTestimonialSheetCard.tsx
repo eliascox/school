@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
-import { SchoolSettings } from '@/services/settingsService';
+import { SchoolSettings, getEnglishSchoolName, getEnglishAddress } from '@/services/settingsService';
 import {
   SSCTestimonialRecord,
   PrintLayoutConfig,
@@ -28,12 +28,12 @@ export default function SSCTestimonialSheetCard({
   borderImageUrl = '',
   qrCodeUrl = '',
 }: SSCTestimonialSheetCardProps) {
-  const schoolNameEn = record.schoolNameEn || 'BORAITOLI HIGH SCHOOL';
-  const schoolAddressEn = record.schoolAddressEn || "Boraitoli, Chakaria, Cox's Bazar";
+  const schoolNameEn = record.schoolNameEn || getEnglishSchoolName(schoolSettings) || 'EDUCATIONAL INSTITUTION';
+  const schoolAddressEn = record.schoolAddressEn || getEnglishAddress(schoolSettings) || '';
   const schoolPhone =
     layoutConfig.customPhone !== undefined && layoutConfig.customPhone !== ''
       ? layoutConfig.customPhone
-      : schoolSettings?.phone || '01819-000000';
+      : schoolSettings?.phone || '................';
 
   const detectedGen = detectGender(record.gender, record.studentName);
   const isFemale = detectedGen === 'Female';
@@ -220,15 +220,15 @@ export default function SSCTestimonialSheetCard({
               <strong className="font-serif font-bold text-slate-950">{cleanFatherName(record.fatherName)}</strong>{' '}
               and Mrs.{' '}
               <strong className="font-serif font-bold text-slate-950">{cleanMotherName(record.motherName)}</strong>,
-              Village: <strong className="font-serif font-bold text-slate-950">{record.village || 'Boraitoli'}</strong>,
+              Village: <strong className="font-serif font-bold text-slate-950">{record.village || '................'}</strong>,
               Post Office:{' '}
-              <strong className="font-serif font-bold text-slate-950">{record.postOffice || 'Boraitoli'}</strong>,
+              <strong className="font-serif font-bold text-slate-950">{record.postOffice || '................'}</strong>,
               Upazilla:{' '}
               <strong className="font-serif font-bold text-slate-950">
-                {record.upazilla || record.upazila || 'Chakaria'}
+                {record.upazilla || record.upazila || '................'}
               </strong>
               , District:{' '}
-              <strong className="font-serif font-bold text-slate-950">{record.district || "Cox's Bazar"}</strong>, was a
+              <strong className="font-serif font-bold text-slate-950">{record.district || '................'}</strong>, was a
               student of this school bearing Roll No.{' '}
               <strong className="font-mono font-bold text-slate-950">{record.boardRoll}</strong>, Registration No.{' '}
               <strong className="font-mono font-bold text-slate-950">{record.boardReg}</strong>, Session{' '}

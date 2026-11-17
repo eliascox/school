@@ -75,7 +75,7 @@ const base6to8Subjects: Omit<SubjectCurriculumItem, 'id' | 'grade'>[] = [
   { code: 'ICT-605', name: 'ডিজিটাল প্রযুক্তি (Digital Tech)', group: 'সাধারণ', cq: 25, mcq: '-', practical: 25, ca: 0, fullMarks: 50, passMarks: 17, passRules: 'লিখিত ও ব্যবহারিকে পৃথকভাবে পাস', isJointPass: false, category: 'আবশ্যিক' },
   { code: 'HIS-606', name: 'ইতিহাস ও সামাজিক বিজ্ঞান', group: 'সাধারণ', cq: 100, mcq: '-', practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'লিখিত ৩৩% নম্বর (৩৩/১০০)', isJointPass: false, category: 'আবশ্যিক' },
   { code: 'REL-610', name: 'ধর্ম ও নৈতিক শিক্ষা', group: 'সাধারণ', cq: 100, mcq: '-', practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'লিখিত ৩৩% নম্বর (৩৩/১০০)', isJointPass: false, category: 'আবশ্যিক' },
-  { code: 'AGR-607', name: 'কৃষি শিক্ষা (Agricultural Science)', group: 'সাধারণ', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ + Practical ৮ (৪র্থ বিষয়)', isJointPass: false, category: '৪র্থ বিষয়' }
+  { code: 'AGR-607', name: 'কৃষি শিক্ষা (Agricultural Science)', group: 'সাধারণ', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: '৪র্থ বিষয়' }
 ];
 
 const base9to10Subjects: Omit<SubjectCurriculumItem, 'id' | 'grade'>[] = [
@@ -91,10 +91,10 @@ const base9to10Subjects: Omit<SubjectCurriculumItem, 'id' | 'grade'>[] = [
   { code: 'GSCI-127', name: 'সাধারণ বিজ্ঞান (General Science)', group: 'মানবিক ও ব্যবসায় শিক্ষা', cq: 70, mcq: 30, practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ (মানবিক ও ব্যবসায় শিক্ষার আবশ্যিক)', isJointPass: false, category: 'আবশ্যিক' },
 
   // ── বিজ্ঞান বিভাগ (Science Group) ──
-  { code: 'PHY-136', name: 'পদার্থবিজ্ঞান (Physics)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)', isJointPass: false, category: 'আবশ্যিক' },
-  { code: 'CHE-137', name: 'রসায়ন (Chemistry)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)', isJointPass: false, category: 'আবশ্যিক' },
-  { code: 'BIO-138', name: 'জীববিজ্ঞান (Biology)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)', isJointPass: false, category: 'আবশ্যিক' },
-  { code: 'HMT-126', name: 'উচ্চতর গণিত (Higher Math)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ (একত্রে) + Practical ৮ (পৃথক)', isJointPass: false, category: '৪র্থ বিষয়' },
+  { code: 'PHY-136', name: 'পদার্থবিজ্ঞান (Physics)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
+  { code: 'CHE-137', name: 'রসায়ন (Chemistry)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
+  { code: 'BIO-138', name: 'জীববিজ্ঞান (Biology)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
+  { code: 'HMT-126', name: 'উচ্চতর গণিত (Higher Math)', group: 'বিজ্ঞান', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: '৪র্থ বিষয়' },
 
   // ── মানবিক বিভাগ (Humanities Group) ──
   { code: 'HIS-153', name: 'বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', group: 'মানবিক', cq: 70, mcq: 30, practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ ( পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
@@ -106,7 +106,7 @@ const base9to10Subjects: Omit<SubjectCurriculumItem, 'id' | 'grade'>[] = [
   { code: 'ACC-146', name: 'হিসাববিজ্ঞান (Accounting)', group: 'ব্যবসায় শিক্ষা', cq: 70, mcq: 30, practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ ( পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
   { code: 'BUS-143', name: 'ব্যবসায় উদ্যোগ (Business Ent.)', group: 'ব্যবসায় শিক্ষা', cq: 70, mcq: 30, practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ ( পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
   { code: 'FIN-152', name: 'ফিন্যান্স ও ব্যাংকিং (Finance)', group: 'ব্যবসায় শিক্ষা', cq: 70, mcq: 30, practical: '-', ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ২৩ + MCQ ১০ ( পৃথক পাস)', isJointPass: false, category: 'আবশ্যিক' },
-  { code: 'AGR-134', name: 'কৃষি শিক্ষা (Agricultural Science)', group: 'ব্যবসায় শিক্ষা', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ+MCQ ২৫ + Practical ৮ (৪র্থ বিষয়)', isJointPass: false, category: '৪র্থ বিষয়' }
+  { code: 'AGR-134', name: 'কৃষি শিক্ষা (Agricultural Science)', group: 'ব্যবসায় শিক্ষা', cq: 50, mcq: 25, practical: 25, ca: 0, fullMarks: 100, passMarks: 33, passRules: 'CQ ১৭ + MCQ ৮ + Practical ৮ (প্রতিটি অংশে পৃথক পাস)', isJointPass: false, category: '৪র্থ বিষয়' }
 ];
 
 const DEFAULT_CURRICULUM_DATA: SubjectCurriculumItem[] = [

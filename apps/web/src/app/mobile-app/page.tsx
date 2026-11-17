@@ -19,11 +19,26 @@ import { routineService, RoutineSlot, ROUTINE_DAYS, ROUTINE_PERIODS, Substitutio
 import { homeworkService, HomeworkAssignment } from '@/services/homeworkService';
 import { localDateKey } from '@/lib/dateUtils';
 import { landingPageService } from '@/services/landingPageService';
+import { settingsService } from '@/services/settingsService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
-import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
-import { getUniversalStudentMark } from '@/lib/markStorageUtils';
-import { calculateGradeAndPoint } from '@/services/resultService';
+import { calculateGradeAndPoint, gpaToLetterGrade, resultService } from '@/services/resultService';
 import InitialsAvatar from '@/components/public/InitialsAvatar';
+
+const matchesGradeId = (rawClassId: string | undefined, targetGrade: string): boolean => {
+  if (!targetGrade) return true;
+  const src = String(rawClassId || '').toLowerCase();
+  const normMap: Record<string, string[]> = {
+    '6th': ['6th', 'class 6', 'class-6', '৬ষ্ঠ', '৬'],
+    '7th': ['7th', 'class 7', 'class-7', '৭ম', '৭'],
+    '8th': ['8th', 'class 8', 'class-8', '৮ম', '৮'],
+    '9th': ['9th', 'class 9', 'class-9', '৯ম', '৯'],
+    '10th': ['10th', 'class 10', 'class-10', '১০ম', '১০'],
+  };
+  const tokens = normMap[targetGrade] || [targetGrade.toLowerCase()];
+  if (tokens.some((t) => src.includes(t))) return true;
+  const num = targetGrade.replace(/\D/g, '');
+  return num ? new RegExp(`(^|\\D)${num}(\\D|$)`).test(src) : false;
+};
 
 const toBnDigit = (num: number | string) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -93,8 +108,19 @@ export default function PublicMobileAppPage() {
       const s = teacherAuthService.getSession();
       setSession(s);
 
+      const settings = settingsService.getSettings();
       const cfg = landingPageService.getPublishedConfig();
-      if (cfg?.contact?.phone1) setSchoolPhone(cfg.contact.phone1);
+
+      if (settings?.schoolName) {
+        setSchoolName(settings.schoolName);
+      }
+      if (settings?.eiin) {
+        setSchoolEiin(toBnDigit(settings.eiin));
+      }
+      const resolvedPhone = settings?.phone || cfg?.contact?.phone1 || '';
+      if (resolvedPhone) {
+        setSchoolPhone(resolvedPhone);
+      }
 
       const rawSettings = localStorage.getItem('sms_school_settings');
       if (rawSettings) {
@@ -211,6 +237,7 @@ export default function PublicMobileAppPage() {
     }
 
     setVerifyError('');
+    setSelectedGrade(matched.grade || selectedGrade);
     setVerifiedStudentId(matched.id);
     try {
       sessionStorage.setItem('mobile_app_verified_student_id', matched.id);
@@ -230,16 +257,16 @@ export default function PublicMobileAppPage() {
   const activeStudent = useMemo(() => {
     if (isStaffSession) {
       if (selectedStudentId) {
-        const found = students.find((s) => s.id === selectedStudentId);
+        const found = students.find((s) => s.id === selectedStudentId && (!selectedGrade || s.grade === selectedGrade));
         if (found) return found;
       }
-      return classStudents[0] || students[0] || null;
+      return classStudents[0] || null;
     }
     if (verifiedStudentId) {
       return students.find((s) => s.id === verifiedStudentId) || null;
     }
     return null;
-  }, [isStaffSession, verifiedStudentId, students, classStudents, selectedStudentId]);
+  }, [isStaffSession, verifiedStudentId, students, classStudents, selectedStudentId, selectedGrade]);
 
   // Active Student Fee Ledger
   const feeLedger: StudentFeeLedger | null = useMemo(() => {
@@ -260,7 +287,8 @@ export default function PublicMobileAppPage() {
     if (typeof window === 'undefined' || !activeStudent) {
       return { todayStatus: 'তথ্য লক করা', isPresent: true, rate: 0, totalPresent: 0, totalDays: 0 };
     }
-    const today = new Date().toISOString().split('T')[0];
+    const todayLocal = localDateKey();
+    const todayIso = new Date().toISOString().split('T')[0];
     let todayStatus = 'আজকের হাজিরা এখনো নেওয়া হয়নি';
     let isPresent = true;
     let totalDays = 0;
@@ -288,7 +316,7 @@ export default function PublicMobileAppPage() {
         const isPresentRec = stNorm === 'present' || stNorm === 'p' || stNorm === 'late' || stNorm === 'l';
         if (isPresentRec) totalPresent += 1;
 
-        if (k.startsWith(`sms_attendance_${today}`)) {
+        if (k.startsWith(`sms_attendance_${todayLocal}`) || k.startsWith(`sms_attendance_${todayIso}`)) {
           if (stNorm === 'absent' || stNorm === 'a') {
             todayStatus = 'অনুপস্থিত';
             isPresent = false;
@@ -322,115 +350,148 @@ export default function PublicMobileAppPage() {
     };
   }, [activeStudent]);
 
-  // Active Student Exam Marks / GPA computed from canonical sms_marks_* keys via markStorageUtils
+  // Active Student Exam Marks / GPA computed via canonical resultService (strict CQ/MCQ/Practical 33% & Joint Pass & 4th Bonus parity)
   const examSummary = useMemo(() => {
     if (typeof window === 'undefined' || !activeStudent) {
       return { gpa: '—', grade: '—', marksList: [] as Array<{ subject: string; total: number; grade: string }> };
     }
     const marksList: Array<{ subject: string; total: number; grade: string }> = [];
-    let gpSum = 0;
-    let gpCount = 0;
-    let hasFail = false;
 
     try {
-      // Determine target exam name from sms_exam_setup or latest recorded sms_marks_* key
-      let targetExam = 'বার্ষিক পরীক্ষা ২০২৬';
+      const candidateExams: string[] = [];
       const setupRaw = localStorage.getItem('sms_exam_setup');
       if (setupRaw) {
         const setup = JSON.parse(setupRaw);
-        if (setup?.activeExam) targetExam = setup.activeExam;
-        else if (Array.isArray(setup?.exams) && setup.exams.length > 0) {
-          targetExam = setup.exams[0]?.name || setup.exams[0] || targetExam;
-        }
+        const configuredExam =
+          setup?.activeExam ||
+          (Array.isArray(setup?.exams) && setup.exams.length > 0
+            ? setup.exams[0]?.name || setup.exams[0]
+            : '');
+        if (configuredExam) candidateExams.push(String(configuredExam));
+      }
+      for (const fallbackExam of ['বার্ষিক পরীক্ষা ২০২৬', 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬']) {
+        if (!candidateExams.includes(fallbackExam)) candidateExams.push(fallbackExam);
       }
 
-      const subjects = getActiveCurriculumSubjects(
-        activeStudent.grade,
-        activeStudent.group || 'সাধারণ',
-        activeStudent.optionalSubject
-      );
-
-      for (const subj of subjects) {
-        const retrieved = getUniversalStudentMark({
-          exam: targetExam,
-          grade: activeStudent.grade,
+      let evaluated = null;
+      for (const examName of candidateExams) {
+        const res = resultService.calculateStudentResult({
+          examId: examName,
+          student: activeStudent,
+          grade: activeStudent.grade || selectedGrade,
           branch: activeStudent.section || 'A',
-          group: activeStudent.group,
-          subjectCodeOrName: subj.code || subj.name,
-          studentRoll: String(activeStudent.roll),
-          studentId: activeStudent.id,
-          studentName: activeStudent.name,
-          religion: (activeStudent.religion as any) || 'Muslim',
+          group: activeStudent.group || 'সাধারণ',
         });
-
-        if (retrieved.hasMarks) {
-          const gp = calculateGradeAndPoint(retrieved.total, subj.fullMarks || 100);
-          marksList.push({
-            subject: subj.name,
-            total: retrieved.total,
-            grade: gp.letterGrade,
-          });
-          if (gp.letterGrade === 'F' && subj.category !== 'ঐচ্ছিক') hasFail = true;
-          gpSum += gp.gradePoint;
-          gpCount += 1;
+        if (res && (res.enteredSubjectsCount || 0) > 0) {
+          evaluated = res;
+          break;
         }
       }
 
-      // Fallback to legacy sms_exam_marks only if canonical store returned no records
-      if (marksList.length === 0) {
-        const rawMarks = localStorage.getItem('sms_exam_marks');
-        if (rawMarks) {
-          const parsed = JSON.parse(rawMarks);
-          if (Array.isArray(parsed)) {
-            parsed
-              .filter(
-                (m: any) =>
-                  m.studentId === activeStudent.id ||
-                  (String(m.roll) === String(activeStudent.roll) && m.className === activeStudent.grade)
-              )
-              .forEach((m: any) => {
-                const total = (Number(m.written) || 0) + (Number(m.mcq) || 0) + (Number(m.practical) || 0);
-                const gp = calculateGradeAndPoint(total, 100);
-                marksList.push({
-                  subject: m.subjectName || m.subject || 'বিষয়',
-                  total,
-                  grade: gp.letterGrade,
-                });
-                if (gp.letterGrade === 'F') hasFail = true;
-                gpSum += gp.gradePoint;
-                gpCount += 1;
+      if (evaluated && (evaluated.enteredSubjectsCount || 0) > 0) {
+        const seenJointCodes = new Set<string>();
+        for (const entry of Object.values(evaluated.subjectMarks)) {
+          if (entry.isJointPass && entry.jointPairCode) {
+            if (seenJointCodes.has(entry.subjectCode) || seenJointCodes.has(entry.jointPairCode)) {
+              continue;
+            }
+            const pairEntry = evaluated.subjectMarks[entry.jointPairCode];
+            seenJointCodes.add(entry.subjectCode);
+            seenJointCodes.add(entry.jointPairCode);
+            if (!entry.hasMarks && !pairEntry?.hasMarks) continue;
+            marksList.push({
+              subject: pairEntry ? `${entry.subjectName} + ${pairEntry.subjectName}` : entry.subjectName,
+              total: entry.totalMarks + (pairEntry?.totalMarks || 0),
+              grade: entry.letterGrade,
+            });
+          } else if (entry.hasMarks) {
+            marksList.push({
+              subject: entry.subjectName,
+              total: entry.totalMarks,
+              grade: entry.letterGrade,
+            });
+          }
+        }
+
+        if (evaluated.optionalSubjectMark?.hasMarks) {
+          marksList.push({
+            subject: `${evaluated.optionalSubjectMark.subjectName} (৪র্থ)`,
+            total: evaluated.optionalSubjectMark.totalMarks,
+            grade: evaluated.optionalSubjectMark.letterGrade,
+          });
+        }
+
+        return {
+          gpa: toBnDigit(evaluated.gpa.toFixed(2)),
+          grade: evaluated.letterGrade,
+          marksList,
+        };
+      }
+
+      // Fallback to legacy sms_exam_marks only if canonical store has zero entered subjects
+      const rawMarks = localStorage.getItem('sms_exam_marks');
+      if (rawMarks) {
+        const parsed = JSON.parse(rawMarks);
+        if (Array.isArray(parsed)) {
+          let gpSum = 0;
+          let gpCount = 0;
+          let hasFail = false;
+          parsed
+            .filter(
+              (m: any) =>
+                m.studentId === activeStudent.id ||
+                (String(m.roll) === String(activeStudent.roll) && m.className === activeStudent.grade)
+            )
+            .forEach((m: any) => {
+              const total = (Number(m.written) || 0) + (Number(m.mcq) || 0) + (Number(m.practical) || 0);
+              const gp = calculateGradeAndPoint(total, 100);
+              marksList.push({
+                subject: m.subjectName || m.subject || 'বিষয়',
+                total,
+                grade: gp.letterGrade,
               });
+              if (gp.letterGrade === 'F') hasFail = true;
+              gpSum += gp.gradePoint;
+              gpCount += 1;
+            });
+
+          if (gpCount > 0) {
+            const legacyGpa = hasFail ? 0 : Math.min(5, gpSum / gpCount);
+            return {
+              gpa: toBnDigit(legacyGpa.toFixed(2)),
+              grade: gpaToLetterGrade(legacyGpa, hasFail),
+              marksList,
+            };
           }
         }
       }
     } catch {}
 
-    const computedGpaNum =
-      gpCount > 0 ? (hasFail ? 0 : Math.min(5, gpSum / gpCount)) : activeStudent.gpa ? Number(activeStudent.gpa) : null;
-    const gpaVal = computedGpaNum !== null && !Number.isNaN(computedGpaNum) ? toBnDigit(computedGpaNum.toFixed(2)) : 'অপেক্ষমাণ';
-    const overallGrade =
-      computedGpaNum === null || Number.isNaN(computedGpaNum)
-        ? '—'
-        : hasFail || computedGpaNum === 0
-        ? 'F'
-        : computedGpaNum >= 5
-        ? 'A+'
-        : computedGpaNum >= 4
-        ? 'A'
-        : computedGpaNum >= 3.5
-        ? 'A-'
-        : computedGpaNum >= 3
-        ? 'B'
-        : computedGpaNum >= 2
-        ? 'C'
-        : 'D';
+    const importedGpa = activeStudent.gpa ? Number(activeStudent.gpa) : null;
+    if (importedGpa !== null && !Number.isNaN(importedGpa)) {
+      return {
+        gpa: toBnDigit(importedGpa.toFixed(2)),
+        grade: gpaToLetterGrade(importedGpa, importedGpa === 0),
+        marksList,
+      };
+    }
 
     return {
-      gpa: gpaVal,
-      grade: overallGrade,
+      gpa: 'অপেক্ষমাণ',
+      grade: '—',
       marksList,
     };
-  }, [activeStudent]);
+  }, [activeStudent, selectedGrade]);
+
+  const effectiveGrade = activeStudent?.grade || selectedGrade;
+
+  const filteredHomeworks = useMemo(() => {
+    return homeworks.filter((h) => {
+      if (effectiveGrade && !matchesGradeId(h.grade, effectiveGrade)) return false;
+      if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
+      return true;
+    });
+  }, [homeworks, effectiveGrade, activeStudent?.section]);
 
   const handleInstallPwa = async () => {
     if (deferredPrompt) {
@@ -563,7 +624,7 @@ export default function PublicMobileAppPage() {
                   const newGrade = e.target.value;
                   setSelectedGrade(newGrade);
                   const firstInGrade = students.find((s) => s.grade === newGrade);
-                  if (firstInGrade) setSelectedStudentId(firstInGrade.id);
+                  setSelectedStudentId(firstInGrade ? firstInGrade.id : '');
                 }}
                 aria-label="শ্রেণি নির্বাচন"
                 className="col-span-4 bg-slate-900/70 text-white text-xs font-bold rounded-xl px-2.5 py-2 border border-white/20 focus:outline-none focus:border-emerald-400"
@@ -850,7 +911,7 @@ export default function PublicMobileAppPage() {
                       <div className="text-left">
                         <span className="text-xs font-black text-slate-900 dark:text-white block">ডিজিটাল হোমওয়ার্ক ও লেকচার</span>
                         <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
-                          সক্রিয় পাঠ: {toBnDigit(homeworks.filter((h) => !selectedGrade || h.grade === selectedGrade).length)}টি
+                          সক্রিয় পাঠ: {toBnDigit(filteredHomeworks.length)}টি
                         </span>
                       </div>
                     </div>
@@ -914,13 +975,19 @@ export default function PublicMobileAppPage() {
                     বিদ্যালয় অফিস চলাকালীন সরাসরি কল করুন
                   </h4>
                 </div>
-                <a
-                  href={`tel:${schoolPhone}`}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black text-xs flex items-center gap-1.5 shrink-0 transition"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>কল করুন</span>
-                </a>
+                {schoolPhone ? (
+                  <a
+                    href={`tel:${schoolPhone}`}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 transition"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>কল করুন</span>
+                  </a>
+                ) : (
+                  <span className="px-3 py-2 rounded-xl bg-white/10 text-slate-300 font-bold text-[11px] shrink-0">
+                    নম্বর সেট করা নেই
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -1297,40 +1364,21 @@ export default function PublicMobileAppPage() {
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                      ডিজিটাল হোমওয়ার্ক ({gradeLabel(activeStudent?.grade || selectedGrade)})
+                      ডিজিটাল হোমওয়ার্ক ({gradeLabel(effectiveGrade)})
                     </h3>
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
-                    {toBnDigit(
-                      homeworks.filter((h) => {
-                        const targetG = activeStudent?.grade || selectedGrade;
-                        if (targetG && h.grade !== targetG) return false;
-                        if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
-                        return true;
-                      }).length
-                    )}টি
+                    {toBnDigit(filteredHomeworks.length)}টি
                   </span>
                 </div>
 
-                {homeworks.filter((h) => {
-                  const targetG = activeStudent?.grade || selectedGrade;
-                  if (targetG && h.grade !== targetG) return false;
-                  if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
-                  return true;
-                }).length === 0 ? (
+                {filteredHomeworks.length === 0 ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-6 font-bold">
                     এই শ্রেণির জন্য বর্তমানে কোনো সক্রিয় হোমওয়ার্ক বা লেকচার নেই।
                   </p>
                 ) : (
                   <div className="space-y-2.5">
-                    {homeworks
-                      .filter((h) => {
-                        const targetG = activeStudent?.grade || selectedGrade;
-                        if (targetG && h.grade !== targetG) return false;
-                        if (activeStudent?.section && h.section !== 'all' && h.section !== activeStudent.section) return false;
-                        return true;
-                      })
-                      .map((hw) => {
+                    {filteredHomeworks.map((hw) => {
                         const submitted = activeStudent ? hw.submittedStudentIds.includes(activeStudent.id) : false;
                         return (
                           <div
@@ -1385,7 +1433,7 @@ export default function PublicMobileAppPage() {
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                      দৈনিক ক্লাস রুটিন ({gradeLabel(selectedGrade)})
+                      দৈনিক ক্লাস রুটিন ({gradeLabel(effectiveGrade)})
                     </h3>
                   </div>
                 </div>
@@ -1409,16 +1457,12 @@ export default function PublicMobileAppPage() {
                 </div>
 
                 {routines.filter(
-                  (r) =>
-                    r.day === selectedDay &&
-                    (!selectedGrade || r.classId.toLowerCase().includes(selectedGrade.toLowerCase()))
+                  (r) => r.day === selectedDay && matchesGradeId(r.classId, effectiveGrade)
                 ).length > 0 ? (
                   <div className="space-y-2">
                     {routines
                       .filter(
-                        (r) =>
-                          r.day === selectedDay &&
-                          (!selectedGrade || r.classId.toLowerCase().includes(selectedGrade.toLowerCase()))
+                        (r) => r.day === selectedDay && matchesGradeId(r.classId, effectiveGrade)
                       )
                       .map((slot) => {
                         const periodMeta = ROUTINE_PERIODS.find((p) => p.periodNo === slot.periodNo);

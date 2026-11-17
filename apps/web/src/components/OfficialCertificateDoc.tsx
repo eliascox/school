@@ -2,21 +2,48 @@
 
 /**
  * ═════════════════════════════════════════════════════════════════════════════
- * 📜 OFFICIAL TESTIMONIAL & CERTIFICATE PRINT ENGINE
+ * 📜 OFFICIAL CERTIFICATE & TESTIMONIAL DOCUMENT ENGINE
  * ─────────────────────────────────────────────────────────────────────────────
- * Renders authentic school testimonials strictly on official School Letterhead Pad:
- * - Automatically places text within user-customized margins
- * - Flows Principal's 4-line signature with dynamic auto-scaling gap
- * - Supports uploaded PDF / Image pad background or preprinted paper pad
+ * Dual-capable print & PNG canvas renderer:
+ * 1) Institutional Letterhead Pad mode (SchoolPadWrapper for pre-uploaded pads)
+ * 2) Studio Frame & Bilingual Testimonial mode (A4 Portrait/Landscape,
+ *    perforated office copy stub, 12 ornamental borders, 7+ color themes,
+ *    ribbon/line titles, 35x45mm photo box, header show/hide, WYSIWYG inline
+ *    editing, and live public QR verification code).
  * ═════════════════════════════════════════════════════════════════════════════
  */
 
-import React from 'react';
-import { SchoolSettings, settingsService, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
-import { CertificateRecord, CertificateLayoutStyle } from '@/services/certificateService';
+import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
+import { Scissors, User } from 'lucide-react';
+import {
+  SchoolSettings,
+  settingsService,
+  DEFAULT_PAD_MARGINS,
+  getEnglishSchoolName,
+  getEnglishAddress,
+} from '@/services/settingsService';
+import {
+  CertificateRecord,
+  CertificateLayoutStyle,
+} from '@/services/certificateService';
+import {
+  buildCertificateVerifyUrl,
+  formatCertificateDate,
+  getDefaultCertificateTitle,
+  localizeNumericText,
+  resolveGenderGrammar,
+  cleanEntityText,
+  DOTTED_BLANK,
+} from '@/lib/certificateEngine';
+import {
+  CERTIFICATE_BORDER_PRESETS,
+  resolveThemePalette,
+} from './certificates/certificateThemes';
+import CertificateFrameDecor from './certificates/CertificateFrameDecor';
 import SchoolPadWrapper from './SchoolPadWrapper';
 
-interface OfficialCertificateDocProps {
+export interface OfficialCertificateDocProps {
   cert: CertificateRecord;
   settings: SchoolSettings;
   overrideStyle?: CertificateLayoutStyle;
@@ -24,51 +51,115 @@ interface OfficialCertificateDocProps {
   onModeChange?: (mode: 'full_pad' | 'preprinted' | 'blank_pad') => void;
   onOpenSettings?: () => void;
   hideHeaderActions?: boolean;
+  sheetRef?: React.Ref<HTMLDivElement>;
+  inlineEditable?: boolean;
+  onInlineTitleChange?: (nextTitle: string) => void;
+  onInlineBodyChange?: (nextBody: string) => void;
 }
 
 export default function OfficialCertificateDoc({
   cert,
   settings,
+  overrideStyle,
   mode = 'full_pad',
   onModeChange,
   onOpenSettings,
   hideHeaderActions = true,
+  sheetRef,
+  inlineEditable = false,
+  onInlineTitleChange,
+  onInlineBodyChange,
 }: OfficialCertificateDocProps) {
   const safeSettings: SchoolSettings = {
     ...settingsService.getSettings(),
     ...(settings || {}),
   };
 
-  // Ensure writing begins 3 inches down from the top as required by official school letterhead pad
-  const padMargins = {
-    ...(safeSettings.padMargins || DEFAULT_PAD_MARGINS),
-    top: Math.max(3.0, safeSettings.padMargins?.top || 3.0),
-  };
-  const docSettings: SchoolSettings = {
-    ...safeSettings,
-    padMargins,
-  };
+  const lang = cert.language === 'en' ? 'en' : 'bn';
+  const effectiveLayout = overrideStyle || cert.layoutStyle || 'pad';
+  const isLandscape = cert.orientation === 'landscape';
+  const showHeader = cert.showHeader !== undefined ? cert.showHeader : mode !== 'preprinted';
+  const showOfficeStub = Boolean(cert.showOfficeStub);
+  const showPhotoBox = Boolean(cert.showPhotoBox);
+  const showQrCode = cert.showQrCode !== false;
+  const showCornerBands = Boolean(cert.showCornerBands);
+  const showSecondarySigner = Boolean(cert.showSecondarySigner);
+  const fontSize = cert.fontSize || safeSettings.padFontSize || 15;
+  const titleVariant = cert.titleVariant || 'ribbon';
+  const palette = resolveThemePalette('royal_indigo', cert.themeColor);
+  const borderPresetMeta =
+    CERTIFICATE_BORDER_PRESETS.find((b) => b.id === cert.borderPreset) ||
+    (effectiveLayout === 'royal_border'
+      ? CERTIFICATE_BORDER_PRESETS[0]
+      : effectiveLayout === 'modern_clean'
+      ? CERTIFICATE_BORDER_PRESETS[4]
+      : CERTIFICATE_BORDER_PRESETS[11]);
 
-  // Compute Title - boldly emphasized
   const title =
-    cert.title ||
-    (cert.type === 'current_student'
-      ? 'অধ্যয়নরত প্রত্যয়ন পত্র'
-      : cert.type === 'character_certificate'
-      ? 'চারিত্রিক সনদ পত্র'
-      : cert.type === 'transfer_certificate'
-      ? 'ছাড়পত্র / টিসি (TC)'
-      : cert.type === 'student_verification'
-      ? 'শিক্ষার্থী তথ্য যাচাইকরণ প্রত্যয়ন'
-      : 'প্রত্যয়ন পত্র');
+    cleanEntityText(cert.title) || getDefaultCertificateTitle(cert.type, lang);
 
-  // Format Text with Line breaks and bold formatting (**text**)
-  const renderFormattedText = (para: string) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!showQrCode) {
+      setQrDataUrl('');
+      return;
+    }
+    let active = true;
+    const url = buildCertificateVerifyUrl(cert);
+    QRCode.toDataURL(url, {
+      width: 112,
+      margin: 1,
+      color: { dark: '#0f172a', light: '#ffffff' },
+    })
+      .then((res) => {
+        if (active) setQrDataUrl(res);
+      })
+      .catch(() => {
+        if (active) setQrDataUrl('');
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    showQrCode,
+    cert.id,
+    cert.studentName,
+    cert.studentNameEn,
+    cert.boardRoll,
+    cert.roll,
+    cert.gpa,
+    cert.passingYear,
+    cert.issueDate,
+  ]);
+
+  const grammar = resolveGenderGrammar(cert.gender, cert.studentName);
+  const formattedIssueDate = formatCertificateDate(cert.issueDate, lang);
+  const refLabel = lang === 'en' ? 'Ref No' : 'স্মারক নং';
+  const dateLabelText = lang === 'en' ? 'Date' : 'তারিখ';
+
+  const schoolNameDisplay =
+    lang === 'en'
+      ? cleanEntityText(getEnglishSchoolName(safeSettings, 'EDUCATIONAL INSTITUTION'))
+      : cleanEntityText(safeSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান');
+  const schoolAddressDisplay =
+    lang === 'en'
+      ? cleanEntityText(getEnglishAddress(safeSettings, ''))
+      : cleanEntityText(safeSettings.address || '');
+  const principalNameDisplay =
+    cert.principalTitle ||
+    cleanEntityText(safeSettings.principalName) ||
+    (lang === 'en' ? 'Headmaster / Principal' : 'প্রধান শিক্ষক / অধ্যক্ষ');
+  const principalRoleDisplay =
+    cleanEntityText(safeSettings.principalTitle) ||
+    (lang === 'en' ? 'Headmaster' : 'প্রধান শিক্ষক');
+
+  const renderFormattedLine = (para: string) => {
     const parts = para.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, idx) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={idx} className="font-black text-slate-950 font-serif">
+          <strong key={idx} style={{ fontWeight: 800, color: '#020617' }}>
             {part.slice(2, -2)}
           </strong>
         );
@@ -77,74 +168,621 @@ export default function OfficialCertificateDoc({
     });
   };
 
-  const formatParagraphs = (text?: string) => {
-    if (!text) return null;
-    return text.split('\n\n').map((para, i) => (
-      <p key={i} className="mb-4 leading-relaxed text-justify indent-6">
-        {renderFormattedText(para)}
-      </p>
-    ));
+  const renderFallbackBody = () => {
+    const father = cleanEntityText(lang === 'en' ? cert.fatherNameEn || cert.fatherName : cert.fatherName) || DOTTED_BLANK;
+    const mother = cleanEntityText(lang === 'en' ? cert.motherNameEn || cert.motherName : cert.motherName) || DOTTED_BLANK;
+    const vill = cleanEntityText(cert.village) || DOTTED_BLANK;
+    const po = cleanEntityText(cert.postOffice) || DOTTED_BLANK;
+    const upz = cleanEntityText(cert.upazila) || DOTTED_BLANK;
+    const dist = cleanEntityText(cert.district) || DOTTED_BLANK;
+    const studentName = cleanEntityText(lang === 'en' ? cert.studentNameEn || cert.studentName : cert.studentName) || DOTTED_BLANK;
+
+    if (lang === 'en') {
+      return (
+        <>
+          <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+            This is to certify that <strong style={{ fontWeight: 800 }}>{studentName}</strong>, {grammar.sonDaughterEn}{' '}
+            <strong>{father}</strong> and <strong>{mother}</strong>, Village: {vill}, Post Office: {po}, Upazila: {upz}, District: {dist}.
+          </p>
+          <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+            {grammar.heShe} {cert.isAlumni ? 'was' : 'is'} a regular student of Class <strong>{cert.grade}</strong> ({cert.group} Group), Roll No.{' '}
+            <strong>{cert.roll}</strong>, Session <strong>{cert.session}</strong>.{' '}
+            {cert.dob && (
+              <>
+                {grammar.HisHer} date of birth as per school register is <strong>{formatCertificateDate(cert.dob, 'en')}</strong>.
+              </>
+            )}
+          </p>
+          <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+            {cert.characterRemarks || `During stay in this institution, ${grammar.hisHer} moral character and conduct were satisfactory.`}
+          </p>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+          এই মর্মে <strong style={{ fontWeight: 800 }}>{title}</strong> প্রদান করা যাচ্ছে যে,{' '}
+          <strong style={{ fontWeight: 800, textDecoration: 'underline' }}>{studentName}</strong>, পিতা:{' '}
+          <strong>{father}</strong>, মাতা: <strong>{mother}</strong>,{' '}
+          {cert.address && !cert.village ? (
+            <>ঠিকানা: <strong>{cleanEntityText(cert.address)}</strong>।</>
+          ) : (
+            <>গ্রাম: <strong>{vill}</strong>, ডাকঘর: <strong>{po}</strong>, উপজেলা: <strong>{upz}</strong>, জেলা: <strong>{dist}</strong>।</>
+          )}
+        </p>
+        <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+          {grammar.pronounBn} অত্র বিদ্যালয়ের <strong>{cert.grade}</strong> শ্রেণির <strong>{cert.group}</strong> বিভাগের একজন নিয়মিত{' '}
+          <strong>{grammar.studentNounBn}</strong>{' '}
+          {cert.isAlumni ? 'ছিল' : 'হিসেবে বর্তমানে অধ্যয়নরত আছে'}। {grammar.possessiveBn} শ্রেণি রোল নম্বর:{' '}
+          <strong>{localizeNumericText(cert.roll, 'bn')}</strong>, শিক্ষাবর্ষ:{' '}
+          <strong>{localizeNumericText(cert.session, 'bn')}</strong>।{' '}
+          {cert.dob && (
+            <>
+              ভর্তিবহি অনুযায়ী {grammar.possessiveBn} জন্ম তারিখ: <strong>{formatCertificateDate(cert.dob, 'bn')}</strong> খ্রি.।
+            </>
+          )}
+        </p>
+        {cert.achievementTitle && (
+          <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+            এই প্রতিষ্ঠানে অধ্যয়নকালে {grammar.pronounBn} <strong>{cert.achievementTitle}</strong> হিসেবে কৃতিত্বপূর্ণ ভূমিকা পালন করে।
+          </p>
+        )}
+        <p style={{ marginBottom: '12px', textIndent: '28px' }}>
+          {cert.characterRemarks || `বিদ্যালয়ে অবস্থানকালে ${grammar.possessiveBn} চরিত্র, শৃঙ্খলা ও আচার-আচরণ অত্যন্ত প্রশংসনীয় ছিল।`}
+        </p>
+        <p style={{ textIndent: '28px' }}>আমি {grammar.possessiveBn} উজ্জ্বল ভবিষ্যৎ ও সার্বিক উন্নতি কামনা করি।</p>
+      </>
+    );
   };
 
-  return (
-    <SchoolPadWrapper
-      settings={docSettings}
-      mode={mode}
-      onModeChange={onModeChange}
-      onOpenSettings={onOpenSettings}
-      refNo={cert.refNo ? `স্মারক নং: ${cert.refNo}` : undefined}
-      date={cert.issueDate}
-      dateLabel="তারিখ"
-      title={title}
-      hideHeaderActions={hideHeaderActions}
-      signatures={[
-        {
-          title: safeSettings.principalName || 'প্রধান শিক্ষক / অধ্যক্ষ',
-          designation: safeSettings.principalTitle || 'প্রধান শিক্ষক',
-          institution: safeSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
-          address: safeSettings.address || '',
-          rightAligned: true,
-        },
-      ]}
-    >
-      <div className="space-y-4 text-justify px-1 pt-1 pb-2">
-        {/* Dynamic / Custom Body */}
-        {cert.customBody ? (
-          formatParagraphs(cert.customBody)
-        ) : (
-          <div className="space-y-4 text-justify indent-6">
-            <p className="leading-loose">
-              এই মর্মে <strong className="font-black text-slate-950 underline decoration-slate-900">{title}</strong> প্রদান করা যাচ্ছে যে, <strong className="font-black underline">{cert.studentName}</strong>
-              {cert.studentNameEn && <span> ({cert.studentNameEn})</span>}, পিতা: <strong className="font-extrabold">{cert.fatherName}</strong>, মাতা: <strong className="font-extrabold">{cert.motherName}</strong>, 
-              {cert.address && !cert.village ? (
-                <>ঠিকানা: <strong className="font-bold">{cert.address}</strong>।</>
-              ) : (
-                <>গ্রাম: <strong className="font-bold">{cert.village || '---'}</strong>, ডাকঘর: <strong className="font-bold">{cert.postOffice || '---'}</strong>, উপজেলা: <strong className="font-bold">{cert.upazila || '---'}</strong>, জেলা: <strong className="font-bold">{cert.district || '---'}</strong>।</>
-              )}
-            </p>
-            
-            <p className="leading-loose">
-              সে এই বিদ্যালয়ের <strong className="font-bold">{cert.grade}</strong> শ্রেণির <strong className="font-bold">{cert.group}</strong> বিভাগের একজন নিয়মিত শিক্ষার্থী {cert.isAlumni ? 'ছিল' : 'হিসেবে বর্তমানে অধ্যয়নরত আছে'}। 
-              তার শ্রেণি রোল নম্বর: <strong className="font-mono font-black">#{cert.roll}</strong> এবং শিক্ষাবর্ষ: <strong className="font-mono font-bold">{cert.session}</strong>। 
-              ভর্তিবহি মতে তার জন্ম তারিখ: <strong className="font-mono font-bold">{cert.dob}</strong> খ্রি.।
-            </p>
+  // Legacy pure Uploaded-Pad fast path when no Studio visual overrides are active
+  const usePurePadWrapper =
+    effectiveLayout === 'pad' &&
+    (!cert.borderPreset || cert.borderPreset === 'no_border_pad') &&
+    !isLandscape &&
+    !showOfficeStub &&
+    !showPhotoBox &&
+    !showCornerBands &&
+    !inlineEditable &&
+    Boolean(safeSettings.uploadedPadTemplateUrl?.trim());
 
-            {cert.achievementTitle && (
-              <p className="leading-loose">
-                এই প্রতিষ্ঠানে অধ্যয়নকালে সে <strong className="font-bold">{cert.achievementTitle}</strong> হিসেবে বিশেষ ভূমিকা পালন করে।
-              </p>
+  if (usePurePadWrapper) {
+    const padMargins = {
+      ...(safeSettings.padMargins || DEFAULT_PAD_MARGINS),
+      top: Math.max(3.0, safeSettings.padMargins?.top || 3.0),
+    };
+    const docSettings: SchoolSettings = { ...safeSettings, padMargins };
+
+    return (
+      <div ref={sheetRef}>
+        <SchoolPadWrapper
+          settings={docSettings}
+          mode={mode}
+          onModeChange={onModeChange}
+          onOpenSettings={onOpenSettings}
+          refNo={cert.refNo ? `${cert.refNo}` : undefined}
+          date={formattedIssueDate}
+          dateLabel={dateLabelText}
+          title={title}
+          hideHeaderActions={hideHeaderActions}
+          signatures={[
+            {
+              title: principalNameDisplay,
+              designation: principalRoleDisplay,
+              institution: schoolNameDisplay,
+              address: schoolAddressDisplay,
+              rightAligned: true,
+            },
+          ]}
+        >
+          <div className="space-y-4 text-justify px-1 pt-1 pb-2" style={{ fontSize: `${fontSize}px` }}>
+            {cert.customBody ? (
+              cert.customBody.split('\n\n').map((para, i) => (
+                <p key={i} className="mb-4 leading-relaxed text-justify indent-6">
+                  {renderFormattedLine(para)}
+                </p>
+              ))
+            ) : (
+              <div className="space-y-4 text-justify">{renderFallbackBody()}</div>
             )}
 
-            <p className="leading-loose">
-              {cert.characterRemarks || 'বিদ্যালয়ে অবস্থানকালে তার চরিত্র, শৃঙ্খলা ও আচার-আচরণ প্রশংসনীয় ছিল। আমার জানামতে সে কোন প্রকার রাষ্ট্র বা সমাজবিরোধী কর্মকাণ্ডে জড়িত নয়।'}
-            </p>
-
-            <p className="leading-loose">
-              আমি তার উজ্জ্বল ভবিষ্যৎ ও সার্বিক উন্নতি কামনা করি।
-            </p>
+            {showQrCode && qrDataUrl && (
+              <div className="pt-4 flex items-center gap-2.5 text-[10px] text-slate-600">
+                <img src={qrDataUrl} alt="QR Verify" className="w-14 h-14 border border-slate-300 rounded p-0.5 bg-white" />
+                <div>
+                  <p className="font-bold text-slate-800">{lang === 'en' ? 'Scan to Verify Online' : 'অনলাইনে সত্যতা যাচাই করুন'}</p>
+                  <p className="font-mono text-slate-500">{cert.id}</p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </SchoolPadWrapper>
       </div>
-    </SchoolPadWrapper>
+    );
+  }
+
+  // Studio Sheet dimensions in mm (A4 Portrait 210x297 or Landscape 297x210)
+  const sheetWidthMm = isLandscape ? 297 : 210;
+  const sheetHeightMm = isLandscape ? 210 : 297;
+  const padTopIn = !showHeader ? Math.max(2.6, safeSettings.padMargins?.top || 2.8) : 0;
+  const uploadedPadUrl =
+    mode === 'full_pad' && borderPresetMeta.id === 'no_border_pad'
+      ? safeSettings.uploadedPadTemplateUrl?.trim() || ''
+      : '';
+  const customBorderUrl =
+    cert.customBorderUrl ||
+    (borderPresetMeta.id === 'custom_png' ? safeSettings.customBorderPng || safeSettings.customBorders?.[0]?.url : '');
+
+  const stubWidthMm = isLandscape ? 54 : 44;
+
+  return (
+    <div className="w-full overflow-x-auto pb-2 flex justify-center">
+      <div
+        ref={sheetRef}
+        className="certificate-studio-sheet relative bg-white text-slate-950 shadow-2xl print:shadow-none print:m-0 mx-auto overflow-hidden flex"
+        style={{
+          width: `${sheetWidthMm}mm`,
+          minWidth: `${sheetWidthMm}mm`,
+          minHeight: `${sheetHeightMm}mm`,
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          boxSizing: 'border-box',
+          fontFamily:
+            lang === 'en'
+              ? "'Georgia', 'Times New Roman', 'Kalpurush', serif"
+              : "'Kalpurush', 'SolaimanLipi', 'Nikosh', 'Hind Siliguri', 'Times New Roman', serif",
+        }}
+      >
+        {/* Uploaded Pad Background if applicable */}
+        {uploadedPadUrl && (
+          <img
+            src={uploadedPadUrl}
+            alt="School Pad"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'fill',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
+
+        {/* Left Perforated Office Copy Counterfoil Stub */}
+        {showOfficeStub && (
+          <aside
+            style={{
+              width: `${stubWidthMm}mm`,
+              minWidth: `${stubWidthMm}mm`,
+              borderRight: `1.5px dashed #64748b`,
+              backgroundColor: palette.softTint,
+              padding: isLandscape ? '18px 12px' : '22px 10px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative',
+              zIndex: 15,
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                right: '-9px',
+                top: '18px',
+                backgroundColor: '#ffffff',
+                color: '#475569',
+                borderRadius: '999px',
+                padding: '2px',
+              }}
+            >
+              <Scissors size={14} />
+            </div>
+
+            <div style={{ fontSize: '10.5px', lineHeight: 1.45, color: '#0f172a' }}>
+              <div style={{ textAlign: 'center', borderBottom: `1.5px solid ${palette.primary}`, paddingBottom: '6px', marginBottom: '8px' }}>
+                <p style={{ fontWeight: 900, fontSize: '11px', color: palette.primary, letterSpacing: '0.04em' }}>
+                  {lang === 'en' ? 'OFFICE COPY' : 'অফিস কপি'}
+                </p>
+                <p style={{ fontWeight: 700, fontSize: '9.5px', color: '#475569' }}>
+                  {schoolNameDisplay}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Cert ID / Serial' : 'সনদ নং'}</span>
+                  <strong style={{ fontFamily: 'monospace', fontSize: '10px', color: palette.primary }}>{cert.id}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{refLabel}</span>
+                  <strong style={{ fontFamily: 'monospace', fontSize: '10px' }}>{cert.refNo || '—'}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{dateLabelText}</span>
+                  <strong>{formattedIssueDate}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Document Type' : 'সনদের ধরন'}</span>
+                  <strong>{title}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Student Name' : 'শিক্ষার্থীর নাম'}</span>
+                  <strong>{lang === 'en' ? cert.studentNameEn || cert.studentName : cert.studentName}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Father' : 'পিতা'}</span>
+                  <strong>{cleanEntityText(lang === 'en' ? cert.fatherNameEn || cert.fatherName : cert.fatherName) || DOTTED_BLANK}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Class' : 'শ্রেণি'}</span>
+                    <strong>{cert.grade}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>{lang === 'en' ? 'Roll' : 'রোল'}</span>
+                    <strong>{localizeNumericText(cert.roll, lang)}</strong>
+                  </div>
+                </div>
+                {cert.gpa && (
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block', fontSize: '9px' }}>GPA</span>
+                    <strong>{localizeNumericText(cert.gpa, lang)}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ fontSize: '9.5px', color: '#334155', paddingTop: '14px' }}>
+              <div style={{ borderTop: '1px solid #475569', paddingTop: '3px', marginBottom: '12px', textAlign: 'center' }}>
+                {lang === 'en' ? 'Receiver Signature' : 'গ্রহণকারীর স্বাক্ষর'}
+              </div>
+              <div style={{ borderTop: '1px solid #0f172a', paddingTop: '3px', textAlign: 'center', fontWeight: 700 }}>
+                {lang === 'en' ? 'Issuing Officer' : 'প্রদানকারীর স্বাক্ষর'}
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* Main Certificate Area */}
+        <div
+          style={{
+            flex: 1,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            paddingTop: showHeader ? (isLandscape ? '24px' : '28px') : `${padTopIn}in`,
+            paddingLeft: isLandscape ? '34px' : '32px',
+            paddingRight: isLandscape ? '34px' : '32px',
+            paddingBottom: isLandscape ? '22px' : '26px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Ornamental Frame + Corner Bands + Watermark */}
+          <CertificateFrameDecor
+            preset={borderPresetMeta}
+            theme={palette}
+            customBorderUrl={customBorderUrl}
+            showCornerBands={showCornerBands}
+            watermarkUrl={safeSettings.schoolLogo}
+            showWatermark={safeSettings.showWatermark !== false}
+            watermarkOpacity={Math.min(0.14, safeSettings.watermarkOpacity || 0.055)}
+          />
+
+          {/* Top Block: Header + Ref/Date + Photo + Title */}
+          <div style={{ position: 'relative', zIndex: 14 }}>
+            {/* Institutional Header (toggleable for pre-printed pads) */}
+            {showHeader && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  borderBottom: `2px solid ${palette.primary}`,
+                  paddingBottom: '10px',
+                  marginBottom: '10px',
+                }}
+              >
+                <div style={{ width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {safeSettings.schoolLogo ? (
+                    <img
+                      src={safeSettings.schoolLogo}
+                      alt="School Crest"
+                      style={{ width: '62px', height: '62px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '54px',
+                        height: '54px',
+                        borderRadius: '999px',
+                        border: `2px solid ${palette.primary}`,
+                        backgroundColor: palette.softTint,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        fontSize: '14px',
+                        color: palette.primary,
+                      }}
+                    >
+                      SC
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <h1
+                    style={{
+                      margin: 0,
+                      fontSize: isLandscape ? '22px' : '23px',
+                      fontWeight: 900,
+                      color: palette.primary,
+                      letterSpacing: '0.02em',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {schoolNameDisplay}
+                  </h1>
+                  {schoolAddressDisplay && (
+                    <p style={{ margin: '2px 0 0', fontSize: '12.5px', fontWeight: 600, color: '#334155' }}>
+                      {schoolAddressDisplay}
+                    </p>
+                  )}
+                  <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+                    {[
+                      safeSettings.estdYear ? `${lang === 'en' ? 'Estd.' : 'স্থাপিত'}: ${localizeNumericText(safeSettings.estdYear, lang)}` : '',
+                      safeSettings.eiin ? `EIIN: ${localizeNumericText(safeSettings.eiin, lang)}` : '',
+                      safeSettings.phone ? `${lang === 'en' ? 'Phone' : 'ফোন'}: ${localizeNumericText(safeSettings.phone, lang)}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join('  |  ')}
+                  </p>
+                </div>
+
+                {/* Right spacer or 35x45mm Photo Box */}
+                <div style={{ width: showPhotoBox ? 'auto' : '64px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                  {showPhotoBox && (
+                    <div
+                      style={{
+                        width: '30mm',
+                        height: '38mm',
+                        border: `1.5px solid ${palette.primary}`,
+                        borderRadius: '4px',
+                        backgroundColor: '#f8fafc',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {cert.photoUrl ? (
+                        <img
+                          src={cert.photoUrl}
+                          alt={cert.studentName}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '9px', padding: '4px' }}>
+                          <User size={22} style={{ margin: '0 auto 2px' }} />
+                          <span>35×45 mm</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* If Header Hidden AND Photo Box enabled, place photo floating cleanly on top right */}
+            {!showHeader && showPhotoBox && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '4px',
+                  top: '2px',
+                  width: '28mm',
+                  height: '35mm',
+                  border: `1.5px solid ${palette.primary}`,
+                  borderRadius: '4px',
+                  backgroundColor: '#f8fafc',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 20,
+                }}
+              >
+                {cert.photoUrl ? (
+                  <img src={cert.photoUrl} alt={cert.studentName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '9px', color: '#94a3b8' }}>Photo</span>
+                )}
+              </div>
+            )}
+
+            {/* Ref & Date Row */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#1e293b',
+                borderBottom: '1px dotted #cbd5e1',
+                paddingBottom: '5px',
+                marginBottom: isLandscape ? '10px' : '16px',
+              }}
+            >
+              <span>
+                {refLabel}: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{cert.refNo || cert.id}</strong>
+              </span>
+              <span>
+                {dateLabelText}: <strong>{formattedIssueDate}</strong>
+              </span>
+            </div>
+
+            {/* Document Title (3 Variants + Live Inline Editable) */}
+            <div style={{ textAlign: 'center', marginBottom: isLandscape ? '14px' : '22px' }}>
+              <span
+                contentEditable={inlineEditable}
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  if (inlineEditable && onInlineTitleChange) {
+                    onInlineTitleChange(e.currentTarget.textContent?.trim() || title);
+                  }
+                }}
+                style={{
+                  display: 'inline-block',
+                  padding: titleVariant === 'ribbon' ? '6px 32px' : '4px 18px',
+                  fontSize: isLandscape ? '18px' : '20px',
+                  fontWeight: 900,
+                  letterSpacing: '0.06em',
+                  borderRadius: titleVariant === 'ribbon' ? '999px' : '2px',
+                  backgroundColor: titleVariant === 'ribbon' ? palette.primary : 'transparent',
+                  color: titleVariant === 'ribbon' ? palette.titleTextOnRibbon : palette.primary,
+                  borderBottom:
+                    titleVariant === 'underline'
+                      ? `2.5px solid ${palette.secondary}`
+                      : titleVariant === 'ribbon'
+                      ? `2px solid ${palette.secondary}`
+                      : 'none',
+                  outline: inlineEditable ? `1.5px dashed ${palette.secondary}` : 'none',
+                  cursor: inlineEditable ? 'text' : 'default',
+                }}
+              >
+                {title}
+              </span>
+            </div>
+
+            {/* Body Paragraphs (WYSIWYG inline editable when enabled) */}
+            <div
+              contentEditable={inlineEditable}
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                if (inlineEditable && onInlineBodyChange) {
+                  const text = e.currentTarget.innerText
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+                  if (text) onInlineBodyChange(text);
+                }
+              }}
+              style={{
+                fontSize: `${fontSize}px`,
+                lineHeight: isLandscape ? 1.75 : 1.95,
+                textAlign: 'justify',
+                color: '#0f172a',
+                whiteSpace: inlineEditable ? 'pre-wrap' : 'normal',
+                outline: inlineEditable ? `1.5px dashed ${palette.secondary}` : 'none',
+                borderRadius: '6px',
+                padding: inlineEditable ? '6px 8px' : '0 2px',
+                backgroundColor: inlineEditable ? 'rgba(255, 251, 235, 0.45)' : 'transparent',
+                cursor: inlineEditable ? 'text' : 'default',
+              }}
+            >
+              {cert.customBody ? (
+                inlineEditable ? (
+                  cert.customBody
+                ) : (
+                  cert.customBody.split('\n\n').map((para, i) => (
+                    <p key={i} style={{ marginBottom: isLandscape ? '10px' : '14px', textIndent: '28px', marginTop: 0 }}>
+                      {renderFormattedLine(para)}
+                    </p>
+                  ))
+                )
+              ) : (
+                renderFallbackBody()
+              )}
+            </div>
+          </div>
+
+          {/* Footer: QR Verification + Prepared By / Secondary Signer + Headmaster Signature */}
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 14,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: '16px',
+              paddingTop: isLandscape ? '18px' : '32px',
+            }}
+          >
+            {/* Left: Verification QR Code */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '140px' }}>
+              {showQrCode && qrDataUrl && (
+                <>
+                  <img
+                    src={qrDataUrl}
+                    alt="QR Code"
+                    style={{
+                      width: '56px',
+                      height: '56px',
+                      border: `1px solid ${palette.primary}`,
+                      borderRadius: '4px',
+                      padding: '2px',
+                      backgroundColor: '#ffffff',
+                    }}
+                  />
+                  <div style={{ fontSize: '9.5px', color: '#475569', lineHeight: 1.35 }}>
+                    <div style={{ fontWeight: 800, color: palette.primary }}>
+                      {lang === 'en' ? 'Scan to Verify' : 'QR যাচাই'}
+                    </div>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>{cert.id}</div>
+                    {cert.verificationCode && (
+                      <div style={{ fontFamily: 'monospace', fontSize: '8.5px' }}>{cert.verificationCode}</div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Optional Middle Secondary Signature */}
+            {showSecondarySigner && (
+              <div style={{ textAlign: 'center', minWidth: '155px', fontSize: '11.5px', color: '#1e293b' }}>
+                <div style={{ borderTop: '1.5px solid #334155', width: '150px', margin: '0 auto 4px' }} />
+                <p style={{ margin: 0, fontWeight: 800 }}>
+                  {cert.secondarySignerTitle || (lang === 'en' ? 'Class Teacher / Asst. Headmaster' : 'শ্রেণি শিক্ষক / সহকারী প্রধান শিক্ষক')}
+                </p>
+                {cert.secondarySignerName && <p style={{ margin: '1px 0 0', fontSize: '10.5px', color: '#475569' }}>{cert.secondarySignerName}</p>}
+              </div>
+            )}
+
+            {/* Right: Principal / Headmaster Signature */}
+            <div style={{ textAlign: 'center', minWidth: '185px', fontSize: '11.5px', color: '#0f172a', marginLeft: 'auto' }}>
+              <div style={{ borderTop: `1.8px solid ${palette.primary}`, width: '175px', margin: '0 auto 4px' }} />
+              <p style={{ margin: 0, fontWeight: 900, fontSize: '12.5px', color: palette.primary }}>{principalNameDisplay}</p>
+              <p style={{ margin: '1px 0 0', fontWeight: 700, fontSize: '11px', color: '#334155' }}>{principalRoleDisplay}</p>
+              <p style={{ margin: '1px 0 0', fontWeight: 600, fontSize: '10.5px', color: '#475569' }}>{schoolNameDisplay}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 ${isLandscape ? 'landscape' : 'portrait'};
+            margin: 0mm !important;
+          }
+          html,
+          body {
+            margin: 0mm !important;
+            padding: 0mm !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
+    </div>
   );
 }

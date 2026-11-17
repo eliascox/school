@@ -840,7 +840,7 @@ export function StudentPrintSuiteView({
                 <div className="w-48 border-b border-slate-900 mx-auto"></div>
                 <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
                 <p className="text-[10px] text-slate-600 font-bold">
-                  {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, {schoolSettings?.address?.split(' ')[1] || 'চকরিয়া'}
+                  {schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}{schoolSettings?.address ? `, ${schoolSettings.address}` : ''}
                 </p>
               </div>
             </div>
@@ -1115,7 +1115,7 @@ export function StudentPrintSuiteView({
                           <div className="w-48 border-b border-slate-900 mx-auto"></div>
                           <p className="font-extrabold text-slate-950">প্রধান শিক্ষক</p>
                           <p className="text-[9px] text-slate-600 font-bold">
-                            {schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}, চকরিয়া
+                            {schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}{schoolSettings?.address ? `, ${schoolSettings.address}` : ''}
                           </p>
                         </div>
                       </div>
@@ -1128,7 +1128,7 @@ export function StudentPrintSuiteView({
 
                     {totalPrintSheets > 1 && (
                       <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                        <span>{schoolSettings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'} — অফিশিয়াল শিক্ষার্থী ডিরেক্টরি</span>
+                        <span>{schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'} — অফিশিয়াল শিক্ষার্থী ডিরেক্টরি</span>
                         <span>
                           পৃষ্ঠা: <strong>{toBanglaNumeral(sheet.pageNumber)}</strong> / <strong>{toBanglaNumeral(totalPrintSheets)}</strong>
                         </span>

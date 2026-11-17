@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { smsService, SMSGatewayConfig, SMSLogRecord, SMSTemplate, SMSProviderType } from '@/services/smsService';
 import { studentService, Student } from '@/services/studentService';
+import { settingsService } from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import Link from 'next/link';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
@@ -257,6 +258,8 @@ export default function SMSDashboardPage() {
 
     setIsSending(true);
 
+    const dynamicSchoolName = settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান';
+
     // Prepare Interpolated SMS per recipient
     const batchPayload = targetRecipients.map((r) => {
       const interpolated = messageBody
@@ -264,7 +267,7 @@ export default function SMSDashboardPage() {
         .replace(/{grade}/g, r.grade === '6th' ? '৬ষ্ঠ' : r.grade === '7th' ? '৭ম' : r.grade === '8th' ? '৮ম' : r.grade === '9th' ? '৯ম' : '১০ম')
         .replace(/{roll}/g, r.roll)
         .replace(/{due_amount}/g, String(r.dueAmount))
-        .replace(/{school_name}/g, 'বরইতলী উচ্চ বিদ্যালয়')
+        .replace(/{school_name}/g, dynamicSchoolName)
         .replace(/{date}/g, new Date().toLocaleDateString('bn-BD'));
 
       return {
@@ -613,16 +616,18 @@ export default function SMSDashboardPage() {
           </div>
 
           {/* Logs Table */}
-          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:p-0 print:border-none print:shadow-none">
+          <div className="bg-white dark:bg-slate-900 print:bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:p-0 print:border-none print:shadow-none print:text-black">
             <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">বরইতলী উচ্চ বিদ্যালয়</h2>
-              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400">এসএমএস গেটওয়ে প্রেক্ষিত ও ডেলিভারি লগ রিপোর্ট ২০২৬</p>
+              <h2 className="text-xl font-black text-slate-950 dark:text-white print:text-black">
+                {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
+              </h2>
+              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 print:text-slate-700">এসএমএস গেটওয়ে প্রেক্ষিত ও ডেলিভারি লগ রিপোর্ট ২০২৬</p>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-left text-xs border-collapse border border-slate-950 font-sans">
                 <thead>
-                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white font-black border-b border-slate-950 text-[10px] uppercase">
+                  <tr className="bg-slate-100 dark:bg-slate-800 print:bg-slate-100 text-slate-950 dark:text-white print:text-black font-black border-b border-slate-950 text-[10px] uppercase">
                     <th className="p-2 border-r border-slate-950 text-center w-24">তারিখ ও সময়</th>
                     <th className="p-2 border-r border-slate-950">প্রাপক নাম ও ক্যাটাগরি</th>
                     <th className="p-2 border-r border-slate-950 text-center w-28">মোবাইল নম্বর</th>

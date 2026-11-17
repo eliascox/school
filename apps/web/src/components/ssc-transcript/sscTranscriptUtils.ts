@@ -267,45 +267,51 @@ export function buildRecordFromStudent(
   customBoardRoll?: string
 ): SSCTestimonialRecord {
   const englishGroup = translateGroupToEnglish(student.group);
-  const boardRollVal = customBoardRoll || (102900 + parseInt(student.roll || '1', 10) + rollOffset).toString();
-  const boardRegVal = `1810293${(parseInt(student.roll || '1', 10) + rollOffset).toString().padStart(3, '0')}`;
+  const boardRollVal = customBoardRoll || student.sscRoll || (102900 + parseInt(student.roll || '1', 10) + rollOffset).toString();
+  const boardRegVal = student.registrationNo || `1810293${(parseInt(student.roll || '1', 10) + rollOffset).toString().padStart(3, '0')}`;
   const id = `TESTIMONIAL-SSC-${passingYearFilter}-${student.id || Math.random().toString(36).substring(7)}`;
   const studentGender: 'Male' | 'Female' | 'Other' = detectGender(student.gender, student.name);
-  const dobStr = student.dob || '2009-05-14';
+  const dobStr = student.dob || '';
+  const schoolAddrEn = getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address);
+  const addrParts = schoolAddrEn.split(',').map((p) => p.trim()).filter(Boolean);
+  const fallbackUpazila = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : '';
+  const fallbackDistrict = addrParts.length >= 1 ? addrParts[addrParts.length - 1] : '';
+  const rawAddr = student.permanentAddress || student.currentAddress || '';
+  const studentAddrParts = rawAddr.split(',').map((p) => p.trim()).filter(Boolean);
 
   return {
     id,
     studentId: student.id,
-    studentName: student.name,
-    fatherName: student.fatherName || 'Md. Rafiqul Islam',
-    motherName: student.motherName || 'Fatema Begum',
-    village: getStudentExtraField(student, 'village') || 'Boraitoli',
-    postOffice: getStudentExtraField(student, 'postOffice') || 'Boraitoli',
-    upazilla: getStudentExtraField(student, 'upazilla') || getStudentExtraField(student, 'upazila') || 'Chakaria',
-    district: getStudentExtraField(student, 'district') || "Cox's Bazar",
+    studentName: student.nameEn || student.name,
+    fatherName: student.fatherNameEn || student.fatherName || student.guardian || '',
+    motherName: student.motherNameEn || student.motherName || '',
+    village: getStudentExtraField(student, 'village') || studentAddrParts[0] || '',
+    postOffice: getStudentExtraField(student, 'postOffice') || studentAddrParts[1] || studentAddrParts[0] || '',
+    upazilla: getStudentExtraField(student, 'upazilla') || getStudentExtraField(student, 'upazila') || fallbackUpazila,
+    district: getStudentExtraField(student, 'district') || fallbackDistrict,
     dob: dobStr,
-    dobWords: formatDobInWords(dobStr),
+    dobWords: dobStr ? formatDobInWords(dobStr) : '',
     gender: studentGender,
     schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
     schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
     schoolAddress: schoolSettings.address || '',
-    schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+    schoolAddressEn: schoolAddrEn,
     eiin: schoolSettings.eiin || '---',
     boardName: translateBoardToEnglish(
       currentLang === 'en'
         ? 'Board of Intermediate and Secondary Education, Chattogram'
         : 'চট্টগ্রাম মাধ্যমিক ও উচ্চ মাধ্যমিক শিক্ষা বোর্ড'
     ),
-    centerName: 'Chakaria-1',
+    centerName: fallbackUpazila || 'Exam Center',
     group: englishGroup,
     boardRoll: boardRollVal,
     boardReg: boardRegVal,
-    session: '2024-2025',
+    session: student.session || `${Number(passingYearFilter) - 2 || 2024}-${passingYearFilter}`,
     passingYear: passingYearFilter,
     gpa: customGpa,
     gradeLetter: parseFloat(customGpa) >= 5.0 ? 'A+' : parseFloat(customGpa) >= 4.0 ? 'A' : 'A-',
     issueDate: new Date().toISOString().split('T')[0],
-    refNo: `BHS/SSC/${passingYearFilter}/${(100 + rollOffset).toString()}`,
+    refNo: `${schoolSettings.padRefPrefix || 'SSC/'}${passingYearFilter}/${(100 + rollOffset).toString()}`,
     characterRemarks:
       studentGender === 'Female'
         ? 'She bears an exemplary moral character.'
@@ -317,35 +323,45 @@ export function buildRecordFromCertificate(
   cert: CertificateRecord,
   schoolSettings: SchoolSettings
 ): SSCTestimonialRecord {
+  const detectedGender = detectGender(cert.gender, cert.studentName);
+  const schoolAddrEn = getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address);
+  const addrParts = schoolAddrEn.split(',').map((p) => p.trim()).filter(Boolean);
+  const fallbackUpazila = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : '';
+  const fallbackDistrict = addrParts.length >= 1 ? addrParts[addrParts.length - 1] : '';
+
   return {
     id: cert.id,
     studentId: cert.studentId,
-    studentName: cert.studentName,
-    fatherName: cert.fatherName || '',
-    motherName: cert.motherName || '',
-    village: cert.village || 'Boraitoli',
-    postOffice: cert.postOffice || 'Boraitoli',
-    upazilla: cert.upazila || 'Chakaria',
-    district: cert.district || "Cox's Bazar",
-    gender: 'Male',
-    dob: cert.dob || '2009-01-01',
-    dobWords: formatDobInWords(cert.dob || '2009-01-01'),
+    studentName: cert.studentNameEn || cert.studentName,
+    fatherName: cert.fatherNameEn || cert.fatherName || '',
+    motherName: cert.motherNameEn || cert.motherName || '',
+    village: cert.village || '',
+    postOffice: cert.postOffice || '',
+    upazilla: cert.upazila || fallbackUpazila,
+    district: cert.district || fallbackDistrict,
+    gender: detectedGender,
+    dob: cert.dob || '',
+    dobWords: cert.dob ? formatDobInWords(cert.dob) : '',
     schoolName: schoolSettings.schoolName || 'শিক্ষা প্রতিষ্ঠান',
     schoolNameEn: getEnglishSchoolName(schoolSettings.schoolNameEn || schoolSettings.schoolName),
     schoolAddress: schoolSettings.address || '',
-    schoolAddressEn: getEnglishSchoolAddress(schoolSettings.addressEn || schoolSettings.address),
+    schoolAddressEn: schoolAddrEn,
     eiin: schoolSettings.eiin || '---',
-    centerName: 'Chakaria-1',
+    centerName: fallbackUpazila || 'Exam Center',
     group: translateGroupToEnglish(cert.group || 'Science'),
     boardRoll: cert.boardRoll || '—',
     boardReg: cert.boardReg || '—',
     session: cert.session || '2024-2025',
-    passingYear: cert.passingYear || '2026',
-    boardName: 'Board of Intermediate and Secondary Education, Chattogram',
+    passingYear: cert.passingYear || String(new Date().getFullYear()),
+    boardName: cert.boardName || 'Board of Intermediate and Secondary Education, Chattogram',
     gpa: cert.gpa || '5.00',
-    gradeLetter: 'A+',
+    gradeLetter: cert.gradeLetter || 'A+',
     issueDate: cert.issueDate,
     refNo: cert.refNo,
-    characterRemarks: cert.characterRemarks || 'He bears an exemplary moral character.',
+    characterRemarks:
+      cert.characterRemarks ||
+      (detectedGender === 'Female'
+        ? 'She bears an exemplary moral character.'
+        : 'He bears an exemplary moral character.'),
   };
 }

@@ -8,6 +8,8 @@ export interface StudentRecord extends Omit<Student, 'section' | 'branch'> {
   fatherOccupation?: string;
   motherNameEn?: string;
   motherOccupation?: string;
+  studyStartYear?: string;
+  studyEndYear?: string;
   guardianRelation?: string;
   prevSchoolName?: string;
   prevGpa?: string;

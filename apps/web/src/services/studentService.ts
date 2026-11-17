@@ -5,6 +5,7 @@ import { systemResetService, SystemPurgeReport } from './systemResetService';
 export interface Student {
   id: string;
   name: string;
+  nameEn?: string;      // ইংরেজি নাম (Certificate & Testimonial Bilingual Sync)
   roll: string;
   grade: string;        // '6th', '7th', '8th', '9th', '10th'
   gradeBn?: string;
@@ -14,10 +15,14 @@ export interface Student {
   optionalSubject?: string;
   guardian?: string;
   fatherName?: string;
+  fatherNameEn?: string;
   fatherNid?: string;
   motherName?: string;
+  motherNameEn?: string;
   motherNid?: string;
   session?: string;
+  studyStartYear?: string;
+  studyEndYear?: string;
   mobile?: string;
   attendance?: number;
   gpa?: string;

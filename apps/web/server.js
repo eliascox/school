@@ -51,8 +51,8 @@ function getClientIp(req) {
 
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const MAX_GLOBAL_REQ_PER_MIN = 300;
-const MAX_API_REQ_PER_MIN = 60;
+const MAX_GLOBAL_REQ_PER_MIN = 600;
+const MAX_API_REQ_PER_MIN = 120;
 
 setInterval(() => {
   const now = Date.now();
@@ -63,7 +63,30 @@ setInterval(() => {
   }
 }, 3 * 60 * 1000).unref();
 
-function checkRateLimit(ip, isApi) {
+function isLoopbackClient(ip) {
+  if (!ip) return false;
+  const normalized = ip.replace(/^::ffff:/i, '').toLowerCase();
+  return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
+}
+
+function isStaticFrontendAsset(rawUrl) {
+  const pathname = (rawUrl || '').split('?')[0].toLowerCase();
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/downloads/')
+  ) {
+    return true;
+  }
+  return /\.(js|mjs|css|txt|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|webp|map)$/.test(pathname);
+}
+
+function checkRateLimit(ip, isApi, rawUrl = '') {
+  // Never throttle static asset chunks, RSC prefetches, or local loopback UI navigation
+  if (!isApi && (isLoopbackClient(ip) || isStaticFrontendAsset(rawUrl))) {
+    return true;
+  }
+
   const now = Date.now();
   let client = rateLimitMap.get(ip);
   if (!client || (now - client.windowStart > RATE_LIMIT_WINDOW_MS)) {
@@ -72,13 +95,13 @@ function checkRateLimit(ip, isApi) {
     return true;
   }
 
+  if (isApi) {
+    client.apiCount = (client.apiCount || 0) + 1;
+    return client.apiCount <= MAX_API_REQ_PER_MIN;
+  }
+
   client.count++;
-  if (isApi) client.apiCount = (client.apiCount || 0) + 1;
-
-  const maxAllowed = isApi ? MAX_API_REQ_PER_MIN : MAX_GLOBAL_REQ_PER_MIN;
-  const currentCount = isApi ? client.apiCount : client.count;
-
-  return currentCount <= maxAllowed;
+  return client.count <= MAX_GLOBAL_REQ_PER_MIN;
 }
 
 // ─── WEB APPLICATION FIREWALL (WAF) MALICIOUS REQUEST DETECTOR ───────────────
@@ -249,7 +272,7 @@ function startServers() {
 
     // 3. IP Sliding-Window Rate Limiting (Anti-DoS / Anti-Brute-Force)
     const isApi = req.url.startsWith('/api/');
-    if (!checkRateLimit(clientIp, isApi)) {
+    if (!checkRateLimit(clientIp, isApi, req.url)) {
       console.warn(`[RATE LIMIT EXCEEDED] IP: ${clientIp} URL: ${req.url}`);
       sendResponse(res, 429, {
         'Content-Type': 'application/json; charset=utf-8',

@@ -135,7 +135,7 @@ export default function DashboardMobileAppHub() {
           <Link
             href="/mobile-app"
             target="_blank"
-            className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition"
+            className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition"
           >
             <Smartphone className="w-4 h-4" />
             <span>মোবাইল অ্যাপ ওপেন করুন</span>
@@ -339,10 +339,13 @@ export default function DashboardMobileAppHub() {
                   <span>{copied ? 'কপি হয়েছে' : 'লিংক কপি'}</span>
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                বর্তমান টার্গেট লিংক: <code className="text-emerald-700 dark:text-emerald-300 font-semibold break-all">{targetUrl}</code>
-              </p>
-            </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  বর্তমান টার্গেট লিংক: <code className="text-emerald-700 dark:text-emerald-300 font-semibold break-all">{targetUrl}</code>
+                </p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                  নোট: Web App (PWA) যেকোনো কাস্টম ডোমেইনে স্বয়ংক্রিয়ভাবে কাজ করে; প্রি-বিল্ট <code>school-app.apk</code> কেবল ডিফল্ট হোস্টের জন্য বান্ডেল করা।
+                </p>
+              </div>
 
             {/* Direct Action Buttons */}
             <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
