@@ -30,7 +30,6 @@ describe('routeAccess and dashboard layout guard', () => {
     expect(canAccessDashboardRoute('teacher', '/dashboard/exam/mark-entry')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/exam/seat-plan')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/academic/attendance')).toBe(true);
-    expect(canAccessDashboardRoute('teacher', '/dashboard/academic/homework')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/routine')).toBe(true);
     expect(canAccessDashboardRoute('teacher', '/dashboard/notices')).toBe(true);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/exam/mark-entry')).toBeNull();
@@ -48,7 +47,6 @@ describe('routeAccess and dashboard layout guard', () => {
     expect(canAccessDashboardRoute('teacher', '/dashboard/mobile-app')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/analytics')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/library')).toBe(false);
-    expect(canAccessDashboardRoute('teacher', '/dashboard/campus')).toBe(false);
     expect(canAccessDashboardRoute('teacher', '/dashboard/alumni')).toBe(false);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/settings')).toBe(TEACHER_HOME);
     expect(getDashboardRedirect({ role: 'teacher' }, '/dashboard/finance')).toBe(TEACHER_HOME);

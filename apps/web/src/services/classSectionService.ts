@@ -6,6 +6,7 @@ export interface SectionBranch {
   studentCount: number;
   sectionTeacher: string;
   shift: 'প্রভাতি (Morning)' | 'দিবা (Day)' | 'Morning' | 'Day';
+  isCustom?: boolean;
 }
 
 export interface ClassItem {
@@ -35,8 +36,7 @@ export const DEFAULT_CLASSES: ClassItem[] = [
     totalStudents: 0,
     groups: ['সাধারণ (General)'],
     sections: [
-      { id: 'sec-6a', name: 'Section A (ক শাখা)', room: 'রুম ১০১', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' },
-      { id: 'sec-6b', name: 'Section B (খ শাখা)', room: 'রুম ১০২', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
+      { id: 'sec-6a', name: 'Section A (ক শাখা)', room: 'রুম ১০১', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
     ]
   },
   {
@@ -50,8 +50,7 @@ export const DEFAULT_CLASSES: ClassItem[] = [
     totalStudents: 0,
     groups: ['সাধারণ (General)'],
     sections: [
-      { id: 'sec-7a', name: 'Section A (ক শাখা)', room: 'রুম ১০৩', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' },
-      { id: 'sec-7b', name: 'Section B (খ শাখা)', room: 'রুম ১০৪', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
+      { id: 'sec-7a', name: 'Section A (ক শাখা)', room: 'রুম ১০৩', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
     ]
   },
   {
@@ -65,9 +64,7 @@ export const DEFAULT_CLASSES: ClassItem[] = [
     totalStudents: 0,
     groups: ['সাধারণ (General)'],
     sections: [
-      { id: 'sec-8a', name: 'Section A (ক শাখা)', room: 'রুম ২০১', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' },
-      { id: 'sec-8b', name: 'Section B (খ শাখা)', room: 'রুম ২০২', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' },
-      { id: 'sec-8c', name: 'Section C (গ শাখা)', room: 'রুম ২০৩', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
+      { id: 'sec-8a', name: 'Section A (ক শাখা)', room: 'রুম ২০১', capacity: 50, studentCount: 0, sectionTeacher: '', shift: 'দিবা (Day)' }
     ]
   },
   {
@@ -166,7 +163,8 @@ class ClassSectionService {
           capacity: Number(sectionData.capacity) || 50,
           studentCount: 0,
           sectionTeacher: sectionData.sectionTeacher?.trim() || '',
-          shift: sectionData.shift || 'দিবা (Day)'
+          shift: sectionData.shift || 'দিবা (Day)',
+          isCustom: true
         };
         return {
           ...c,

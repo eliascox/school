@@ -1,6 +1,7 @@
 import { auditTrailService } from './auditTrailService';
 import { syncQueueService } from './syncQueueService';
 import { systemResetService, SystemPurgeReport } from './systemResetService';
+import { sortStudentsGroupAndRoll } from './studentBulkImportEngine';
 
 export interface Student {
   id: string;
@@ -120,12 +121,12 @@ export const studentService = {
 
     if (hadUploaded) {
       // Only write to localStorage when newly uploaded batch was merged
-      const deduped = deduplicateStudentList(combined);
+      const deduped = sortStudentsGroupAndRoll(deduplicateStudentList(combined), 'roll_asc');
       localStorage.setItem('sms_students', JSON.stringify(deduped));
       return deduped;
     }
 
-    return combined;
+    return sortStudentsGroupAndRoll(combined, 'roll_asc');
   },
 
   // Get filtered students for specific Grade, Section & Group
@@ -275,7 +276,7 @@ export const studentService = {
       stipendStatus: data.stipendStatus
     };
 
-    const updated = deduplicateStudentList([newStudent, ...all]);
+    const updated = sortStudentsGroupAndRoll(deduplicateStudentList([newStudent, ...all]), 'roll_asc');
     if (typeof window !== 'undefined') {
       localStorage.setItem('sms_students', JSON.stringify(updated));
       window.dispatchEvent(new Event('storage'));
@@ -310,8 +311,9 @@ export const studentService = {
         ...student,
         photo: student.photo !== undefined ? student.photo : all[index].photo
       };
+      updated = sortStudentsGroupAndRoll(updated, 'roll_asc');
     } else {
-      updated = deduplicateStudentList([student, ...all]);
+      updated = sortStudentsGroupAndRoll(deduplicateStudentList([student, ...all]), 'roll_asc');
     }
     try {
       localStorage.setItem('sms_students', JSON.stringify(updated));
@@ -545,8 +547,14 @@ export const studentService = {
     listeners.forEach((fn) => fn());
   },
 
-  // Bulk promote students to new grade/session
-  promoteStudents: (studentIds: string[], targetGrade: string, targetSession: string = '২০২৭', groupOverride?: string): { success: boolean; message: string; count: number } => {
+  // Bulk promote students to new grade/session (with optional merit-based roll overrides)
+  promoteStudents: (
+    studentIds: string[],
+    targetGrade: string,
+    targetSession: string = '২০২৭',
+    groupOverride?: string,
+    rollOverrides?: Record<string, string>
+  ): { success: boolean; message: string; count: number } => {
     if (typeof window === 'undefined') return { success: false, message: 'Browser environment missing', count: 0 };
 
     const all = studentService.getAllStudents();
@@ -555,11 +563,13 @@ export const studentService = {
     const updatedStudents = all.map(st => {
       if (studentIds.includes(st.id)) {
         updatedCount++;
+        const nextRoll = rollOverrides?.[st.id];
         return {
           ...st,
           grade: targetGrade,
           session: targetSession,
-          group: groupOverride || st.group || 'সাধারণ'
+          group: groupOverride || st.group || 'সাধারণ',
+          ...(nextRoll ? { roll: nextRoll } : {})
         };
       }
       return st;

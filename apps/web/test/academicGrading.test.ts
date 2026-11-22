@@ -238,12 +238,12 @@ describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
       selectedBranch: 'A',
     });
 
-    const phyMarksheet = marksheet.subjects.find((s) => s.code === 'PHY-136');
+    const phyMarksheet = marksheet.subjects.find((s) => s.code === '136');
     expect(phyMarksheet?.letterGrade).toBe('F');
     expect(phyMarksheet?.gradePoint).toBe(0.0);
     expect(marksheet.hasFailed).toBe(true);
     expect(marksheet.overallGrade).toBe('F');
-    expect(resEngine?.subjectMarks['PHY-136']?.letterGrade).toBe('F');
+    expect(resEngine?.subjectMarks['136']?.letterGrade).toBe('F');
     expect(resEngine?.isPassed).toBe(false);
 
     // Compulsory (1050) + Optional (100) = 1150, matching resultService 100%
@@ -251,5 +251,60 @@ describe('Academic NCTB Grading Scale & Calculation Unit Tests', () => {
     expect(marksheet.totalObtained).toBe(resEngine?.totalObtainedMarks);
     expect(marksheet.optionalSubject?.name).toBe('উচ্চতর গণিত');
     expect(marksheet.bonusGP).toBe(3.0);
+  });
+
+  it('resolves Hindu Religion (112) cleanly for Hindu students in both resultService and OfficialMarksheetSheet', () => {
+    const store: Record<string, string> = {};
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => { store[k] = v; },
+      removeItem: (k: string) => { delete store[k]; },
+      clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+    };
+    (globalThis as any).window = { dispatchEvent: () => true, localStorage: (globalThis as any).localStorage };
+
+    const hinduStudent = {
+      id: 'STD-H1',
+      roll: '05',
+      name: 'অর্ক দাস',
+      grade: '9th',
+      gradeBn: '৯ম শ্রেণি',
+      section: 'A',
+      group: 'বিজ্ঞান',
+      religion: 'হিন্দু',
+      fatherName: 'সুমন দাস',
+      motherName: 'রূপা দাস',
+      session: '২০২৬',
+      optionalSubject: 'উচ্চতর গণিত',
+    };
+
+    store['sms_marks_exam_hindu_9th_A_বিজ্ঞান_হিন্দুধর্ম ও নৈতিক শিক্ষা'] = JSON.stringify([
+      { id: 'STD-H1', roll: '05', written: 62, mcq: 26, practical: 0, total: 88 },
+    ]);
+
+    const resEngine = resultService.calculateStudentResult({
+      examId: 'exam_hindu',
+      student: hinduStudent,
+      grade: '9th',
+      branch: 'A',
+      group: 'বিজ্ঞান',
+    });
+
+    const marksheet = generateStudentMarksheetData(hinduStudent, {
+      selectedExam: 'exam_hindu',
+      selectedGrade: '9th',
+      selectedBranch: 'A',
+    });
+
+    expect(resEngine?.subjectMarks['112']?.totalMarks).toBe(88);
+    expect(resEngine?.subjectMarks['112']?.letterGrade).toBe('A+');
+    expect(resEngine?.subjectMarks['111']).toBeUndefined();
+
+    const hinduRow = marksheet.subjects.find((s) => s.code === '112');
+    expect(hinduRow).toBeDefined();
+    expect(hinduRow?.name).toBe('হিন্দুধর্ম ও নৈতিক শিক্ষা');
+    expect(hinduRow?.totalMarks).toBe(88);
+    expect(hinduRow?.letterGrade).toBe('A+');
+    expect(marksheet.subjects.some((s) => s.code === '111')).toBe(false);
   });
 });

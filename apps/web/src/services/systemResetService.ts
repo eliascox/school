@@ -127,6 +127,8 @@ export const systemResetService = {
         }
       });
       localStorage.setItem('exam_results_v1', JSON.stringify([]));
+      localStorage.setItem('sms_omr_sessions', JSON.stringify([]));
+      localStorage.setItem('sms_omr_scans', JSON.stringify([]));
       localStorage.removeItem('sms_last_mark_save');
       localStorage.removeItem('sms_exam_names');
       layers.push({

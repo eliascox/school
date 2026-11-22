@@ -303,6 +303,14 @@ export default function SMSDashboardPage() {
 
   return (
     <div className="w-full space-y-5 pb-16 font-sans text-slate-900 dark:text-white" suppressHydrationWarning>
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+        }
+      `}</style>
       
       {/* TOP ACTIONS & BALANCE BAR (Clean & Compact) */}
       <div className="flex justify-end print:hidden">

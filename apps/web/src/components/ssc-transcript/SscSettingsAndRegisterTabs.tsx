@@ -288,7 +288,7 @@ export function SscSettingsTab({
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
           <span className="text-slate-900 dark:text-white font-black text-sm flex items-center gap-2">
             <Sparkles size={16} className="text-amber-500" />
-            TESTIMONIAL টাইটেল ফন্ট স্টাইল:
+            TESTIMONIAL টাইটেল ও নামের ফন্ট স্টাইল:
           </span>
           <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
             {(['cinzel', 'playfair', 'classic'] as const).map((style) => (
@@ -306,7 +306,23 @@ export function SscSettingsTab({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">প্রশংসাপত্রের প্রধান শিরোনামটি রাজকীয় ফন্টে বোল্ড থাকবে।</p>
+          <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            {(['cursive', 'serif_italic', 'classic_bold'] as const).map((nf) => (
+              <button
+                key={nf}
+                type="button"
+                onClick={() => onUpdateLayoutConfig({ nameFontStyle: nf })}
+                className={`py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                  (layoutConfig.nameFontStyle || 'cursive') === nf
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {nf === 'cursive' ? 'কার্সিভ স্ক্রিপ্ট' : nf === 'serif_italic' ? 'ইতালিক সেরিফ' : 'বোল্ড ক্লাসিক'}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">শিক্ষার্থী ও পিতা-মাতার নাম স্টাইলিস্ট কার্সিভ স্ক্রিপ্ট ফন্টে প্রদর্শিত হবে।</p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">

@@ -32,6 +32,8 @@ import { attendanceService, StudentAttendanceRecord } from '@/services/attendanc
 import { settingsService } from '@/services/settingsService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import { QrAndBiometricAttendancePanel } from '@/components/attendance/QrAndBiometricAttendancePanel';
+import { localDateKey } from '@/lib/dateUtils';
+import { parseClassTeacherClassId } from '@/lib/teacherMobileUtils';
 
 type AttendanceTab = 'register' | 'scanner' | 'absentee_panel' | 'reports';
 
@@ -41,7 +43,7 @@ export default function AttendancePage() {
   const [myClassTeacherAssignments, setMyClassTeacherAssignments] = useState<ClassTeacherAssignment[]>([]);
 
   const [activeTab, setActiveTab] = useState<AttendanceTab>('register');
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => localDateKey());
   const [selectedGrade, setSelectedGrade] = useState<string>('6th');
   const [selectedBranch, setSelectedBranch] = useState<string>('A');
   const [students, setStudents] = useState<StudentAttendanceRecord[]>([]);
@@ -57,17 +59,31 @@ export default function AttendancePage() {
   useEffect(() => {
     const s = teacherAuthService.getSession();
     setSession(s);
+
+    let urlGrade: string | null = null;
+    let urlBranch: string | null = null;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      urlGrade = params.get('grade');
+      urlBranch = params.get('branch');
+    }
+
     if (s?.role === 'teacher') {
       const teacherId = s.teacherId || s.teacherName || '';
       const ctAssignments = teacherRBACService.getTeacherClassTeacherAssignments(teacherId);
       setMyClassTeacherAssignments(ctAssignments);
-      if (ctAssignments.length > 0) {
-        const firstCt = ctAssignments[0];
-        // e.g. "8th-A" or "9th-Science"
-        const parts = firstCt.classId.split('-');
-        if (parts[0]) setSelectedGrade(parts[0]);
-        if (parts[1]) setSelectedBranch(parts[1]);
+
+      if (urlGrade && urlBranch) {
+        setSelectedGrade(urlGrade);
+        setSelectedBranch(urlBranch);
+      } else if (ctAssignments.length > 0) {
+        const parsed = parseClassTeacherClassId(ctAssignments[0].classId);
+        setSelectedGrade(parsed.grade);
+        setSelectedBranch(parsed.branch);
       }
+    } else if (urlGrade) {
+      setSelectedGrade(urlGrade);
+      if (urlBranch) setSelectedBranch(urlBranch);
     }
   }, []);
 
@@ -76,10 +92,12 @@ export default function AttendancePage() {
 
   const isAdminRole = session?.role === 'admin';
   const isTeacherRole = session?.role === 'teacher';
-  const canTakeAttendance = isAdminRole || isTeacherRole;
+  const teacherIdentifier = session?.teacherId || session?.teacherName || '';
   const isCurrentClassTeacher = isTeacherRole
-    ? myClassTeacherAssignments.some(ct => ct.classId === classKey || ct.classId === `${selectedGrade}-${selectedBranch}`)
+    ? teacherRBACService.canTakeClassAttendance(teacherIdentifier, classKey)
     : isAdminRole;
+  // 🛡️ Strict RBAC: Only Admin or the designated Class Teacher of the selected class can record attendance
+  const canTakeAttendance = isAdminRole || isCurrentClassTeacher;
 
   useEffect(() => {
     if (isTeacherRole && printScope !== 'single') {
@@ -127,7 +145,10 @@ export default function AttendancePage() {
 
   // Save current class attendance
   const saveAttendance = (updatedList: StudentAttendanceRecord[]) => {
-    if (!canTakeAttendance) return;
+    if (!canTakeAttendance) {
+      showToast('শুধুমাত্র এই শ্রেণির দায়িত্বপ্রাপ্ত শ্রেণি শিক্ষক (Class Teacher) হাজিরা গ্রহণ করতে পারবেন!', 'error');
+      return;
+    }
     setStudents(updatedList);
     attendanceService.saveAttendance({
       date: selectedDate,
@@ -347,9 +368,9 @@ export default function AttendancePage() {
       {activeTab === 'register' && (
         <div className="space-y-4">
 
-          {!canTakeAttendance && (
+          {!canTakeAttendance && !isTeacherRole && (
             <div className="p-4 rounded-3xl border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 text-xs font-bold print:hidden">
-              ⚠️ অনুগ্রহ করে অ্যাডমিন বা শিক্ষক অ্যাকাউন্ট দিয়ে লগইন করুন — অনুমোদন ছাড়া উপস্থিতি পরিবর্তন সংরক্ষণ করা যাবে না।
+              ⚠️ অনুগ্রহ করে অ্যাডমিন বা শ্রেণি শিক্ষক অ্যাকাউন্ট দিয়ে লগইন করুন — অনুমোদন ছাড়া উপস্থিতি পরিবর্তন সংরক্ষণ করা যাবে না।
             </div>
           )}
 
@@ -371,13 +392,13 @@ export default function AttendancePage() {
                     {isCurrentClassTeacher
                       ? `👑 আপনি ${gradeNameBn} (${branchNameBn})-এর দায়িত্বপ্রাপ্ত শ্রেণি শিক্ষক (Class Teacher)`
                       : myClassTeacherAssignments.length > 0
-                      ? `ℹ️ আপনি ${myClassTeacherAssignments[0].classId}-এর শ্রেণি শিক্ষক হিসেবে দায়িত্বপ্রাপ্ত।`
-                      : `ℹ️ আপনি কোনো শ্রেণির শ্রেণি শিক্ষক হিসেবে নিযুক্ত নন।`}
+                      ? `🔒 শুধুমাত্র দেখার মোড — আপনি ${myClassTeacherAssignments[0].classId}-এর শ্রেণি শিক্ষক।`
+                      : `🔒 হাজিরা গ্রহণের অনুমতি নেই — আপনি কোনো শ্রেণির শ্রেণি শিক্ষক নন।`}
                   </strong>
                   <p className="text-[11px] opacity-80 mt-0.5">
                     {isCurrentClassTeacher
                       ? 'শিক্ষার্থীদের উপস্থিতি/অনুপস্থিতি নির্ধারণ করে লাইভ অটো-সেভ করুন।'
-                      : 'শ্রেণি শিক্ষকগণ তাদের নির্ধারিত শ্রেণির শিক্ষার্থীদের উপস্থিতি গ্রহণের দায়িত্বে থাকেন।'}
+                      : 'শুধুমাত্র নির্ধারিত শ্রেণি শিক্ষক তাঁর নিজ শ্রেণির হাজিরা গ্রহণ ও পরিবর্তন করতে পারবেন।'}
                   </p>
                 </div>
               </div>
@@ -386,10 +407,9 @@ export default function AttendancePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const firstCt = myClassTeacherAssignments[0];
-                    const parts = firstCt.classId.split('-');
-                    if (parts[0]) setSelectedGrade(parts[0]);
-                    if (parts[1]) setSelectedBranch(parts[1]);
+                    const parsed = parseClassTeacherClassId(myClassTeacherAssignments[0].classId);
+                    setSelectedGrade(parsed.grade);
+                    setSelectedBranch(parsed.branch);
                   }}
                   className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-black text-[11px] rounded-xl shadow-xs transition shrink-0 cursor-pointer"
                 >
@@ -447,10 +467,10 @@ export default function AttendancePage() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" onClick={() => handleMarkAll('Present')} className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl font-bold text-[11px] transition">
+                <button type="button" disabled={!canTakeAttendance} onClick={() => handleMarkAll('Present')} className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl font-bold text-[11px] transition disabled:opacity-45 disabled:cursor-not-allowed">
                   ✓ সকলকে উপস্থিত দেখান
                 </button>
-                <button type="button" onClick={() => handleMarkAll('Absent')} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl font-bold text-[11px] transition">
+                <button type="button" disabled={!canTakeAttendance} onClick={() => handleMarkAll('Absent')} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-xl font-bold text-[11px] transition disabled:opacity-45 disabled:cursor-not-allowed">
                   ✗ সকলকে অনুপস্থিত দেখান
                 </button>
               </div>
@@ -492,20 +512,20 @@ export default function AttendancePage() {
                     </div>
 
                     <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                      <button type="button" onClick={() => handleStatusChange(st.id, 'Present')}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                      <button type="button" disabled={!canTakeAttendance} onClick={() => handleStatusChange(st.id, 'Present')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition disabled:opacity-45 disabled:cursor-not-allowed ${
                           st.status === 'Present' ? 'bg-emerald-600 text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         উপস্থিত
                       </button>
-                      <button type="button" onClick={() => handleStatusChange(st.id, 'Absent')}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                      <button type="button" disabled={!canTakeAttendance} onClick={() => handleStatusChange(st.id, 'Absent')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition disabled:opacity-45 disabled:cursor-not-allowed ${
                           st.status === 'Absent' ? 'bg-rose-600 text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         অনুপস্থিত
                       </button>
-                      <button type="button" onClick={() => handleStatusChange(st.id, 'Leave')}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                      <button type="button" disabled={!canTakeAttendance} onClick={() => handleStatusChange(st.id, 'Leave')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition disabled:opacity-45 disabled:cursor-not-allowed ${
                           st.status === 'Leave' ? 'bg-amber-500 text-slate-950 dark:text-white shadow-sm font-black' : 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}>
                         ছুটি
@@ -515,8 +535,8 @@ export default function AttendancePage() {
                     {(st.status === 'Absent' || st.status === 'Leave') && (
                       <div className="w-full sm:w-auto flex items-center gap-1 border-t sm:border-t-0 pt-2 sm:pt-0">
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase shrink-0">কারণ:</span>
-                        <input type="text" value={st.reason || ''} onChange={(e) => handleReasonChange(st.id, e.target.value)}
-                          placeholder="অনুপস্থিতির কারণ..." className="w-full sm:w-36 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px]" />
+                        <input type="text" disabled={!canTakeAttendance} value={st.reason || ''} onChange={(e) => handleReasonChange(st.id, e.target.value)}
+                          placeholder="অনুপস্থিতির কারণ..." className="w-full sm:w-36 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] disabled:opacity-50" />
                       </div>
                     )}
                   </div>
@@ -830,6 +850,14 @@ export default function AttendancePage() {
         </div>
       )}
 
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+        }
+      `}</style>
     </div>
   );
 }

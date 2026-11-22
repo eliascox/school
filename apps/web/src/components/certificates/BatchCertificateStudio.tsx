@@ -164,7 +164,8 @@ export default function BatchCertificateStudio({
         showOfficeStub,
         showCornerBands: borderPreset !== 'no_border_pad',
         showQrCode: true,
-        fontSize: orientation === 'landscape' ? 14 : 15,
+        cursiveNames: true,
+        fontSize: certType === 'ssc_testimonial' && language === 'en' ? 17.5 : orientation === 'landscape' ? 14.5 : 15.5,
         createdDate: issueDate,
       };
     });

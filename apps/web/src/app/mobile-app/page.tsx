@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   Home, CalendarCheck2, Award, CreditCard, Bell, Calendar,
   Search, Download, Smartphone, CheckCircle2, AlertCircle,
   UserCheck, GraduationCap, Phone, ArrowLeft, RefreshCw,
   ShieldCheck, ExternalLink, ChevronRight, Sparkles, Wifi,
-  BookOpen, Clock, FileCheck, LogIn, Share2
+  BookOpen, Clock, FileCheck, LogIn, Share2,
+  Edit3, Eye, EyeOff, LogOut, Lock
 } from 'lucide-react';
+import TeacherMobileWorkspace, { TeacherMobileTab } from '@/components/mobile-app/TeacherMobileWorkspace';
 import { firebaseSyncService } from '@/services/firebaseSyncService';
 import { studentService, Student } from '@/services/studentService';
 import { financeService, StudentFeeLedger } from '@/services/financeService';
@@ -103,10 +105,26 @@ export default function PublicMobileAppPage() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showInstallSheet, setShowInstallSheet] = useState(false);
 
+  // In-App Teacher Mode & Login Sheet State
+  const [appMode, setAppMode] = useState<'guardian' | 'teacher'>('guardian');
+  const [teacherTab, setTeacherTab] = useState<TeacherMobileTab>('home');
+  const [teacherHasUnsavedMarks, setTeacherHasUnsavedMarks] = useState(false);
+  const [showTeacherLoginSheet, setShowTeacherLoginSheet] = useState(false);
+  const [loginId, setLoginId] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [showLoginPass, setShowLoginPass] = useState(false);
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const didAutoSelectTeacherModeRef = useRef(false);
+
   const loadLiveAppData = useCallback(() => {
     try {
       const s = teacherAuthService.getSession();
       setSession(s);
+      if (s?.role === 'teacher' && !didAutoSelectTeacherModeRef.current) {
+        didAutoSelectTeacherModeRef.current = true;
+        setAppMode('teacher');
+      }
 
       const settings = settingsService.getSettings();
       const cfg = landingPageService.getPublishedConfig();
@@ -517,18 +535,61 @@ export default function PublicMobileAppPage() {
     }
   };
 
+  const handleTeacherLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    if (!loginId.trim() || !loginPass.trim()) {
+      setLoginError('অনুগ্রহ করে শিক্ষকের মোবাইল নম্বর/আইডি এবং পাসওয়ার্ড দিন।');
+      return;
+    }
+    setLoginBusy(true);
+    try {
+      const res = await teacherAuthService.unifiedLogin(loginId.trim(), loginPass.trim());
+      if (!res.success) {
+        setLoginError(res.message || 'লগইন ব্যর্থ হয়েছে। তথ্য যাচাই করুন।');
+        return;
+      }
+      const nextSession = teacherAuthService.getSession();
+      setSession(nextSession);
+      setAppMode('teacher');
+      setTeacherTab('home');
+      setShowTeacherLoginSheet(false);
+      setLoginPass('');
+      loadLiveAppData();
+    } catch {
+      setLoginError('লগইন করার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  const handleMobileLogout = () => {
+    teacherAuthService.logout();
+    setSession(null);
+    setAppMode('guardian');
+    setTeacherTab('home');
+  };
+
+  const isTeacherWorkspaceActive = Boolean(session && appMode === 'teacher');
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-start sm:py-6 sm:px-4 font-sans">
       {/* Smartphone Container (Full width on mobile, realistic frame on desktop) */}
       <div className="w-full max-w-md min-h-screen sm:min-h-[840px] sm:max-h-[900px] bg-slate-50 dark:bg-slate-950 sm:rounded-[40px] sm:shadow-2xl sm:border-[6px] sm:border-slate-800 flex flex-col overflow-hidden relative">
         
         {/* Top App Status & Action Header */}
-        <header className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white px-4 pt-4 pb-4 shadow-md shrink-0">
+        <header
+          className={`text-white px-4 shadow-md shrink-0 transition-colors ${
+            isTeacherWorkspaceActive
+              ? 'bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 py-3 border-b border-indigo-500/20'
+              : 'bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 pt-4 pb-4'
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <Link
                 href="/"
-                className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 dark:hover:bg-slate-800 flex items-center justify-center transition shrink-0"
+                className="w-9 h-9 rounded-xl bg-white/12 hover:bg-white/22 flex items-center justify-center transition shrink-0"
                 title="হোমপেজে ফিরে যান"
               >
                 <ArrowLeft className="w-4 h-4 text-white" />
@@ -538,49 +599,96 @@ export default function PublicMobileAppPage() {
                   <h1 className="text-sm sm:text-base font-black tracking-tight truncate">
                     {schoolName}
                   </h1>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping" />
-                    LIVE
+                  <span
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${
+                      isTeacherWorkspaceActive
+                        ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/35'
+                        : 'bg-emerald-500/30 text-emerald-200 border-emerald-400/30'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full animate-ping ${
+                        isTeacherWorkspaceActive ? 'bg-indigo-300' : 'bg-emerald-300'
+                      }`}
+                    />
+                    {isTeacherWorkspaceActive ? 'TEACHER' : 'LIVE'}
                   </span>
                 </div>
-                <p className="text-[11px] text-emerald-200/90 truncate">
-                  স্মার্ট ক্যাম্পাস মোবাইল অ্যাপ • EIIN: {schoolEiin}
+                <p
+                  className={`text-[10.5px] truncate ${
+                    isTeacherWorkspaceActive ? 'text-slate-300/90' : 'text-emerald-200/90'
+                  }`}
+                >
+                  {isTeacherWorkspaceActive
+                    ? `শিক্ষক মোবাইল পোর্টাল • EIIN: ${schoolEiin}`
+                    : `স্মার্ট ক্যাম্পাস মোবাইল অ্যাপ • EIIN: ${schoolEiin}`}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              {isTeacherWorkspaceActive && !isInstalled && (
+                <button
+                  type="button"
+                  onClick={handleInstallPwa}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 transition cursor-pointer"
+                  title="ফোনে অ্যাপ ইনস্টল করুন"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleManualSync}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 dark:hover:bg-slate-800 text-white transition cursor-pointer"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
                 title="ক্লাউড সিঙ্ক করুন"
               >
                 <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-emerald-300' : ''}`} />
               </button>
 
               {session ? (
-                <Link
-                  href={session.role === 'admin' ? '/dashboard' : '/dashboard/teacher-portal'}
-                  className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-xs transition"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>{session.role === 'admin' ? 'ড্যাশবোর্ড' : 'শিক্ষক পোর্টাল'}</span>
-                </Link>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setAppMode((prev) => (prev === 'teacher' ? 'guardian' : 'teacher'))}
+                    className={`px-2.5 py-1.5 rounded-xl font-black text-[10.5px] flex items-center gap-1 shadow-xs transition cursor-pointer ${
+                      isTeacherWorkspaceActive
+                        ? 'bg-white/12 hover:bg-white/22 text-white border border-white/15'
+                        : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                    }`}
+                    title={isTeacherWorkspaceActive ? 'অভিভাবক ভিউ দেখুন' : 'শিক্ষক প্যানেলে যান'}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>{isTeacherWorkspaceActive ? 'অভিভাবক' : 'শিক্ষক প্যানেল'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMobileLogout}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-rose-500/80 text-white transition cursor-pointer"
+                    title="লগআউট"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ) : (
-                <Link
-                  href="/login"
-                  className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 dark:hover:bg-slate-800 text-white font-bold text-[11px] flex items-center gap-1 border border-white/20 transition"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginError('');
+                    setShowTeacherLoginSheet(true);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-xs transition cursor-pointer"
                 >
                   <LogIn className="w-3.5 h-3.5" />
-                  <span>লগইন</span>
-                </Link>
+                  <span>শিক্ষক লগইন</span>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Install Banner (PWA + APK) */}
-          {!isInstalled && (
+          {/* Install Banner (PWA + APK — Guardian mode only; Teacher mode uses compact header icon) */}
+          {!isInstalled && !isTeacherWorkspaceActive && (
             <div className="mt-3 p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/30 flex items-center justify-center shrink-0">
@@ -615,8 +723,8 @@ export default function PublicMobileAppPage() {
             </div>
           )}
 
-          {/* Student Class & Roll Selector Bar (Staff Only) or Parent Verification Bar */}
-          {isStaffSession ? (
+          {/* Student Class & Roll Selector Bar (Guardian Mode Only) */}
+          {!isTeacherWorkspaceActive && (isStaffSession ? (
             <div className="mt-3 grid grid-cols-12 gap-2">
               <select
                 value={selectedGrade}
@@ -669,11 +777,24 @@ export default function PublicMobileAppPage() {
                 পরিবর্তন করুন
               </button>
             </div>
-          ) : null}
+          ) : null)}
         </header>
 
         {/* Scrollable Main App Body */}
         <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+          {isTeacherWorkspaceActive && session ? (
+            <TeacherMobileWorkspace
+              session={session}
+              activeTab={teacherTab}
+              onTabChange={setTeacherTab}
+              routines={routines}
+              todaySubstitutions={todaySubstitutions}
+              notices={notices}
+              onDataChanged={loadLiveAppData}
+              onDirtyMarksChange={setTeacherHasUnsavedMarks}
+            />
+          ) : (
+          <>
           
           {/* Active Student Profile Card OR Parent Privacy Gate */}
           {activeStudent ? (
@@ -790,6 +911,23 @@ export default function PublicMobileAppPage() {
               >
                 যাচাই করে শিক্ষার্থীর তথ্য দেখুন
               </button>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  আপনি কি এই বিদ্যালয়ের শিক্ষক?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginError('');
+                    setShowTeacherLoginSheet(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black flex items-center gap-1 transition cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>শিক্ষক লগইন</span>
+                </button>
+              </div>
             </form>
           )}
 
@@ -1535,10 +1673,56 @@ export default function PublicMobileAppPage() {
               </div>
             </div>
           )}
+          </>
+          )}
 
         </main>
 
         {/* Bottom App Navigation Bar */}
+        {isTeacherWorkspaceActive ? (
+          <nav
+            aria-label="শিক্ষক মোবাইল নেভিগেশন"
+            className="absolute bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800 px-2.5 pt-1.5 pb-2.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] flex items-center justify-around z-20"
+          >
+            {(
+              [
+                { id: 'home', label: 'হোম', icon: Home, activeCls: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60' },
+                { id: 'marks', label: 'নম্বর', icon: Edit3, activeCls: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60', dot: teacherHasUnsavedMarks },
+                { id: 'attendance', label: 'হাজিরা', icon: CalendarCheck2, activeCls: 'text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60' },
+                { id: 'schedule', label: 'রুটিন', icon: Calendar, activeCls: 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60' },
+              ] as Array<{
+                id: TeacherMobileTab;
+                label: string;
+                icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+                activeCls: string;
+                dot?: boolean;
+              }>
+            ).map((item) => {
+              const Icon = item.icon;
+              const isActive = teacherTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTeacherTab(item.id)}
+                  className={`relative flex flex-col items-center justify-center gap-0.5 min-w-[68px] py-1.5 px-3 rounded-2xl transition-all cursor-pointer ${
+                    isActive
+                      ? `${item.activeCls} font-black`
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-semibold'
+                  }`}
+                >
+                  <div className="relative">
+                    <Icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 1.9} />
+                    {item.dot && (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900 absolute -top-0.5 -right-1" />
+                    )}
+                  </div>
+                  <span className="text-[10px] leading-none mt-0.5">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        ) : (
         <nav className="absolute bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-1.5 py-2 flex items-center justify-around z-20">
           <button
             type="button"
@@ -1606,6 +1790,123 @@ export default function PublicMobileAppPage() {
             <span className="text-[10px]">নোটিশ</span>
           </button>
         </nav>
+        )}
+
+        {/* In-App Teacher Login Bottom Sheet */}
+        {showTeacherLoginSheet && (
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4">
+            <form
+              onSubmit={handleTeacherLoginSubmit}
+              className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
+            >
+              {/* Executive Gradient Sheet Header */}
+              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white px-5 pt-3 pb-4 space-y-3">
+                <div className="w-10 h-1 rounded-full bg-white/25 mx-auto" />
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/25 border border-indigo-400/40 text-indigo-200 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-black text-white truncate">
+                        শিক্ষক পোর্টাল লগইন
+                      </h3>
+                      <p className="text-[10.5px] text-indigo-200/85 truncate">
+                        {schoolName} • সুরক্ষিত শিক্ষক অ্যাক্সেস
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowTeacherLoginSheet(false)}
+                    className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center cursor-pointer shrink-0"
+                    aria-label="বন্ধ করুন"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                      মোবাইল নম্বর অথবা শিক্ষক আইডি
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={loginId}
+                        onChange={(e) => setLoginId(e.target.value)}
+                        placeholder="যেমন: 017XXXXXXXX বা TCH-1001"
+                        autoComplete="username"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                      পাসওয়ার্ড
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showLoginPass ? 'text' : 'password'}
+                        value={loginPass}
+                        onChange={(e) => setLoginPass(e.target.value)}
+                        placeholder="আপনার পাসওয়ার্ড লিখুন"
+                        autoComplete="current-password"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPass((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                        aria-label="পাসওয়ার্ড দেখুন"
+                      >
+                        {showLoginPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-[10.5px] text-slate-600 dark:text-slate-300 flex items-start gap-2">
+                  <Lock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                  <span>
+                    লগইন করার পর আপনি শুধুমাত্র আপনার এসাইন করা বিষয়ে নম্বর এন্ট্রি করতে পারবেন এবং শ্রেণি শিক্ষক হলে নিজ শ্রেণির হাজিরা নিতে পারবেন।
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={loginBusy}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 disabled:opacity-60 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>{loginBusy ? 'যাচাই হচ্ছে...' : 'লগইন করুন'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowTeacherLoginSheet(false)}
+                    className="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                  >
+                    বাতিল
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Install Guide Bottom Sheet */}
         {showInstallSheet && (

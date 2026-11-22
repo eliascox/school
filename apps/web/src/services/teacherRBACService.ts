@@ -14,6 +14,12 @@ export interface TeacherRecord {
   designation: string;
   dob: string; // YYYY-MM-DD
   photoUrl?: string;
+  qualification?: string; // e.g. এম.এসসি, বি.এড
+  indexNo?: string; // MPO / Index No
+  joiningDate?: string; // YYYY-MM-DD
+  email?: string;
+  bloodGroup?: string;
+  subjectSpecialty?: string;
   status: 'active' | 'inactive';
   passwordHash: string; // bcrypt / argon2 hash
   mustChangePassword: boolean; // First login password change flag
@@ -78,10 +84,17 @@ class TeacherRBACService {
           phone: t.phone || t.mobile || '01812000000',
           designation: t.designation || 'সহকারী শিক্ষক',
           dob: t.dob || '1990-01-01',
-          status: 'active',
+          status: t.status === 'inactive' ? 'inactive' : 'active',
           passwordHash: t.passwordHash || t.password || '',
           mustChangePassword: t.mustChangePassword !== undefined ? t.mustChangePassword : true,
-          createdAt: t.createdAt || new Date().toISOString()
+          createdAt: t.createdAt || new Date().toISOString(),
+          photoUrl: t.photoUrl || undefined,
+          qualification: t.qualification || undefined,
+          indexNo: t.indexNo || undefined,
+          joiningDate: t.joiningDate || undefined,
+          email: t.email || undefined,
+          bloodGroup: t.bloodGroup || undefined,
+          subjectSpecialty: t.subjectSpecialty || (t.subject && t.subject !== 'সাধারণ' ? t.subject : undefined),
         }));
       } catch (e) {}
     }
@@ -121,13 +134,18 @@ class TeacherRBACService {
       id: t.id,
       name: t.name,
       designation: t.designation,
-      subject: (t as any).subject || 'সাধারণ',
-      qualification: 'B.A / B.Sc',
+      subject: t.subjectSpecialty || (t as any).subject || 'সাধারণ',
+      qualification: t.qualification || 'স্নাতক / স্নাতকোত্তর',
+      indexNo: t.indexNo || '',
+      joiningDate: t.joiningDate || '',
+      bloodGroup: t.bloodGroup || '',
+      photoUrl: t.photoUrl || '',
       mobile: t.phone,
       phone: t.phone,
-      email: `${t.id.toLowerCase()}@school.edu.bd`,
+      email: t.email || `${t.id.toLowerCase()}@school.edu.bd`,
       passwordHash: t.passwordHash,
       dob: t.dob,
+      status: t.status,
       mustChangePassword: t.mustChangePassword
     }));
     localStorage.setItem('sms_teachers_list', JSON.stringify(listFormat));
@@ -149,13 +167,18 @@ class TeacherRBACService {
       id: t.id,
       name: t.name,
       designation: t.designation,
-      subject: (t as any).subject || 'সাধারণ',
-      qualification: 'B.A / B.Sc',
+      subject: t.subjectSpecialty || (t as any).subject || 'সাধারণ',
+      qualification: t.qualification || 'স্নাতক / স্নাতকোত্তর',
+      indexNo: t.indexNo || '',
+      joiningDate: t.joiningDate || '',
+      bloodGroup: t.bloodGroup || '',
+      photoUrl: t.photoUrl || '',
       mobile: t.phone,
       phone: t.phone,
-      email: `${t.id.toLowerCase()}@school.edu.bd`,
+      email: t.email || `${t.id.toLowerCase()}@school.edu.bd`,
       passwordHash: t.passwordHash,
       dob: t.dob,
+      status: t.status,
       mustChangePassword: t.mustChangePassword
     }));
     localStorage.setItem('sms_teachers_list', JSON.stringify(listFormat));
@@ -197,13 +220,18 @@ class TeacherRBACService {
       id: t.id,
       name: t.name,
       designation: t.designation,
-      subject: (t as any).subject || 'সাধারণ',
-      qualification: 'B.A / B.Sc',
+      subject: t.subjectSpecialty || (t as any).subject || 'সাধারণ',
+      qualification: t.qualification || 'স্নাতক / স্নাতকোত্তর',
+      indexNo: t.indexNo || '',
+      joiningDate: t.joiningDate || '',
+      bloodGroup: t.bloodGroup || '',
+      photoUrl: t.photoUrl || '',
       mobile: t.phone,
       phone: t.phone,
-      email: `${t.id.toLowerCase()}@school.edu.bd`,
+      email: t.email || `${t.id.toLowerCase()}@school.edu.bd`,
       passwordHash: t.passwordHash,
       dob: t.dob,
+      status: t.status,
       mustChangePassword: t.mustChangePassword
     }));
     localStorage.setItem('sms_teachers_list', JSON.stringify(listFormat));
@@ -222,24 +250,8 @@ class TeacherRBACService {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
-    }
-    // Seed default assignments for initial active teachers
-    const teachers = this.getTeachers();
-    if (teachers.length > 0) {
-      const firstTeacher = teachers[0];
-      const initial: SubjectAssignment[] = [
-        { id: 'SA-INIT-1', teacherId: firstTeacher.id, classId: '6th', subjectId: 'বাংলা ১ম পত্র', academicYear: 2026 },
-        { id: 'SA-INIT-2', teacherId: firstTeacher.id, classId: '7th', subjectId: 'বাংলা ১ম পত্র', academicYear: 2026 },
-        { id: 'SA-INIT-3', teacherId: firstTeacher.id, classId: '8th', subjectId: 'সাধারণ গণিত', academicYear: 2026 },
-        { id: 'SA-INIT-4', teacherId: firstTeacher.id, classId: '9th', subjectId: 'বাংলা ১ম পত্র', academicYear: 2026 },
-        { id: 'SA-INIT-5', teacherId: firstTeacher.id, classId: '10th', subjectId: 'সাধারণ গণিত', academicYear: 2026 }
-      ];
-      try {
-        localStorage.setItem('sms_rbac_subject_assignments', JSON.stringify(initial));
-      } catch (e) {}
-      return initial;
     }
     return [];
   }
@@ -473,12 +485,50 @@ class TeacherRBACService {
   }
 
   /**
+   * Normalize class/section strings so "8th-A", "8th - A", "9th-বিজ্ঞান" and "9th-Science" match reliably.
+   */
+  private normalizeClassSection(raw: string): { grade: string; branch: string; key: string } {
+    const cleaned = String(raw || '').trim();
+    const parts = cleaned.split(/\s*-\s*/).filter(Boolean);
+    const rawGrade = (parts[0] || '').trim().toLowerCase();
+    const rawBranch = (parts[1] || '').trim().toLowerCase();
+
+    let grade = rawGrade;
+    if (rawGrade === '6th' || rawGrade.includes('6') || rawGrade.includes('৬')) grade = '6th';
+    else if (rawGrade === '7th' || rawGrade.includes('7') || rawGrade.includes('৭')) grade = '7th';
+    else if (rawGrade === '8th' || rawGrade.includes('8') || rawGrade.includes('৮')) grade = '8th';
+    else if (rawGrade === '9th' || rawGrade.includes('9') || rawGrade.includes('৯')) grade = '9th';
+    else if (rawGrade === '10th' || rawGrade.includes('10') || rawGrade.includes('১০')) grade = '10th';
+
+    let branch = rawBranch;
+    const is9or10 = grade === '9th' || grade === '10th';
+    if (is9or10) {
+      if (rawBranch.includes('science') || rawBranch.includes('বিজ্ঞান') || rawBranch === 'a') branch = 'science';
+      else if (rawBranch.includes('humanities') || rawBranch.includes('মানবিক') || rawBranch === 'b') branch = 'humanities';
+      else if (rawBranch.includes('commerce') || rawBranch.includes('ব্যবসায়') || rawBranch.includes('ব্যবসায়') || rawBranch === 'c') branch = 'commerce';
+    } else {
+      if (rawBranch === 'a' || rawBranch.includes('ক')) branch = 'a';
+      else if (rawBranch === 'b' || rawBranch.includes('খ')) branch = 'b';
+      else if (rawBranch === 'c' || rawBranch.includes('গ')) branch = 'c';
+    }
+
+    return { grade, branch, key: branch ? `${grade}-${branch}` : grade };
+  }
+
+  /**
    * Check if a teacher is a designated Class Teacher for any class or a specific class
    */
   isTeacherClassTeacher(identifier: string, classId?: string): boolean {
     const list = this.getTeacherClassTeacherAssignments(identifier);
     if (!classId) return list.length > 0;
-    return list.some(ct => ct.classId === classId || ct.classId.startsWith(classId));
+    const target = this.normalizeClassSection(classId);
+    return list.some((ct) => {
+      const assigned = this.normalizeClassSection(ct.classId);
+      if (!target.branch || !assigned.branch) {
+        return assigned.grade === target.grade;
+      }
+      return assigned.key === target.key;
+    });
   }
 
   /**
@@ -499,13 +549,13 @@ class TeacherRBACService {
       // ─── 1. Religion Subject Cross-Matching ───────────────────────
       // Handles cases where teacher is assigned "ইসলাম ও নৈতিক শিক্ষা" or "হিন্দুধর্ম ও নৈতিক শিক্ষা"
       // while curriculum/spreadsheet has "ধর্ম ও নৈতিক শিক্ষা" or vice versa.
-      const isRelA = aSub.includes('ধর্ম') || aSub.includes('ইসলাম') || aSub.includes('হিন্দু') || aSub.includes('সনাতন') || aSub.includes('rel');
-      const isRelTarget = targetSub.includes('ধর্ম') || targetSub.includes('ইসলাম') || targetSub.includes('হিন্দু') || targetSub.includes('সনাতন') || targetSub.includes('rel');
+      const isRelA = aSub.includes('ধর্ম') || aSub.includes('ইসলাম') || aSub.includes('হিন্দু') || aSub.includes('সনাতন') || aSub.includes('rel') || ['111', '112', '113', '114'].includes(aSub);
+      const isRelTarget = targetSub.includes('ধর্ম') || targetSub.includes('ইসলাম') || targetSub.includes('হিন্দু') || targetSub.includes('সনাতন') || targetSub.includes('rel') || ['111', '112', '113', '114'].includes(targetSub);
 
       if (isRelA && isRelTarget) {
-        // If either is generic religion ("ধর্ম ও নৈতিক শিক্ষা", "ধর্ম", "rel-111"), allow any assigned religion teacher
-        if (targetSub === 'ধর্ম ও নৈতিক শিক্ষা' || targetSub === 'ধর্ম' || targetSub === 'rel-111' || targetSub.startsWith('rel-')) return true;
-        if (aSub === 'ধর্ম ও নৈতিক শিক্ষা' || aSub === 'ধর্ম' || aSub === 'rel-111' || aSub.startsWith('rel-')) return true;
+        // If either is generic religion ("ধর্ম ও নৈতিক শিক্ষা", "ধর্ম", "rel-111", "111"), allow any assigned religion teacher
+        if (targetSub === 'ধর্ম ও নৈতিক শিক্ষা' || targetSub === 'ধর্ম' || targetSub === 'rel-111' || targetSub === '111' || targetSub.startsWith('rel-')) return true;
+        if (aSub === 'ধর্ম ও নৈতিক শিক্ষা' || aSub === 'ধর্ম' || aSub === 'rel-111' || aSub === '111' || aSub.startsWith('rel-')) return true;
 
         // If both specify specific religion faith, match faith:
         const isMuslimA = aSub.includes('ইসলাম') || aSub.includes('মুসলিম');

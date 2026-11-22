@@ -209,6 +209,13 @@ export const attendanceService = {
       recordsCount: validatedRecords.length
     }).catch(() => {});
 
+    // ☁️ Auto-sync saved attendance key to Cloud Firestore for multi-device/mobile live view
+    import('./firebaseSyncService')
+      .then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncAttendanceKeysToCloud([key]).catch(() => {});
+      })
+      .catch(() => {});
+
     window.dispatchEvent(new Event('storage'));
     listeners.forEach(fn => fn());
     return true;

@@ -69,6 +69,7 @@ export type SchoolSettings = {
   uploadedPadFileSize?: number;
   activePadMode?: 'uploaded' | 'preprinted';
   padMargins?: PadMargins;
+  padHeaderFields?: PadHeaderFieldsConfig;
   padFontSize?: number;
   padLineHeight?: number;
   padSignatureGap?: number;
@@ -78,11 +79,39 @@ export type SchoolSettings = {
   committeeMembers?: CommitteeMember[];
 };
 
+export interface PadHeaderFieldsConfig {
+  placement: 'pad_header_boxes' | 'inline_below' | 'hide_ref_date';
+  refTopMm: number;
+  refLeftMm: number;
+  dateTopMm: number;
+  dateLeftMm: number;
+  dayWidthMm: number;
+  monthWidthMm: number;
+  yearWidthMm: number;
+  boxHeightMm: number;
+  boxGapMm: number;
+  fontSizePx: number;
+}
+
+export const DEFAULT_PAD_HEADER_FIELDS: PadHeaderFieldsConfig = {
+  placement: 'pad_header_boxes',
+  refTopMm: 46.8,
+  refLeftMm: 46.5,
+  dateTopMm: 46.7,
+  dateLeftMm: 171.0,
+  dayWidthMm: 9.3,
+  monthWidthMm: 9.5,
+  yearWidthMm: 14.0,
+  boxHeightMm: 7.2,
+  boxGapMm: 0.2,
+  fontSizePx: 12.5,
+};
+
 export const DEFAULT_PAD_MARGINS: PadMargins = {
-  top: 3.0,    // 3.0 inches clear space for official school letterhead header (উপর থেকে ৩ ইঞ্চি নিচ থেকে লিখা শুরু হবে)
-  left: 0.8,   // 0.8 inches left margin
-  right: 0.8,  // 0.8 inches right margin
-  bottom: 1.0, // 1.0 inch bottom space for footer
+  top: 2.4,     // Starts cleanly below the pad's সূত্র: & তারিখ: [][][] header bar
+  left: 0.75,   // 0.75 inches left margin
+  right: 0.75,  // 0.75 inches right margin
+  bottom: 0.9,  // 0.9 inches bottom space for footer
 };
 
 const DEFAULT_SETTINGS: SchoolSettings = {
@@ -118,6 +147,7 @@ const DEFAULT_SETTINGS: SchoolSettings = {
   uploadedPadFileSize: 0,
   activePadMode: 'uploaded',
   padMargins: DEFAULT_PAD_MARGINS,
+  padHeaderFields: DEFAULT_PAD_HEADER_FIELDS,
   padFontSize: 14,
   padLineHeight: 2.1,
   padSignatureGap: 2.5,
@@ -184,7 +214,14 @@ const getInitialSettings = (): SchoolSettings => {
     if (stored) {
       const parsed = JSON.parse(stored);
       const margins = parsed.padMargins || {};
-      const isLegacy = !margins.top || margins.top < 3.0 || (margins.top === 1.2 && margins.left === 1.4) || margins.top === 2.0;
+      const isLegacyUnconfiguredDefault =
+        !margins.top ||
+        (margins.top === 1.2 && margins.left === 1.4) ||
+        (margins.top === 3.0 &&
+          margins.left === 0.8 &&
+          margins.right === 0.8 &&
+          margins.bottom === 1.0 &&
+          !parsed.padHeaderFields);
       const effectiveLogo = parsed.schoolLogo || storedMasterLogo || '';
       return {
         ...DEFAULT_SETTINGS,
@@ -193,12 +230,16 @@ const getInitialSettings = (): SchoolSettings => {
         committeeMembers: parsed.committeeMembers && parsed.committeeMembers.length > 0
           ? parsed.committeeMembers
           : DEFAULT_COMMITTEE_MEMBERS,
-        padMargins: isLegacy
+        padMargins: isLegacyUnconfiguredDefault
           ? { ...DEFAULT_PAD_MARGINS }
           : {
               ...DEFAULT_PAD_MARGINS,
               ...margins
-            }
+            },
+        padHeaderFields: {
+          ...DEFAULT_PAD_HEADER_FIELDS,
+          ...(parsed.padHeaderFields || {}),
+        },
       };
     } else if (storedMasterLogo) {
       return {
@@ -311,6 +352,11 @@ export const settingsService = {
         ...DEFAULT_PAD_MARGINS,
         ...(currentSettings.padMargins || {}),
         ...(newSettings.padMargins || {})
+      },
+      padHeaderFields: {
+        ...DEFAULT_PAD_HEADER_FIELDS,
+        ...(currentSettings.padHeaderFields || {}),
+        ...(newSettings.padHeaderFields || {})
       }
     };
     const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });

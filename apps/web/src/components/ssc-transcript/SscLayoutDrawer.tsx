@@ -199,7 +199,7 @@ export default function SscLayoutDrawer({
         </div>
 
         <div className="space-y-1.5 bg-slate-800/80 p-4 rounded-2xl border border-slate-700/60">
-          <span className="text-slate-300 font-bold block">TESTIMONIAL টাইটেল ফন্ট স্টাইল:</span>
+          <span className="text-slate-300 font-bold block">TESTIMONIAL টাইটেল ও নামের ফন্ট স্টাইল:</span>
           <div className="grid grid-cols-3 gap-1.5 bg-slate-900 p-1.5 rounded-xl">
             {(['cinzel', 'playfair', 'classic'] as const).map((style) => (
               <button
@@ -216,7 +216,22 @@ export default function SscLayoutDrawer({
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-slate-400">বোল্ড ও স্টাইলিস্ট সার্টিফিকেশন টাইটেল প্রদর্শিত হবে।</p>
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-900 p-1.5 rounded-xl mt-2">
+            {(['cursive', 'serif_italic', 'classic_bold'] as const).map((nf) => (
+              <button
+                key={nf}
+                type="button"
+                onClick={() => onUpdateLayoutConfig({ nameFontStyle: nf })}
+                className={`py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                  (layoutConfig.nameFontStyle || 'cursive') === nf
+                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {nf === 'cursive' ? 'কার্সিভ স্ক্রিপ্ট' : nf === 'serif_italic' ? 'ইতালিক সেরিফ' : 'বোল্ড ক্লাসিক'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

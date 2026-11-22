@@ -30,6 +30,7 @@ export interface StudioDesignState {
   showSecondarySigner: boolean;
   secondarySignerTitle: string;
   fontSize: number;
+  cursiveNames: boolean;
 }
 
 interface CertificateDesignControlsProps {
@@ -182,7 +183,18 @@ export default function CertificateDesignControls({
         </div>
         <select
           value={design.borderPreset}
-          onChange={(e) => update('borderPreset', e.target.value)}
+          onChange={(e) => {
+            const nextPreset = e.target.value;
+            setDesign((prev) => ({
+              ...prev,
+              borderPreset: nextPreset,
+              ...(nextPreset === 'no_border_pad'
+                ? { showHeader: false, orientation: 'portrait', showCornerBands: false }
+                : prev.borderPreset === 'no_border_pad'
+                ? { showHeader: true, showCornerBands: true }
+                : {}),
+            }));
+          }}
           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer"
         >
           {CERTIFICATE_BORDER_PRESETS.map((b) => (
@@ -201,6 +213,7 @@ export default function CertificateDesignControls({
           { key: 'showCornerBands' as const, label: 'কর্নার রিবন ব্যান্ড', icon: Palette },
           { key: 'showQrCode' as const, label: 'QR যাচাই কোড', icon: QrCode },
           { key: 'showSecondarySigner' as const, label: '২য় স্বাক্ষর (শিক্ষক)', icon: UserCheck },
+          { key: 'cursiveNames' as const, label: 'কার্সিভ নাম (ইংরেজি)', icon: Palette },
         ].map((item) => {
           const Icon = item.icon;
           const checked = Boolean(design[item.key]);
@@ -246,8 +259,8 @@ export default function CertificateDesignControls({
         <input
           type="range"
           min={12}
-          max={20}
-          step={1}
+          max={24}
+          step={0.5}
           value={design.fontSize}
           onChange={(e) => update('fontSize', Number(e.target.value))}
           className="w-full accent-indigo-600 cursor-pointer"

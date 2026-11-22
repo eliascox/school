@@ -97,6 +97,7 @@ export interface CertificateRecord {
   showCornerBands?: boolean;
   fontSize?: number;
   showQrCode?: boolean;
+  cursiveNames?: boolean;
 
   // Signatures & School Pad
   padType?: 'digital_server' | 'manual_printed' | 'blank_pad';

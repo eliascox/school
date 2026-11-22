@@ -21,6 +21,14 @@ let setItemCallCount = 0;
 (globalThis as any).window = globalThis;
 
 import { studentService, Student } from '@/services/studentService';
+import {
+  normalizeGradeKey,
+  formatGradeLabel,
+  formatSectionLabel,
+  matchStudentReligion,
+  isMaleGender,
+  isFemaleGender,
+} from '@/components/students/studentTypes';
 
 describe('studentService regressions (BUG-005, BUG-007)', () => {
   beforeEach(() => {
@@ -73,5 +81,31 @@ describe('studentService regressions (BUG-005, BUG-007)', () => {
     const secondRead = studentService.getAllStudents();
     expect(secondRead.length).toBe(2);
     expect(setItemCallCount).toBe(0);
+  });
+});
+
+describe('studentTypes directory filter & formatting helpers', () => {
+  it('normalizes and formats grade & section labels across Bangla and English inputs', () => {
+    expect(normalizeGradeKey('6th')).toBe('6th');
+    expect(normalizeGradeKey('৬ষ্ঠ শ্রেণি')).toBe('6th');
+    expect(normalizeGradeKey('Class 10')).toBe('10th');
+    expect(formatGradeLabel('9th', 'bn')).toBe('৯ম শ্রেণি');
+    expect(formatGradeLabel('9th', 'en')).toBe('Class 9');
+    expect(formatSectionLabel('ক', 'bn')).toBe('শাখা ক');
+    expect(formatSectionLabel('Section A (ক শাখা)', 'bn')).toBe('Section A (ক শাখা)');
+  });
+
+  it('matches religion and gender filters accurately including Hindu & Bangla variants', () => {
+    expect(matchStudentReligion('হিন্দু', 'হিন্দু')).toBe(true);
+    expect(matchStudentReligion('সনাতন', 'হিন্দু')).toBe(true);
+    expect(matchStudentReligion('Hindu', 'হিন্দু')).toBe(true);
+    expect(matchStudentReligion('খ্রিষ্টান', 'খ্রিস্টান')).toBe(true);
+    expect(matchStudentReligion('ইসলাম', 'হিন্দু')).toBe(false);
+
+    expect(isMaleGender('ছাত্র')).toBe(true);
+    expect(isMaleGender('ছাত্রী')).toBe(false);
+    expect(isFemaleGender('ছাত্রী')).toBe(true);
+    expect(isFemaleGender('মেয়ে')).toBe(true);
+    expect(isFemaleGender('male')).toBe(false);
   });
 });

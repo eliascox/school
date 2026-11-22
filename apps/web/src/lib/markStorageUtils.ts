@@ -15,137 +15,162 @@ export interface RetrievedMark {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const SUBJECT_SYNONYMS: Record<string, { names: string[]; codes: string[] }> = {
-  // Social Science / বাংলাদেশ ও বিশ্বপরিচয় (Science) / ইতিহাস ও সামাজিক বিজ্ঞান (6-8)
+  // Social Science / বাংলাদেশ ও বিশ্বপরিচয় (Science & 6-8) / ইতিহাস ও সামাজিক বিজ্ঞান (6-8)
   bgs: {
     names: [
       'বাংলাদেশ ও বিশ্বপরিচয়',
       'বাংলাদেশ ও বিশ্বপরিচয়',
       'বাংলাদেশ ও বিশ্ব পরিচয়',
+      'Bangladesh and Global Studies',
       'ইতিহাস ও সামাজিক বিজ্ঞান',
       'সমাজ',
       'সামাজিক বিজ্ঞান'
     ],
-    codes: ['BGS-150', 'BGS-606', 'BGS-706', 'BGS-806', 'BGS-604', 'BGS-704', 'BGS-804', 'BGS-106']
+    codes: ['150', 'BGS-150', 'BGS-606', 'BGS-706', 'BGS-806', 'HIS-606', 'HIS-706', 'HIS-806', 'BGS-604', 'BGS-704', 'BGS-804', 'BGS-106']
   },
 
   // Civics / পৌরনীতি ও নাগরিকতা (Humanities)
   civics: {
-    names: ['পৌরনীতি ও নাগরিকতা', 'পৌরনীতি'],
-    codes: ['CIV-140', 'CIV-112', 'CIV-901', 'CIV-1001']
+    names: ['পৌরনীতি ও নাগরিকতা', 'পৌরনীতি', 'Civics & Citizenship', 'Civics'],
+    codes: ['140', 'CIV-140', 'CIV-112', 'CIV-901', 'CIV-1001']
   },
 
   // History / বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা (Humanities)
   history: {
-    names: ['বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', 'ইতিহাস ও বিশ্বসভ্যতা', 'ইতিহাস'],
-    codes: ['HIS-153', 'HIS-901', 'HIS-1001']
+    names: ['বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা', 'ইতিহাস ও বিশ্বসভ্যতা', 'ইতিহাস', 'History of Bangladesh & World Civilization'],
+    codes: ['153', 'HIS-153', 'HIS-901', 'HIS-1001']
   },
 
   // Geography / ভূগোল ও পরিবেশ (Humanities)
   geography: {
-    names: ['ভূগোল ও পরিবেশ', 'ভূগোল'],
-    codes: ['GEO-110', 'GEO-901', 'GEO-1001']
+    names: ['ভূগোল ও পরিবেশ', 'ভূগোল', 'Geography & Environment'],
+    codes: ['110', 'GEO-110', 'GEO-901', 'GEO-1001']
   },
 
   // Economics / অর্থনীতি (Humanities & Commerce)
   economics: {
-    names: ['অর্থনীতি'],
-    codes: ['ECO-141', 'ECO-141-COM']
+    names: ['অর্থনীতি', 'Economics'],
+    codes: ['141', 'ECO-141', 'ECO-141-COM']
   },
 
   // Physics / পদার্থবিজ্ঞান (Science)
   physics: {
-    names: ['পদার্থবিজ্ঞান', 'পদার্থ বিজ্ঞান', 'পদার্থ'],
-    codes: ['PHY-136']
+    names: ['পদার্থবিজ্ঞান', 'পদার্থ বিজ্ঞান', 'পদার্থ', 'Physics'],
+    codes: ['136', 'PHY-136']
   },
 
   // Chemistry / রসায়ন (Science)
   chemistry: {
-    names: ['রসায়ন', 'রসায়ন'],
-    codes: ['CHE-137']
+    names: ['রসায়ন', 'রসায়ন', 'Chemistry'],
+    codes: ['137', 'CHE-137']
   },
 
   // Biology / জীববিজ্ঞান (Science)
   biology: {
-    names: ['জীববিজ্ঞান', 'জীব বিজ্ঞান'],
-    codes: ['BIO-138']
+    names: ['জীববিজ্ঞান', 'জীব বিজ্ঞান', 'Biology'],
+    codes: ['138', 'BIO-138']
   },
 
   // Higher Mathematics / উচ্চতর গণিত (Science 4th)
   higherMath: {
-    names: ['উচ্চতর গণিত', 'উচ্চতর'],
-    codes: ['HMT-126']
+    names: ['উচ্চতর গণিত', 'উচ্চতর', 'Higher Mathematics'],
+    codes: ['126', 'HMT-126']
   },
 
   // Accounting / হিসাববিজ্ঞান (Commerce)
   accounting: {
-    names: ['হিসাববিজ্ঞান', 'হিসাব বিজ্ঞান'],
-    codes: ['ACC-146']
+    names: ['হিসাববিজ্ঞান', 'হিসাব বিজ্ঞান', 'Accounting'],
+    codes: ['146', 'ACC-146']
   },
 
   // Business Entrepreneurship / ব্যবসায় উদ্যোগ (Commerce)
   business: {
-    names: ['ব্যবসায় উদ্যোগ', 'ব্যবসা উদ্যোগ', 'ব্যবসায় উদ্যোগ'],
-    codes: ['BUS-147', 'BUS-143']
+    names: ['ব্যবসায় উদ্যোগ', 'ব্যবসা উদ্যোগ', 'ব্যবসায় উদ্যোগ', 'Business Entrepreneurship'],
+    codes: ['143', 'BUS-143', 'BUS-147']
   },
 
   // Finance & Banking / ফিন্যান্স ও ব্যাংকিং (Commerce)
   finance: {
-    names: ['ফিন্যান্স ও ব্যাংকিং', 'ফিন্যান্স', 'ব্যাংকিং'],
-    codes: ['FIN-152']
+    names: ['ফিন্যান্স ও ব্যাংকিং', 'ফিন্যান্স', 'ব্যাংকিং', 'Finance & Banking'],
+    codes: ['152', 'FIN-152']
   },
 
   // Agriculture / কৃষি শিক্ষা
   agriculture: {
-    names: ['কৃষি শিক্ষা', 'কৃষি', 'কৃষি শিক্ষা (৪র্থ বিষয়)'],
-    codes: ['AGR-139', 'AGR-607', 'AGR-707', 'AGR-807', 'AGR-134', 'AGR-134-SCI', 'AGR-134-HUM', 'AGR-134-COM']
+    names: ['কৃষি শিক্ষা', 'কৃষি', 'কৃষি শিক্ষা (৪র্থ বিষয়)', 'Agriculture Studies'],
+    codes: ['134', 'AGR-134', 'AGR-139', 'AGR-607', 'AGR-707', 'AGR-807', 'AGR-134-SCI', 'AGR-134-HUM', 'AGR-134-COM']
   },
 
   // Home Science / গার্হস্থ্য বিজ্ঞান
   homeScience: {
-    names: ['গার্হস্থ্য বিজ্ঞান', 'গার্হস্থ্য', 'গার্হস্থ্য অর্থনীতি'],
-    codes: ['HMS-140', 'HMS-601', 'HMS-701', 'HMS-801']
+    names: ['গার্হস্থ্য বিজ্ঞান', 'গার্হস্থ্য', 'গার্হস্থ্য অর্থনীতি', 'Home Science'],
+    codes: ['151', 'HMS-151', 'HMS-140', 'HMS-601', 'HMS-701', 'HMS-801']
   },
 
   // ICT / Digital Technology
   ict: {
-    names: ['ডিজিটাল প্রযুক্তি', 'তথ্য ও যোগাযোগ প্রযুক্তি', 'আইসিটি', 'ICT'],
-    codes: ['ICT-154', 'ICT-605', 'ICT-705', 'ICT-805']
+    names: ['ডিজিটাল প্রযুক্তি', 'তথ্য ও যোগাযোগ প্রযুক্তি', 'আইসিটি', 'ICT', 'Digital Technology'],
+    codes: ['154', 'ICT-154', 'ICT-605', 'ICT-705', 'ICT-805']
   },
 
   // General Science / বিজ্ঞান (6-8 & 9-10 Humanities/Commerce)
   science: {
-    names: ['বিজ্ঞান', 'সাধারণ বিজ্ঞান'],
-    codes: ['SCI-113', 'SCI-127', 'GSCI-127', 'SCI-604', 'SCI-704', 'SCI-804']
+    names: ['বিজ্ঞান', 'সাধারণ বিজ্ঞান', 'Science'],
+    codes: ['127', 'GSCI-127', 'SCI-127', 'SCI-113', 'SCI-604', 'SCI-704', 'SCI-804']
   },
 
   // General Math / গণিত
   math: {
-    names: ['গণিত', 'সাধারণ গণিত'],
-    codes: ['MAT-109', 'MAT-603', 'MAT-703', 'MAT-803']
+    names: ['গণিত', 'সাধারণ গণিত', 'Mathematics', 'Math'],
+    codes: ['109', 'MAT-109', 'MAT-603', 'MAT-703', 'MAT-803']
   },
 
   // Bangla 1st / বাংলা ১ম পত্র
   bangla1: {
-    names: ['বাংলা ১ম পত্র', 'বাংলা ১ম'],
-    codes: ['BAN-101', 'BAN-601', 'BAN-701', 'BAN-801']
+    names: ['বাংলা ১ম পত্র', 'বাংলা ১ম', 'Bangla 1st Paper'],
+    codes: ['101', 'BAN-101', 'BAN-601', 'BAN-701', 'BAN-801']
   },
 
   // Bangla 2nd / বাংলা ২য় পত্র
   bangla2: {
-    names: ['বাংলা ২য় পত্র', 'বাংলা ২য় পত্র', 'বাংলা ২য়', 'বাংলা ২য়'],
-    codes: ['BAN-102', 'BAN-602', 'BAN-702', 'BAN-802']
+    names: ['বাংলা ২য় পত্র', 'বাংলা ২য় পত্র', 'বাংলা ২য়', 'বাংলা ২য়', 'Bangla 2nd Paper'],
+    codes: ['102', 'BAN-102', 'BAN-602', 'BAN-702', 'BAN-802']
   },
 
   // English 1st / ইংরেজি ১ম পত্র
   english1: {
     names: ['ইংরেজি ১ম পত্র', 'ইংরেজি ১ম', 'English 1st Paper'],
-    codes: ['ENG-107', 'ENG-601', 'ENG-701', 'ENG-801']
+    codes: ['107', 'ENG-107', 'ENG-601', 'ENG-701', 'ENG-801']
   },
 
   // English 2nd / ইংরেজি ২য় পত্র
   english2: {
     names: ['ইংরেজি ২য় পত্র', 'ইংরেজি ২য় পত্র', 'ইংরেজি ২য়', 'English 2nd Paper'],
-    codes: ['ENG-108', 'ENG-602', 'ENG-702', 'ENG-802']
+    codes: ['108', 'ENG-108', 'ENG-602', 'ENG-702', 'ENG-802']
+  },
+
+  // Islam & Moral Education / ইসলাম ও নৈতিক শিক্ষা
+  islam: {
+    names: ['ইসলাম ও নৈতিক শিক্ষা', 'ইসলাম শিক্ষা', 'ইসলামিক শিক্ষা', 'Islam & Moral Education', 'ধর্ম ও নৈতিক শিক্ষা'],
+    codes: ['111', 'REL-111', 'REL-610', 'REL-710', 'REL-810']
+  },
+
+  // Hindu Religion & Moral Education / হিন্দুধর্ম ও নৈতিক শিক্ষা
+  hindu: {
+    names: ['হিন্দুধর্ম ও নৈতিক শিক্ষা', 'হিন্দু ধর্ম', 'হিন্দুধর্ম', 'সনাতন ধর্ম', 'Hindu Religion & Moral Education', 'Hinduism & Moral Education'],
+    codes: ['112', 'REL-112']
+  },
+
+  // Buddhist Religion / বৌদ্ধধর্ম ও নৈতিক শিক্ষা
+  buddhist: {
+    names: ['বৌদ্ধধর্ম ও নৈতিক শিক্ষা', 'বৌদ্ধ ধর্ম', 'Buddhist Religion & Moral Education'],
+    codes: ['113', 'REL-113']
+  },
+
+  // Christian Religion / খ্রিষ্টধর্ম ও নৈতিক শিক্ষা
+  christian: {
+    names: ['খ্রিষ্টধর্ম ও নৈতিক শিক্ষা', 'খ্রিস্টান ধর্ম', 'খ্রিস্টান ধর্ম ও নৈতিক শিক্ষা', 'Christian Religion & Moral Education'],
+    codes: ['114', 'REL-114']
   }
 };
 
@@ -157,87 +182,100 @@ export function getAllSubjectAliases(subjectQuery: string): { names: string[]; c
   const names = new Set<string>([subjectQuery]);
   const codes = new Set<string>();
 
-  // Check against dictionary
-  if (q.includes('পৌরনীতি') || q.includes('civ')) {
+  // Check against dictionary (by Bangla, English, or exact NCTB / legacy code)
+  if (q === '140' || q.includes('পৌরনীতি') || q.includes('civ')) {
     SUBJECT_SYNONYMS.civics.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.civics.codes.forEach(c => codes.add(c));
-  } else if (q.includes('ইতিহাস ও বিশ্বসভ্যতা') || q.includes('his-153') || (q.includes('ইতিহাস') && !q.includes('সামাজিক'))) {
+  } else if (q === '153' || q.includes('ইতিহাস ও বিশ্বসভ্যতা') || q.includes('his-153') || q.includes('history of bangladesh') || (q.includes('ইতিহাস') && !q.includes('সামাজিক'))) {
     SUBJECT_SYNONYMS.history.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.history.codes.forEach(c => codes.add(c));
-  } else if (q.includes('ভূগোল') || q.includes('geo')) {
+  } else if (q === '110' || q.includes('ভূগোল') || q.includes('geo')) {
     SUBJECT_SYNONYMS.geography.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.geography.codes.forEach(c => codes.add(c));
-  } else if (q.includes('অর্থনীতি') || q.includes('eco')) {
+  } else if (q === '141' || q.includes('অর্থনীতি') || q.includes('eco')) {
     SUBJECT_SYNONYMS.economics.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.economics.codes.forEach(c => codes.add(c));
-  } else if (q.includes('সমাজ') || q.includes('বিশ্বপরিচ') || q.includes('bgs') || (q.includes('ইতিহাস') && q.includes('সামাজিক'))) {
+  } else if (q === '150' || q.includes('সমাজ') || q.includes('বিশ্বপরিচ') || q.includes('bgs') || q.includes('his-606') || q.includes('his-706') || q.includes('his-806') || q.includes('global studies') || (q.includes('ইতিহাস') && q.includes('সামাজিক'))) {
     SUBJECT_SYNONYMS.bgs.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.bgs.codes.forEach(c => codes.add(c));
   }
 
-  if (q.includes('পদার্থ') || q.includes('phy')) {
+  if (q === '136' || q.includes('পদার্থ') || q.includes('phy')) {
     SUBJECT_SYNONYMS.physics.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.physics.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('রসায়ন') || q.includes('রসায়ন') || q.includes('che')) {
+  if (q === '137' || q.includes('রসায়ন') || q.includes('রসায়ন') || q.includes('che')) {
     SUBJECT_SYNONYMS.chemistry.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.chemistry.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('হিসাব') || q.includes('acc')) {
+  if (q === '146' || q.includes('হিসাব') || q.includes('acc')) {
     SUBJECT_SYNONYMS.accounting.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.accounting.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('উদ্যোগ') || q.includes('bus')) {
+  if (q === '143' || q.includes('উদ্যোগ') || q.includes('bus')) {
     SUBJECT_SYNONYMS.business.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.business.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('ফিন্যান্স') || q.includes('fin')) {
+  if (q === '152' || q.includes('ফিন্যান্স') || q.includes('fin')) {
     SUBJECT_SYNONYMS.finance.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.finance.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('কৃষি') || q.includes('agr')) {
+  if (q === '134' || q.includes('কৃষি') || q.includes('agr')) {
     SUBJECT_SYNONYMS.agriculture.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.agriculture.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('গার্হস্থ্য') || q.includes('hms')) {
+  if (q === '151' || q.includes('গার্হস্থ্য') || q.includes('hms') || q.includes('home science')) {
     SUBJECT_SYNONYMS.homeScience.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.homeScience.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('উচ্চতর') || q.includes('hmt')) {
+  if (q === '126' || q.includes('উচ্চতর') || q.includes('hmt') || q.includes('higher math')) {
     SUBJECT_SYNONYMS.higherMath.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.higherMath.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('জীববিজ্ঞান') || q.includes('জীব বিজ্ঞান') || q.includes('bio')) {
+  if (q === '138' || q.includes('জীববিজ্ঞান') || q.includes('জীব বিজ্ঞান') || q.includes('bio')) {
     SUBJECT_SYNONYMS.biology.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.biology.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('ict') || q.includes('ডিজিটাল') || q.includes('তথ্য') || q.includes('কম্পিউটার')) {
+  if (q === '154' || q.includes('ict') || q.includes('ডিজিটাল') || q.includes('তথ্য') || q.includes('কম্পিউটার') || q.includes('digital tech')) {
     SUBJECT_SYNONYMS.ict.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.ict.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('বাংলা ১ম') || q.includes('ban-101') || q.includes('ban-601') || q.includes('ban-701') || q.includes('ban-801')) {
+  if (q === '101' || q.includes('বাংলা ১ম') || q.includes('bangla 1st') || q.includes('ban-101') || q.includes('ban-601') || q.includes('ban-701') || q.includes('ban-801')) {
     SUBJECT_SYNONYMS.bangla1.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.bangla1.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('বাংলা ২') || q.includes('ban-102') || q.includes('ban-602') || q.includes('ban-702') || q.includes('ban-802')) {
+  if (q === '102' || q.includes('বাংলা ২') || q.includes('bangla 2nd') || q.includes('ban-102') || q.includes('ban-602') || q.includes('ban-702') || q.includes('ban-802')) {
     SUBJECT_SYNONYMS.bangla2.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.bangla2.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('ইংরেজি ১ম') || q.includes('eng-107') || q.includes('eng-601') || q.includes('eng-701') || q.includes('eng-801')) {
+  if (q === '107' || q.includes('ইংরেজি ১ম') || q.includes('english 1st') || q.includes('eng-107') || q.includes('eng-601') || q.includes('eng-701') || q.includes('eng-801')) {
     SUBJECT_SYNONYMS.english1.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.english1.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('ইংরেজি ২') || q.includes('eng-108') || q.includes('eng-602') || q.includes('eng-702') || q.includes('eng-802')) {
+  if (q === '108' || q.includes('ইংরেজি ২') || q.includes('english 2nd') || q.includes('eng-108') || q.includes('eng-602') || q.includes('eng-702') || q.includes('eng-802')) {
     SUBJECT_SYNONYMS.english2.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.english2.codes.forEach(c => codes.add(c));
   }
-  if ((q.includes('গণিত') || q.includes('mat')) && !q.includes('উচ্চতর')) {
+  if (q === '109' || ((q.includes('গণিত') || q.includes('mat')) && !q.includes('উচ্চতর') && !q.includes('higher'))) {
     SUBJECT_SYNONYMS.math.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.math.codes.forEach(c => codes.add(c));
   }
-  if (q.includes('বিজ্ঞান') && !q.includes('গার্হস্থ্য') && !q.includes('জীববিজ্ঞান') && !q.includes('সামাজিক') && !q.includes('উচ্চতর')) {
+  if (q === '127' || ((q.includes('বিজ্ঞান') || q.includes('science') || q.includes('sci')) && !q.includes('গার্হস্থ্য') && !q.includes('জীববিজ্ঞান') && !q.includes('সামাজিক') && !q.includes('উচ্চতর') && !q.includes('home'))) {
     SUBJECT_SYNONYMS.science.names.forEach(n => names.add(n));
     SUBJECT_SYNONYMS.science.codes.forEach(c => codes.add(c));
+  }
+  if (q === '112' || q === 'rel-112' || q.includes('হিন্দু') || q.includes('সনাতন') || q.includes('hindu')) {
+    SUBJECT_SYNONYMS.hindu.names.forEach(n => names.add(n));
+    SUBJECT_SYNONYMS.hindu.codes.forEach(c => codes.add(c));
+  } else if (q === '113' || q === 'rel-113' || q.includes('বৌদ্ধ') || q.includes('buddhist')) {
+    SUBJECT_SYNONYMS.buddhist.names.forEach(n => names.add(n));
+    SUBJECT_SYNONYMS.buddhist.codes.forEach(c => codes.add(c));
+  } else if (q === '114' || q === 'rel-114' || q.includes('খ্রিস্ট') || q.includes('খ্রিষ্ট') || q.includes('christian')) {
+    SUBJECT_SYNONYMS.christian.names.forEach(n => names.add(n));
+    SUBJECT_SYNONYMS.christian.codes.forEach(c => codes.add(c));
+  } else if (q === '111' || q.startsWith('rel-') || q.includes('ইসলাম') || q.includes('islam') || q.includes('ধর্ম')) {
+    SUBJECT_SYNONYMS.islam.names.forEach(n => names.add(n));
+    SUBJECT_SYNONYMS.islam.codes.forEach(c => codes.add(c));
   }
 
   return {
@@ -287,7 +325,20 @@ export function getUniversalStudentMark(params: {
   let targetCodes: string[] = [subjectCodeOrName];
 
   // Religion special check
-  if (subjectCodeOrName.includes('ধর্ম') || subjectCodeOrName.includes('REL') || subjectCodeOrName.includes('ইসলাম') || subjectCodeOrName.includes('হিন্দু')) {
+  const trimmedQ = subjectCodeOrName.trim();
+  if (
+    trimmedQ.includes('ধর্ম') ||
+    trimmedQ.includes('REL') ||
+    trimmedQ.includes('ইসলাম') ||
+    trimmedQ.includes('হিন্দু') ||
+    trimmedQ.includes('বৌদ্ধ') ||
+    trimmedQ.includes('খ্রিস্ট') ||
+    trimmedQ.includes('খ্রিষ্ট') ||
+    trimmedQ.toLowerCase().includes('religion') ||
+    trimmedQ.toLowerCase().includes('islam') ||
+    trimmedQ.toLowerCase().includes('hindu') ||
+    ['111', '112', '113', '114'].includes(trimmedQ)
+  ) {
     const relKeys = getReligionSubjectKeys(religion || 'Muslim');
     targetNames = relKeys.names;
     targetCodes = relKeys.codes;
@@ -379,8 +430,10 @@ export function getUniversalStudentMark(params: {
       if (examsToTry.length > 0 && !examsToTry.some(ex => key.includes(ex))) continue;
       if (grade && !key.includes(grade)) continue;
 
-      // Check if key matches target subject identifiers
-      const keyMatchesSubject = targetNames.some(n => key.includes(n)) || targetCodes.some(c => key.includes(c));
+      // Check if key matches target subject identifiers safely on boundaries
+      const keyMatchesSubject =
+        targetNames.some(n => key.endsWith(`_${n}`) || key.includes(`_${n}_`)) ||
+        targetCodes.some(c => key.endsWith(`_${c}`) || key.includes(`_${c}_`));
       if (!keyMatchesSubject) continue;
 
       const raw = localStorage.getItem(key);

@@ -712,6 +712,22 @@ class FirebaseSyncService {
           console.warn('[FirebaseSync] Pull exam setup skipped:', err);
         }
 
+        // 6b-2. Pull OMR Sessions & Student-Wise Scan Records
+        try {
+          const omrDoc = await getDoc(doc(firestore, 'academic_data', 'omr_store'));
+          if (omrDoc.exists()) {
+            const data = omrDoc.data();
+            if (Array.isArray(data?.sessions) && data.sessions.length > 0) {
+              localStorage.setItem('sms_omr_sessions', JSON.stringify(data.sessions));
+            }
+            if (Array.isArray(data?.scans) && data.scans.length > 0) {
+              localStorage.setItem('sms_omr_scans', JSON.stringify(data.scans));
+            }
+          }
+        } catch (err) {
+          console.warn('[FirebaseSync] Pull OMR store skipped:', err);
+        }
+
         // 6c. Pull Exam Marks
         try {
           const marksSnap = await getDocs(collection(firestore, 'exam_marks'));
@@ -1152,6 +1168,29 @@ class FirebaseSyncService {
   }
 
   /**
+   * 🎯 Sync OMR Sessions & Student-Wise Scan Records to Firestore (thumbnails stripped)
+   */
+  public async syncOmrStoreToCloud(sessions: any[], scans: any[]): Promise<void> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const cleanScans = scans.slice(0, 600).map((sc) => {
+        const copy = { ...sc };
+        delete copy.warpedThumbnail;
+        return copy;
+      });
+      await setDoc(doc(firestore, 'academic_data', 'omr_store'), {
+        sessions: sessions.slice(0, 150),
+        scans: cleanScans,
+        updatedAt: serverTimestamp(),
+        schoolId: firebaseConfig.projectId
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[FirebaseSync] OMR store cloud sync warning:', err);
+    }
+  }
+
+  /**
    * 📊 Sync specific Exam Mark keys (sms_marks_*) to Firestore
    */
   public async syncMarksKeysToCloud(keys: string[]): Promise<void> {
@@ -1178,6 +1217,36 @@ class FirebaseSyncService {
       await batch.commit();
     } catch (err) {
       console.warn('[FirebaseSync] Marks cloud sync warning:', err);
+    }
+  }
+
+  /**
+   * 📋 Sync specific Attendance keys (sms_attendance_*) to Firestore
+   */
+  public async syncAttendanceKeysToCloud(keys: string[]): Promise<void> {
+    if (!db || typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+      const firestore = db as Firestore;
+      const uniqueKeys = Array.from(new Set(keys)).filter((k) => k.startsWith('sms_attendance_'));
+      if (uniqueKeys.length === 0) return;
+
+      const batch = writeBatch(firestore);
+      uniqueKeys.slice(0, 350).forEach((k) => {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const safeDocId = encodeURIComponent(k).replace(/\./g, '%2E');
+          const aRef = doc(firestore, 'attendance_records', safeDocId);
+          batch.set(aRef, {
+            storageKey: k,
+            value: val,
+            updatedAt: serverTimestamp(),
+            schoolId: firebaseConfig.projectId
+          }, { merge: true });
+        }
+      });
+      await batch.commit();
+    } catch (err) {
+      console.warn('[FirebaseSync] Attendance cloud sync warning:', err);
     }
   }
 

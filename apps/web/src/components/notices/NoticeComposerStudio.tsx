@@ -410,12 +410,12 @@ export default function NoticeComposerStudio({
                   onChange={(e) => setCategory(e.target.value as Notice['category'])}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  <option value="exam">📝 পরীক্ষা সংক্রান্ত (Exam)</option>
-                  <option value="holiday">🌴 ছুটি সংক্রান্ত (Holiday)</option>
-                  <option value="academic">📚 একাডেমিক / রেজিস্ট্রেশন</option>
-                  <option value="events">🎉 সভা / অনুষ্ঠান</option>
-                  <option value="emergency">🚨 জরুরি বিজ্ঞপ্তি</option>
-                  <option value="general">📢 সাধারণ নোটিশ</option>
+                  <option value="exam">পরীক্ষা সংক্রান্ত (Exam)</option>
+                  <option value="holiday">ছুটি সংক্রান্ত (Holiday)</option>
+                  <option value="academic">একাডেমিক / রেজিস্ট্রেশন</option>
+                  <option value="events">সভা / অনুষ্ঠান</option>
+                  <option value="emergency">জরুরি বিজ্ঞপ্তি</option>
+                  <option value="general">সাধারণ নোটিশ</option>
                 </select>
               </div>
 
@@ -426,8 +426,8 @@ export default function NoticeComposerStudio({
                   onChange={(e) => setPriority(e.target.value as Notice['priority'])}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  <option value="urgent">🚨 জরুরি (Urgent)</option>
-                  <option value="important">⭐ গুরুত্বপূর্ণ (Important)</option>
+                  <option value="urgent">জরুরি (Urgent)</option>
+                  <option value="important">গুরুত্বপূর্ণ (Important)</option>
                   <option value="normal">সাধারণ (Normal)</option>
                 </select>
               </div>
@@ -439,10 +439,10 @@ export default function NoticeComposerStudio({
                   onChange={(e) => setTargetAudience(e.target.value as Notice['targetAudience'])}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  <option value="all">🌐 সকলের জন্য (All)</option>
-                  <option value="students">🎓 শিক্ষার্থীগণ</option>
-                  <option value="parents">👨‍👩‍👧‍👦 অভিভাবকবৃন্দ</option>
-                  <option value="teachers">👨‍🏫 সম্মানিত শিক্ষকবৃন্দ</option>
+                  <option value="all">সকলের জন্য (All)</option>
+                  <option value="students">শিক্ষার্থীগণ</option>
+                  <option value="parents">অভিভাবকবৃন্দ</option>
+                  <option value="teachers">সম্মানিত শিক্ষকবৃন্দ</option>
                 </select>
               </div>
             </div>

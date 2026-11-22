@@ -2,6 +2,7 @@
 
 import * as XLSX from 'xlsx';
 import { DynamicClassSubject } from '@/lib/curriculumUtils';
+import { isReligionSubject } from '@/lib/religionUtils';
 import {
   AllSubjectsSummaryAggregate,
   ClassSectionSummaryRow,
@@ -51,8 +52,12 @@ function resolveStudentEntry(
   ) {
     return res.optionalSubjectMark;
   }
+  const isRelCol = isReligionSubject(`${subject.code} ${subject.name}`);
   return Object.values(res.subjectMarks).find(
-    (m) => m.subjectName === subject.name || m.subjectCode === subject.code,
+    (m) =>
+      m.subjectName === subject.name ||
+      m.subjectCode === subject.code ||
+      (isRelCol && isReligionSubject(`${m.subjectCode} ${m.subjectName}`)),
   );
 }
 

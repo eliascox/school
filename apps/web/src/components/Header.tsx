@@ -32,7 +32,12 @@ import {
   CloudOff,
   RefreshCw,
   Send,
-  Search
+  Search,
+  BarChart3,
+  Library,
+  ClipboardList,
+  FileBarChart,
+  ScanLine
 } from 'lucide-react';
 import { openCommandPalette } from '@/components/CommandPalette';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
@@ -60,10 +65,18 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
   const currentView = searchParams ? searchParams.get('view') : null;
 
   // 1. Exact Dashboard Home
-  if (pathname === '/dashboard') {
+  if (pathname === '/dashboard' || pathname === '/dashboard/') {
     return {
       title: lang === 'en' ? 'Dashboard' : 'ড্যাশবোর্ড',
       icon: <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+    };
+  }
+
+  // 1b. Analytics & Exports
+  if (pathname.includes('/analytics')) {
+    return {
+      title: lang === 'en' ? 'Analytics & Exports' : 'অ্যানালিটিক্স ও এক্সপোর্ট',
+      icon: <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600" />
     };
   }
 
@@ -75,7 +88,19 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
     };
   }
 
-  // 3. Students & Print List
+  // 3. Students, ID Cards, Bulk Import & Print List
+  if (pathname.includes('/students/id-card')) {
+    return {
+      title: lang === 'en' ? 'PVC ID Cards (CR80)' : 'স্মার্ট আইডি কার্ড (PVC)',
+      icon: <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600" />
+    };
+  }
+  if (pathname.includes('/students/bulk-import')) {
+    return {
+      title: lang === 'en' ? 'Bulk Student Import' : 'বাল্ক আপলোড (Excel)',
+      icon: <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-violet-600" />
+    };
+  }
   if (pathname.includes('/students')) {
     if (currentView === 'print') {
       return {
@@ -86,6 +111,12 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
     return {
       title: lang === 'en' ? 'Student List' : 'শিক্ষার্থী তালিকা',
       icon: <Users className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+    };
+  }
+  if (pathname.includes('/alumni')) {
+    return {
+      title: lang === 'en' ? 'Alumni Archive' : 'প্রাক্তন শিক্ষার্থী (Alumni)',
+      icon: <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-violet-600" />
     };
   }
 
@@ -128,13 +159,19 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
       icon: <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
     };
   }
+  if (pathname.includes('/routine')) {
+    return {
+      title: lang === 'en' ? 'Class Routine & Proxy' : 'ক্লাস রুটিন ও প্রক্সি',
+      icon: <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600" />
+    };
+  }
   if (pathname.includes('/academic/marksheet')) {
     return {
       title: lang === 'en' ? 'Marksheet & Gradesheet' : 'মার্কশীট ও গ্রেডশিট',
       icon: <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
     };
   }
-  if (pathname === '/dashboard/academic' || pathname.includes('/academic/grades')) {
+  if (pathname === '/dashboard/academic' || pathname === '/dashboard/academic/' || pathname.includes('/academic/grades')) {
     return {
       title: lang === 'en' ? 'Manage Section' : 'শাখা ব্যবস্থাপনা',
       icon: <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
@@ -142,6 +179,24 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
   }
 
   // 6. Examination Submodules
+  if (pathname.includes('/exam/results')) {
+    return {
+      title: lang === 'en' ? 'Result Analytics Studio' : 'সমন্বিত ফলাফল স্টুডিও',
+      icon: <FileBarChart className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+    };
+  }
+  if (pathname.includes('/exam/seat-plan')) {
+    return {
+      title: lang === 'en' ? 'Seat Plan & Duty' : 'সিট প্ল্যান ও কক্ষ ডিউটি',
+      icon: <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600" />
+    };
+  }
+  if (pathname.includes('/exam/omr')) {
+    return {
+      title: lang === 'en' ? 'OMR Studio & Scanner' : 'OMR স্টুডিও ও স্ক্যানার',
+      icon: <ScanLine className="w-4 h-4 sm:w-5 sm:h-5 text-[#0B5D3B] dark:text-emerald-400" />
+    };
+  }
   if (pathname.includes('/exam/mark-entry')) {
     return {
       title: lang === 'en' ? 'Mark Entry' : 'নম্বর এন্ট্রি',
@@ -178,7 +233,7 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
       icon: <Award className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
     };
   }
-  if (pathname === '/dashboard/exam' || pathname.includes('/exam/setup') || pathname.includes('/exam')) {
+  if (pathname === '/dashboard/exam' || pathname === '/dashboard/exam/' || pathname.includes('/exam/setup') || pathname.includes('/exam')) {
     return {
       title: lang === 'en' ? 'Exam Setup' : 'পরীক্ষা সেটআপ',
       icon: <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
@@ -212,10 +267,28 @@ const getPageInfo = (pathname: string, searchParams: any, lang: AppLanguage): Pa
       icon: <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-sky-500" />
     };
   }
+  if (pathname.includes('/library')) {
+    return {
+      title: lang === 'en' ? 'Digital Library' : 'ডিজিটাল লাইব্রেরি',
+      icon: <Library className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+    };
+  }
+  if (pathname.includes('/landing-page')) {
+    return {
+      title: lang === 'en' ? 'Website CMS Editor' : 'ওয়েবসাইট CMS এডিটর',
+      icon: <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+    };
+  }
   if (pathname.includes('/teacher-portal')) {
     return {
       title: lang === 'en' ? 'Teacher Portal' : 'শিক্ষক পোর্টাল ও ড্যাশবোর্ড',
       icon: <Users className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+    };
+  }
+  if (pathname.includes('/leaves')) {
+    return {
+      title: lang === 'en' ? 'Leave Applications' : 'ছুটির আবেদনসমূহ',
+      icon: <Send className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
     };
   }
   if (pathname.includes('/teacher')) {
@@ -415,7 +488,7 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
         </div>
       </div>
 
-      {/* Center / Right-Middle: Date & Active Status Pill (as circled in user image) */}
+      {/* Center: Global Date & Active Status Pill */}
       <div className="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs">
         <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <span className="font-extrabold">
@@ -451,23 +524,10 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
           </kbd>
         </button>
 
-        {/* 🖨️ BLANK ADMISSION FORM PRINT BUTTON (When on Admission Page) */}
-        {pathname.includes('/admission') && (
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent('open_blank_admission_modal'))}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition shadow-sm cursor-pointer active:scale-95 shrink-0"
-            title={currentLang === 'en' ? 'Print Blank Form' : 'অফিশিয়াল ব্ল্যাঙ্ক ফরম প্রিন্ট'}
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{currentLang === 'en' ? 'Blank Form Print' : 'ব্ল্যাঙ্ক ফরম প্রিন্ট'}</span>
-          </button>
-        )}
-
         {/* ✉️ TEACHER LEAVE APPLICATIONS ALERT BADGE (FOR PRINCIPAL/ADMIN) */}
         {session.role === 'admin' && pendingLeavesCount > 0 && (
           <Link
-            href="/dashboard/teacher?tab=leave_applications"
+            href="/dashboard/leaves"
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-black transition shadow-xs cursor-pointer active:scale-95 animate-pulse shrink-0"
             title={currentLang === 'en' ? `${pendingLeavesCount} Pending Leave Applications` : `${pendingLeavesCount}টি ছুটির আবেদন বিবেচনাধীন`}
           >

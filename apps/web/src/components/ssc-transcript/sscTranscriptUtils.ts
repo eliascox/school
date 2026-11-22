@@ -60,20 +60,22 @@ export interface PrintLayoutConfig {
   borderInset: number;
   customPhone?: string;
   titleStyle?: 'cinzel' | 'playfair' | 'classic';
+  nameFontStyle?: 'cursive' | 'serif_italic' | 'classic_bold';
 }
 
 export const DEFAULT_LAYOUT_CONFIG: PrintLayoutConfig = {
   fontScale: 100,
-  topMargin: 0.5,
-  leftMargin: 0.5,
-  rightMargin: 0.5,
-  bottomMargin: 0.5,
+  topMargin: 0.45,
+  leftMargin: 0.55,
+  rightMargin: 0.55,
+  bottomMargin: 0.45,
   lineHeight: 'normal',
-  signatureGap: 18,
+  signatureGap: 14,
   borderOpacity: 1.0,
   borderInset: 0,
   customPhone: '',
   titleStyle: 'cinzel',
+  nameFontStyle: 'cursive',
 };
 
 export function getEnglishPrincipalName(name?: string): string {

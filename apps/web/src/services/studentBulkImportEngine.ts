@@ -857,20 +857,39 @@ export function generateGroupWiseRolls(
 }
 
 /**
- * Institutional Group Sorting Hierarchy:
- * 1. বিজ্ঞান (Science) -> 1
- * 2. মানবিক (Humanities) -> 2
- * 3. ব্যবসায় শিক্ষা / বাণিজ্য (Business Studies) -> 3
- * 4. সাধারণ / অন্যান্য (General / Other) -> 4
+ * Institutional Group Sorting Hierarchy (A–Z Order for Class 9–10):
+ * 1. Business Studies / ব্যবসায় শিক্ষা / বাণিজ্য -> 1
+ * 2. Humanities / মানবিক -> 2
+ * 3. Science / বিজ্ঞান -> 3
+ * 4. General / সাধারণ / অন্যান্য -> 4
  */
 export function getGroupPriority(groupName?: string): number {
   if (!groupName) return 99;
   const g = groupName.trim().toLowerCase();
-  if (g.includes('বিজ্ঞান') || g.includes('science')) return 1;
+  if (g.includes('ব্যবসা') || g.includes('বাণিজ্য') || g.includes('business') || g.includes('commerce')) return 1;
   if (g.includes('মানবিক') || g.includes('humanities') || g.includes('arts')) return 2;
-  if (g.includes('ব্যবসা') || g.includes('বাণিজ্য') || g.includes('business') || g.includes('commerce')) return 3;
+  if (g.includes('বিজ্ঞান') || g.includes('science') || g.includes('সায়েন্স') || g.includes('সাইন্স')) return 3;
   if (g.includes('সাধারণ') || g.includes('general')) return 4;
   return 5;
+}
+
+export function parseGradeOrder(grade?: string, gradeBn?: string): number {
+  const raw = bnToEnDigits(`${grade || ''} ${gradeBn || ''}`).toLowerCase();
+  if (raw.includes('10') || raw.includes('ten') || raw.includes(' দশম')) return 10;
+  if (raw.includes('9') || raw.includes('nine') || raw.includes('নবম')) return 9;
+  if (raw.includes('8') || raw.includes('eight') || raw.includes('অষ্টম')) return 8;
+  if (raw.includes('7') || raw.includes('seven') || raw.includes('সপ্তম')) return 7;
+  if (raw.includes('6') || raw.includes('six') || raw.includes('ষষ্ঠ')) return 6;
+  const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  return Number.isNaN(num) ? 99 : num;
+}
+
+export function normalizeSectionSortKey(section?: string, branch?: string): string {
+  const raw = String(section || branch || 'A').trim();
+  if (/^a$|section\s*a|ক\s*শাখা|^ক$/i.test(raw)) return '01_a';
+  if (/^b$|section\s*b|খ\s*শাখা|^খ$/i.test(raw)) return '02_b';
+  if (/^c$|section\s*c|গ\s*শাখা|^গ$/i.test(raw)) return '03_c';
+  return `99_${raw.toLowerCase()}`;
 }
 
 export function parseRollNumber(rollStr?: string | number): number {
@@ -882,9 +901,10 @@ export function parseRollNumber(rollStr?: string | number): number {
 }
 
 /**
- * 🌟 CORE LOGIC: Sorts any student list group-wise and by roll / name:
- * - Group priority: বিজ্ঞান (১) -> মানবিক (২) -> ব্যবসায় শিক্ষা (৩) -> সাধারণ/অন্যান্য (৪)
- * - Strategy: 'roll_asc' (ছোট থেকে বড় / ১, ২, ৩...), 'name_asc' (এ-ঝেড / A-Z), 'roll_desc', 'name_desc'
+ * 🌟 CORE LOGIC: Sorts any student list canonically:
+ * - Grade ascending (6th -> 7th -> 8th -> 9th -> 10th)
+ * - For Classes 6–8: Section (A -> B -> C) -> Roll ascending (1, 2, 3...)
+ * - For Classes 9–10: Group A–Z (Business Studies -> Humanities -> Science) -> Section -> Roll ascending (1, 2, 3...)
  */
 export function sortStudentsGroupAndRoll(
   students: Student[],
@@ -892,14 +912,40 @@ export function sortStudentsGroupAndRoll(
 ): Student[] {
   const copy = [...students];
   return copy.sort((a, b) => {
-    // 1. Group hierarchy first
-    const prioA = getGroupPriority(a.group);
-    const prioB = getGroupPriority(b.group);
-    if (prioA !== prioB) {
-      return prioA - prioB;
+    // 1. Grade order first (6th -> 10th)
+    const gradeA = parseGradeOrder(a.grade, a.gradeBn);
+    const gradeB = parseGradeOrder(b.grade, b.gradeBn);
+    if (gradeA !== gradeB) {
+      return gradeA - gradeB;
     }
 
-    // 2. Ordering within the same group
+    // 2. Class 9–10: Group A–Z (Business Studies -> Humanities -> Science) then Section
+    //    Class 6–8: Section (A -> B -> C)
+    if (gradeA >= 9) {
+      const prioA = getGroupPriority(a.group);
+      const prioB = getGroupPriority(b.group);
+      if (prioA !== prioB) {
+        return prioA - prioB;
+      }
+      const secA = normalizeSectionSortKey(a.section, a.branch);
+      const secB = normalizeSectionSortKey(b.section, b.branch);
+      if (secA !== secB) {
+        return secA.localeCompare(secB);
+      }
+    } else {
+      const secA = normalizeSectionSortKey(a.section, a.branch);
+      const secB = normalizeSectionSortKey(b.section, b.branch);
+      if (secA !== secB) {
+        return secA.localeCompare(secB);
+      }
+      const prioA = getGroupPriority(a.group);
+      const prioB = getGroupPriority(b.group);
+      if (prioA !== prioB) {
+        return prioA - prioB;
+      }
+    }
+
+    // 3. Ordering within the same class/group/section
     if (strategy === 'roll_asc') {
       const rA = parseRollNumber(a.roll || a.prevRoll);
       const rB = parseRollNumber(b.roll || b.prevRoll);
@@ -1065,10 +1111,10 @@ export function executeBulkImport(
 ): BulkImportExecutionResult {
   const {
     mode = 'merge',
-    sortStrategy = 'name_asc',
+    sortStrategy = 'roll_asc',
     targetGrade = '9th',
     autoAssignRolls = true,
-    keepUploadedRoll = true, // Default true: retains uploaded roll from file while sorting A-Z
+    keepUploadedRoll = true,
     performedBy = 'অ্যাডমিন / প্রধান শিক্ষক',
     abortOnError = true,
   } = options;
@@ -1148,8 +1194,8 @@ export function executeBulkImport(
       finalStudentList = Array.from(existingMap.values());
     }
 
-    // 🌟 Sort saved list group-wise & roll-wise before committing to local/cloud storage
-    const sortedToSave = sortStudentsGroupAndRoll(finalStudentList, sortStrategy);
+    // 🌟 Always commit saved student list in canonical Class -> Group/Section -> Roll (1, 2, 3...) ascending order
+    const sortedToSave = sortStudentsGroupAndRoll(finalStudentList, 'roll_asc');
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('sms_students', JSON.stringify(sortedToSave));

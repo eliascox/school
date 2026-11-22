@@ -73,24 +73,68 @@ export const toBanglaNumeral = (str: string | number | undefined): string => {
   return String(str).replace(/\d/g, (d) => bnDigits[parseInt(d, 10)] ?? d);
 };
 
+export const normalizeGradeKey = (grade?: string): '6th' | '7th' | '8th' | '9th' | '10th' | 'other' => {
+  const g = (grade || '').toString().toLowerCase().trim();
+  if (g === '6th' || g.includes('6') || g.includes('৬')) return '6th';
+  if (g === '7th' || g.includes('7') || g.includes('৭')) return '7th';
+  if (g === '8th' || g.includes('8') || g.includes('৮')) return '8th';
+  if (g === '9th' || g.includes('9') || g.includes('৯')) return '9th';
+  if (g === '10th' || g.includes('10') || g.includes('১০')) return '10th';
+  return 'other';
+};
+
+export const formatGradeLabel = (grade?: string, lang: 'bn' | 'en' = 'bn'): string => {
+  const key = normalizeGradeKey(grade);
+  const mapBn: Record<string, string> = {
+    '6th': '৬ষ্ঠ শ্রেণি',
+    '7th': '৭ম শ্রেণি',
+    '8th': '৮ম শ্রেণি',
+    '9th': '৯ম শ্রেণি',
+    '10th': '১০ম শ্রেণি',
+  };
+  const mapEn: Record<string, string> = {
+    '6th': 'Class 6',
+    '7th': 'Class 7',
+    '8th': 'Class 8',
+    '9th': 'Class 9',
+    '10th': 'Class 10',
+  };
+  if (key !== 'other') {
+    return lang === 'en' ? mapEn[key] : mapBn[key];
+  }
+  return grade || (lang === 'en' ? 'Unassigned' : 'অনির্ধারিত');
+};
+
+export const formatSectionLabel = (branch?: string, lang: 'bn' | 'en' = 'bn'): string => {
+  const clean = (branch || '').trim();
+  if (!clean) return lang === 'en' ? 'Sec A' : 'শাখা A';
+  if (clean.length <= 2) {
+    return lang === 'en' ? `Sec ${clean}` : `শাখা ${clean}`;
+  }
+  return clean;
+};
+
 export const matchStudentReligion = (religion: string | undefined, filter: string): boolean => {
   if (filter === 'all') return true;
   if (!religion) return false;
-  if (filter === 'ইসলাম') return religion.includes('ইসলাম') || religion.includes('Muslim');
-  if (filter === 'হিন্দু') return religion.includes('হিন্দু') || religion.includes('Hindu') || religion.includes('সনাতন');
-  if (filter === 'বৌদ্ধ') return religion.includes('বৌদ্ধ') || religion.includes('Buddhist');
-  if (filter === 'খ্রিস্টান') return religion.includes('খ্রিস্টান') || religion.includes('Christian');
-  return religion.includes(filter);
+  const r = religion.toLowerCase();
+  if (filter === 'ইসলাম') return r.includes('ইসলাম') || r.includes('মুসলিম') || r.includes('muslim') || r.includes('islam');
+  if (filter === 'হিন্দু') return r.includes('হিন্দু') || r.includes('hindu') || r.includes('সনাতন') || r.includes('sanatan');
+  if (filter === 'বৌদ্ধ') return r.includes('বৌদ্ধ') || r.includes('buddhist');
+  if (filter === 'খ্রিস্টান') return r.includes('খ্রিস্ট') || r.includes('খ্রিষ্ট') || r.includes('christian');
+  return r.includes(filter.toLowerCase());
 };
 
 export const isMaleGender = (gender?: string): boolean => {
   if (!gender) return false;
-  return gender.includes('পুরুষ') || gender.includes('ছেলে') || gender.toLowerCase() === 'male';
+  const g = gender.toLowerCase().trim();
+  return g.includes('পুরুষ') || g.includes('ছেলে') || (g.includes('ছাত্র') && !g.includes('ছাত্রী')) || g === 'male' || g === 'm';
 };
 
 export const isFemaleGender = (gender?: string): boolean => {
   if (!gender) return false;
-  return gender.includes('মহিলা') || gender.includes('মেয়ে') || gender.includes('নারী') || gender.toLowerCase() === 'female';
+  const g = gender.toLowerCase().trim();
+  return g.includes('মহিলা') || g.includes('মেয়ে') || g.includes('মেয়ে') || g.includes('নারী') || g.includes('ছাত্রী') || g === 'female' || g === 'f';
 };
 
 export const buildClassSummaryRows = <T extends StudentRecord>(

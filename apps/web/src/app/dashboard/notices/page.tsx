@@ -12,10 +12,12 @@ import {
   FileText,
   LayoutGrid,
   List,
+  Megaphone,
   Pin,
   PlusCircle,
   Printer,
   Search,
+  Sparkles,
   Square,
   Trash2,
 } from 'lucide-react';
@@ -31,7 +33,9 @@ import {
   formatNoticeDate,
   generateClassFeeString,
   getCategoryBadge,
+  getPublisherInitial,
   getTargetAudienceBadge,
+  NOTICE_TEMPLATES,
   NoticeCard,
   NoticeTemplate,
 } from '@/components/notices/noticeHelpers';
@@ -334,6 +338,11 @@ export default function NoticesPage() {
     showAlert('success', `'${tmpl.name}' টেমপ্লেট সফলভাবে লোড হয়েছে!`);
   };
 
+  const handleOpenTemplateInComposer = (tmpl: NoticeTemplate) => {
+    handleOpenCreateComposer();
+    handleApplyTemplate(tmpl);
+  };
+
   const handleSubmitNotice = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) {
@@ -479,6 +488,7 @@ export default function NoticesPage() {
       academic: 0,
       events: 0,
       emergency: 0,
+      general: 0,
     };
     notices.forEach((n) => {
       if (counts[n.category] !== undefined) counts[n.category]++;
@@ -556,7 +566,7 @@ export default function NoticesPage() {
             padding-left: 1in !important;
             padding-right: 0.6in !important;
             padding-bottom: 0.5in !important;
-            padding-top: ${printMode === 'pad' ? '3in' : '0.6in'} !important;
+            padding-top: ${printMode === 'pad' ? `${schoolSettings?.padMargins?.top ?? 2.4}in` : '0.6in'} !important;
             box-sizing: border-box !important;
             border: none !important;
             box-shadow: none !important;
@@ -573,97 +583,155 @@ export default function NoticesPage() {
 
       {/* 1. MAIN LIST VIEW */}
       {mounted && activeView === 'list' && (
-        <>
-          <div className="space-y-4 print:hidden">
-            <div className="flex flex-wrap items-center justify-end gap-2.5">
-              {!isAdmin && (
-                <span className="px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-2xs">
-                  <Eye size={15} /> শিক্ষক ভিউ-অনলি মোড (শুধু নোটিশ দেখার অনুমতি)
-                </span>
-              )}
+        <div className="space-y-5 max-w-[1600px] mx-auto">
+          {/* Executive Notice Board Masthead */}
+          <section className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xs print:hidden">
+            <div className="pointer-events-none absolute -top-24 -right-24 w-64 h-64 rounded-full bg-indigo-500/5 dark:bg-indigo-500/10 blur-3xl" />
 
-              {isAdmin && notices.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllNotices}
-                  className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <Trash2 size={14} /> সকল নোটিশ মুছুন
-                </button>
-              )}
-
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setShowBlankPadModal(true)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <Printer size={15} /> ফাঁকা স্কুল প্যাড প্রিন্ট
-                </button>
-              )}
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0">
+                  <Megaphone size={22} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                      প্রাতিষ্ঠানিক নোটিশ বোর্ড ও বিজ্ঞপ্তি
+                    </h1>
+                    {!isAdmin && (
+                      <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 rounded-full font-bold text-[10.5px] inline-flex items-center gap-1">
+                        <Eye size={12} /> ভিউ-অনলি
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    অফিশিয়াল বিজ্ঞপ্তি প্রকাশ, শ্রেণিভিত্তিক ফি সংযুক্তি, আর্কাইভ এবং A4 প্যাড প্রিন্টিং স্টুডিও।
+                  </p>
+                </div>
+              </div>
 
               {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenCreateComposer()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <PlusCircle size={15} /> নতুন নোটিশ তৈরি করুন
-                </button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {notices.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllNotices}
+                      className="px-3 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/60 rounded-xl font-bold text-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 size={14} /> সব মুছুন
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowBlankPadModal(true)}
+                    className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Printer size={14} className="text-emerald-600 dark:text-emerald-400" /> ফাঁকা প্যাড
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateComposer()}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs shadow-sm shadow-indigo-600/20 transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <PlusCircle size={15} /> নতুন নোটিশ তৈরি
+                  </button>
+                </div>
               )}
             </div>
+          </section>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
-                  <span>মোট প্রকাশিত নোটিশ</span>
-                  <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
+          {/* 4 Executive Clickable KPI Cards */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 print:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory('all');
+                setSelectedPriority('all');
+                setSelectedTarget('all');
+              }}
+              className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-2xs transition text-left cursor-pointer flex items-start justify-between gap-3"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  মোট প্রকাশিত নোটিশ
+                </span>
+                <div className="mt-1.5 flex items-baseline gap-1">
+                  <strong className="text-2xl font-black text-slate-900 dark:text-white font-mono">
+                    {notices.length}
+                  </strong>
+                  <span className="text-xs font-semibold text-slate-400">টি</span>
                 </div>
-                <strong className="text-2xl font-black text-slate-900 dark:text-white block mt-1">
-                  {notices.length} <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-normal">টি</span>
-                </strong>
               </div>
-
-              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-xs">
-                <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 text-[11px] font-bold">
-                  <span>পিনকৃত গুরুত্বপূর্ণ</span>
-                  <Pin size={14} className="text-amber-500 fill-amber-500" />
-                </div>
-                <strong className="text-2xl font-black text-amber-900 dark:text-amber-200 block mt-1">
-                  {notices.filter((n) => n.isPinned).length}{' '}
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300 font-normal">টি</span>
-                </strong>
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0">
+                <FileText size={18} />
               </div>
+            </button>
 
-              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-800/60 shadow-xs">
-                <div className="flex items-center justify-between text-rose-700 dark:text-rose-300 text-[11px] font-bold">
-                  <span>জরুরি নির্দেশিকা</span>
-                  <AlertTriangle size={14} className="text-rose-500" />
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  পিনকৃত গুরুত্বপূর্ণ
+                </span>
+                <div className="mt-1.5 flex items-baseline gap-1">
+                  <strong className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
+                    {notices.filter((n) => n.isPinned).length}
+                  </strong>
+                  <span className="text-xs font-semibold text-slate-400">টি</span>
                 </div>
-                <strong className="text-2xl font-black text-rose-900 dark:text-rose-200 block mt-1">
-                  {notices.filter((n) => n.priority === 'urgent').length}{' '}
-                  <span className="text-xs font-bold text-rose-700 dark:text-rose-300 font-normal">টি</span>
-                </strong>
               </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0">
+                <Pin size={18} />
+              </div>
+            </div>
 
-              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
-                <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
-                  <span>জারিকারক কর্মকর্তা</span>
-                  <Award size={14} className="text-emerald-600 dark:text-emerald-400" />
+            <button
+              type="button"
+              onClick={() => setSelectedPriority((p) => (p === 'urgent' ? 'all' : 'urgent'))}
+              className={`p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-2xs transition text-left cursor-pointer flex items-start justify-between gap-3 ${
+                selectedPriority === 'urgent'
+                  ? 'border-rose-400 ring-2 ring-rose-500/15'
+                  : 'border-slate-200/90 dark:border-slate-800 hover:border-rose-300'
+              }`}
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  জরুরি বিজ্ঞপ্তি
+                </span>
+                <div className="mt-1.5 flex items-baseline gap-1">
+                  <strong className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">
+                    {notices.filter((n) => n.priority === 'urgent').length}
+                  </strong>
+                  <span className="text-xs font-semibold text-slate-400">টি</span>
                 </div>
-                <strong className="text-xs font-black text-emerald-950 dark:text-emerald-200 truncate block mt-2">
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} />
+              </div>
+            </button>
+
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  জারিকারক কর্তৃপক্ষ
+                </span>
+                <strong className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate block mt-1.5">
                   {schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
                 </strong>
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium block">
+                <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold block truncate">
                   {schoolSettings.principalTitle || 'প্রধান শিক্ষক'}
                 </span>
               </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
+                <Award size={18} />
+              </div>
             </div>
-          </div>
+          </section>
 
           {alertMsg && (
             <div
-              className={`p-4 rounded-2xl font-bold text-xs flex items-center justify-between border shadow-sm print:hidden animate-in fade-in ${
+              className={`p-3.5 rounded-2xl font-bold text-xs flex items-center justify-between border shadow-2xs print:hidden ${
                 alertMsg.type === 'success'
                   ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60'
                   : 'bg-rose-50 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800/60'
@@ -671,116 +739,126 @@ export default function NoticesPage() {
             >
               <div className="flex items-center gap-2">
                 {alertMsg.type === 'success' ? (
-                  <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                 ) : (
-                  <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400" />
+                  <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
                 )}
                 <span>{alertMsg.text}</span>
               </div>
-              <button onClick={() => setAlertMsg(null)} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setAlertMsg(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer px-1"
+              >
                 ✕
               </button>
             </div>
           )}
 
-          {/* Filter Bar */}
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden space-y-3.5">
-            <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-              <div className="relative flex-1 w-full">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          {/* Unified Search, Filter & Category Bar */}
+          <section className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs print:hidden space-y-3.5">
+            <div className="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="নোটিশের শিরোনাম, স্মারক নম্বর বা বিবরণ দিয়ে তাৎক্ষণিক খুঁজুন..."
+                  placeholder="শিরোনাম, স্মারক নম্বর বা বিবরণ দিয়ে খুঁজুন..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
                 {searchQuery && (
                   <button
+                    type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
                   >
                     ✕
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-2 flex-wrap">
                 <select
                   value={selectedPriority}
                   onChange={(e) => setSelectedPriority(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="all">সকল অগ্রাধিকার</option>
-                  <option value="urgent">🚨 শুধু জরুরি</option>
-                  <option value="important">⭐ গুরুত্বপূর্ণ</option>
+                  <option value="urgent">শুধু জরুরি</option>
+                  <option value="important">গুরুত্বপূর্ণ</option>
                   <option value="normal">সাধারণ</option>
                 </select>
 
                 <select
                   value={selectedTarget}
                   onChange={(e) => setSelectedTarget(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="all">সকল প্রাপক</option>
-                  <option value="students">🎓 শিক্ষার্থী</option>
-                  <option value="teachers">👨‍🏫 শিক্ষকবৃন্দ</option>
-                  <option value="parents">👨‍👩‍👧‍👦 অভিভাবক</option>
+                  <option value="students">শিক্ষার্থী</option>
+                  <option value="teachers">শিক্ষকবৃন্দ</option>
+                  <option value="parents">অভিভাবক</option>
                 </select>
 
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setListLayout('table')}
-                    className={`p-1.5 rounded-lg transition cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition cursor-pointer ${
                       listLayout === 'table'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-200 shadow-xs'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                     }`}
-                    title="তালিকা ভিউ (Table View)"
+                    title="টেবিল ভিউ"
                   >
-                    <List size={16} />
+                    <List size={14} />
+                    <span className="hidden sm:inline">টেবিল</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setListLayout('cards')}
-                    className={`p-1.5 rounded-lg transition cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition cursor-pointer ${
                       listLayout === 'cards'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-200 shadow-xs'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                     }`}
-                    title="কার্ড ভিউ (Card View)"
+                    title="কার্ড ভিউ"
                   >
-                    <LayoutGrid size={16} />
+                    <LayoutGrid size={14} />
+                    <span className="hidden sm:inline">কার্ড</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-2.5 border-t border-slate-100 dark:border-slate-800">
               {[
                 { key: 'all', label: 'সকল নোটিশ', count: categoryCounts.all },
                 { key: 'exam', label: 'পরীক্ষা', count: categoryCounts.exam },
                 { key: 'holiday', label: 'ছুটি', count: categoryCounts.holiday },
                 { key: 'academic', label: 'একাডেমিক', count: categoryCounts.academic },
-                { key: 'events', label: 'অনুষ্ঠান / সভা', count: categoryCounts.events },
+                { key: 'events', label: 'অনুষ্ঠান ও সভা', count: categoryCounts.events },
                 { key: 'emergency', label: 'জরুরি', count: categoryCounts.emergency },
+                { key: 'general', label: 'সাধারণ', count: categoryCounts.general },
               ].map((c) => (
                 <button
                   key={c.key}
+                  type="button"
                   onClick={() => setSelectedCategory(c.key)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer ${
                     selectedCategory === c.key
-                      ? 'bg-slate-900 text-white shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-2xs font-extrabold'
+                      : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
                   }`}
                 >
                   <span>{c.label}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                       selectedCategory === c.key
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
                     {c.count}
@@ -788,261 +866,301 @@ export default function NoticesPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
           {/* Table or Card View */}
-          {listLayout === 'table' ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden print:hidden space-y-0">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold">
-                    <FileText size={16} />
+          {filteredNotices.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-10 sm:p-12 text-center space-y-5 shadow-2xs print:hidden">
+              <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl flex items-center justify-center mx-auto">
+                <Megaphone size={26} />
+              </div>
+              <div className="space-y-1 max-w-md mx-auto">
+                <h4 className="text-base font-black text-slate-900 dark:text-white">
+                  {notices.length === 0 ? 'এখনো কোনো নোটিশ প্রকাশ করা হয়নি' : 'নির্বাচিত ফিল্টারে কোনো নোটিশ পাওয়া যায়নি'}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {notices.length === 0
+                    ? 'নতুন প্রাতিষ্ঠানিক বিজ্ঞপ্তি তৈরি করুন অথবা নিচের রেডিমেড টেমপ্লেট থেকে ১-ক্লিকে শুরু করুন।'
+                    : 'অন্য ক্যাটাগরি বা সার্চ কী দিয়ে পুনরায় চেষ্টা করুন।'}
+                </p>
+              </div>
+
+              {isAdmin && (
+                <div className="space-y-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateComposer()}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <PlusCircle size={15} /> নতুন নোটিশ লিখুন
+                  </button>
+
+                  {notices.length === 0 && (
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 max-w-2xl mx-auto space-y-2.5">
+                      <span className="text-[11px] font-extrabold text-slate-400 inline-flex items-center gap-1">
+                        <Sparkles size={12} className="text-amber-500" /> দ্রুত রেডিমেড টেমপ্লেট দিয়ে শুরু করুন
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                        {NOTICE_TEMPLATES.slice(0, 4).map((tmpl) => (
+                          <button
+                            key={tmpl.id}
+                            type="button"
+                            onClick={() => handleOpenTemplateInComposer(tmpl)}
+                            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-300 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer text-left"
+                          >
+                            {tmpl.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : listLayout === 'table' ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs overflow-hidden print:hidden">
+              <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <FileText size={15} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white">প্রকাশিত নোটিশ রেজিস্টার</h3>
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                      প্রকাশিত নোটিশ রেজিস্টার
+                    </h3>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       মোট {filteredNotices.length} টি নোটিশ প্রদর্শিত হচ্ছে
                     </span>
                   </div>
                 </div>
 
                 {selectedNoticeIds.length > 0 && (
-                  <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1.5 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 animate-in fade-in">
-                    <span className="text-xs font-black text-indigo-900 dark:text-indigo-200">
+                  <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60">
+                    <span className="text-xs font-extrabold text-indigo-900 dark:text-indigo-200">
                       {selectedNoticeIds.length} টি নির্বাচিত
                     </span>
                     <button
                       type="button"
                       onClick={handleBulkDelete}
-                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
                     >
-                      <Trash2 size={12} /> ডিলিট করুন
+                      <Trash2 size={12} /> মুছুন
                     </button>
                   </div>
                 )}
               </div>
 
-              {filteredNotices.length === 0 ? (
-                <div className="p-16 text-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto text-3xl shadow-inner">
-                    📢
-                  </div>
-                  <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">কোনো নোটিশ পাওয়া যায়নি</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                    আপনার নির্বাচিত ফিল্টার বা সার্চে কোনো নোটিশ মেলেনি। নতুন নোটিশ তৈরি করতে ওপরের বাটনে ক্লিক করুন।
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-slate-800 dark:text-slate-100 border-collapse">
-                    <thead className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800 select-none">
-                      <tr>
-                        <th className="py-3.5 px-4 w-12 text-center">
-                          {isAdmin ? (
-                            <button
-                              type="button"
-                              onClick={handleSelectAll}
-                              className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 cursor-pointer"
-                              title="সকল সিলেক্ট করুন"
-                            >
-                              {selectedNoticeIds.length === filteredNotices.length && filteredNotices.length > 0 ? (
-                                <CheckSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
-                              ) : (
-                                <Square size={16} />
-                              )}
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 font-black">#</span>
-                          )}
-                        </th>
-                        <th className="py-3.5 px-4 w-44 whitespace-nowrap">স্মারক ও তারিখ</th>
-                        <th className="py-3.5 px-6 min-w-[320px]">নোটিশের বিষয় ও সারসংক্ষেপ</th>
-                        <th className="py-3.5 px-5 w-44 whitespace-nowrap">জারিকারক</th>
-                        <th className={`py-3.5 px-6 text-right whitespace-nowrap ${isAdmin ? 'w-72' : 'w-36'}`}>
-                          {isAdmin ? 'অ্যাকশন বাটনসমূহ' : 'অ্যাকশন'}
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {filteredNotices.map((notice, idx) => {
-                        const isSelected = selectedNoticeIds.includes(notice.id);
-
-                        return (
-                          <tr
-                            key={notice.id}
-                            className={`group transition-colors duration-150 ${
-                              isSelected
-                                ? 'bg-indigo-50/50 dark:bg-indigo-950/50'
-                                : notice.isPinned
-                                  ? 'bg-amber-50/30 dark:bg-amber-950/50 hover:bg-amber-50/60 dark:hover:bg-amber-950/50'
-                                  : idx % 2 === 0
-                                    ? 'bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800'
-                                    : 'bg-slate-50/30 hover:bg-slate-50/80 dark:hover:bg-slate-800'
-                            }`}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-800 dark:text-slate-100 border-collapse">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10.5px] tracking-wider border-b border-slate-200 dark:border-slate-700 select-none">
+                    <tr>
+                      <th className="py-3.5 px-4 w-12 text-center">
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            onClick={handleSelectAll}
+                            className="text-slate-400 hover:text-indigo-600 cursor-pointer"
+                            title="সকল সিলেক্ট করুন"
                           >
-                            <td className="py-4 px-4 text-center align-middle">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {isAdmin && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleSelectRow(notice.id)}
-                                    className="text-slate-400 hover:text-indigo-600 cursor-pointer"
-                                  >
-                                    {isSelected ? (
-                                      <CheckSquare size={16} className="text-indigo-600 dark:text-indigo-400" />
-                                    ) : (
-                                      <Square size={16} />
-                                    )}
-                                  </button>
-                                )}
+                            {selectedNoticeIds.length === filteredNotices.length && filteredNotices.length > 0 ? (
+                              <CheckSquare size={15} className="text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <Square size={15} />
+                            )}
+                          </button>
+                        ) : (
+                          <span>#</span>
+                        )}
+                      </th>
+                      <th className="py-3.5 px-4 w-44 whitespace-nowrap text-slate-700 dark:text-slate-200">
+                        স্মারক ও তারিখ
+                      </th>
+                      <th className="py-3.5 px-5 min-w-[300px] text-slate-700 dark:text-slate-200">
+                        নোটিশের বিষয় ও বিবরণ
+                      </th>
+                      <th className="py-3.5 px-4 w-44 whitespace-nowrap text-slate-700 dark:text-slate-200">
+                        জারিকারক
+                      </th>
+                      <th className={`py-3.5 px-5 text-right whitespace-nowrap text-slate-700 dark:text-slate-200 ${isAdmin ? 'w-64' : 'w-28'}`}>
+                        কার্যক্রম
+                      </th>
+                    </tr>
+                  </thead>
 
-                                <span className="font-mono font-bold text-slate-400 text-xs">{idx + 1}</span>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredNotices.map((notice, idx) => {
+                      const isSelected = selectedNoticeIds.includes(notice.id);
+                      const publisherNameResolved =
+                        notice.publisherName || schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম';
 
-                                {notice.isPinned && (
-                                  <span title="পিনকৃত গুরুত্বপূর্ণ নোটিশ">
-                                    <Pin size={13} className="fill-amber-500 text-amber-500" />
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-4 align-middle whitespace-nowrap">
-                              <div className="space-y-1">
-                                <span className="font-mono font-extrabold text-[11px] text-indigo-900 dark:text-indigo-200 bg-indigo-50/80 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 px-2 py-0.5 rounded-md inline-block">
-                                  {notice.refNo || 'বউবি/নোটিশ/২০২৬'}
-                                </span>
-                                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                  <Calendar size={12} className="text-slate-400" />
-                                  <span>{formatNoticeDate(notice.publishedAt)}</span>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-6 align-middle">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {getCategoryBadge(notice.category)}
-                                  {getTargetAudienceBadge(notice.targetAudience)}
-                                  {notice.priority === 'urgent' && (
-                                    <span className="px-2 py-0.5 bg-rose-600 text-white rounded text-[10px] font-black animate-pulse">
-                                      জরুরি
-                                    </span>
-                                  )}
-                                </div>
-
-                                <h4
-                                  onClick={() => setViewingNoticeModal(notice)}
-                                  className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors leading-snug cursor-pointer"
-                                >
-                                  {notice.title}
-                                </h4>
-
-                                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed font-normal">
-                                  {notice.content}
-                                </p>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-5 align-middle whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0">
-                                  ম
-                                </div>
-                                <div className="leading-tight">
-                                  <strong className="text-xs font-black text-slate-900 dark:text-white block truncate max-w-[130px]">
-                                    {notice.publisherName || schoolSettings.principalName || 'মোহাম্মদ রফিকুল ইসলাম'}
-                                  </strong>
-                                  <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
-                                    {notice.publisherRole || 'প্রধান শিক্ষক'}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-6 align-middle text-right whitespace-nowrap">
-                              <div className="inline-flex items-center justify-end gap-1.5">
+                      return (
+                        <tr
+                          key={notice.id}
+                          className={`group transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-50/50 dark:bg-indigo-950/40'
+                              : notice.isPinned
+                                ? 'bg-amber-50/35 dark:bg-amber-950/20 hover:bg-amber-50/60 dark:hover:bg-amber-950/35'
+                                : 'bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+                          }`}
+                        >
+                          <td className="py-3.5 px-4 text-center align-middle">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {isAdmin && (
                                 <button
                                   type="button"
-                                  onClick={() => setViewingNoticeModal(notice)}
-                                  className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-600 cursor-pointer shadow-2xs active:scale-95"
-                                  title="নোটিশটি বিস্তারিত দেখুন ও পড়ুন"
+                                  onClick={() => handleToggleSelectRow(notice.id)}
+                                  className="text-slate-400 hover:text-indigo-600 cursor-pointer"
                                 >
-                                  <Eye size={14} /> বিস্তারিত পড়ুন
+                                  {isSelected ? (
+                                    <CheckSquare size={15} className="text-indigo-600 dark:text-indigo-400" />
+                                  ) : (
+                                    <Square size={15} />
+                                  )}
                                 </button>
+                              )}
+                              <span className="font-mono font-bold text-slate-400 text-[11px]">{idx + 1}</span>
+                              {notice.isPinned && (
+                                <span title="পিনকৃত">
+                                  <Pin size={12} className="fill-amber-500 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
+                          </td>
 
-                                {isAdmin && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenPrintPreview(notice)}
-                                      className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-600 cursor-pointer shadow-2xs active:scale-95"
-                                      title="অফিসিয়াল A4 প্যাডে প্রিন্ট বা PDF সংরক্ষণ"
-                                    >
-                                      <Printer size={14} /> প্রিন্ট
-                                    </button>
+                          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                            <div className="space-y-1">
+                              <span className="font-mono font-bold text-[10.5px] text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block">
+                                {notice.refNo || 'বউবি/নোটিশ/২০২৬'}
+                              </span>
+                              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <Calendar size={11} className="text-slate-400" />
+                                <span>{formatNoticeDate(notice.publishedAt)}</span>
+                              </div>
+                            </div>
+                          </td>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenCreateComposer(notice)}
-                                      className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-400 text-amber-900 dark:text-amber-200 hover:text-slate-950 dark:hover:text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1 border border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-700 cursor-pointer shadow-2xs active:scale-95"
-                                      title="নোটিশ সম্পাদনা করুন (ইন-পেইজ স্টুডিও)"
-                                    >
-                                      <Edit3 size={14} /> এডিট
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleDeleteNotice(notice.id, notice.title, e)}
-                                      className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white rounded-xl text-xs font-bold transition flex items-center border border-rose-200 dark:border-rose-800/60 hover:border-rose-600 cursor-pointer shadow-2xs active:scale-95"
-                                      title="নোটিশ মুছে ফেলুন"
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleTogglePin(notice.id, e)}
-                                      className={`p-1.5 rounded-xl text-xs font-bold transition flex items-center border cursor-pointer shadow-2xs active:scale-95 ${
-                                        notice.isPinned
-                                          ? 'bg-amber-400 text-slate-950 border-amber-500 hover:bg-amber-500'
-                                          : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'
-                                      }`}
-                                      title={notice.isPinned ? 'আনপিন করুন' : 'শীর্ষে পিন করুন'}
-                                    >
-                                      <Pin size={15} className={notice.isPinned ? 'fill-slate-950' : ''} />
-                                    </button>
-                                  </>
+                          <td className="py-3.5 px-5 align-middle">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {getCategoryBadge(notice.category)}
+                                {getTargetAudienceBadge(notice.targetAudience)}
+                                {notice.priority === 'urgent' && (
+                                  <span className="px-2 py-0.5 bg-rose-600 text-white rounded-md text-[10px] font-black">
+                                    জরুরি
+                                  </span>
                                 )}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-6 print:hidden">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredNotices.map((notice) => (
-                  <NoticeCard
-                    key={notice.id}
-                    notice={notice}
-                    isAdmin={isAdmin}
-                    onPin={handleTogglePin}
-                    onPrint={() => handleOpenPrintPreview(notice)}
-                    onView={() => setViewingNoticeModal(notice)}
-                    onEdit={() => handleOpenCreateComposer(notice)}
-                    onDelete={handleDeleteNotice}
-                  />
-                ))}
+
+                              <h4
+                                onClick={() => setViewingNoticeModal(notice)}
+                                className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug cursor-pointer"
+                              >
+                                {notice.title}
+                              </h4>
+
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-relaxed">
+                                {notice.content}
+                              </p>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                                {getPublisherInitial(publisherNameResolved)}
+                              </div>
+                              <div className="leading-tight min-w-0">
+                                <strong className="text-xs font-extrabold text-slate-900 dark:text-white block truncate max-w-[130px]">
+                                  {publisherNameResolved}
+                                </strong>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                                  {notice.publisherRole || 'প্রধান শিক্ষক'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-5 align-middle text-right whitespace-nowrap">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setViewingNoticeModal(notice)}
+                                className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                                title="বিস্তারিত পড়ুন"
+                              >
+                                <Eye size={13} /> পড়ুন
+                              </button>
+
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPrintPreview(notice)}
+                                    className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white rounded-xl text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                                    title="A4 প্যাডে প্রিন্ট / PDF"
+                                  >
+                                    <Printer size={13} /> প্রিন্ট
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenCreateComposer(notice)}
+                                    className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-950/60 text-slate-600 dark:text-slate-300 hover:text-amber-700 rounded-xl transition cursor-pointer"
+                                    title="সম্পাদনা করুন"
+                                  >
+                                    <Edit3 size={14} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleTogglePin(notice.id, e)}
+                                    className={`p-1.5 rounded-xl transition cursor-pointer ${
+                                      notice.isPinned
+                                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+                                    }`}
+                                    title={notice.isPinned ? 'আনপিন করুন' : 'শীর্ষে পিন করুন'}
+                                  >
+                                    <Pin size={14} className={notice.isPinned ? 'fill-amber-600' : ''} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteNotice(notice.id, notice.title, e)}
+                                    className="p-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white rounded-xl transition cursor-pointer"
+                                    title="মুছে ফেলুন"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
+              {filteredNotices.map((notice) => (
+                <NoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  isAdmin={isAdmin}
+                  onPin={handleTogglePin}
+                  onPrint={() => handleOpenPrintPreview(notice)}
+                  onView={() => setViewingNoticeModal(notice)}
+                  onEdit={() => handleOpenCreateComposer(notice)}
+                  onDelete={handleDeleteNotice}
+                />
+              ))}
+            </div>
           )}
-        </>
+        </div>
       )}
 
       {/* 2. IN-PAGE NOTICE COMPOSER STUDIO */}

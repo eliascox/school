@@ -3,6 +3,7 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
 import { SchoolSettings, getEnglishSchoolName, getEnglishAddress } from '@/services/settingsService';
+import { formatDobOrdinalEn } from '@/lib/padUtils';
 import {
   SSCTestimonialRecord,
   PrintLayoutConfig,
@@ -21,6 +22,12 @@ export interface SSCTestimonialSheetCardProps {
   qrCodeUrl?: string;
 }
 
+const HAS_BENGALI_RE = /[\u0980-\u09FF]/;
+const CURSIVE_FONT_STACK =
+  "'Great Vibes', 'Alex Brush', 'Edwardian Script ITC', 'Brush Script MT', 'Corsiva', 'Hind Siliguri', cursive";
+const EDITORIAL_SERIF_STACK =
+  "'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', 'Hind Siliguri', serif";
+
 export default function SSCTestimonialSheetCard({
   record,
   schoolSettings,
@@ -33,7 +40,7 @@ export default function SSCTestimonialSheetCard({
   const schoolPhone =
     layoutConfig.customPhone !== undefined && layoutConfig.customPhone !== ''
       ? layoutConfig.customPhone
-      : schoolSettings?.phone || '................';
+      : schoolSettings?.phone || '';
 
   const detectedGen = detectGender(record.gender, record.studentName);
   const isFemale = detectedGen === 'Female';
@@ -42,11 +49,57 @@ export default function SSCTestimonialSheetCard({
     layoutConfig.titleStyle === 'playfair'
       ? "'Playfair Display', Georgia, serif"
       : layoutConfig.titleStyle === 'classic'
-        ? "'Times New Roman', Times, serif"
+        ? "'Times New Roman', Georgia, serif"
         : "'Cinzel', 'Cinzel Decorative', 'Playfair Display', Georgia, serif";
 
-  const bodyFontSizePx = (15.4 * (layoutConfig.fontScale || 100)) / 100;
-  const metaFontSizePx = Math.max(11.5, (12.2 * (layoutConfig.fontScale || 100)) / 100);
+  const nameStyle = layoutConfig.nameFontStyle || 'cursive';
+  const scaleFactor = (layoutConfig.fontScale || 100) / 100;
+  // Generous, legible editorial sizing calibrated to 9.2" x 8.2" sheet
+  const bodyFontSizePx = +(18.5 * scaleFactor).toFixed(1);
+  const metaFontSizePx = Math.max(12.5, +(13.8 * scaleFactor).toFixed(1));
+  const studentNameFontPx = +(bodyFontSizePx * (nameStyle === 'cursive' ? 1.62 : 1.18)).toFixed(1);
+  const parentNameFontPx = +(bodyFontSizePx * (nameStyle === 'cursive' ? 1.36 : 1.06)).toFixed(1);
+
+  const dobDisplay = formatDobOrdinalEn(record.dob) || record.dobWords || record.dob || '';
+
+  const renderStyledName = (value: string, isPrimary = false) => {
+    const clean = (value || '................').trim();
+    const containsBn = HAS_BENGALI_RE.test(clean);
+    const useCursive = nameStyle === 'cursive' && !containsBn;
+
+    return (
+      <span
+        className={`inline-block border-b-[1.5px] border-dotted border-slate-700 text-slate-950 ${
+          isPrimary ? 'min-w-[230px] text-center px-5' : 'px-2.5'
+        }`}
+        style={{
+          fontFamily: useCursive ? CURSIVE_FONT_STACK : EDITORIAL_SERIF_STACK,
+          fontSize: useCursive
+            ? `${isPrimary ? studentNameFontPx : parentNameFontPx}px`
+            : `${Math.round(bodyFontSizePx * (isPrimary ? 1.14 : 1.04))}px`,
+          fontWeight: useCursive ? 400 : 700,
+          fontStyle: useCursive ? 'normal' : 'italic',
+          lineHeight: useCursive ? 1.02 : 1.25,
+          paddingBottom: '1px',
+          verticalAlign: 'baseline',
+          letterSpacing: useCursive ? '0.015em' : '0.01em',
+        }}
+      >
+        {clean}
+      </span>
+    );
+  };
+
+  const renderFieldValue = (value?: string, minWidth = false) => (
+    <span
+      className={`inline-block border-b-[1.5px] border-dotted border-slate-700 font-bold italic text-slate-950 px-1.5 ${
+        minWidth ? 'min-w-[68px] text-center' : ''
+      }`}
+      style={{ lineHeight: 1.2, paddingBottom: '1px' }}
+    >
+      {value && value.trim() ? value.trim() : '................'}
+    </span>
+  );
 
   return (
     <div
@@ -69,10 +122,10 @@ export default function SSCTestimonialSheetCard({
             src={schoolSettings.schoolLogo}
             alt=""
             aria-hidden="true"
-            className="w-[3.1in] h-[3.1in] object-contain opacity-[0.045] grayscale contrast-125"
+            className="w-[3.4in] h-[3.4in] object-contain opacity-[0.06] contrast-110"
           />
         ) : (
-          <GraduationCap className="w-[2.8in] h-[2.8in] text-slate-900 opacity-[0.035]" />
+          <GraduationCap className="w-[3.0in] h-[3.0in] text-slate-900 opacity-[0.04]" />
         )}
       </div>
 
@@ -91,13 +144,13 @@ export default function SSCTestimonialSheetCard({
           }}
         />
       ) : (
-        <div className="absolute inset-[0.20in] pointer-events-none select-none z-10">
+        <div className="absolute inset-[0.18in] pointer-events-none select-none z-10">
           <div className="w-full h-full border-[2.5px] border-slate-900 relative p-[4px]">
-            <div className="w-full h-full border border-amber-900/70 relative">
-              <div className="absolute -top-[3px] -left-[3px] w-3.5 h-3.5 border-t-[3px] border-l-[3px] border-amber-800" />
-              <div className="absolute -top-[3px] -right-[3px] w-3.5 h-3.5 border-t-[3px] border-r-[3px] border-amber-800" />
-              <div className="absolute -bottom-[3px] -left-[3px] w-3.5 h-3.5 border-b-[3px] border-l-[3px] border-amber-800" />
-              <div className="absolute -bottom-[3px] -right-[3px] w-3.5 h-3.5 border-b-[3px] border-r-[3px] border-amber-800" />
+            <div className="w-full h-full border border-emerald-900/70 relative">
+              <div className="absolute -top-[3px] -left-[3px] w-3.5 h-3.5 border-t-[3px] border-l-[3px] border-emerald-800" />
+              <div className="absolute -top-[3px] -right-[3px] w-3.5 h-3.5 border-t-[3px] border-r-[3px] border-emerald-800" />
+              <div className="absolute -bottom-[3px] -left-[3px] w-3.5 h-3.5 border-b-[3px] border-l-[3px] border-emerald-800" />
+              <div className="absolute -bottom-[3px] -right-[3px] w-3.5 h-3.5 border-b-[3px] border-r-[3px] border-emerald-800" />
             </div>
           </div>
         </div>
@@ -107,164 +160,138 @@ export default function SSCTestimonialSheetCard({
       <div
         className="w-full h-full flex flex-col justify-between relative z-20"
         style={{
-          paddingTop: `${layoutConfig.topMargin || 0.5}in`,
-          paddingBottom: `${layoutConfig.bottomMargin || 0.5}in`,
-          paddingLeft: `${layoutConfig.leftMargin || 0.5}in`,
-          paddingRight: `${layoutConfig.rightMargin || 0.5}in`,
+          paddingTop: `${layoutConfig.topMargin || 0.45}in`,
+          paddingBottom: `${layoutConfig.bottomMargin || 0.45}in`,
+          paddingLeft: `${layoutConfig.leftMargin || 0.55}in`,
+          paddingRight: `${layoutConfig.rightMargin || 0.55}in`,
           boxSizing: 'border-box',
         }}
       >
         <div>
           {/* Institutional Header */}
-          <div className="text-center flex flex-col items-center justify-center space-y-1">
-            <div className="flex items-center justify-center gap-3.5">
+          <div className="flex items-center justify-between gap-4 px-2 sm:px-4">
+            <div className="w-16 h-16 flex items-center justify-center shrink-0">
               {schoolSettings?.schoolLogo ? (
-                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-15 h-15 object-contain shrink-0" />
+                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-16 h-16 object-contain" />
               ) : (
-                <div className="w-13 h-13 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center bg-slate-50">
+                <div className="w-14 h-14 rounded-full border-2 border-slate-950 flex flex-col items-center justify-center bg-slate-50">
                   <GraduationCap className="w-7 h-7 text-slate-800" />
                 </div>
               )}
-              <div className="text-center">
-                <h1
-                  className="text-[26px] sm:text-[29px] font-black text-slate-950 tracking-[0.04em] uppercase leading-none mb-1"
-                  style={{ fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif" }}
-                >
-                  {schoolNameEn}
-                </h1>
-                <p className="text-[13px] font-semibold text-slate-800 tracking-wide font-serif">
-                  {schoolAddressEn}
-                </p>
-              </div>
             </div>
 
-            <p className="text-[12px] font-bold text-slate-800 font-mono tracking-wider pt-0.5">
-              EIIN: {record.eiin}, Established: {schoolSettings?.estdYear || '1969'}
-            </p>
-            <p className="text-[12px] font-black text-slate-950 font-mono tracking-wider">
-              Mobile: {schoolPhone}
-            </p>
+            <div className="flex-1 text-center space-y-0.5">
+              <h1
+                className="text-[28px] sm:text-[31px] font-black text-slate-950 tracking-[0.04em] uppercase leading-tight"
+                style={{ fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif" }}
+              >
+                {schoolNameEn}
+              </h1>
+              {schoolAddressEn && (
+                <p className="text-[14px] font-semibold text-slate-800 tracking-wide font-serif">
+                  {schoolAddressEn}
+                </p>
+              )}
+              <p className="text-[12.5px] font-bold text-slate-800 font-mono tracking-wider">
+                EIIN: {record.eiin} &nbsp;|&nbsp; ESTD: {schoolSettings?.estdYear || '1969'}
+                {schoolPhone ? ` | Mobile: ${schoolPhone}` : ''}
+              </p>
+            </div>
+
+            <div className="w-16 shrink-0" aria-hidden="true" />
           </div>
 
-          {/* Ref No & Date Bar */}
+          {/* Testimonial Badge Title */}
+          <div className="text-center mt-2 mb-2.5">
+            <div className="inline-block border-[1.8px] border-emerald-900 px-6 py-0.5 shadow-2xs">
+              <h2
+                className="text-[21px] sm:text-[23px] font-black text-emerald-950 uppercase tracking-[0.26em] select-none"
+                style={{
+                  fontFamily: titleFontFamily,
+                  fontWeight: 900,
+                  letterSpacing: '0.26em',
+                  lineHeight: 1.2,
+                }}
+              >
+                TESTIMONIAL
+              </h2>
+            </div>
+          </div>
+
+          {/* SL No / Ref No & Date Bar */}
           <div
-            className="flex justify-between items-center font-bold text-slate-800 px-3 sm:px-6 mt-3 mb-2"
+            className="flex justify-between items-center font-bold text-slate-900 px-2 sm:px-4 mb-2"
             style={{ fontSize: `${metaFontSizePx}px` }}
           >
             <div>
-              <span className="font-serif italic font-semibold text-slate-700">Ref. No: </span>
+              <span className="font-sans font-extrabold text-slate-950">SL_NO.: </span>
               <span className="font-mono font-black text-slate-950 tracking-tight">{record.refNo}</span>
             </div>
             <div>
-              <span className="font-serif italic font-semibold text-slate-700">Date: </span>
+              <span className="font-sans font-extrabold text-slate-950">Date: </span>
               <span className="font-mono font-black text-slate-950">{record.issueDate}</span>
             </div>
           </div>
 
-          {/* Testimonial Title */}
-          <div className="text-center my-2.5 sm:my-3">
-            <div className="inline-flex flex-col items-center justify-center">
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-amber-800 text-base font-serif select-none">❖</span>
-                <h2
-                  className="text-[26px] sm:text-[29px] font-black text-slate-950 uppercase tracking-[0.24em] select-none"
-                  style={{
-                    fontFamily: titleFontFamily,
-                    fontWeight: 900,
-                    letterSpacing: '0.24em',
-                    lineHeight: 1.1,
-                  }}
-                >
-                  TESTIMONIAL
-                </h2>
-                <span className="text-amber-800 text-base font-serif select-none">❖</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-1.5 w-full mt-1.5">
-                <div className="h-[2px] w-14 bg-slate-950 rounded-full" />
-                <div className="h-[1px] w-24 bg-slate-600" />
-                <div className="w-2 h-2 rotate-45 bg-amber-800 shrink-0" />
-                <div className="h-[1px] w-24 bg-slate-600" />
-                <div className="h-[2px] w-14 bg-slate-950 rounded-full" />
-              </div>
-            </div>
-
-            <div className="mt-1.5">
-              <span className="text-[11px] sm:text-[12px] font-extrabold text-slate-800 tracking-[0.18em] uppercase font-serif">
-                SECONDARY SCHOOL CERTIFICATE EXAMINATION — {record.passingYear}
-              </span>
-            </div>
-          </div>
-
-          {/* Official Testimonial Text */}
+          {/* Official Testimonial Prose (Editorial Italic Serif + Calligraphic Cursive Names) */}
           <div
-            className="font-serif text-slate-950 text-justify px-3 sm:px-6 space-y-3.5 print-quality-boost mt-3"
+            className="text-slate-950 text-justify px-2 sm:px-4 print-quality-boost mt-1"
             style={{
               fontSize: `${bodyFontSizePx}px`,
               lineHeight:
                 layoutConfig.lineHeight === 'tight'
-                  ? 1.65
+                  ? 1.75
                   : layoutConfig.lineHeight === 'relaxed'
-                    ? 2.15
-                    : 1.9,
-              wordSpacing: '0.03em',
-              fontFamily: "'Times New Roman', 'Playfair Display', Georgia, serif",
+                    ? 2.25
+                    : 1.98,
+              wordSpacing: '0.02em',
+              fontFamily: EDITORIAL_SERIF_STACK,
+              fontStyle: 'italic',
             }}
           >
-            <p>
+            <p className="mb-1.5">
               This is to certify that{' '}
-              <strong className="font-serif font-black text-slate-950 tracking-wide uppercase border-b border-dotted border-slate-900 pb-[1px] px-0.5">
-                {record.studentName}
-              </strong>
-              , {isFemale ? 'daughter' : 'son'} of Mr.{' '}
-              <strong className="font-serif font-bold text-slate-950">{cleanFatherName(record.fatherName)}</strong>{' '}
-              and Mrs.{' '}
-              <strong className="font-serif font-bold text-slate-950">{cleanMotherName(record.motherName)}</strong>,
-              Village: <strong className="font-serif font-bold text-slate-950">{record.village || '................'}</strong>,
-              Post Office:{' '}
-              <strong className="font-serif font-bold text-slate-950">{record.postOffice || '................'}</strong>,
-              Upazilla:{' '}
-              <strong className="font-serif font-bold text-slate-950">
-                {record.upazilla || record.upazila || '................'}
-              </strong>
-              , District:{' '}
-              <strong className="font-serif font-bold text-slate-950">{record.district || '................'}</strong>, was a
-              student of this school bearing Roll No.{' '}
-              <strong className="font-mono font-bold text-slate-950">{record.boardRoll}</strong>, Registration No.{' '}
-              <strong className="font-mono font-bold text-slate-950">{record.boardReg}</strong>, Session{' '}
-              <strong className="font-mono font-bold text-slate-950">{record.session}</strong>, Group{' '}
-              <strong className="font-serif font-bold uppercase text-slate-950">{record.group}</strong>.
+              {renderStyledName(record.studentName, true)}, {isFemale ? 'daughter' : 'son'} of Mr.{' '}
+              {renderStyledName(cleanFatherName(record.fatherName))} &amp; Mrs.{' '}
+              {renderStyledName(cleanMotherName(record.motherName))}, of Village:{' '}
+              {renderFieldValue(record.village)}, Post Office:{' '}
+              {renderFieldValue(record.postOffice)}, Upazila:{' '}
+              {renderFieldValue(record.upazilla || record.upazila)}, District:{' '}
+              {renderFieldValue(record.district)}, appeared at the SSC Examination under the{' '}
+              {record.boardName || 'Board of Intermediate and Secondary Education, Chattogram'}, from this
+              school in {renderFieldValue(record.passingYear)} and secured G.P.A.{' '}
+              {renderFieldValue(record.gpa, true)} out of 5.00 in {renderFieldValue(record.group)} group.{' '}
+              {isFemale ? 'Her' : 'His'} Roll No. was {renderFieldValue(record.boardRoll)}, and{' '}
+              {isFemale ? 'her' : 'his'} Registration No. was {renderFieldValue(record.boardReg)}, Session:{' '}
+              {renderFieldValue(record.session)}
+              {dobDisplay ? (
+                <>
+                  , Date of Birth: {renderFieldValue(dobDisplay)}
+                </>
+              ) : null}
+              . During {isFemale ? 'her' : 'his'} school life, {isFemale ? 'she' : 'he'} was not involved in any
+              subversive activity against the state or the discipline of the school. {isFemale ? 'She' : 'He'}{' '}
+              exhibits excellent moral character.
             </p>
 
-            <p>
-              {isFemale ? 'She' : 'He'} has duly passed the S.S.C. Examination held in the year{' '}
-              <strong className="font-mono font-bold text-slate-950">{record.passingYear}</strong> and secured a GPA of{' '}
-              <strong className="font-mono font-black text-slate-950">{record.gpa}</strong> out of 5.00, under the{' '}
-              {record.boardName || 'Board of Intermediate and Secondary Education, Chattogram'}.
+            <p className="font-bold italic text-slate-950 mt-2.5 not-italic" style={{ fontStyle: 'italic' }}>
+              I wish {isFemale ? 'her' : 'him'} a bright future in life.
             </p>
-
-            <p>
-              During {isFemale ? 'her' : 'his'} stay in this institution, {isFemale ? 'her' : 'his'} moral character
-              and conduct were good. There is no information of {isFemale ? 'her' : 'his'} being involved in any
-              activity subversive to the interest of the state or against school discipline.
-            </p>
-
-            <p>We wish {isFemale ? 'her' : 'him'} success in life.</p>
           </div>
         </div>
 
         {/* Footer Signature & QR Verification */}
         <div
-          className="pt-2 flex items-end justify-between text-xs font-bold text-slate-950 px-3 sm:px-6"
-          style={{ marginTop: `${layoutConfig.signatureGap || 18}px` }}
+          className="pt-1 flex items-end justify-between text-xs font-bold text-slate-950 px-2 sm:px-4"
+          style={{ marginTop: `${layoutConfig.signatureGap || 14}px` }}
         >
           {qrCodeUrl ? (
             <div className="flex flex-col items-center text-center">
               <div className="p-1 bg-white border border-slate-300 rounded shadow-2xs">
                 <img src={qrCodeUrl} alt="Scan to Verify Testimonial" className="w-16 h-16 object-contain" />
               </div>
-              <span className="text-[8.5px] font-mono font-black text-slate-800 mt-1 tracking-widest uppercase">
-                QR VERIFIED
+              <span className="text-[9.5px] font-sans font-semibold text-slate-700 mt-0.5">
+                Scan to verify online
               </span>
             </div>
           ) : (
@@ -272,15 +299,15 @@ export default function SSCTestimonialSheetCard({
           )}
 
           <div className="text-center">
-            <div className="w-60 border-t-[1.5px] border-slate-950 pt-1.5">
-              <p className="font-black text-slate-950 text-[13px] uppercase font-serif tracking-wide">
-                {getEnglishPrincipalName(schoolSettings?.principalName)}
-              </p>
-              <p className="text-[11.5px] font-bold text-slate-800 font-serif">
+            <div className="w-60 border-t-[1.8px] border-slate-950 pt-1">
+              <p className="font-black text-slate-950 text-[14px] tracking-wide font-sans">
                 {getEnglishPrincipalTitle(schoolSettings?.principalTitle)}
               </p>
-              <p className="text-[10.5px] font-bold text-slate-700 font-serif tracking-wide">{schoolNameEn}</p>
-              <p className="text-[9.5px] text-slate-600 font-serif">{schoolAddressEn}</p>
+              <p className="text-[11.5px] font-bold text-slate-800 uppercase font-sans tracking-wide">
+                {getEnglishPrincipalName(schoolSettings?.principalName)}
+              </p>
+              <p className="text-[11.5px] font-bold text-slate-800 font-sans tracking-wide">{schoolNameEn}</p>
+              {schoolAddressEn && <p className="text-[10.5px] text-slate-600 font-sans">{schoolAddressEn}</p>}
             </div>
           </div>
         </div>

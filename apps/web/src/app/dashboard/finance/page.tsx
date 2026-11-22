@@ -271,12 +271,11 @@ function FinanceContent() {
 
   return (
     <>
+      {!isPrintModalOpen && (
+        <style>{`@media print { @page { size: A4 portrait; margin: 12mm; } }`}</style>
+      )}
       <style jsx global>{`
         @media print {
-          @page {
-            size: A4 portrait;
-            margin: 0.5in;
-          }
           body {
             background: #ffffff !important;
             color: #000000 !important;

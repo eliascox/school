@@ -1,8 +1,96 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SchoolSettings, DEFAULT_PAD_MARGINS } from '@/services/settingsService';
+import {
+  SchoolSettings,
+  DEFAULT_PAD_MARGINS,
+  DEFAULT_PAD_HEADER_FIELDS,
+  PadHeaderFieldsConfig,
+} from '@/services/settingsService';
+import { cleanRefNoForPad, parsePadDateBoxes } from '@/lib/padUtils';
 import { Printer, FileText, Sliders, Upload, AlertCircle } from 'lucide-react';
+
+export function PadHeaderFieldsOverlay({
+  refNo,
+  date,
+  lang = 'bn',
+  config = DEFAULT_PAD_HEADER_FIELDS,
+}: {
+  refNo?: string;
+  date?: string;
+  lang?: 'bn' | 'en';
+  config?: PadHeaderFieldsConfig;
+}) {
+  const cleanRef = cleanRefNoForPad(refNo);
+  const { day, month, year } = parsePadDateBoxes(date, lang);
+
+  const toLeftPct = (mm: number) => `${((mm / 210) * 100).toFixed(4)}%`;
+  const toTopPct = (mm: number) => `${((mm / 297) * 100).toFixed(4)}%`;
+  const toWidthPct = (mm: number) => `${((mm / 210) * 100).toFixed(4)}%`;
+  const toHeightPct = (mm: number) => `${((mm / 297) * 100).toFixed(4)}%`;
+
+  const dayLeftMm = config.dateLeftMm;
+  const monthLeftMm = dayLeftMm + config.dayWidthMm + config.boxGapMm;
+  const yearLeftMm = monthLeftMm + config.monthWidthMm + config.boxGapMm;
+  const fontSize = `${config.fontSizePx || 12.5}px`;
+
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none select-none"
+      style={{ zIndex: 18 }}
+      aria-hidden="true"
+    >
+      {cleanRef && (
+        <div
+          style={{
+            position: 'absolute',
+            top: toTopPct(config.refTopMm),
+            left: toLeftPct(config.refLeftMm),
+            height: toHeightPct(config.boxHeightMm),
+            display: 'flex',
+            alignItems: 'center',
+            fontSize,
+            fontWeight: 700,
+            color: '#0f172a',
+            fontFamily: "'Plus Jakarta Sans', 'Hind Siliguri', monospace",
+            letterSpacing: '0.015em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {cleanRef}
+        </div>
+      )}
+
+      {[
+        { leftMm: dayLeftMm, widthMm: config.dayWidthMm, value: day },
+        { leftMm: monthLeftMm, widthMm: config.monthWidthMm, value: month },
+        { leftMm: yearLeftMm, widthMm: config.yearWidthMm, value: year },
+      ].map((cell, idx) => (
+        <div
+          key={idx}
+          style={{
+            position: 'absolute',
+            top: toTopPct(config.dateTopMm),
+            left: toLeftPct(cell.leftMm),
+            width: toWidthPct(cell.widthMm),
+            height: toHeightPct(config.boxHeightMm),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize,
+            fontWeight: 800,
+            color: '#0f172a',
+            fontFamily: "'Hind Siliguri', 'Plus Jakarta Sans', monospace",
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {cell.value}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export interface SignatureItem {
   title: string;
@@ -20,6 +108,7 @@ export interface SchoolPadWrapperProps {
   refNo?: string;
   date?: string;
   dateLabel?: string;
+  dateLang?: 'bn' | 'en';
   institutionName?: string;
   institutionAddress?: string;
   mode?: 'full_pad' | 'preprinted' | 'blank_pad';
@@ -40,6 +129,7 @@ export default function SchoolPadWrapper({
   refNo,
   date,
   dateLabel,
+  dateLang = 'bn',
   mode = 'full_pad',
   settings,
   signatures,
@@ -81,6 +171,21 @@ export default function SchoolPadWrapper({
   };
 
   const isUploadedPadActive = Boolean(padUrl && !imgLoadError && mode !== 'preprinted');
+  const hasPadPaper = isUploadedPadActive || mode === 'preprinted';
+  const headerFields = {
+    ...DEFAULT_PAD_HEADER_FIELDS,
+    ...(settings?.padHeaderFields || {}),
+  };
+  const useHeaderBoxesOverlay =
+    mode !== 'blank_pad' &&
+    hasPadPaper &&
+    headerFields.placement === 'pad_header_boxes' &&
+    Boolean(title || refNo || date);
+  const showInlineRefDate =
+    mode !== 'blank_pad' &&
+    !useHeaderBoxesOverlay &&
+    headerFields.placement !== 'hide_ref_date' &&
+    Boolean(title || refNo);
 
   return (
     <div className={`school-pad-container ${className}`}>
@@ -194,6 +299,16 @@ export default function SchoolPadWrapper({
           </div>
         )}
 
+        {/* ─── 2b. HEADER BOXES OVERLAY (সূত্র: & তারিখ: [][][]) ───────── */}
+        {useHeaderBoxesOverlay && (
+          <PadHeaderFieldsOverlay
+            refNo={formattedRef}
+            date={date || formattedDate}
+            lang={dateLang}
+            config={headerFields}
+          />
+        )}
+
         {/* ─── 3. MAIN DOCUMENT CONTENT CONTAINER ─────────────────────── */}
         <div
           className="relative z-10 flex flex-col justify-start"
@@ -206,8 +321,8 @@ export default function SchoolPadWrapper({
             paddingBottom: `${padMargins.bottom}in`,
           }}
         >
-          {/* Smarok / Ref & Date line */}
-          {mode !== 'blank_pad' && (title || refNo) && (
+          {/* Smarok / Ref & Date line (shown inline only when not placed inside pad header boxes) */}
+          {showInlineRefDate && (
             <div className="flex justify-between items-end text-xs font-bold text-slate-900 mb-4 pb-1 border-b border-dotted border-slate-400">
               <div>
                 <span className="font-bold text-slate-800">স্মারক নং: </span>

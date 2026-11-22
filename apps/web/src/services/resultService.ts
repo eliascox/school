@@ -226,7 +226,7 @@ export const resultService = {
     const configuredSubjects =
       customSubjects && customSubjects.length > 0
         ? customSubjects
-        : getActiveCurriculumSubjects(grade, effectiveGroup, student.optionalSubject);
+        : getActiveCurriculumSubjects(grade, effectiveGroup, student.optionalSubject, studentRel);
     if (!configuredSubjects || configuredSubjects.length === 0) {
       return null;
     }
@@ -261,13 +261,15 @@ export const resultService = {
       effectiveOptName = '';
     }
 
-    const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা'];
+    const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা', 'agriculture', 'home science', 'higher math'];
     const OPTIONAL_CODE_PREFIXES = ['AGR', 'HMS', 'HMT', 'CMP'];
+    const OPTIONAL_NCTB_CODES = ['126', '134', '151'];
 
     const isDefaultOptionalSlot = (s: DynamicClassSubject) =>
       s.category === '৪র্থ বিষয়' ||
-      OPTIONAL_KEYWORDS.some((kw) => (s.name || '').includes(kw)) ||
-      OPTIONAL_CODE_PREFIXES.some((pfx) => (s.code || '').startsWith(pfx));
+      OPTIONAL_KEYWORDS.some((kw) => (s.name || '').toLowerCase().includes(kw)) ||
+      OPTIONAL_CODE_PREFIXES.some((pfx) => (s.code || '').startsWith(pfx)) ||
+      OPTIONAL_NCTB_CODES.includes(String(s.code || '').trim());
 
     // Match student's designated optional subject cleanly
     const isSubjectMatchingOpt = (s: DynamicClassSubject) => {
@@ -280,10 +282,10 @@ export const resultService = {
         sName.includes(cleanOpt) ||
         cleanOpt.includes(sName) ||
         sCode === cleanOpt ||
-        (cleanOpt === 'উচ্চতর গণিত' && sCode.startsWith('HMT')) ||
-        (cleanOpt === 'কৃষি শিক্ষা' && sCode.startsWith('AGR')) ||
-        (cleanOpt === 'জীববিজ্ঞান' && sCode.startsWith('BIO')) ||
-        (cleanOpt === 'গার্হস্থ্য বিজ্ঞান' && sCode.startsWith('HMS'))
+        (cleanOpt === 'উচ্চতর গণিত' && (sCode === '126' || sCode.startsWith('HMT'))) ||
+        (cleanOpt === 'কৃষি শিক্ষা' && (sCode === '134' || sCode.startsWith('AGR'))) ||
+        (cleanOpt === 'জীববিজ্ঞান' && (sCode === '138' || sCode.startsWith('BIO'))) ||
+        (cleanOpt === 'গার্হস্থ্য বিজ্ঞান' && (sCode === '151' || sCode.startsWith('HMS')))
       );
     };
 
@@ -443,14 +445,33 @@ export const resultService = {
         const fullMarks = sub.fullMarks || 100;
         const evalRes = evaluateSubjectGradeAndPass(mark, sub, passMode);
 
+        const outCode = isRel
+          ? studentRel === 'Hindu'
+            ? '112'
+            : studentRel === 'Buddhist'
+              ? '113'
+              : studentRel === 'Christian'
+                ? '114'
+                : '111'
+          : sub.code;
+        const outName = isRel
+          ? studentRel === 'Hindu'
+            ? 'হিন্দুধর্ম ও নৈতিক শিক্ষা'
+            : studentRel === 'Buddhist'
+              ? 'বৌদ্ধধর্ম ও নৈতিক শিক্ষা'
+              : studentRel === 'Christian'
+                ? 'খ্রিষ্টধর্ম ও নৈতিক শিক্ষা'
+                : 'ইসলাম ও নৈতিক শিক্ষা'
+          : sub.name;
+
         if (!evalRes.isPassed) {
           failedCount++;
-          failedSubjects.push(sub.name);
+          failedSubjects.push(outName);
         }
 
-        subjectMarks[sub.code] = {
-          subjectCode: sub.code,
-          subjectName: sub.name,
+        subjectMarks[outCode] = {
+          subjectCode: outCode,
+          subjectName: outName,
           fullMarks,
           cq: mark.cq,
           mcq: mark.mcq,

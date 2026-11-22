@@ -12,10 +12,16 @@ import {
   Upload,
 } from 'lucide-react';
 import SchoolPadWrapper from '@/components/SchoolPadWrapper';
-import { DEFAULT_PAD_MARGINS, SchoolSettings } from '@/services/settingsService';
+import {
+  DEFAULT_PAD_HEADER_FIELDS,
+  DEFAULT_PAD_MARGINS,
+  PadHeaderFieldsConfig,
+  SchoolSettings,
+} from '@/services/settingsService';
 import { processPadUpload } from '@/lib/padPdfRenderer';
 import { showToast } from '@/components/ui/ToastProvider';
 import { SettingsCard } from './settingsShared';
+import PadHeaderCalibrationCard from './PadHeaderCalibrationCard';
 
 interface PadSettingsTabProps {
   formData: SchoolSettings;
@@ -177,9 +183,9 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                       type="number"
                       min="0.2"
                       max="4.0"
-                      step="0.1"
-                      value={formData.padMargins?.top ?? 0.5}
-                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), top: parseFloat(e.target.value) || 0.5 })}
+                      step="0.05"
+                      value={formData.padMargins?.top ?? DEFAULT_PAD_MARGINS.top}
+                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), top: parseFloat(e.target.value) || DEFAULT_PAD_MARGINS.top })}
                       className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                     />
                     <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
@@ -189,12 +195,12 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                   type="range"
                   min="0.2"
                   max="4.0"
-                  step="0.1"
-                  value={formData.padMargins?.top ?? 0.5}
+                  step="0.05"
+                  value={formData.padMargins?.top ?? DEFAULT_PAD_MARGINS.top}
                   onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), top: parseFloat(e.target.value) })}
                   className="w-full accent-indigo-600 cursor-pointer"
                 />
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">প্যাডের মনোগ্রাম বা হেডারের নিচে যেখানে লেখা শুরু হবে (ডিফল্ট ০.৫ ইঞ্চি)।</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">প্যাডের হেডার ও সূত্র লাইনের নিচে যেখানে লেখা শুরু হবে (ডিফল্ট ২.৪ ইঞ্চি)।</p>
               </div>
 
               {/* Left Margin */}
@@ -206,9 +212,9 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                       type="number"
                       min="0.2"
                       max="2.5"
-                      step="0.1"
-                      value={formData.padMargins?.left ?? 0.5}
-                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), left: parseFloat(e.target.value) || 0.5 })}
+                      step="0.05"
+                      value={formData.padMargins?.left ?? DEFAULT_PAD_MARGINS.left}
+                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), left: parseFloat(e.target.value) || DEFAULT_PAD_MARGINS.left })}
                       className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                     />
                     <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
@@ -218,12 +224,12 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                   type="range"
                   min="0.2"
                   max="2.5"
-                  step="0.1"
-                  value={formData.padMargins?.left ?? 0.5}
+                  step="0.05"
+                  value={formData.padMargins?.left ?? DEFAULT_PAD_MARGINS.left}
                   onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), left: parseFloat(e.target.value) })}
                   className="w-full accent-indigo-600 cursor-pointer"
                 />
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">বামে মার্জিন (ডিফল্ট ০.৫ ইঞ্চি)।</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">বামে মার্জিন (ডিফল্ট ০.৭৫ ইঞ্চি)।</p>
               </div>
 
               {/* Right Margin */}
@@ -235,9 +241,9 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                       type="number"
                       min="0.2"
                       max="2.0"
-                      step="0.1"
-                      value={formData.padMargins?.right ?? 0.5}
-                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), right: parseFloat(e.target.value) || 0.5 })}
+                      step="0.05"
+                      value={formData.padMargins?.right ?? DEFAULT_PAD_MARGINS.right}
+                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), right: parseFloat(e.target.value) || DEFAULT_PAD_MARGINS.right })}
                       className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                     />
                     <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
@@ -247,8 +253,8 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                   type="range"
                   min="0.2"
                   max="2.0"
-                  step="0.1"
-                  value={formData.padMargins?.right ?? 0.5}
+                  step="0.05"
+                  value={formData.padMargins?.right ?? DEFAULT_PAD_MARGINS.right}
                   onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), right: parseFloat(e.target.value) })}
                   className="w-full accent-indigo-600 cursor-pointer"
                 />
@@ -263,9 +269,9 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                       type="number"
                       min="0.2"
                       max="2.0"
-                      step="0.1"
-                      value={formData.padMargins?.bottom ?? 0.5}
-                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), bottom: parseFloat(e.target.value) || 0.5 })}
+                      step="0.05"
+                      value={formData.padMargins?.bottom ?? DEFAULT_PAD_MARGINS.bottom}
+                      onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), bottom: parseFloat(e.target.value) || DEFAULT_PAD_MARGINS.bottom })}
                       className="w-14 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-black text-indigo-700 dark:text-indigo-300 text-right text-xs"
                     />
                     <span className="text-slate-600 dark:text-slate-400 font-mono text-xs">&quot;</span>
@@ -275,32 +281,47 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
                   type="range"
                   min="0.2"
                   max="2.0"
-                  step="0.1"
-                  value={formData.padMargins?.bottom ?? 0.5}
+                  step="0.05"
+                  value={formData.padMargins?.bottom ?? DEFAULT_PAD_MARGINS.bottom}
                   onChange={(e) => handleChange('padMargins', { ...(formData.padMargins || DEFAULT_PAD_MARGINS), bottom: parseFloat(e.target.value) })}
                   className="w-full accent-indigo-600 cursor-pointer"
                 />
               </div>
 
               {/* Presets */}
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
                 <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">কুইক মার্জিন প্রিসেট:</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => handleChange('padMargins', { top: 3.0, left: 0.8, right: 0.8, bottom: 1.0 })}
+                    onClick={() => {
+                      handleChange('padMargins', { ...DEFAULT_PAD_MARGINS });
+                      handleChange('padHeaderFields', { ...DEFAULT_PAD_HEADER_FIELDS });
+                    }}
                     className="px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                   >
-                    ★ প্রাতিষ্ঠানিক প্যাড (Top: ৩.০&quot;, Left/Right: ০.৮&quot;)
+                    ★ প্রাতিষ্ঠানিক প্যাড (Top: ২.৪&quot;, সূত্র ও তারিখ বক্সসহ)
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleChange('padMargins', { top: 2.0, left: 0.8, right: 0.8, bottom: 1.0 })}
+                    onClick={() => handleChange('padMargins', { top: 3.0, left: 0.8, right: 0.8, bottom: 1.0 })}
                     className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-bold transition text-left cursor-pointer"
                   >
-                    ★ ছোট হেডার প্যাড (Top: ২.০&quot;)
+                    ★ বড় হেডার প্যাড (Top: ৩.০&quot;)
                   </button>
                 </div>
+
+                <PadHeaderCalibrationCard
+                  headerFields={formData.padHeaderFields}
+                  margins={formData.padMargins}
+                  onChangeHeaderFields={(nextFields: PadHeaderFieldsConfig) =>
+                    handleChange('padHeaderFields', nextFields)
+                  }
+                  onApplyPreset={(presetMargins, presetFields) => {
+                    handleChange('padMargins', presetMargins);
+                    if (presetFields) handleChange('padHeaderFields', presetFields);
+                  }}
+                />
               </div>
             </div>
           </SettingsCard>
@@ -380,7 +401,8 @@ export function PadSettingsTab({ formData, handleChange }: PadSettingsTabProps) 
               settings={formData}
               mode={padPreviewMode}
               title="প্রাতিষ্ঠানিক নোটিশ / প্রত্যয়ন নমুনা"
-              refNo="স্মারক নং: ব.উ.বি/২০২৬/০০১"
+              refNo="BHS/SSC-TEST/2026/364"
+              date={new Date().toISOString().split('T')[0]}
               hideHeaderActions={true}
               signatures={[
                 {

@@ -151,7 +151,8 @@ export default function CertificateStudioWorkspace({
     showQrCode: editingCert?.showQrCode !== false,
     showSecondarySigner: Boolean(editingCert?.showSecondarySigner),
     secondarySignerTitle: editingCert?.secondarySignerTitle || 'শ্রেণি শিক্ষক / সহকারী প্রধান শিক্ষক',
-    fontSize: editingCert?.fontSize || 15,
+    fontSize: editingCert?.fontSize || (initialType === 'ssc_testimonial' ? 17.5 : 15.5),
+    cursiveNames: editingCert?.cursiveNames !== undefined ? editingCert.cursiveNames : true,
   });
 
   // Live Canvas Interactions
@@ -335,6 +336,8 @@ export default function CertificateStudioWorkspace({
         orientation: meta.defaultOrientation,
         borderPreset: meta.defaultLayout === 'pad' ? prev.borderPreset : 'royal_crest',
         showOfficeStub: nextType === 'ssc_testimonial' ? true : prev.showOfficeStub,
+        fontSize: nextType === 'ssc_testimonial' ? 17.5 : prev.fontSize,
+        cursiveNames: true,
       }));
     }
     setDraft((prev) => ({
@@ -472,6 +475,7 @@ export default function CertificateStudioWorkspace({
       showCornerBands: design.showCornerBands,
       fontSize: design.fontSize,
       showQrCode: design.showQrCode,
+      cursiveNames: design.cursiveNames,
       showSecondarySigner: design.showSecondarySigner,
       secondarySignerTitle: design.secondarySignerTitle,
       createdDate: issueDate,

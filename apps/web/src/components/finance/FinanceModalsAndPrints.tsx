@@ -366,7 +366,7 @@ export function FinanceModalsAndPrints({
 
       {printReceiptData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:static print:p-0 print:bg-white">
-          <style jsx global>{`
+          <style>{`
             @media print {
               ${
                 receiptMode === 'pos80'

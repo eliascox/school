@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { DynamicClassSubject } from '@/lib/curriculumUtils';
+import { isReligionSubject } from '@/lib/religionUtils';
 import {
   buildFailList,
   RankedStudentResult,
@@ -27,6 +28,7 @@ import {
 } from './resultStudioShared';
 
 function resolveMark(res: RankedStudentResult, sub: DynamicClassSubject) {
+  const isRelCol = isReligionSubject(`${sub.code} ${sub.name}`);
   return (
     res.subjectMarks[sub.code] ||
     (res.optionalSubjectMark &&
@@ -35,7 +37,10 @@ function resolveMark(res: RankedStudentResult, sub: DynamicClassSubject) {
       ? res.optionalSubjectMark
       : undefined) ||
     Object.values(res.subjectMarks).find(
-      (m) => m.subjectCode === sub.code || m.subjectName === sub.name,
+      (m) =>
+        m.subjectCode === sub.code ||
+        m.subjectName === sub.name ||
+        (isRelCol && isReligionSubject(`${m.subjectCode} ${m.subjectName}`)),
     )
   );
 }

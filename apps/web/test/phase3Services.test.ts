@@ -28,7 +28,6 @@ Object.defineProperty(globalThis, 'window', {
 import { paymentGatewayService } from '../src/services/paymentGatewayService';
 import { homeworkService } from '../src/services/homeworkService';
 import { libraryService } from '../src/services/libraryService';
-import { campusFacilityService } from '../src/services/campusFacilityService';
 import { alumniService } from '../src/services/alumniService';
 import { financeService } from '../src/services/financeService';
 import {
@@ -157,65 +156,6 @@ describe('Phase 3 Core Modules & Exports Suite', () => {
     expect(retRes.fineAmount).toBe(40); // 4 days overdue * 10
     expect(libraryService.getBooks()[0].availableCopies).toBe(2);
     expect(financeService.getVouchers().some((v) => v.sourceModule === 'library' && v.totalAmount === 40)).toBe(true);
-  });
-
-  it('campusFacilityService enforces transport bus & hostel room capacity limits', () => {
-    const bus = campusFacilityService.saveTransportRoute({
-      routeCode: 'R-01',
-      routeName: 'উত্তর রুট',
-      vehicleNo: 'চট্ট-মেট্রো-১',
-      driverName: 'করিম',
-      driverPhone: '01811111111',
-      stops: ['বাসস্ট্যান্ড'],
-      monthlyFee: 800,
-      capacity: 1,
-    });
-    const r1 = campusFacilityService.assignStudentToRoute({
-      studentId: 'S1',
-      studentName: 'শিক্ষার্থী ১',
-      roll: '01',
-      grade: '6th',
-      routeId: bus.id,
-      stopName: 'বাসস্ট্যান্ড',
-    });
-    expect(r1.success).toBe(true);
-    const r2 = campusFacilityService.assignStudentToRoute({
-      studentId: 'S2',
-      studentName: 'শিক্ষার্থী ২',
-      roll: '02',
-      grade: '6th',
-      routeId: bus.id,
-      stopName: 'বাসস্ট্যান্ড',
-    });
-    expect(r2.success).toBe(false);
-
-    const room = campusFacilityService.saveHostelRoom({
-      building: 'ছাত্রাবাস ভবন',
-      roomNo: '১০০',
-      floor: '১ম',
-      capacity: 1,
-      monthlyFee: 2500,
-    });
-    expect(
-      campusFacilityService.allocateHostelBed({
-        studentId: 'S1',
-        studentName: 'শিক্ষার্থী ১',
-        roll: '01',
-        grade: '8th',
-        roomId: room.id,
-        bedNo: 'B1',
-      }).success
-    ).toBe(true);
-    expect(
-      campusFacilityService.allocateHostelBed({
-        studentId: 'S2',
-        studentName: 'শিক্ষার্থী ২',
-        roll: '02',
-        grade: '8th',
-        roomId: room.id,
-        bedNo: 'B2',
-      }).success
-    ).toBe(false);
   });
 
   it('alumniService archives graduates without duplication and boardExcelExport builds valid workbooks', () => {

@@ -1,116 +1,39 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-  Search, 
-  Filter, 
-  User, 
-  Phone, 
-  Eye, 
-  Printer, 
-  Pencil, 
-  Trash2,
-  Plus,
-  X,
-  Building2,
-  Users,
-  TrendingUp,
-  UserCheck,
-  GraduationCap,
-  Download,
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import {
   CheckCircle2,
-  FileText,
-  ArrowLeft,
-  Sparkles,
-  Save,
-  QrCode as QrIcon,
-  Award,
-  Heart,
-  Calendar,
-  Lock,
-  FileSpreadsheet,
-  CheckSquare,
-  Square,
-  SlidersHorizontal,
-  Layers,
-  BarChart3,
-  Check,
-  RefreshCw,
-  Camera,
-  Upload,
-  Image as ImageIcon,
   AlertCircle,
-  Cloud
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { confirmDialog } from '@/components/ui/ToastProvider';
-import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
-import { studentService, Student } from '@/services/studentService';
+import { studentService } from '@/services/studentService';
+import { classSectionService } from '@/services/classSectionService';
 import { sortStudentsGroupAndRoll } from '@/services/studentBulkImportEngine';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
-import { settingsService } from '@/services/settingsService';
-import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
-import SchoolPadWrapper from '@/components/SchoolPadWrapper';
 import OfficialAdmissionForm from '@/components/OfficialAdmissionForm';
-import { compressImage, autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
+import { autoCropAndCompressStudentPhoto } from '@/lib/imageUtils';
 
 import { StudentProfileView } from '@/components/students/StudentProfileView';
 import { StudentEditFormView } from '@/components/students/StudentEditFormView';
 import { StudentPrintSuiteView } from '@/components/students/StudentPrintSuiteView';
-import { StudentDirectoryTable } from '@/components/students/StudentDirectoryTable';
+import { StudentDirectoryTable, SortStrategy } from '@/components/students/StudentDirectoryTable';
 import { StudentBlankPadModal, StudentBulkPhotoModal } from '@/components/students/StudentModals';
+import {
+  StudentRecord,
+  matchStudentReligion,
+  isFemaleGender,
+  isMaleGender,
+  normalizeGradeKey,
+  formatGradeLabel,
+} from '@/components/students/studentTypes';
 
-interface StudentItem {
-  id: string;
-  name: string;
-  nameEn?: string;
-  roll: string;
-  grade: string;
-  branch: string;
-  section?: string;
-  group: string;
-  optionalSubject: string;
-  guardian: string;
-  fatherName?: string;
-  fatherNameEn?: string;
-  fatherNid?: string;
-  fatherOccupation?: string;
-  motherName?: string;
-  motherNameEn?: string;
-  motherNid?: string;
-  motherOccupation?: string;
-  guardianRelation?: string;
-  mobile: string;
-  attendance: number;
-  gpa: string;
-  birthRegNo?: string;
-  registrationNo?: string;
-  sscRoll?: string;
-  dob?: string;
-  gender?: string;
-  religion?: string;
-  bloodGroup?: string;
-  currentAddress?: string;
-  permanentAddress?: string;
-  prevSchoolName?: string;
-  prevGpa?: string;
-  photo?: string;
-  remarks?: string;
-  isStipend?: boolean;
-}
+type StudentItem = StudentRecord;
 
 type ViewState = 'list' | 'view' | 'edit' | 'print_form' | 'print_list';
-
-// Bengali numeral converter helper
-const toBnDigit = (num: number | string) => {
-  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return String(num).replace(/[0-9]/g, (d) => bn[parseInt(d, 10)]);
-};
 
 // 🔍 Robust search normalizer: null-safe, case-insensitive, বাংলা ↔ English digit tolerant
 const normalizeSearchText = (val: unknown): string =>
@@ -138,25 +61,24 @@ const studentMatchesSearch = (st: Partial<StudentItem>, rawQuery: string): boole
 
 export default function StudentListPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [students, setStudents] = useState<StudentItem[]>([]);
-  const [syncingCloud, setSyncingCloud] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
+  const [religionFilter, setReligionFilter] = useState<string>('all');
+  const [stipendFilter, setStipendFilter] = useState<string>('all');
+  const [photoFilter, setPhotoFilter] = useState<string>('all');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [sortStrategy, setSortStrategy] = useState<'roll_asc' | 'name_asc' | 'roll_desc' | 'name_desc'>('roll_asc');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [sortStrategy, setSortStrategy] = useState<SortStrategy>('roll_asc');
 
-  // Reset pagination to page 1 when filters or search change
+  // Clear stale selections when filters change significantly
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, gradeFilter, branchFilter, genderFilter, groupFilter, sortStrategy, pageSize]);
+    setSelectedStudentIds((prev) => prev.filter((id) => students.some((s) => s.id === id)));
+  }, [students]);
 
   // In-Page Active View State (No Popups!)
   const [activeView, setActiveView] = useState<ViewState>('list');
@@ -493,31 +415,31 @@ export default function StudentListPage() {
 
     const mapped: StudentItem[] = allSt.map((s, idx) => {
       const g = (s.grade || s.gradeBn || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const photo = s.photo || pMap[s.id] || (s.roll ? pMap[`${g}_${s.roll}`] : undefined) || (s.roll ? pMap[s.roll] : undefined);
+      const photo =
+        s.photo ||
+        pMap[s.id] ||
+        (s.roll ? pMap[`${g}_${s.roll}`] : undefined) ||
+        (s.roll ? pMap[s.roll] : undefined);
+      const sec = s.branch || s.section || 'A';
       return {
+        ...s,
         id: s.id || `STD-2026-${4554 + idx}`,
         name: s.name,
         roll: s.roll || String(idx + 1).padStart(2, '0'),
         grade: s.grade || '8th',
-        branch: s.branch || s.section || 'A',
+        branch: sec,
+        section: sec,
         group: s.group || 'সাধারণ',
-        optionalSubject: s.optionalSubject || 'কৃষি শিক্ষা',
-        guardian: s.guardian || s.fatherName || 'অভিভাবকের নাম',
-        fatherNid: s.fatherNid || '19801234567890101',
-        motherName: s.motherName || 'মাতার নাম',
-        motherNid: s.motherNid || '19841234567890102',
-        mobile: s.mobile || '01812000109',
-        attendance: s.attendance || 100,
+        optionalSubject: s.optionalSubject || '',
+        guardian: s.guardian || s.fatherName || '',
+        fatherName: s.fatherName || s.guardian || '',
+        mobile: s.mobile || '',
+        attendance: s.attendance ?? 0,
         gpa: s.gpa || 'N/A',
-        birthRegNo: s.birthRegNo || '20101234567890123',
-        dob: s.dob || '2010-05-15',
-        gender: s.gender || 'পুরুষ',
-        religion: s.religion || 'ইসলাম',
-        bloodGroup: s.bloodGroup || 'B+',
-        currentAddress: s.currentAddress || 'বরইতলী, চকরিয়া, কক্সবাজার',
-        permanentAddress: s.permanentAddress || 'বরইতলী, চকরিয়া, কক্সবাজার',
-        photo: photo,
-        remarks: s.remarks || 'শিক্ষার্থী ডিরেক্টরি'
+        gender: s.gender || '',
+        religion: s.religion || '',
+        photo,
+        isStipend: Boolean(s.isStipend || s.stipendStatus === 'Active'),
       };
     });
 
@@ -669,49 +591,173 @@ export default function StudentListPage() {
     switchView('view', editFormData);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedStudentIds.length === 0) return;
+    if (
+      await confirmDialog({
+        title: 'নির্বাচিত শিক্ষার্থী অপসারণ',
+        message: `আপনি কি নিশ্চিত যে নির্বাচিত ${selectedStudentIds.length} জন শিক্ষার্থীকে তালিকা থেকে স্থায়ীভাবে অপসারণ করতে চান?`,
+        confirmLabel: 'অপসারণ করুন',
+        danger: true,
+      })
+    ) {
+      selectedStudentIds.forEach((id) => {
+        studentService.deleteStudent(id);
+      });
+      setSelectedStudentIds([]);
+      loadStudentsFromStorage();
+      showToast(`${selectedStudentIds.length} জন শিক্ষার্থী তালিকা থেকে অপসারণ করা হয়েছে।`, 'success');
+    }
+  };
+
+  const handleResetAllFilters = () => {
+    setSearchQuery('');
+    setGradeFilter('all');
+    setBranchFilter('all');
+    setGenderFilter('all');
+    setGroupFilter('all');
+    setReligionFilter('all');
+    setStipendFilter('all');
+    setPhotoFilter('all');
+    setSortStrategy('roll_asc');
+  };
+
+  // Dynamic section list from both classSectionService & existing students
+  const availableSections = useMemo(() => {
+    const set = new Set<string>();
+    if (mounted) {
+      try {
+        const classes = classSectionService.getClasses();
+        classes.forEach((cls) => {
+          cls.sections?.forEach((sec) => {
+            if (sec.name?.trim()) set.add(sec.name.trim());
+          });
+        });
+      } catch {}
+    }
+    students.forEach((st) => {
+      const b = (st.branch || st.section || '').trim();
+      if (b) set.add(b);
+    });
+    if (set.size === 0) {
+      ['A', 'B', 'C'].forEach((s) => set.add(s));
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'bn'));
+  }, [mounted, students]);
+
   const rawFilteredStudents = students.filter((st) => {
     const matchesSearch = studentMatchesSearch(st, searchQuery);
 
     const matchesGrade =
       gradeFilter === 'all' ||
-      st.grade.toLowerCase() === gradeFilter.toLowerCase() ||
-      (gradeFilter === '6th' && (st.grade.includes('6') || st.grade.includes('৬'))) ||
-      (gradeFilter === '7th' && (st.grade.includes('7') || st.grade.includes('৭'))) ||
-      (gradeFilter === '8th' && (st.grade.includes('8') || st.grade.includes('৮'))) ||
-      (gradeFilter === '9th' && (st.grade.includes('9') || st.grade.includes('৯'))) ||
-      (gradeFilter === '10th' && (st.grade.includes('10') || st.grade.includes('১০')));
+      normalizeGradeKey(st.grade) === normalizeGradeKey(gradeFilter);
 
+    const stBranch = (st.branch || st.section || '').trim();
     const matchesBranch =
       branchFilter === 'all' ||
-      (st.branch && st.branch.toLowerCase() === branchFilter.toLowerCase()) ||
-      (st.branch && branchFilter === 'A' && (st.branch.includes('A') || st.branch.includes('ক'))) ||
-      (st.branch && branchFilter === 'B' && (st.branch.includes('B') || st.branch.includes('খ'))) ||
-      (st.branch && branchFilter === 'C' && (st.branch.includes('C') || st.branch.includes('গ')));
+      stBranch.toLowerCase() === branchFilter.toLowerCase() ||
+      (branchFilter === 'A' && (stBranch.includes('A') || stBranch.includes('ক'))) ||
+      (branchFilter === 'B' && (stBranch.includes('B') || stBranch.includes('খ'))) ||
+      (branchFilter === 'C' && (stBranch.includes('C') || stBranch.includes('গ')));
 
     const matchesGender =
       genderFilter === 'all' ||
-      (genderFilter === 'male' && (st.gender?.includes('পুরুষ') || st.gender?.includes('ছেলে') || st.gender?.toLowerCase() === 'male')) ||
-      (genderFilter === 'female' && (st.gender?.includes('নারী') || st.gender?.includes('মহিলা') || st.gender?.includes('মেয়ে') || st.gender?.toLowerCase() === 'female'));
+      (genderFilter === 'male' && isMaleGender(st.gender)) ||
+      (genderFilter === 'female' && isFemaleGender(st.gender));
 
+    const stGroup = (st.group || '').toLowerCase();
     const matchesGroup =
       groupFilter === 'all' ||
-      (st.group && (st.group.toLowerCase().includes(groupFilter.toLowerCase()) || (groupFilter === 'সাধারণ' && st.group === 'সাধারণ')));
+      (groupFilter === 'ব্যবসায়'
+        ? stGroup.includes('ব্যবসায়') || stGroup.includes('ব্যবসায়') || stGroup.includes('commerce') || stGroup.includes('business')
+        : stGroup.includes(groupFilter.toLowerCase()) ||
+          (groupFilter === 'সাধারণ' && (!st.group || st.group === 'সাধারণ')));
 
-    return matchesSearch && matchesGrade && matchesBranch && matchesGender && matchesGroup;
+    const matchesReligion = matchStudentReligion(st.religion, religionFilter);
+
+    const isStipend = Boolean(st.isStipend || st.stipendStatus === 'Active');
+    const matchesStipend =
+      stipendFilter === 'all' ||
+      (stipendFilter === 'stipend' && isStipend) ||
+      (stipendFilter === 'non_stipend' && !isStipend);
+
+    const hasPhoto = Boolean(st.photo && st.photo.trim().length > 0);
+    const matchesPhoto =
+      photoFilter === 'all' ||
+      (photoFilter === 'has_photo' && hasPhoto) ||
+      (photoFilter === 'missing_photo' && !hasPhoto);
+
+    return (
+      matchesSearch &&
+      matchesGrade &&
+      matchesBranch &&
+      matchesGender &&
+      matchesGroup &&
+      matchesReligion &&
+      matchesStipend &&
+      matchesPhoto
+    );
   });
 
-  // 🌟 Group-wise and Roll-wise sorting: ছোট থেকে বড় (১, ২, ৩...) অথবা নাম (A-Z)
-  // শিক্ষার্থী তালিকা পেইজে কোনো পেজিনেশন থাকবে না, সব শিক্ষার্থীর নাম একসাথে দেখাবে
-  const filteredStudents = sortStudentsGroupAndRoll(rawFilteredStudents as any, sortStrategy) as unknown as StudentItem[];
+  // 🌟 Auto Roll & Group A-Z Sorting: ৬ষ্ঠ–৮ম (শ্রেণি -> শাখা -> রোল ছোট থেকে বড়), ৯ম–১০ম (শ্রেণি -> গ্রুপ A-Z -> রোল ছোট থেকে বড়)
+  const filteredStudents = sortStudentsGroupAndRoll(rawFilteredStudents as any, 'roll_asc') as unknown as StudentItem[];
   const paginatedStudents = filteredStudents;
   const totalStudents = students.length;
+
+  const handleExportFilteredExcel = (onlySelected = false) => {
+    const rowsSource =
+      onlySelected && selectedStudentIds.length > 0
+        ? filteredStudents.filter((s) => selectedStudentIds.includes(s.id))
+        : filteredStudents;
+
+    if (rowsSource.length === 0) {
+      showToast('এক্সপোর্ট করার জন্য কোনো শিক্ষার্থী পাওয়া যায়নি!', 'error');
+      return;
+    }
+
+    const sheetRows = rowsSource.map((st, idx) => ({
+      'ক্র.নং': idx + 1,
+      রোল: st.roll || '',
+      'শিক্ষার্থী আইডি': st.id,
+      'শিক্ষার্থীর নাম': st.name,
+      'ইংরেজি নাম': st.nameEn || '',
+      শ্রেণি: formatGradeLabel(st.grade, 'bn'),
+      শাখা: st.branch || st.section || '',
+      বিভাগ: st.group || 'সাধারণ',
+      লিঙ্গ: isFemaleGender(st.gender) ? 'ছাত্রী' : isMaleGender(st.gender) ? 'ছাত্র' : st.gender || '',
+      ধর্ম: st.religion || '',
+      উপবৃত্তি: st.isStipend || st.stipendStatus === 'Active' ? 'হ্যাঁ' : 'না',
+      'পিতা / অভিভাবক': st.guardian || st.fatherName || '',
+      'মাতার নাম': st.motherName || '',
+      'মোবাইল নম্বর': st.mobile || '',
+      '৪র্থ / ঐচ্ছিক বিষয়': st.optionalSubject || '',
+      'জন্ম নিবন্ধন নম্বর': st.birthRegNo || '',
+      'জন্ম তারিখ': st.dob || '',
+      'রক্তের গ্রুপ': st.bloodGroup || '',
+      ঠিকানা: st.currentAddress || st.permanentAddress || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(sheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+    const dateTag = new Date().toISOString().slice(0, 10);
+    const gradeTag = gradeFilter === 'all' ? 'All' : gradeFilter;
+    XLSX.writeFile(wb, `Student_Directory_${gradeTag}_${dateTag}.xlsx`);
+    showToast(`${rowsSource.length} জন শিক্ষার্থীর এক্সেল (.xlsx) ডাউনলোড হয়েছে!`, 'success');
+  };
 
   useEffect(() => {
     setPrintPreviewPage(1);
   }, [printGradeFilter, printBranchFilter, printGroupFilter, printReligionFilter, printGenderFilter, printSearchQuery, printOrientation, printRowsPerPage, printReportTab]);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div
+      className={
+        activeView === 'list' || activeView === 'print_list'
+          ? 'pb-10 print:pb-0'
+          : 'p-4 sm:p-6 lg:p-8 space-y-6 pb-12 print:p-0'
+      }
+    >
       
       {/* Loading Overlay State for seamless in-page transitions */}
       {(!mounted || isLoadingView) && (
@@ -844,9 +890,11 @@ export default function StudentListPage() {
           {activeView === 'list' && (
             <StudentDirectoryTable
               currentLang={currentLang}
+              allStudents={students}
               totalStudents={totalStudents}
               filteredStudents={filteredStudents}
               paginatedStudents={paginatedStudents}
+              availableSections={availableSections}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               gradeFilter={gradeFilter}
@@ -857,6 +905,12 @@ export default function StudentListPage() {
               setGenderFilter={setGenderFilter}
               groupFilter={groupFilter}
               setGroupFilter={setGroupFilter}
+              religionFilter={religionFilter}
+              setReligionFilter={setReligionFilter}
+              stipendFilter={stipendFilter}
+              setStipendFilter={setStipendFilter}
+              photoFilter={photoFilter}
+              setPhotoFilter={setPhotoFilter}
               sortStrategy={sortStrategy}
               setSortStrategy={setSortStrategy}
               selectedStudentIds={selectedStudentIds}
@@ -867,6 +921,9 @@ export default function StudentListPage() {
               triggerSinglePhotoSelect={triggerSinglePhotoSelect}
               onOpenBulkPhotoModal={() => setShowBulkPhotoModal(true)}
               onSwitchToPrintList={() => switchView('print_list')}
+              onExportExcel={handleExportFilteredExcel}
+              onBulkDelete={handleBulkDelete}
+              onResetAllFilters={handleResetAllFilters}
               onViewStudent={(st) => switchView('view', st)}
               onPrintStudentForm={(st) => switchView('print_form', st)}
               onEditStudent={(st) => switchView('edit', st)}

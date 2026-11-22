@@ -238,8 +238,8 @@ export default function LedgerDashboardPage() {
       <style jsx global>{`
         @media print {
           @page {
-            size: landscape;
-            margin: 0.5in;
+            size: A4 landscape;
+            margin: 10mm;
           }
           body {
             background-color: white !important;

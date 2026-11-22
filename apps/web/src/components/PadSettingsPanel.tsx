@@ -16,9 +16,17 @@ import {
   X,
   Type
 } from 'lucide-react';
-import { SchoolSettings, settingsService, DEFAULT_PAD_MARGINS, PadMargins } from '@/services/settingsService';
+import {
+  SchoolSettings,
+  settingsService,
+  DEFAULT_PAD_MARGINS,
+  DEFAULT_PAD_HEADER_FIELDS,
+  PadMargins,
+  PadHeaderFieldsConfig,
+} from '@/services/settingsService';
 import { processPadUpload, ProcessedPadResult } from '@/lib/padPdfRenderer';
 import SchoolPadWrapper from './SchoolPadWrapper';
+import PadHeaderCalibrationCard from '@/components/settings/PadHeaderCalibrationCard';
 import { confirmDialog } from '@/components/ui/ToastProvider';
 
 interface PadSettingsPanelProps {
@@ -69,12 +77,7 @@ export default function PadSettingsPanel({
         return;
       }
 
-      // Default smart margins for uploaded pads
-      const currentTop = settings.padMargins?.top || 2.0;
-      const suggestedTop = currentTop < 1.2 ? 2.0 : currentTop;
-      const currentBottom = settings.padMargins?.bottom || 1.0;
-      const suggestedBottom = currentBottom < 0.6 ? 1.0 : currentBottom;
-
+      // Default smart margins for uploaded pads (matches সূত্র: & তারিখ: [][][] header bar)
       const updatedSettings: SchoolSettings = {
         ...settings,
         uploadedPadTemplateUrl: result.dataUrl,
@@ -85,8 +88,11 @@ export default function PadSettingsPanel({
         padMargins: {
           ...DEFAULT_PAD_MARGINS,
           ...(settings.padMargins || {}),
-          top: suggestedTop,
-          bottom: suggestedBottom,
+          top: settings.padMargins?.top && settings.padMargins.top >= 1.5 && settings.padMargins.top <= 2.8 ? settings.padMargins.top : DEFAULT_PAD_MARGINS.top,
+        },
+        padHeaderFields: {
+          ...DEFAULT_PAD_HEADER_FIELDS,
+          ...(settings.padHeaderFields || {}),
         },
       };
 
@@ -158,11 +164,11 @@ export default function PadSettingsPanel({
   const applyPreset = (preset: 'standard' | 'compact' | 'large_header') => {
     let margins: PadMargins;
     if (preset === 'standard') {
-      margins = { top: 3.0, bottom: 1.0, left: 0.8, right: 0.8 };
+      margins = { ...DEFAULT_PAD_MARGINS };
     } else if (preset === 'compact') {
-      margins = { top: 2.0, bottom: 0.8, left: 0.6, right: 0.6 };
+      margins = { top: 2.0, bottom: 0.8, left: 0.65, right: 0.65 };
     } else {
-      margins = { top: 3.5, bottom: 1.0, left: 0.8, right: 0.8 };
+      margins = { top: 3.0, bottom: 1.0, left: 0.8, right: 0.8 };
     }
     const updatedSettings: SchoolSettings = {
       ...settings,
@@ -463,10 +469,10 @@ export default function PadSettingsPanel({
                   <button
                     type="button"
                     onClick={() => applyPreset('standard')}
-                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="আদর্শ মার্জিন (Top: 3.0in, Bottom: 1.0in)"
+                    className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/60 hover:bg-indigo-200 text-indigo-800 dark:text-indigo-200 rounded-lg text-[10px] font-black transition cursor-pointer"
+                    title="আদর্শ প্যাড মার্জিন (Top: 2.4in, Bottom: 0.9in)"
                   >
-                    স্ট্যান্ডার্ড (৩.০&quot;)
+                    ★ স্ট্যান্ডার্ড (২.৪&quot;)
                   </button>
                   <button
                     type="button"
@@ -480,12 +486,28 @@ export default function PadSettingsPanel({
                     type="button"
                     onClick={() => applyPreset('large_header')}
                     className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    title="বড় হেডারের জন্য (Top: 3.5in)"
+                    title="বড় হেডারের জন্য (Top: 3.0in)"
                   >
-                    বড় হেডার (৩.৫&quot;)
+                    বড় হেডার (৩.০&quot;)
                   </button>
                 </div>
               </div>
+
+              {/* Header Reference & Date Boxes Calibration */}
+              <PadHeaderCalibrationCard
+                headerFields={settings.padHeaderFields}
+                margins={settings.padMargins}
+                onChangeHeaderFields={(nextFields: PadHeaderFieldsConfig) =>
+                  setSettings({ ...settings, padHeaderFields: nextFields })
+                }
+                onApplyPreset={(presetMargins, presetFields) =>
+                  setSettings({
+                    ...settings,
+                    padMargins: presetMargins,
+                    ...(presetFields ? { padHeaderFields: presetFields } : {}),
+                  })
+                }
+              />
 
               {/* Margin Inputs Grid */}
               <div className="space-y-3.5 pt-2">
@@ -702,9 +724,9 @@ export default function PadSettingsPanel({
           </div>
 
           {/* Interactive Scale Wrapper */}
-          <div className="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 shadow-inner flex items-center justify-center overflow-hidden">
+          <div className="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 shadow-inner flex items-start justify-center overflow-hidden h-[595px]">
             <div
-              className="origin-top transform scale-[0.52] sm:scale-[0.58] lg:scale-[0.52] shadow-2xl transition-all duration-300"
+              className="origin-top transform scale-[0.52] shadow-2xl transition-all duration-300"
               style={{
                 width: '210mm',
                 height: '297mm',
@@ -714,7 +736,8 @@ export default function PadSettingsPanel({
                 settings={settings}
                 mode={activeMode === 'preprinted' ? 'preprinted' : 'full_pad'}
                 title="চারিত্রিক সনদ পত্র"
-                refNo="ব.উ.বি/সনদ/২০২৬/৩৪৮"
+                refNo="BHS/SSC-TEST/2026/364"
+                date={new Date().toISOString().split('T')[0]}
                 hideHeaderActions={true}
                 signatures={[
                   {

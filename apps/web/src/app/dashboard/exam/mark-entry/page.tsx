@@ -35,6 +35,7 @@ import {
   getStudentReligion,
   getSubjectReligion,
   filterStudentsBySubjectReligion,
+  isReligionSubject,
   ReligionType,
 } from '@/lib/religionUtils';
 import { getAllSubjectAliases } from '@/lib/markStorageUtils';
@@ -61,7 +62,11 @@ const getDynamicConfiguredSubjects = (grade: string, group: string) => {
 // checkIsHinduStudent → isHinduStudent (from @/lib/religionUtils)
 // getStudentReligion, getSubjectReligion, filterStudentsBySubjectReligion
 const getSubjectMarksConfig = (subjectName: string, classSubjectsList: any[] = []) => {
-  const found = classSubjectsList.find(s => s.name === subjectName || s.code === subjectName);
+  const found =
+    classSubjectsList.find(s => s.name === subjectName || s.code === subjectName) ||
+    (isReligionSubject(subjectName)
+      ? classSubjectsList.find(s => isReligionSubject(`${s.code} ${s.name}`))
+      : undefined);
   if (found) {
     return {
       hasMcq: Boolean(found.mcq && found.mcq > 0),
@@ -197,7 +202,7 @@ export default function ProfessionalMarkEntryPage() {
     const subjectPool = new Set<string>();
 
     configuredSubjectsList.forEach(sub => {
-      if (sub.name.includes('ধর্ম') || sub.code === 'REL-111' || sub.code.startsWith('REL-')) {
+      if (sub.name.includes('ধর্ম') || sub.code === 'REL-111' || sub.code.startsWith('REL-') || ['111', '112', '113', '114'].includes(String(sub.code))) {
         // Expand religion so teachers can select their specific religion subject
         subjectPool.add('ইসলাম ও নৈতিক শিক্ষা');
         subjectPool.add('হিন্দুধর্ম ও নৈতিক শিক্ষা');
@@ -270,20 +275,46 @@ export default function ProfessionalMarkEntryPage() {
     }));
 
     // 2. Load saved marks from LocalStorage and merge with directory student list
-    const key = `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_${selectedSubject}`;
-    const saved = localStorage.getItem(key);
-    const savedMap: Record<string, StudentMarkRow> = {};
+    const aliases = getAllSubjectAliases(selectedSubject);
+    const matchingCfg = configuredSubjectsList.find(
+      (s) => s.name === selectedSubject || s.code === selectedSubject,
+    );
+    const candidateIdents = Array.from(
+      new Set([
+        selectedSubject,
+        ...(matchingCfg?.code ? [matchingCfg.code] : []),
+        ...aliases.names,
+        ...aliases.codes,
+      ]),
+    ).filter(Boolean);
 
-    if (saved) {
-      try {
-        const parsedSaved: StudentMarkRow[] = JSON.parse(saved);
-        parsedSaved.forEach(st => {
-          savedMap[st.roll] = st;
-          savedMap[st.id] = st;
-        });
-      } catch (e) {
-        console.error(e);
+    const savedMap: Record<string, StudentMarkRow> = {};
+    for (const ident of candidateIdents) {
+      const candidateKeys = [
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_${ident}`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_${ident}`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}__${ident}`,
+      ];
+      let loaded = false;
+      for (const k of candidateKeys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          try {
+            const parsedSaved: StudentMarkRow[] = JSON.parse(saved);
+            if (Array.isArray(parsedSaved) && parsedSaved.length > 0) {
+              parsedSaved.forEach((st) => {
+                if (st.roll) savedMap[st.roll] = st;
+                if (st.id) savedMap[st.id] = st;
+              });
+              loaded = true;
+              break;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
       }
+      if (loaded) break;
     }
 
     // Recalculate marks and totals cleanly according to current subject's config
@@ -902,6 +933,14 @@ export default function ProfessionalMarkEntryPage() {
         </div>
       )}
 
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+        }
+      `}</style>
     </div>
   );
 }

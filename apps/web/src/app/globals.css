@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Great+Vibes&family=Hind+Siliguri:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -417,14 +417,15 @@ input[type="number"] {
 /* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES               */
 /* ═══════════════════════════════════════════════════════════ */
 @media print {
+  /* Sensible non-!important default so every document's own @page setup (A4 Portrait/Landscape, Legal, 80mm POS, CR80 PVC, custom margins) is strictly respected */
   @page {
-    size: auto;
-    margin: 0 !important;
+    size: A4 portrait;
+    margin: 10mm;
   }
 
   html, body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
@@ -433,6 +434,18 @@ input[type="number"] {
     overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Repeat table headers cleanly across multi-page PDF exports & prevent mid-row splitting */
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+  tr, img {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   aside, header, nav, .print\:hidden, .no-print, [data-print-hidden="true"] {
@@ -498,6 +511,14 @@ input[type="number"] {
 .font-en {
   /* Hind Siliguri fallback keeps Bengali glyphs consistent inside English-styled UI */
   font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif;
+}
+
+.font-testimonial-cursive {
+  font-family: 'Great Vibes', 'Edwardian Script ITC', 'Brush Script MT', 'Corsiva', 'Hind Siliguri', cursive;
+}
+
+.font-testimonial-serif {
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, 'Times New Roman', 'Hind Siliguri', serif;
 }
 
 .glass-nav {

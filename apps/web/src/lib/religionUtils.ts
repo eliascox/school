@@ -99,7 +99,7 @@ export function getSubjectReligion(subjectName: string): SubjectReligionType {
     lower.includes('সনাতন')
   ) return 'Hindu';
 
-  if (lower.includes('খ্রিস্টান') || lower.includes('christian')) return 'Christian';
+  if (lower.includes('খ্রিস্ট') || lower.includes('খ্রিষ্ট') || lower.includes('christian')) return 'Christian';
   if (lower.includes('বৌদ্ধ') || lower.includes('buddhist')) return 'Buddhist';
 
   return null; // ধর্মনিরপেক্ষ বিষয়
@@ -132,11 +132,9 @@ export function getReligionSubjectKeys(studentReligion: ReligionType): {
   codes: string[];
   names: string[];
 } {
-  const commonCodes = ['REL-111', 'REL-112', 'REL-113'];
-
   if (studentReligion === 'Hindu') {
     return {
-      codes: commonCodes,
+      codes: ['112', 'REL-112', '111', 'REL-111', 'REL-610', 'REL-710', 'REL-810', 'REL-113'],
       names: [
         'হিন্দুধর্ম ও নৈতিক শিক্ষা',
         'হিন্দু ধর্ম',
@@ -149,21 +147,21 @@ export function getReligionSubjectKeys(studentReligion: ReligionType): {
 
   if (studentReligion === 'Christian') {
     return {
-      codes: commonCodes,
-      names: ['খ্রিস্টান ধর্ম', 'খ্রিস্টান ধর্ম ও নৈতিক শিক্ষা', 'ধর্ম'],
+      codes: ['114', 'REL-114', '111', 'REL-111', 'REL-610', 'REL-710', 'REL-810', 'REL-112', 'REL-113'],
+      names: ['খ্রিষ্টধর্ম ও নৈতিক শিক্ষা', 'খ্রিস্টান ধর্ম', 'খ্রিস্টান ধর্ম ও নৈতিক শিক্ষা', 'ধর্ম'],
     };
   }
 
   if (studentReligion === 'Buddhist') {
     return {
-      codes: commonCodes,
+      codes: ['113', 'REL-113', '111', 'REL-111', 'REL-610', 'REL-710', 'REL-810', 'REL-112'],
       names: ['বৌদ্ধ ধর্ম', 'বৌদ্ধধর্ম ও নৈতিক শিক্ষা', 'ধর্ম'],
     };
   }
 
   // Muslim (default)
   return {
-    codes: commonCodes,
+    codes: ['111', 'REL-111', 'REL-610', 'REL-710', 'REL-810', 'REL-112', 'REL-113'],
     names: [
       'ইসলাম ও নৈতিক শিক্ষা',
       'ইসলাম শিক্ষা',
@@ -186,10 +184,12 @@ export function isReligionSubject(subjectName: string): boolean {
     lower.includes('হিন্দু') ||
     lower.includes('hindu') ||
     lower.includes('সনাতন') ||
-    lower.includes('খ্রিস্টান') ||
+    lower.includes('খ্রিস্ট') ||
+    lower.includes('খ্রিষ্ট') ||
     lower.includes('christian') ||
     lower.includes('বৌদ্ধ') ||
-    lower.includes('buddhist')
+    lower.includes('buddhist') ||
+    /\b(111|113|114)\b/.test(lower)
   ) {
     return true;
   }

@@ -189,13 +189,14 @@ export const generateStudentMarksheetData = (
   const gradeNumMap: Record<string, number> = { '6th': 6, '7th': 7, '8th': 8, '9th': 9, '10th': 10 };
   const targetGradeNum = gradeNumMap[selectedGrade] || 8;
 
+  const studentRel = getStudentReligion(targetStudent);
+
   const classConfigured = getActiveCurriculumSubjects(
     selectedGrade,
     targetStudent.group,
-    targetStudent.optionalSubject
+    targetStudent.optionalSubject,
+    studentRel
   );
-
-  const studentRel = getStudentReligion(targetStudent);
 
   // 1. Filter classConfigured so religion subjects of OTHER religions are excluded
   const religionMatchedConfigured = classConfigured.filter((sub: any) => {
@@ -205,13 +206,13 @@ export const generateStudentMarksheetData = (
 
     if (studentRel === 'Muslim') {
       if (codeOrName.includes('হিন্দু') || codeOrName.includes('hindu') || codeOrName.includes('hrel') ||
-          codeOrName.includes('খ্রিস্টান') || codeOrName.includes('christian') || codeOrName.includes('crel') ||
+          codeOrName.includes('খ্রিস্ট') || codeOrName.includes('খ্রিষ্ট') || codeOrName.includes('christian') || codeOrName.includes('crel') ||
           codeOrName.includes('বৌদ্ধ') || codeOrName.includes('buddhist') || codeOrName.includes('brel')) {
         return false;
       }
     } else if (studentRel === 'Hindu') {
       if (codeOrName.includes('ইসলাম') || codeOrName.includes('islam') || codeOrName.includes('irel') ||
-          codeOrName.includes('খ্রিস্টান') || codeOrName.includes('christian') || codeOrName.includes('crel') ||
+          codeOrName.includes('খ্রিস্ট') || codeOrName.includes('খ্রিষ্ট') || codeOrName.includes('christian') || codeOrName.includes('crel') ||
           codeOrName.includes('বৌদ্ধ') || codeOrName.includes('buddhist') || codeOrName.includes('brel')) {
         return false;
       }
@@ -224,7 +225,7 @@ export const generateStudentMarksheetData = (
     } else if (studentRel === 'Buddhist') {
       if (codeOrName.includes('ইসলাম') || codeOrName.includes('islam') || codeOrName.includes('irel') ||
           codeOrName.includes('হিন্দু') || codeOrName.includes('hindu') || codeOrName.includes('hrel') ||
-          codeOrName.includes('খ্রিস্টান') || codeOrName.includes('christian') || codeOrName.includes('crel')) {
+          codeOrName.includes('খ্রিস্ট') || codeOrName.includes('খ্রিষ্ট') || codeOrName.includes('christian') || codeOrName.includes('crel')) {
         return false;
       }
     }
@@ -258,22 +259,27 @@ export const generateStudentMarksheetData = (
     });
 
     let displaySubjectName = cleanName;
+    let displayCode = sub.code;
     if (isRel) {
       if (studentRel === 'Hindu') {
         displaySubjectName = 'হিন্দুধর্ম ও নৈতিক শিক্ষা';
+        displayCode = '112';
       } else if (studentRel === 'Muslim') {
         displaySubjectName = 'ইসলাম ও নৈতিক শিক্ষা';
+        displayCode = '111';
       } else if (studentRel === 'Christian') {
-        displaySubjectName = 'খ্রিস্টানধর্ম ও নৈতিক শিক্ষা';
+        displaySubjectName = 'খ্রিষ্টধর্ম ও নৈতিক শিক্ষা';
+        displayCode = '114';
       } else if (studentRel === 'Buddhist') {
         displaySubjectName = 'বৌদ্ধধর্ম ও নৈতিক শিক্ষা';
+        displayCode = '113';
       } else {
         displaySubjectName = 'ধর্ম ও নৈতিক শিক্ষা';
       }
     }
 
     rawSubjects.push({
-      code: sub.code,
+      code: displayCode,
       name: displaySubjectName,
       fullMarks,
       cq: retrieved.cq,
@@ -297,11 +303,13 @@ export const generateStudentMarksheetData = (
   // STRIP optional/4th subjects from rawSubjects — they MUST only
   // appear in the ADDITIONAL SUBJECT section, never in main rows.
   // ══════════════════════════════════════════════════════════════
-  const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা'];
+  const OPTIONAL_KEYWORDS = ['কৃষি', 'গার্হস্থ্য', 'উচ্চতর গণিত', 'কম্পিউটার শিক্ষা', 'agriculture', 'home science', 'higher math'];
   const OPTIONAL_CODE_PREFIXES = ['AGR', 'HMS', 'HMT', 'CMP'];
+  const OPTIONAL_NCTB_CODES = ['126', '134', '151'];
   const isOptionalSub = (s: any) =>
-    OPTIONAL_KEYWORDS.some(kw => s.name && s.name.includes(kw)) ||
-    OPTIONAL_CODE_PREFIXES.some(pfx => s.code && String(s.code).startsWith(pfx));
+    OPTIONAL_KEYWORDS.some(kw => s.name && String(s.name).toLowerCase().includes(kw)) ||
+    OPTIONAL_CODE_PREFIXES.some(pfx => s.code && String(s.code).startsWith(pfx)) ||
+    (s.code && OPTIONAL_NCTB_CODES.includes(String(s.code).trim()));
 
   const filteredRawSubjects = rawSubjects.filter((s: any) => !isOptionalSub(s));
 
@@ -332,13 +340,13 @@ export const generateStudentMarksheetData = (
     const optName = targetOptionalName || 'কৃষি শিক্ষা';
 
     const optionalCodeMap: Record<string, string> = {
-      'উচ্চতর গণিত': 'HMT-126',
-      'কৃষি শিক্ষা': `AGR-${targetGradeNum <= 8 ? targetGradeNum + '07' : '139'}`,
-      'গার্হস্থ্য বিজ্ঞান': `HMS-${targetGradeNum <= 8 ? targetGradeNum + '01' : '140'}`,
-      'জীববিজ্ঞান': 'BIO-138',
-      'কম্পিউটার শিক্ষা': 'CMP-135'
+      'উচ্চতর গণিত': '126',
+      'কৃষি শিক্ষা': '134',
+      'গার্হস্থ্য বিজ্ঞান': '151',
+      'জীববিজ্ঞান': '138',
+      'কম্পিউটার শিক্ষা': '135'
     };
-    const optCode = optionalCodeMap[optName] || `AGR-${targetGradeNum}07`;
+    const optCode = optionalCodeMap[optName] || '134';
     const matchedOptConfig = religionMatchedConfigured.find(
       (s: any) => s.code === optCode || (s.name && s.name.includes(optName)) || isOptionalSub(s)
     );

@@ -32,6 +32,7 @@ import {
   getStudentReligion,
   getReligionSubjectKeys,
   getSubjectReligion,
+  isReligionSubject,
   ReligionType
 } from '@/lib/religionUtils';
 import { getAllSubjectAliases } from '@/lib/markStorageUtils';
@@ -120,9 +121,20 @@ export default function BulkMarkEntryPage() {
   const isTeacherRole = session?.role === 'teacher';
   const teacherIdentifier = session?.teacherId || session?.teacherName || '';
 
-  const canEditSubject = useCallback((subName: string): boolean => {
+  const canEditSubject = useCallback((subName: string, studentReligion?: ReligionType): boolean => {
     if (isAdminRole) return true;
     if (!isTeacherRole || !teacherIdentifier) return false;
+    if (studentReligion && isReligionSubject(subName)) {
+      const targetRelSub =
+        studentReligion === 'Hindu'
+          ? 'হিন্দুধর্ম ও নৈতিক শিক্ষা'
+          : studentReligion === 'Buddhist'
+          ? 'বৌদ্ধধর্ম ও নৈতিক শিক্ষা'
+          : studentReligion === 'Christian'
+          ? 'খ্রিষ্টধর্ম ও নৈতিক শিক্ষা'
+          : 'ইসলাম ও নৈতিক শিক্ষা';
+      return teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, targetRelSub);
+    }
     return teacherRBACService.validateSubjectOwnership(teacherIdentifier, selectedGrade, subName);
   }, [isAdminRole, isTeacherRole, teacherIdentifier, selectedGrade, teacherAssignments]);
 
@@ -200,7 +212,7 @@ export default function BulkMarkEntryPage() {
         let targetCodes = [sub.code];
         let targetNames = [sub.name];
 
-        if (sub.code === 'REL-111' || sub.name.includes('ধর্ম')) {
+        if (sub.code === 'REL-111' || ['111', '112', '113', '114'].includes(String(sub.code)) || sub.name.includes('ধর্ম') || sub.name.toLowerCase().includes('islam') || sub.name.toLowerCase().includes('hindu')) {
           const relKeys = getReligionSubjectKeys(rel);
           targetCodes = relKeys.codes;
           targetNames = relKeys.names;
@@ -389,7 +401,7 @@ export default function BulkMarkEntryPage() {
     if (!subObj) return;
 
     const subName = subObj.name;
-    const isRel = subCode === 'REL-111' || subName.includes('ধর্ম');
+    const isRel = subCode === 'REL-111' || ['111', '112', '113', '114'].includes(String(subCode)) || subName.includes('ধর্ম') || subName.toLowerCase().includes('islam') || subName.toLowerCase().includes('hindu');
 
     const buildMarkItem = (r: StudentBulkRow) => {
       const bd = r.subjectBreakdown?.[subCode] || { cq: r.marks[subCode] || 0, mcq: 0, practical: 0, total: r.marks[subCode] || 0 };
@@ -413,12 +425,16 @@ export default function BulkMarkEntryPage() {
       const islamKeys = [
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_ইসলাম ও নৈতিক শিক্ষা`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_ইসলাম ও নৈতিক শিক্ষা`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_111`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_111`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_REL-111`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_REL-111`
       ];
       const hinduKeys = [
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_হিন্দুধর্ম ও নৈতিক শিক্ষা`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_হিন্দুধর্ম ও নৈতিক শিক্ষা`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_112`,
+        `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_112`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_REL-112`,
         `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_REL-112`
       ];
@@ -814,6 +830,7 @@ export default function BulkMarkEntryPage() {
                 <th className="p-3 text-center w-14 sticky left-0 bg-slate-900 z-20">রোল</th>
                 <th className="p-3 w-48 sticky left-14 bg-slate-900 z-20">শিক্ষার্থীর নাম</th>
                 {subjects.map((sub) => {
+                  const isRel = isReligionSubject(`${sub.code} ${sub.name}`);
                   const subRel = getSubjectReligion(sub.name);
                   const hasMcq = Boolean(sub.mcq && sub.mcq > 0);
                   const hasPr = !!sub.practical;
@@ -828,7 +845,13 @@ export default function BulkMarkEntryPage() {
                         {!isAllowed && <span className="text-[10px]" title="এই বিষয়টি আপনার বরাদ্দকৃত নয় (লকড)">🔒</span>}
                       </div>
                       <div className="text-[9px] font-mono text-indigo-300 font-normal">
-                        {subRel === 'Muslim' ? '☪️ ইসলাম' : subRel === 'Hindu' ? '🕉️ হিন্দু' : `max ${sub.fullMarks || 100}`}
+                        {isRel
+                          ? sub.name.trim() === 'ধর্ম ও নৈতিক শিক্ষা'
+                            ? '☪️ ১১১ · 🕉️ ১১২'
+                            : subRel === 'Hindu'
+                            ? '🕉️ হিন্দু (১১২)'
+                            : '☪️ ইসলাম (১১১)'
+                          : `max ${sub.fullMarks || 100}`}
                       </div>
 
                       {entryMode === 'breakdown' && (
@@ -886,7 +909,7 @@ export default function BulkMarkEntryPage() {
                       const hasMcq = Boolean(sub.mcq && sub.mcq > 0);
                       const hasPr = !!sub.practical;
                       const subFull = sub.fullMarks || 100;
-                      const isAllowed = canEditSubject(sub.name);
+                      const isAllowed = canEditSubject(sub.name, row.religion);
 
                       if (entryMode === 'breakdown') {
                         return (

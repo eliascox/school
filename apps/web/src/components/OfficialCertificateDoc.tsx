@@ -20,6 +20,7 @@ import {
   SchoolSettings,
   settingsService,
   DEFAULT_PAD_MARGINS,
+  DEFAULT_PAD_HEADER_FIELDS,
   getEnglishSchoolName,
   getEnglishAddress,
 } from '@/services/settingsService';
@@ -41,7 +42,13 @@ import {
   resolveThemePalette,
 } from './certificates/certificateThemes';
 import CertificateFrameDecor from './certificates/CertificateFrameDecor';
-import SchoolPadWrapper from './SchoolPadWrapper';
+import SchoolPadWrapper, { PadHeaderFieldsOverlay } from './SchoolPadWrapper';
+
+const HAS_BENGALI_RE = /[\u0980-\u09FF]/;
+const CURSIVE_FONT_STACK =
+  "'Great Vibes', 'Alex Brush', 'Edwardian Script ITC', 'Brush Script MT', 'Corsiva', 'Hind Siliguri', cursive";
+const EDITORIAL_SERIF_STACK =
+  "'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', 'Hind Siliguri', serif";
 
 export interface OfficialCertificateDocProps {
   cert: CertificateRecord;
@@ -84,7 +91,9 @@ export default function OfficialCertificateDoc({
   const showQrCode = cert.showQrCode !== false;
   const showCornerBands = Boolean(cert.showCornerBands);
   const showSecondarySigner = Boolean(cert.showSecondarySigner);
-  const fontSize = cert.fontSize || safeSettings.padFontSize || 15;
+  const useCursiveNames = lang === 'en' && cert.cursiveNames !== false;
+  const isEnglishTestimonial = lang === 'en' && cert.type === 'ssc_testimonial';
+  const fontSize = cert.fontSize || (isEnglishTestimonial ? 17.5 : safeSettings.padFontSize || 15);
   const titleVariant = cert.titleVariant || 'ribbon';
   const palette = resolveThemePalette('royal_indigo', cert.themeColor);
   const borderPresetMeta =
@@ -154,15 +163,75 @@ export default function OfficialCertificateDoc({
     cleanEntityText(safeSettings.principalTitle) ||
     (lang === 'en' ? 'Headmaster' : 'প্রধান শিক্ষক');
 
+  const studentTargetEn = cleanEntityText(cert.studentNameEn || cert.studentName).toLowerCase();
+  const fatherTargetEn = cleanEntityText(cert.fatherNameEn || cert.fatherName).toLowerCase();
+  const motherTargetEn = cleanEntityText(cert.motherNameEn || cert.motherName).toLowerCase();
+
+  const renderStyledToken = (text: string, idx: number | string) => {
+    const clean = text.trim();
+    const low = clean.toLowerCase();
+    const containsBn = HAS_BENGALI_RE.test(clean);
+
+    const isStudentName = Boolean(studentTargetEn && low === studentTargetEn);
+    const isParentName = Boolean(
+      (fatherTargetEn && low === fatherTargetEn) || (motherTargetEn && low === motherTargetEn),
+    );
+
+    if (useCursiveNames && !containsBn && (isStudentName || isParentName)) {
+      return (
+        <span
+          key={idx}
+          style={{
+            fontFamily: CURSIVE_FONT_STACK,
+            fontSize: isStudentName ? '1.62em' : '1.36em',
+            fontWeight: 400,
+            fontStyle: 'normal',
+            lineHeight: 1.04,
+            color: '#020617',
+            borderBottom: '1.5px dotted #334155',
+            padding: isStudentName ? '0 14px 1px' : '0 8px 1px',
+            minWidth: isStudentName ? '200px' : undefined,
+            textAlign: isStudentName ? 'center' : undefined,
+            display: 'inline-block',
+            letterSpacing: '0.015em',
+          }}
+        >
+          {clean}
+        </span>
+      );
+    }
+
+    if (isEnglishTestimonial && !containsBn) {
+      return (
+        <strong
+          key={idx}
+          style={{
+            fontWeight: 700,
+            fontStyle: 'italic',
+            color: '#020617',
+            borderBottom: '1.5px dotted #475569',
+            padding: '0 4px 1px',
+            display: 'inline-block',
+            lineHeight: 1.2,
+          }}
+        >
+          {clean}
+        </strong>
+      );
+    }
+
+    return (
+      <strong key={idx} style={{ fontWeight: 800, color: '#020617' }}>
+        {text}
+      </strong>
+    );
+  };
+
   const renderFormattedLine = (para: string) => {
     const parts = para.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, idx) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return (
-          <strong key={idx} style={{ fontWeight: 800, color: '#020617' }}>
-            {part.slice(2, -2)}
-          </strong>
-        );
+        return renderStyledToken(part.slice(2, -2), idx);
       }
       return part;
     });
@@ -181,15 +250,17 @@ export default function OfficialCertificateDoc({
       return (
         <>
           <p style={{ marginBottom: '12px', textIndent: '28px' }}>
-            This is to certify that <strong style={{ fontWeight: 800 }}>{studentName}</strong>, {grammar.sonDaughterEn}{' '}
-            <strong>{father}</strong> and <strong>{mother}</strong>, Village: {vill}, Post Office: {po}, Upazila: {upz}, District: {dist}.
+            This is to certify that {renderStyledToken(studentName, 'st-name')}, {grammar.sonDaughterEn}{' '}
+            {renderStyledToken(father, 'fa-name')} and {renderStyledToken(mother, 'mo-name')}, Village:{' '}
+            {renderStyledToken(vill, 'vill')}, Post Office: {renderStyledToken(po, 'po')}, Upazila:{' '}
+            {renderStyledToken(upz, 'upz')}, District: {renderStyledToken(dist, 'dist')}.
           </p>
           <p style={{ marginBottom: '12px', textIndent: '28px' }}>
-            {grammar.heShe} {cert.isAlumni ? 'was' : 'is'} a regular student of Class <strong>{cert.grade}</strong> ({cert.group} Group), Roll No.{' '}
-            <strong>{cert.roll}</strong>, Session <strong>{cert.session}</strong>.{' '}
+            {grammar.heShe} {cert.isAlumni ? 'was' : 'is'} a regular student of Class {renderStyledToken(cert.grade, 'cls')} ({renderStyledToken(cert.group, 'grp')} Group), Roll No.{' '}
+            {renderStyledToken(cert.roll, 'roll')}, Session {renderStyledToken(cert.session, 'sess')}.{' '}
             {cert.dob && (
               <>
-                {grammar.HisHer} date of birth as per school register is <strong>{formatCertificateDate(cert.dob, 'en')}</strong>.
+                {grammar.HisHer} date of birth as per school register is {renderStyledToken(formatCertificateDate(cert.dob, 'en'), 'dob')}.
               </>
             )}
           </p>
@@ -250,8 +321,8 @@ export default function OfficialCertificateDoc({
 
   if (usePurePadWrapper) {
     const padMargins = {
-      ...(safeSettings.padMargins || DEFAULT_PAD_MARGINS),
-      top: Math.max(3.0, safeSettings.padMargins?.top || 3.0),
+      ...DEFAULT_PAD_MARGINS,
+      ...(safeSettings.padMargins || {}),
     };
     const docSettings: SchoolSettings = { ...safeSettings, padMargins };
 
@@ -263,8 +334,9 @@ export default function OfficialCertificateDoc({
           onModeChange={onModeChange}
           onOpenSettings={onOpenSettings}
           refNo={cert.refNo ? `${cert.refNo}` : undefined}
-          date={formattedIssueDate}
+          date={cert.issueDate || formattedIssueDate}
           dateLabel={dateLabelText}
+          dateLang={lang}
           title={title}
           hideHeaderActions={hideHeaderActions}
           signatures={[
@@ -277,7 +349,15 @@ export default function OfficialCertificateDoc({
             },
           ]}
         >
-          <div className="space-y-4 text-justify px-1 pt-1 pb-2" style={{ fontSize: `${fontSize}px` }}>
+          <div
+            className="space-y-4 text-justify px-1 pt-1 pb-2"
+            style={{
+              fontSize: `${fontSize}px`,
+              fontFamily: isEnglishTestimonial ? EDITORIAL_SERIF_STACK : undefined,
+              fontStyle: isEnglishTestimonial ? 'italic' : 'normal',
+              lineHeight: isEnglishTestimonial ? 2.0 : undefined,
+            }}
+          >
             {cert.customBody ? (
               cert.customBody.split('\n\n').map((para, i) => (
                 <p key={i} className="mb-4 leading-relaxed text-justify indent-6">
@@ -289,7 +369,7 @@ export default function OfficialCertificateDoc({
             )}
 
             {showQrCode && qrDataUrl && (
-              <div className="pt-4 flex items-center gap-2.5 text-[10px] text-slate-600">
+              <div className="pt-4 flex items-center gap-2.5 text-[10px] text-slate-600 not-italic">
                 <img src={qrDataUrl} alt="QR Verify" className="w-14 h-14 border border-slate-300 rounded p-0.5 bg-white" />
                 <div>
                   <p className="font-bold text-slate-800">{lang === 'en' ? 'Scan to Verify Online' : 'অনলাইনে সত্যতা যাচাই করুন'}</p>
@@ -306,11 +386,19 @@ export default function OfficialCertificateDoc({
   // Studio Sheet dimensions in mm (A4 Portrait 210x297 or Landscape 297x210)
   const sheetWidthMm = isLandscape ? 297 : 210;
   const sheetHeightMm = isLandscape ? 210 : 297;
-  const padTopIn = !showHeader ? Math.max(2.6, safeSettings.padMargins?.top || 2.8) : 0;
+  const padHeaderFields = {
+    ...DEFAULT_PAD_HEADER_FIELDS,
+    ...(safeSettings.padHeaderFields || {}),
+  };
+  const padTopIn = !showHeader ? (safeSettings.padMargins?.top ?? DEFAULT_PAD_MARGINS.top) : 0;
   const uploadedPadUrl =
     mode === 'full_pad' && borderPresetMeta.id === 'no_border_pad'
       ? safeSettings.uploadedPadTemplateUrl?.trim() || ''
       : '';
+  const useStudioPadHeaderOverlay =
+    !isLandscape &&
+    (!showHeader || Boolean(uploadedPadUrl)) &&
+    padHeaderFields.placement === 'pad_header_boxes';
   const customBorderUrl =
     cert.customBorderUrl ||
     (borderPresetMeta.id === 'custom_png' ? safeSettings.customBorderPng || safeSettings.customBorders?.[0]?.url : '');
@@ -349,6 +437,16 @@ export default function OfficialCertificateDoc({
               pointerEvents: 'none',
               zIndex: 0,
             }}
+          />
+        )}
+
+        {/* Institutional Pad Header Boxes Overlay (সূত্র: & তারিখ: [][][]) */}
+        {useStudioPadHeaderOverlay && (
+          <PadHeaderFieldsOverlay
+            refNo={cert.refNo || cert.id}
+            date={cert.issueDate || formattedIssueDate}
+            lang={lang}
+            config={padHeaderFields}
           />
         )}
 
@@ -608,27 +706,29 @@ export default function OfficialCertificateDoc({
               </div>
             )}
 
-            {/* Ref & Date Row */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: '#1e293b',
-                borderBottom: '1px dotted #cbd5e1',
-                paddingBottom: '5px',
-                marginBottom: isLandscape ? '10px' : '16px',
-              }}
-            >
-              <span>
-                {refLabel}: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{cert.refNo || cert.id}</strong>
-              </span>
-              <span>
-                {dateLabelText}: <strong>{formattedIssueDate}</strong>
-              </span>
-            </div>
+            {/* Ref & Date Row (hidden when placed directly onto pad header boxes) */}
+            {!useStudioPadHeaderOverlay && padHeaderFields.placement !== 'hide_ref_date' && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#1e293b',
+                  borderBottom: '1px dotted #cbd5e1',
+                  paddingBottom: '5px',
+                  marginBottom: isLandscape ? '10px' : '16px',
+                }}
+              >
+                <span>
+                  {refLabel}: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{cert.refNo || cert.id}</strong>
+                </span>
+                <span>
+                  {dateLabelText}: <strong>{formattedIssueDate}</strong>
+                </span>
+              </div>
+            )}
 
             {/* Document Title (3 Variants + Live Inline Editable) */}
             <div style={{ textAlign: 'center', marginBottom: isLandscape ? '14px' : '22px' }}>
@@ -678,7 +778,15 @@ export default function OfficialCertificateDoc({
               }}
               style={{
                 fontSize: `${fontSize}px`,
-                lineHeight: isLandscape ? 1.75 : 1.95,
+                fontFamily: isEnglishTestimonial ? EDITORIAL_SERIF_STACK : undefined,
+                fontStyle: isEnglishTestimonial ? 'italic' : 'normal',
+                lineHeight: isEnglishTestimonial
+                  ? isLandscape
+                    ? 1.9
+                    : 2.08
+                  : isLandscape
+                  ? 1.75
+                  : 1.95,
                 textAlign: 'justify',
                 color: '#0f172a',
                 whiteSpace: inlineEditable ? 'pre-wrap' : 'normal',

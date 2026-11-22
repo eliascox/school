@@ -4,52 +4,15 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
-  LayoutDashboard,
-  Users,
-  UserCheck,
-  UserPlus,
-  GraduationCap,
-  BookOpenCheck,
-  CalendarCheck2,
-  Award,
-  TrendingUp,
-  Wallet,
-  MessageSquareDot,
-  FileBadge,
-  Globe,
-  Sliders,
-    ChevronDown,
+  ChevronDown,
   ChevronRight,
-  LogOut,
-  X,
-  Printer,
-  Grid3X3,
-  BookOpen,
-  Calendar,
-  CreditCard,
-  SlidersHorizontal,
-  Edit3,
-  Layers,
-  ClipboardList,
-  BarChart3,
-  Search,
-  History,
-  Receipt,
-  Banknote,
-  Landmark,
-  RotateCcw,
-  FileBarChart,
-  Bell,
-  Send,
-  FileCheck,
-  FileText,
-  FileSpreadsheet,
   ExternalLink,
-  Sparkles,
+  GraduationCap,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   Smartphone,
-  Bus,
-  Library,
-  BadgeCheck,
+  X,
 } from 'lucide-react';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
@@ -57,60 +20,50 @@ import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { leaveService } from '@/services/leaveService';
 import { studentService } from '@/services/studentService';
 import { teacherRBACService } from '@/services/teacherRBACService';
-
-interface SubNavItem {
-  label: string;
-  labelBn: string;
-  href: string;
-  icon: React.ReactNode;
-  badge?: string | number | null;
-  badgeColor?: string;
-  isExternal?: boolean;
-}
-
-interface MainNavItem {
-  id: string;
-  title: string;
-  titleBn: string;
-  subtitle: string;
-  subtitleBn: string;
-  href?: string;
-  icon: React.ReactNode;
-  iconColor: string;
-  hoverBg: string;
-  badge?: string | number | null;
-  badgeColor?: string;
-  liveDot?: boolean;
-  subItems?: SubNavItem[];
-}
-
-interface NavSection {
-  header: string;
-  headerBn: string;
-  items: MainNavItem[];
-}
+import {
+  ADMIN_NAV_SECTIONS,
+  TEACHER_NAV_SECTIONS,
+  NavBadgeKey,
+  isNavGroupActive,
+  isNavHrefActive,
+} from '@/config/navigationConfig';
+import { NavIcon } from '@/components/NavIcon';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-function SidebarContent({ session, onClose }: { session: UserSession | null; onClose?: () => void }) {
+interface SidebarContentProps {
+  session: UserSession | null;
+  onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+function SidebarContent({
+  session,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+}: SidebarContentProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
 
   const isAdmin = session?.role === 'admin';
-  const currentTab = searchParams ? searchParams.get('tab') : null;
 
-  // Real-time metric counters (Dynamically synced from actual database counts, zero demo defaults)
+  // Live metric counters (dynamically synced from storage/services)
   const [studentCount, setStudentCount] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       try {
         return studentService.getAllStudents().length;
-      } catch (e) {}
+      } catch {}
     }
     return 0;
   });
@@ -121,7 +74,7 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
         const t1 = teacherRBACService.getTeachers()?.length || 0;
         const t2 = teacherAuthService.getAllTeachers()?.length || 0;
         return Math.max(t1, t2);
-      } catch (e) {}
+      } catch {}
     }
     return 0;
   });
@@ -137,22 +90,20 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
       try {
         const students = studentService.getAllStudents();
         setStudentCount(Array.isArray(students) ? students.length : 0);
-      } catch (e) {
+      } catch {
         setStudentCount(0);
       }
-
       try {
         const t1 = teacherRBACService.getTeachers()?.length || 0;
         const t2 = teacherAuthService.getAllTeachers()?.length || 0;
         setTeacherCount(Math.max(t1, t2));
-      } catch (e) {
+      } catch {
         setTeacherCount(0);
       }
-
       try {
         const leaves = leaveService.getLeaves();
         setPendingLeavesCount(leaves.filter((l) => l.status === 'pending').length);
-      } catch (e) {
+      } catch {
         setPendingLeavesCount(0);
       }
     };
@@ -177,47 +128,27 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
     };
   }, []);
 
+  const visibleSections = isAdmin ? ADMIN_NAV_SECTIONS : TEACHER_NAV_SECTIONS;
+
+  const resolveBadgeValue = (
+    badgeKey?: NavBadgeKey,
+    staticBadge?: string,
+    staticBadgeBn?: string,
+  ): string | number | null => {
+    if (badgeKey === 'students') return studentCount > 0 ? studentCount : null;
+    if (badgeKey === 'teachers') return teacherCount > 0 ? teacherCount : null;
+    if (badgeKey === 'pendingLeaves') return pendingLeavesCount > 0 ? pendingLeavesCount : null;
+    if (currentLang === 'en') return staticBadge || null;
+    return staticBadgeBn || staticBadge || null;
+  };
+
   const toggleGroup = (id: string) => {
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const isItemActive = (href: string) => {
-    if (href.includes('?')) {
-      const [base, query] = href.split('?');
-      if (pathname !== base) return false;
-      const urlQuery = new URLSearchParams(query);
-      const viewQuery = urlQuery.get('view');
-      if (viewQuery) {
-        return searchParams?.get('view') === viewQuery;
-      }
-      const paramTab = urlQuery.get('tab');
-      if (paramTab) {
-        if (base === '/dashboard/finance') {
-          return (currentTab || 'student_fees') === paramTab;
-        }
-        if (base === '/dashboard/ssc-transcript') {
-          return (currentTab || 'single_generator') === paramTab;
-        }
-        if (base === '/dashboard/teacher-portal') {
-          return (currentTab || 'home') === paramTab;
-        }
-        return currentTab === paramTab;
-      }
-      return false;
+    if (isCollapsed && onToggleCollapse) {
+      onToggleCollapse();
+      setOpenGroups((prev) => ({ ...prev, [id]: true }));
+      return;
     }
-    if (href === '/dashboard/teacher') {
-      return pathname === href && (!currentTab || currentTab === 'teachers');
-    }
-    return pathname === href && !searchParams?.get('view') && !searchParams?.get('tab');
-  };
-
-  const isGroupActive = (item: MainNavItem) => {
-    if (item.href) return isItemActive(item.href);
-    if (!item.subItems) return false;
-    return item.subItems.some((sub) => {
-      const base = sub.href.split('?')[0];
-      return pathname === base;
-    });
+    setOpenGroups((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
   };
 
   const handleLinkClick = () => {
@@ -229,804 +160,284 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
     window.location.href = '/login';
   };
 
-  // ── ADMIN 3-TIER CATEGORIZED NAVIGATION (MATCHING ENTERPRISE ERP SPEC) ──
-  const ADMIN_SECTIONS: NavSection[] = [
-    {
-      header: 'Core Overview',
-      headerBn: 'মূল মেনু • Core',
-      items: [
-        {
-          id: 'dashboard',
-          title: 'Dashboard',
-          titleBn: 'ড্যাশবোর্ড',
-          subtitle: 'Overview & Analytics',
-          subtitleBn: 'কমান্ড সেন্টার ও ওভারভিউ',
-          href: '/dashboard',
-          icon: <LayoutDashboard className="w-4 h-4" />,
-          iconColor: 'text-indigo-600',
-          hoverBg: 'group-hover:bg-indigo-500/20',
-          badge: 'Live',
-          badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
-        },
-        {
-          id: 'analytics',
-          title: 'Analytics & Exports',
-          titleBn: 'অ্যানালিটিক্স ও এক্সপোর্ট',
-          subtitle: 'Heatmaps, BANBEIS & EMIS',
-          subtitleBn: 'হিটম্যাপ ও BANBEIS / EMIS',
-          href: '/dashboard/analytics',
-          icon: <BarChart3 className="w-4 h-4" />,
-          iconColor: 'text-sky-600 dark:text-sky-400',
-          hoverBg: 'group-hover:bg-sky-500/20',
-          badge: 'New',
-          badgeColor: 'bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30',
-        },
-        {
-          id: 'people',
-          title: 'People',
-          titleBn: 'শিক্ষার্থী ও জনবল',
-          subtitle: 'Students, Staff & Faculty',
-          subtitleBn: 'শিক্ষার্থী, শিক্ষক ও স্টাফ',
-          icon: <Users className="w-4 h-4" />,
-          iconColor: 'text-sky-600 dark:text-sky-400',
-          hoverBg: 'group-hover:bg-sky-500/20',
-          subItems: [
-            {
-              label: 'All Students',
-              labelBn: 'সকল শিক্ষার্থী (Students)',
-              href: '/dashboard/students',
-              icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />,
-              badge: studentCount,
-              badgeColor: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30',
-            },
-            {
-              label: 'Bulk Student Upload',
-              labelBn: 'বাল্ক শিক্ষার্থী আপলোড',
-              href: '/dashboard/students/bulk-import',
-              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
-            },
-            {
-              label: 'Print & Reports',
-              labelBn: 'তালিকা প্রিন্ট ও রিপোর্ট',
-              href: '/dashboard/students?view=print',
-              icon: <Printer className="w-3.5 h-3.5 text-slate-400" />,
-            },
-            {
-              label: 'PVC ID Cards (CR80)',
-              labelBn: 'স্মার্ট আইডি কার্ড প্রিন্ট',
-              href: '/dashboard/students/id-card',
-              icon: <BadgeCheck className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />,
-            },
-            {
-              label: 'Alumni Archive',
-              labelBn: 'প্রাক্তন শিক্ষার্থী (Alumni)',
-              href: '/dashboard/alumni',
-              icon: <GraduationCap className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
-            },
-            {
-              label: 'Teachers & Staff (HR)',
-              labelBn: 'শিক্ষক ব্যবস্থাপনা (HR)',
-              href: '/dashboard/teacher',
-              icon: <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
-              badge: teacherCount,
-              badgeColor: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30',
-            },
-            {
-              label: 'Leave Applications',
-              labelBn: 'ছুটির আবেদনসমূহ',
-              href: '/dashboard/teacher?tab=leave_applications',
-              icon: <Send className="w-3.5 h-3.5 text-amber-600" />,
-              badge: pendingLeavesCount > 0 ? pendingLeavesCount : null,
-              badgeColor: 'bg-rose-500 text-white font-bold animate-pulse',
-            },
-          ],
-        },
-      ],
-    },
-    {
-      header: 'Academic & Operations',
-      headerBn: 'একাডেমিক • Academic',
-      items: [
-        {
-          id: 'academic',
-          title: 'Academic',
-          titleBn: 'একাডেমিক ব্যবস্থাপনা',
-          subtitle: 'Classes, Sections & Routine',
-          subtitleBn: 'শ্রেণি, শাখা ও পাঠ্যক্রম',
-          icon: <BookOpenCheck className="w-4 h-4" />,
-          iconColor: 'text-violet-600',
-          hoverBg: 'group-hover:bg-violet-500/20',
-          subItems: [
-            {
-              label: 'Classes & Sections',
-              labelBn: 'শ্রেণি ও শাখা সেটআপ',
-              href: '/dashboard/academic/classes',
-              icon: <GraduationCap className="w-3.5 h-3.5 text-violet-600" />,
-            },
-            {
-              label: 'Section Overview',
-              labelBn: 'শাখা সারসংক্ষেপ',
-              href: '/dashboard/academic',
-              icon: <Grid3X3 className="w-3.5 h-3.5 text-slate-400" />,
-            },
-            {
-              label: 'Subjects & Curriculum',
-              labelBn: 'বিষয় ও পাঠ্যক্রম (NCTB)',
-              href: '/dashboard/academic/curriculum',
-              icon: <BookOpen className="w-3.5 h-3.5 text-indigo-600" />,
-            },
-            {
-              label: 'Academic Session',
-              labelBn: 'শিক্ষাবর্ষ ও সেশন',
-              href: '/dashboard/academic/session',
-              icon: <Calendar className="w-3.5 h-3.5 text-emerald-600" />,
-            },
-            {
-              label: 'Routine & Proxy Manager',
-              labelBn: 'ক্লাস রুটিন ও প্রক্সি ম্যানেজার',
-              href: '/dashboard/routine',
-              icon: <Calendar className="w-3.5 h-3.5 text-sky-600" />,
-            },
-            {
-              label: 'Digital Homework',
-              labelBn: 'হোমওয়ার্ক ও লেকচার শিট',
-              href: '/dashboard/academic/homework',
-              icon: <BookOpen className="w-3.5 h-3.5 text-indigo-600" />,
-            },
-          ],
-        },
-        {
-          id: 'admissions',
-          title: 'Admissions',
-          titleBn: 'ভর্তি কার্যক্রম',
-          subtitle: 'New Student Enrollment',
-          subtitleBn: 'নতুন শিক্ষার্থী ভর্তি',
-          icon: <UserPlus className="w-4 h-4" />,
-          iconColor: 'text-emerald-600',
-          hoverBg: 'group-hover:bg-emerald-500/20',
-          badge: '+ New',
-          badgeColor: 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30',
-          subItems: [
-            {
-              label: 'New Admission',
-              labelBn: 'নতুন শিক্ষার্থী ভর্তি ফরম',
-              href: '/dashboard/admission',
-              icon: <UserPlus className="w-3.5 h-3.5 text-emerald-600" />,
-            },
-            {
-              label: 'Online Application (Public)',
-              labelBn: 'অনলাইন আবেদন ফরম (পাবলিক)',
-              href: '/admission',
-              icon: <FileText className="w-3.5 h-3.5 text-sky-600" />,
-              isExternal: true,
-            },
-          ],
-        },
-        {
-          id: 'attendance',
-          title: 'Attendance',
-          titleBn: 'ডিজিটাল হাজিরা',
-          subtitle: 'Live Daily Attendance',
-          subtitleBn: 'দৈনিক লাইভ উপস্থিতি',
-          href: '/dashboard/academic/attendance',
-          icon: <CalendarCheck2 className="w-4 h-4" />,
-          iconColor: 'text-amber-600',
-          hoverBg: 'group-hover:bg-amber-500/20',
-          liveDot: true,
-        },
-        {
-          id: 'examination',
-          title: 'Examination',
-          titleBn: 'পরীক্ষা ও ফলাফল',
-          subtitle: 'Exams, Marks & Results',
-          subtitleBn: 'পরীক্ষা ও ফলাফল প্রসেসিং',
-          icon: <Award className="w-4 h-4" />,
-          iconColor: 'text-rose-600',
-          hoverBg: 'group-hover:bg-rose-500/20',
-          subItems: [
-            {
-              label: 'Exam Setup',
-              labelBn: 'পরীক্ষা সেটআপ',
-              href: '/dashboard/exam',
-              icon: <SlidersHorizontal className="w-3.5 h-3.5 text-rose-600" />,
-            },
-            {
-              label: 'Admit Card',
-              labelBn: 'প্রবেশপত্র জেনারেটর',
-              href: '/dashboard/exam/admit-card',
-              icon: <CreditCard className="w-3.5 h-3.5 text-amber-600" />,
-            },
-            {
-              label: 'Seat Plan & Duty',
-              labelBn: 'সিট প্ল্যান ও কক্ষ ডিউটি',
-              href: '/dashboard/exam/seat-plan',
-              icon: <ClipboardList className="w-3.5 h-3.5 text-sky-600" />,
-            },
-            {
-              label: 'Marks Entry',
-              labelBn: 'নম্বর এন্ট্রি',
-              href: '/dashboard/exam/mark-entry',
-              icon: <Edit3 className="w-3.5 h-3.5 text-indigo-600" />,
-            },
-            {
-              label: 'Bulk Marks Entry',
-              labelBn: 'বাল্ক নম্বর এন্ট্রি',
-              href: '/dashboard/exam/bulk-entry',
-              icon: <Layers className="w-3.5 h-3.5 text-violet-600" />,
-            },
-            {
-              label: 'Result Analytics Studio',
-              labelBn: 'সমন্বিত ফলাফল স্টুডিও',
-              href: '/dashboard/exam/results',
-              icon: <FileBarChart className="w-3.5 h-3.5 text-indigo-600" />,
-              badge: '৯-ইন-১',
-              badgeColor: 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30',
-            },
-            {
-              label: 'Tabulation Sheet',
-              labelBn: 'মাস্টার ট্যাবুলেশন শীট',
-              href: '/dashboard/exam/tabulation',
-              icon: <ClipboardList className="w-3.5 h-3.5 text-teal-600" />,
-            },
-            {
-              label: 'Merit List',
-              labelBn: 'মেধাতালিকা ও র‍্যাঙ্ক',
-              href: '/dashboard/exam/rank-result',
-              icon: <BarChart3 className="w-3.5 h-3.5 text-cyan-600" />,
-            },
-            {
-              label: 'Report Card / Marksheet',
-              labelBn: 'রিপোর্ট কার্ড ও মার্কশীট',
-              href: '/dashboard/academic/marksheet',
-              icon: <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />,
-            },
-            {
-              label: 'Online Result (Public)',
-              labelBn: 'অনলাইন ফলাফল পোর্টাল (পাবলিক)',
-              href: '/result',
-              icon: <Search className="w-3.5 h-3.5 text-sky-600" />,
-              isExternal: true,
-            },
-          ],
-        },
-        {
-          id: 'promotion',
-          title: 'Promotion',
-          titleBn: 'শ্রেণি উন্নয়ন',
-          subtitle: 'Student Progression & Roll',
-          subtitleBn: 'শ্রেণি উন্নয়ন ও মেধা রোল',
-          icon: <TrendingUp className="w-4 h-4" />,
-          iconColor: 'text-cyan-600',
-          hoverBg: 'group-hover:bg-cyan-500/20',
-          subItems: [
-            {
-              label: 'Class Promotion',
-              labelBn: 'শ্রেণি প্রমোশন টুল',
-              href: '/dashboard/academic/promotion',
-              icon: <TrendingUp className="w-3.5 h-3.5 text-cyan-600" />,
-            },
-            {
-              label: 'Promotion History',
-              labelBn: 'প্রমোশন লগ ও হিস্ট্রি',
-              href: '/dashboard/academic/promotion#logs',
-              icon: <History className="w-3.5 h-3.5 text-slate-400" />,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      header: 'ERP Administration & Finance',
-      headerBn: 'প্রশাসন ও অর্থ • ERP',
-      items: [
-        {
-          id: 'finance',
-          title: 'Finance',
-          titleBn: 'হিসাবরক্ষণ ও অর্থ',
-          subtitle: 'Fee, Accounts & Payroll',
-          subtitleBn: 'বেতন, ফি ও হিসাবরক্ষণ',
-          icon: <Wallet className="w-4 h-4" />,
-          iconColor: 'text-teal-600',
-          hoverBg: 'group-hover:bg-teal-500/20',
-          subItems: [
-            {
-              label: 'Fee Collection',
-              labelBn: 'শিক্ষার্থী ফি ও বেতন আদায়',
-              href: '/dashboard/finance?tab=student_fees',
-              icon: <CreditCard className="w-3.5 h-3.5 text-teal-600" />,
-            },
-            {
-              label: 'Expense Records',
-              labelBn: 'ব্যয় ও খরচসমূহ',
-              href: '/dashboard/finance?tab=expenses',
-              icon: <Receipt className="w-3.5 h-3.5 text-rose-600" />,
-            },
-            {
-              label: 'Staff Payroll',
-              labelBn: 'শিক্ষক-কর্মচারী বেতন (Payroll)',
-              href: '/dashboard/finance?tab=payroll',
-              icon: <Banknote className="w-3.5 h-3.5 text-emerald-600" />,
-            },
-            {
-              label: 'Cash & Bank Accounts',
-              labelBn: 'ক্যাশ ও ব্যাংক লেজার',
-              href: '/dashboard/finance?tab=cash_bank',
-              icon: <Landmark className="w-3.5 h-3.5 text-indigo-600" />,
-            },
-            {
-              label: 'Waivers & Refunds',
-              labelBn: 'ফি মওকুফ ও রিফান্ড',
-              href: '/dashboard/finance?tab=waivers_refunds',
-              icon: <RotateCcw className="w-3.5 h-3.5 text-amber-600" />,
-            },
-            {
-              label: 'Financial Reports & Dues',
-              labelBn: 'বকেয়া ও আর্থিক রিপোর্ট',
-              href: '/dashboard/finance?tab=reports',
-              icon: <FileBarChart className="w-3.5 h-3.5 text-cyan-600" />,
-            },
-            {
-              label: 'General Ledger',
-              labelBn: 'খতিয়ান ও লেজার বই',
-              href: '/dashboard/ledger',
-              icon: <BookOpen className="w-3.5 h-3.5 text-violet-600" />,
-            },
-            {
-              label: 'Stipend Management',
-              labelBn: 'উপবৃত্তি ব্যবস্থাপনা',
-              href: '/dashboard/stipend',
-              icon: <Award className="w-3.5 h-3.5 text-amber-600" />,
-            },
-          ],
-        },
-        {
-          id: 'communication',
-          title: 'Communication',
-          titleBn: 'যোগাযোগ ও নোটিশ',
-          subtitle: 'SMS Broadcast & Notices',
-          subtitleBn: 'এসএমএস ও নোটিশ বোর্ড',
-          icon: <MessageSquareDot className="w-4 h-4" />,
-          iconColor: 'text-orange-600',
-          hoverBg: 'group-hover:bg-orange-500/20',
-          badge: 'SMS',
-          badgeColor: 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30 font-bold',
-          subItems: [
-            {
-              label: 'SMS Broadcast Hub',
-              labelBn: 'এসএমএস ব্রডকাস্ট হাব',
-              href: '/dashboard/sms',
-              icon: <Send className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />,
-            },
-            {
-              label: 'Notice Board',
-              labelBn: 'ডিজিটাল নোটিশ বোর্ড',
-              href: '/dashboard/notices',
-              icon: <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
-            },
-          ],
-        },
-        {
-          id: 'campus_services',
-          title: 'Campus Facilities',
-          titleBn: 'লাইব্রেরি, পরিবহন ও হোস্টেল',
-          subtitle: 'Library, Bus & Hostel',
-          subtitleBn: 'লাইব্রেরি, বাস রুট ও আবাসিক',
-          icon: <Library className="w-4 h-4" />,
-          iconColor: 'text-emerald-600 dark:text-emerald-400',
-          hoverBg: 'group-hover:bg-emerald-500/20',
-          subItems: [
-            {
-              label: 'Digital Library',
-              labelBn: 'ডিজিটাল লাইব্রেরি ও জরিমানা',
-              href: '/dashboard/library',
-              icon: <BookOpen className="w-3.5 h-3.5 text-emerald-600" />,
-            },
-            {
-              label: 'Transport & Hostel',
-              labelBn: 'পরিবহন (বাস) ও হোস্টেল',
-              href: '/dashboard/campus',
-              icon: <Bus className="w-3.5 h-3.5 text-amber-600" />,
-            },
-          ],
-        },
-        {
-          id: 'certificates',
-          title: 'Certificates & Docs',
-          titleBn: 'সনদপত্র ও ডকুমেন্টস',
-          subtitle: 'Transcripts & Certificates',
-          subtitleBn: 'প্রত্যয়ন, টিসি ও প্রশংসাপত্র',
-          icon: <FileBadge className="w-4 h-4" />,
-          iconColor: 'text-amber-600 dark:text-amber-400',
-          hoverBg: 'group-hover:bg-yellow-500/20',
-          subItems: [
-            {
-              label: 'Testimonials & Transcripts',
-              labelBn: 'প্রশংসাপত্র ও ট্রান্সক্রিপ্ট',
-              href: '/dashboard/ssc-transcript',
-              icon: <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
-            },
-            {
-              label: 'Certificates & Documents',
-              labelBn: 'প্রত্যয়ন পত্র ব্যবস্থাপনা',
-              href: '/dashboard/certificates',
-              icon: <FileCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
-            },
-          ],
-        },
-        {
-          id: 'cms',
-          title: 'Landing Page CMS',
-          titleBn: 'ল্যান্ডিং পেইজ সিএমএস',
-          subtitle: 'Public Website Manager',
-          subtitleBn: 'স্কুল ওয়েবসাইট কন্ট্রোল',
-          icon: <Globe className="w-4 h-4" />,
-          iconColor: 'text-blue-600 dark:text-blue-400',
-          hoverBg: 'group-hover:bg-blue-500/20',
-          subItems: [
-            {
-              label: 'Landing Page Editor',
-              labelBn: 'ওয়েবসাইট কন্টেন্ট এডিটর',
-              href: '/dashboard/landing-page',
-              icon: <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />,
-            },
-            {
-              label: 'Mobile App & PWA Hub',
-              labelBn: 'মোবাইল অ্যাপ ও APK হাব',
-              href: '/dashboard/mobile-app',
-              icon: <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
-              badge: 'v2.0',
-              badgeColor: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold',
-            },
-            {
-              label: 'Teacher Mobile Portal',
-              labelBn: 'শিক্ষক মোবাইল পোর্টাল',
-              href: '/dashboard/teacher-portal',
-              icon: <UserCheck className="w-3.5 h-3.5 text-indigo-600" />,
-            },
-            {
-              label: 'View Public Site',
-              labelBn: 'পাবলিক ওয়েবসাইট দেখুন',
-              href: '/',
-              icon: <ExternalLink className="w-3.5 h-3.5 text-sky-600" />,
-              isExternal: true,
-            },
-          ],
-        },
-        {
-          id: 'admin',
-          title: 'Administration',
-          titleBn: 'সিস্টেম প্রশাসন',
-          subtitle: 'Settings, Roles & Security',
-          subtitleBn: 'সিস্টেম সেটিংস ও রোল',
-          icon: <Sliders className="w-4 h-4" />,
-          iconColor: 'text-pink-600',
-          hoverBg: 'group-hover:bg-pink-500/20',
-          subItems: [
-            {
-              label: 'School Settings',
-              labelBn: 'স্কুল সাধারণ সেটিংস',
-              href: '/dashboard/settings',
-              icon: <Sliders className="w-3.5 h-3.5 text-pink-600" />,
-            },
-            {
-              label: 'Bulk Student Upload',
-              labelBn: 'বাল্ক শিক্ষার্থী তথ্য আপলোড',
-              href: '/dashboard/students/bulk-import',
-              icon: <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />,
-            },
-            {
-              label: 'Managing Committee',
-              labelBn: 'ম্যানেজিং কমিটি তালিকা',
-              href: '/dashboard/settings?tab=committee',
-              icon: <Users className="w-3.5 h-3.5 text-purple-600" />,
-            },
-          ],
-        },
-      ],
-    },
-  ];
-
-  // ── TEACHER DEDICATED NAVIGATION (FOR NON-ADMIN ACCOUNTS) ──
-  const TEACHER_ITEMS: MainNavItem[] = [
-    {
-      id: 'teacher_dashboard',
-      title: 'Teacher Dashboard',
-      titleBn: 'শিক্ষক ড্যাশবোর্ড',
-      subtitle: 'Classes & Overview',
-      subtitleBn: 'কমান্ড সেন্টার ও অ্যানালিটিক্স',
-      href: '/dashboard/teacher-portal?tab=home',
-      icon: <LayoutDashboard className="w-4 h-4" />,
-      iconColor: 'text-indigo-600 dark:text-indigo-400',
-      hoverBg: 'group-hover:bg-indigo-500/20',
-      badge: 'Live',
-      badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
-    },
-    {
-      id: 'teacher_mark_entry',
-      title: 'Exam Mark Entry',
-      titleBn: 'নম্বর এন্ট্রি',
-      subtitle: 'Subject Exam Marks',
-      subtitleBn: 'বিষয়ভিত্তিক নম্বর প্রদান',
-      href: '/dashboard/exam/mark-entry',
-      icon: <Edit3 className="w-4 h-4" />,
-      iconColor: 'text-rose-600',
-      hoverBg: 'group-hover:bg-rose-500/20',
-    },
-    {
-      id: 'teacher_attendance',
-      title: 'Daily Attendance',
-      titleBn: 'হাজিরা গ্রহণ',
-      subtitle: 'Roll Call Attendance',
-      subtitleBn: 'শ্রেণিভিত্তিক ডিজিটাল হাজিরা',
-      href: '/dashboard/academic/attendance',
-      icon: <CalendarCheck2 className="w-4 h-4" />,
-      iconColor: 'text-amber-600',
-      hoverBg: 'group-hover:bg-amber-500/20',
-      liveDot: true,
-    },
-    {
-      id: 'teacher_students',
-      title: 'Class Students & Fees',
-      titleBn: 'শিক্ষার্থী ও ফি',
-      subtitle: 'Student Directory & Dues',
-      subtitleBn: 'শ্রেণি শিক্ষার্থী ও বেতন',
-      href: '/dashboard/teacher-portal?tab=students',
-      icon: <Users className="w-4 h-4" />,
-      iconColor: 'text-emerald-600',
-      hoverBg: 'group-hover:bg-emerald-500/20',
-    },
-    {
-      id: 'teacher_routine',
-      title: 'Class Routine',
-      titleBn: 'ক্লাস রুটিন ও প্রক্সি',
-      subtitle: 'Daily Class Timetable',
-      subtitleBn: 'দৈনন্দিন পিরিয়ড ও প্রক্সি শিডিউল',
-      href: '/dashboard/routine',
-      icon: <Calendar className="w-4 h-4" />,
-      iconColor: 'text-blue-600',
-      hoverBg: 'group-hover:bg-blue-500/20',
-    },
-    {
-      id: 'teacher_homework',
-      title: 'Homework & Lessons',
-      titleBn: 'হোমওয়ার্ক ও লেকচার',
-      subtitle: 'Class Assignments',
-      subtitleBn: 'ডিজিটাল বাড়ির কাজ ও পাঠ',
-      href: '/dashboard/academic/homework',
-      icon: <BookOpen className="w-4 h-4" />,
-      iconColor: 'text-indigo-600',
-      hoverBg: 'group-hover:bg-indigo-500/20',
-    },
-    {
-      id: 'teacher_seat_plan',
-      title: 'Exam Seat Plan',
-      titleBn: 'পরীক্ষার সিট প্ল্যান',
-      subtitle: 'Exam Hall & Duty Roster',
-      subtitleBn: 'হল ম্যাপ ও কক্ষ পরিদর্শক ডিউটি',
-      href: '/dashboard/exam/seat-plan',
-      icon: <ClipboardList className="w-4 h-4" />,
-      iconColor: 'text-sky-600',
-      hoverBg: 'group-hover:bg-sky-500/20',
-    },
-    {
-      id: 'teacher_leaves',
-      title: 'Leave Application',
-      titleBn: 'ছুটির আবেদন',
-      subtitle: 'Apply for Leave',
-      subtitleBn: 'অনলাইন নৈমিত্তিক ছুটির আবেদন',
-      href: '/dashboard/teacher-portal?tab=leaves',
-      icon: <Send className="w-4 h-4" />,
-      iconColor: 'text-cyan-600',
-      hoverBg: 'group-hover:bg-cyan-500/20',
-    },
-    {
-      id: 'teacher_notices',
-      title: 'Notice Board',
-      titleBn: 'নোটিশ বোর্ড',
-      subtitle: 'School Announcements',
-      subtitleBn: 'প্রাতিষ্ঠানিক জরুরি বিজ্ঞপ্তি',
-      href: '/dashboard/notices',
-      icon: <Bell className="w-4 h-4" />,
-      iconColor: 'text-orange-600',
-      hoverBg: 'group-hover:bg-orange-500/20',
-    },
-    {
-      id: 'teacher_profile',
-      title: 'Profile & Security',
-      titleBn: 'প্রোফাইল ও নিরাপত্তা',
-      subtitle: 'Personal Details & PIN',
-      subtitleBn: 'শিক্ষক পরিচিতি ও পাসওয়ার্ড',
-      href: '/dashboard/teacher-portal?tab=profile',
-      icon: <UserCheck className="w-4 h-4" />,
-      iconColor: 'text-purple-600',
-      hoverBg: 'group-hover:bg-purple-500/20',
-    },
-  ];
-
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 select-none transition-colors duration-200">
-      
-      {/* ── 1. BRAND HEADER WITH GRADIENT ACCENT ── */}
-      <div className="h-20 px-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-950">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 select-none transition-colors duration-200">
+      {/* ── 1. CLEAN BRAND HEADER + COLLAPSE TOGGLE ── */}
+      <div
+        className={`h-16 flex items-center border-b border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-950 ${
+          isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+        }`}
+      >
         <Link
           href="/"
           onClick={handleLinkClick}
-          className="flex items-center gap-3.5 hover:opacity-95 transition-opacity min-w-0 group"
-          title="মূল হোমপেজে যান"
+          className="flex items-center gap-2.5 hover:opacity-95 transition-opacity min-w-0 group"
+          title={schoolSettings?.schoolName || 'মূল হোমপেজে যান'}
         >
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-0.5 shadow-md shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-[2px] shadow-sm shadow-indigo-500/20 shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden">
               {schoolSettings?.schoolLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-7 h-7 object-contain" />
+                <img src={schoolSettings.schoolLogo} alt="Logo" className="w-6 h-6 object-contain" />
               ) : (
-                <GraduationCap className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               )}
             </div>
           </div>
-          <div className="overflow-hidden min-w-0">
-            <h1 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base tracking-tight leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-              {schoolSettings?.schoolName || 'স্মার্ট স্কুল ম্যানেজমেন্ট'}
-            </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 flex items-center gap-1.5 truncate">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
-              <span>EIIN: {schoolSettings?.eiin || '---'}{schoolSettings?.address ? ` • ${schoolSettings.address.split(',')[1]?.trim() || schoolSettings.address}` : ''}</span>
-            </p>
-          </div>
+
+          {!isCollapsed && (
+            <div className="overflow-hidden min-w-0">
+              <h1 className="font-bold text-slate-900 dark:text-white text-[13.5px] tracking-tight leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                {schoolSettings?.schoolName || 'স্মার্ট স্কুল ম্যানেজমেন্ট'}
+              </h1>
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 flex items-center gap-1.5 truncate">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                <span className="truncate">
+                  EIIN: {schoolSettings?.eiin || '---'}
+                  {schoolSettings?.address
+                    ? ` • ${schoolSettings.address.split(',')[1]?.trim() || schoolSettings.address}`
+                    : ''}
+                </span>
+              </p>
+            </div>
+          )}
         </Link>
 
+        {/* Mobile drawer close button */}
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition lg:hidden shrink-0 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition lg:hidden shrink-0 cursor-pointer"
+            aria-label="Close menu"
             title="মেনু বন্ধ করুন"
           >
             <X className="w-5 h-5" />
           </button>
         )}
+
+        {/* Desktop collapse button (when expanded) */}
+        {!onClose && onToggleCollapse && !isCollapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition shrink-0 cursor-pointer"
+            aria-label="Collapse sidebar"
+            title={currentLang === 'en' ? 'Collapse sidebar' : 'সাইডবার সংকুচিত করুন'}
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* ── 3. SCROLLABLE NAVIGATION MENU ITEMS ── */}
+      {/* ── 2. EXPAND BUTTON (COLLAPSED RAIL ONLY) ── */}
+      {isCollapsed && onToggleCollapse && (
+        <div className="px-2 pt-2.5 pb-1.5 flex flex-col items-center gap-1.5 border-b border-slate-100 dark:border-slate-800/60 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="w-10 h-9 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition cursor-pointer"
+            aria-label="Expand sidebar"
+            title={currentLang === 'en' ? 'Expand sidebar' : 'সাইডবার বড় করুন'}
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── 3. SCROLLABLE 5-DOMAIN NAVIGATION TREE ── */}
       <nav
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        className="flex-1 overflow-y-auto px-3 py-2 space-y-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden no-scrollbar"
+        className={`flex-1 overflow-y-auto py-3 space-y-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden no-scrollbar ${
+          isCollapsed ? 'px-2' : 'px-3'
+        }`}
       >
-        
-        {isAdmin ? (
-          /* ── ADMIN TIERED SECTIONS ── */
-          ADMIN_SECTIONS.map((section, idx) => (
-            <div key={idx} className="space-y-0.5">
-              <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                {currentLang === 'en' ? section.header : section.headerBn}
-              </p>
+        {visibleSections.map((section, sIdx) => (
+            <div key={section.id} className="space-y-1">
+              {isCollapsed ? (
+                sIdx > 0 && (
+                  <div className="mx-2 my-1.5 border-t border-slate-200/80 dark:border-slate-800" />
+                )
+              ) : (
+                <p className="px-2.5 pb-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {currentLang === 'en' ? section.header : section.headerBn}
+                </p>
+              )}
 
               <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const isDirect = Boolean(item.href);
-                  const isDirectActive = isDirect && item.href ? isItemActive(item.href) : false;
-                  const isGActive = isGroupActive(item);
+                  const isDirectActive =
+                    isDirect && item.href
+                      ? isNavHrefActive(item.href, pathname, searchParams)
+                      : false;
+                  const isGActive = isNavGroupActive(item, pathname, searchParams);
                   const isExpanded = openGroups[item.id] ?? isGActive;
+                  const itemLabel = currentLang === 'en' ? item.title : item.titleBn;
+                  const itemBadge = resolveBadgeValue(item.badgeKey, item.badge, item.badgeBn);
 
                   if (isDirect && item.href) {
+                    const isEmeraldAccent = item.accent === 'emerald';
+                    const linkClasses = isDirectActive
+                      ? isEmeraldAccent
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/25 font-semibold'
+                        : 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25 font-semibold'
+                      : isEmeraldAccent
+                      ? 'bg-emerald-50/70 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-500/20 hover:bg-emerald-100/80 dark:hover:bg-emerald-500/15 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 hover:text-slate-950 dark:hover:text-white font-medium';
+
                     return (
                       <Link
                         key={item.id}
                         href={item.href}
                         onClick={handleLinkClick}
-                        className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
-                          isDirectActive
-                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
-                        }`}
+                        title={isCollapsed ? itemLabel : undefined}
+                        className={`relative flex items-center rounded-xl text-[13px] transition-all group ${
+                          isCollapsed
+                            ? 'justify-center w-11 h-10 mx-auto'
+                            : 'justify-between px-2.5 py-2'
+                        } ${linkClasses}`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className={`flex items-center min-w-0 ${isCollapsed ? '' : 'gap-2.5'}`}>
                           <span
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                              isDirectActive
-                                ? 'bg-white/20 text-white'
-                                : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
+                            className={`shrink-0 transition-colors ${
+                              isDirectActive ? 'text-white' : item.iconColor
                             }`}
                           >
-                            {item.icon}
+                            <NavIcon name={item.icon} className="w-[17px] h-[17px]" />
                           </span>
-                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isDirectActive ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>
-                            {currentLang === 'en' ? item.title : item.titleBn || item.title}
-                          </span>
+                          {!isCollapsed && <span className="truncate">{itemLabel}</span>}
                         </div>
 
-                        {item.badge && (
+                        {!isCollapsed && itemBadge !== null && (
                           <span
-                            className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
-                              item.badgeColor || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
+                              isDirectActive
+                                ? 'bg-white/20 text-white'
+                                : item.badgeColor ||
+                                  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                             }`}
                           >
-                            {item.badge}
+                            {itemBadge}
                           </span>
                         )}
 
                         {item.liveDot && (
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                          <span
+                            className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ${
+                              isCollapsed ? 'absolute top-2 right-2' : ''
+                            }`}
+                          />
                         )}
                       </Link>
                     );
                   }
 
-                  // Collapsible Submenu Item
+                  // Collapsible Accordion Group
                   return (
-                    <div key={item.id} className="space-y-1">
+                    <div key={item.id} className="space-y-0.5">
                       <button
                         type="button"
                         onClick={() => toggleGroup(item.id)}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
+                        title={isCollapsed ? itemLabel : undefined}
+                        aria-expanded={!isCollapsed && isExpanded}
+                        className={`relative w-full flex items-center rounded-xl text-[13px] transition-all group cursor-pointer ${
+                          isCollapsed
+                            ? 'justify-center w-11 h-10 mx-auto'
+                            : 'justify-between px-2.5 py-2'
+                        } ${
                           isGActive
-                            ? 'bg-slate-100 dark:bg-slate-800/90 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700/80 font-bold'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-indigo-50/90 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 hover:text-slate-950 dark:hover:text-white font-medium'
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        {isGActive && !isCollapsed && (
+                          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-indigo-600 dark:bg-indigo-400" />
+                        )}
+
+                        <div className={`flex items-center min-w-0 ${isCollapsed ? '' : 'gap-2.5'}`}>
                           <span
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            className={`shrink-0 transition-colors ${
                               isGActive
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
+                                ? 'text-indigo-600 dark:text-indigo-400'
+                                : item.iconColor
                             }`}
                           >
-                            {item.icon}
+                            <NavIcon name={item.icon} className="w-[17px] h-[17px]" />
                           </span>
-                          <span className={`block font-semibold truncate text-xs sm:text-sm ${isGActive ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-800 dark:text-slate-200'}`}>
-                            {currentLang === 'en' ? item.title : item.titleBn || item.title}
-                          </span>
+                          {!isCollapsed && <span className="truncate">{itemLabel}</span>}
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          {item.badge && (
-                            <span
-                              className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                                item.badgeColor || 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
-                              }`}
-                            >
-                              {item.badge}
-                            </span>
-                          )}
-
-                          {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Submenu Children */}
-                      {isExpanded && item.subItems && (
-                        <div className="mt-1 ml-6 pl-4 border-l-2 border-slate-200 dark:border-slate-800 space-y-1 py-0.5">
-                          {item.subItems.map((sub) => {
-                            const subActive = isItemActive(sub.href);
-                            return (
-                              <Link
-                                key={sub.href}
-                                href={sub.href}
-                                onClick={handleLinkClick}
-                                className={`flex items-center justify-between py-2 px-3 rounded-xl text-xs transition-all group ${
-                                  subActive
-                                    ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-500/30 shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium'
+                        {!isCollapsed && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {itemBadge !== null && (
+                              <span
+                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md ${
+                                  item.badgeColor ||
+                                  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                                 }`}
                               >
-                                <span className="flex items-center gap-2.5 truncate">
-                                  {sub.icon}
+                                {itemBadge}
+                              </span>
+                            )}
+                            {isExpanded ? (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150" />
+                            )}
+                          </div>
+                        )}
+
+                        {isCollapsed && itemBadge !== null && item.badgeKey === 'pendingLeaves' && (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
+                        )}
+                      </button>
+
+                      {/* Clean Tree Submenu */}
+                      {!isCollapsed && isExpanded && item.subItems && (
+                        <div className="ml-4 pl-3 border-l border-slate-200/90 dark:border-slate-800 space-y-0.5 py-0.5">
+                          {item.subItems.map((sub) => {
+                            const subActive = isNavHrefActive(sub.href, pathname, searchParams);
+                            const subBadge = resolveBadgeValue(
+                              sub.badgeKey,
+                              sub.badge,
+                              sub.badgeBn,
+                            );
+
+                            return (
+                              <Link
+                                key={sub.id}
+                                href={sub.href}
+                                onClick={handleLinkClick}
+                                className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-[12.5px] transition-all group ${
+                                  subActive
+                                    ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 font-medium'
+                                }`}
+                              >
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className={`shrink-0 ${
+                                      subActive
+                                        ? 'text-indigo-600 dark:text-indigo-400'
+                                        : sub.iconColor || 'text-slate-400 dark:text-slate-500'
+                                    }`}
+                                  >
+                                    <NavIcon name={sub.icon} className="w-3.5 h-3.5" />
+                                  </span>
                                   <span className="truncate">
                                     {currentLang === 'en' ? sub.label : sub.labelBn}
                                   </span>
                                 </span>
 
-                                {sub.badge !== undefined && sub.badge !== null && (
+                                {subBadge !== null && (
                                   <span
                                     className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
-                                      sub.badgeColor || 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
+                                      sub.badgeColor ||
+                                      'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-500/30'
                                     }`}
                                   >
-                                    {sub.badge}
+                                    {subBadge}
                                   </span>
                                 )}
 
@@ -1043,108 +454,108 @@ function SidebarContent({ session, onClose }: { session: UserSession | null; onC
                 })}
               </div>
             </div>
-          ))
-        ) : (
-          /* ── TEACHER DEDICATED ITEMS ── */
-          <div className="space-y-1">
-            <p className="px-3 pt-1 mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              {currentLang === 'en' ? 'Teacher Portal' : 'শিক্ষক সেবা ও কার্যক্রম'}
-            </p>
-
-            <div className="space-y-0.5">
-              {TEACHER_ITEMS.map((item) => {
-                const active = item.href ? isItemActive(item.href) : false;
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href || '/dashboard/teacher-portal'}
-                    onClick={handleLinkClick}
-                    className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-sm font-medium transition-all group ${
-                      active
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-bold'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          active
-                            ? 'bg-white/20 text-white'
-                            : `bg-slate-100 dark:bg-slate-800/80 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700/80 ${item.iconColor}`
-                        }`}
-                      >
-                        {item.icon}
-                      </span>
-                      <span className={`block font-semibold truncate text-xs sm:text-sm ${active ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>
-                        {currentLang === 'en' ? item.title : item.titleBn || item.title}
-                      </span>
-                    </div>
-
-                    {item.badge && (
-                      <span
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
-                          item.badgeColor || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-
-                    {item.liveDot && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          ))}
       </nav>
 
-      {/* ── 4. SIDEBAR FOOTER / USER PROFILE CARD ── */}
-      <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 shrink-0">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-sm shadow">
-                {session?.teacherName
-                  ? session.teacherName.charAt(0)
-                  : isAdmin
-                  ? 'AU'
-                  : 'TC'}
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                {session?.teacherName ||
-                  (isAdmin
-                    ? schoolSettings?.principalName || 'Admin User'
-                    : 'Teacher')}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                {isAdmin
-                  ? 'প্রধান প্রশাসক • Super Admin'
-                  : 'সহকারী শিক্ষক • Faculty'}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            title="Logout"
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+      {/* ── 4. COMPACT MOBILE APP WIDGET (ADMIN EXPANDED) + USER FOOTER ── */}
+      <div
+        className={`border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/50 shrink-0 ${
+          isCollapsed ? 'p-2 space-y-2' : 'p-3 space-y-2'
+        }`}
+      >
+        {isAdmin && !isCollapsed && (
+          <Link
+            href="/dashboard/mobile-app"
+            onClick={handleLinkClick}
+            className="flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50/80 dark:from-emerald-950/50 dark:to-teal-950/40 border border-emerald-200/80 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition group"
           >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11.5px] font-bold text-emerald-950 dark:text-emerald-200 truncate leading-tight">
+                  {currentLang === 'en' ? 'Mobile App & QR' : 'মোবাইল অ্যাপ ও QR'}
+                </p>
+                <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 truncate">
+                  {currentLang === 'en' ? 'Student, Guardian & Teacher' : 'শিক্ষার্থী, অভিভাবক ও শিক্ষক'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+          </Link>
+        )}
 
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="relative"
+              title={
+                session?.teacherName ||
+                (isAdmin ? schoolSettings?.principalName || 'Admin User' : 'Teacher')
+              }
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-xs">
+                {session?.teacherName ? session.teacherName.charAt(0) : isAdmin ? 'AU' : 'TC'}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={currentLang === 'en' ? 'Logout' : 'লগআউট'}
+              aria-label="Logout"
+              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-xs">
+                  {session?.teacherName ? session.teacherName.charAt(0) : isAdmin ? 'AU' : 'TC'}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {session?.teacherName ||
+                    (isAdmin ? schoolSettings?.principalName || 'Admin User' : 'Teacher')}
+                </p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">
+                  {isAdmin
+                    ? currentLang === 'en'
+                      ? 'Super Admin'
+                      : 'প্রধান প্রশাসক'
+                    : currentLang === 'en'
+                    ? 'Faculty Member'
+                    : 'সহকারী শিক্ষক'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={currentLang === 'en' ? 'Logout' : 'লগআউট'}
+              aria-label="Logout"
+              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({
+  isOpen,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const [session, setSession] = useState<UserSession | null>(null);
 
   useEffect(() => {
@@ -1158,14 +569,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar (w-72 matches modern high-end ERP layout) */}
-      <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 h-screen sticky top-0 z-30 print:hidden border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950">
+      {/* Desktop Sidebar (264px expanded ↔ 72px sleek icon rail) */}
+      <aside
+        className={`hidden lg:flex lg:flex-col shrink-0 h-screen sticky top-0 z-30 print:hidden border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 transition-[width] duration-200 ease-out ${
+          isCollapsed ? 'w-[72px]' : 'w-[264px]'
+        }`}
+      >
         <React.Suspense
           fallback={
-            <div className="w-72 bg-white dark:bg-slate-950 h-screen border-r border-slate-200/90 dark:border-slate-800" />
+            <div
+              className={`${
+                isCollapsed ? 'w-[72px]' : 'w-[264px]'
+              } bg-white dark:bg-slate-950 h-screen border-r border-slate-200/90 dark:border-slate-800`}
+            />
           }
         >
-          <SidebarContent session={session} />
+          <SidebarContent
+            session={session}
+            isCollapsed={isCollapsed}
+            onToggleCollapse={onToggleCollapse}
+          />
         </React.Suspense>
       </aside>
 
@@ -1184,13 +607,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
         {/* Drawer */}
         <aside
-          className={`absolute left-0 top-0 bottom-0 w-72 shadow-2xl transition-transform duration-300 ease-in-out border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 ${
+          className={`absolute left-0 top-0 bottom-0 w-[272px] shadow-2xl transition-transform duration-300 ease-in-out border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <React.Suspense
             fallback={
-              <div className="w-72 bg-white dark:bg-slate-950 h-full border-r border-slate-200/90 dark:border-slate-800" />
+              <div className="w-[272px] bg-white dark:bg-slate-950 h-full border-r border-slate-200/90 dark:border-slate-800" />
             }
           >
             <SidebarContent session={session} onClose={onClose} />
