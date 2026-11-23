@@ -646,17 +646,26 @@ const ALLOWED_SMS_PROXY_HOSTS = new Set([
 
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const isImmutableNextAsset =
+      responseStatus === 200 &&
+      (decodedRawPath.startsWith('/_next/static/') ||
+        /\.(woff|woff2|ttf|png|jpg|jpeg|svg|ico|webp)$/.test(ext));
 
     fs.readFile(filePath, (err, content) => {
       if (err) {
         sendResponse(res, 500, { 'Content-Type': 'text/plain' }, '500 Internal Server Error');
         return;
       }
+      const cacheHeaders = isImmutableNextAsset
+        ? { 'Cache-Control': 'public, max-age=31536000, immutable' }
+        : {
+            'Cache-Control': 'no-cache, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          };
       sendResponse(res, responseStatus, {
         'Content-Type': contentType,
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        ...cacheHeaders
       }, content);
     });
   };

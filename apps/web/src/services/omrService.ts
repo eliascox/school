@@ -1,35 +1,41 @@
 /**
- * OMR Exam Session, Student-Wise & Class-Wise Storage, Grading,
- * Item Analysis, and Lossless Mark-Entry Synchronization Service.
- *
- * Guarantees:
- *  - Accurate class-wise & student-wise linkage via `studentService` + religion filtering
- *  - Duplicate-roll conflict guard (never creates silent duplicate student records)
- *  - Automatic re-grading whenever Answer Keys or marking rules change
- *  - Automatic roll ordering consistent with `sortStudentsGroupAndRoll`
- *  - Lossless MCQ sync into `sms_marks_*` (strictly preserving CQ & Practical marks)
+ * OMR Exam Session, Universal Class 6–10 Curriculum Sync, Auto-Routing
+ * by 3-Digit Subject Code + Class + Group, Student-Wise Persistence,
+ * Item Analysis, and Lossless Mark-Entry Synchronization Service (v2).
  */
 
 import {
   OmrColorTheme,
   OmrOptionStyle,
+  OmrPaperFormat,
   OmrTemplateId,
   OMR_SET_LABELS,
-  OMR_TEMPLATE_PRESETS,
+  clampOmrQuestionCount,
   recommendTemplateForMcqCount,
   toAsciiDigits,
 } from '@/lib/omr/omrTemplates';
 import type { BubbleChoiceStatus, OmrDecodeResult } from '@/lib/omr/omrVisionEngine';
 import { studentService, Student } from './studentService';
 import { sortStudentsGroupAndRoll } from './studentBulkImportEngine';
-import { filterStudentsBySubjectReligion, getStudentReligion } from '@/lib/religionUtils';
+import { filterStudentsBySubjectReligion, getStudentReligion, isReligionSubject } from '@/lib/religionUtils';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
-import { getAllSubjectAliases } from '@/lib/markStorageUtils';
+import { curriculumService } from './curriculumService';
+import { SUBJECT_SYNONYMS, getAllSubjectAliases } from '@/lib/markStorageUtils';
 import { auditTrailService } from './auditTrailService';
 import { syncQueueService } from './syncQueueService';
 
 export const OMR_SESSIONS_STORAGE_KEY = 'sms_omr_sessions';
 export const OMR_SCANS_STORAGE_KEY = 'sms_omr_scans';
+
+export interface OmrCurriculumSubjectOption {
+  code: string;
+  name: string;
+  nameEn?: string;
+  mcqMax: number;
+  category: string;
+  group: string;
+  isReligion: boolean;
+}
 
 export interface OmrExamSession {
   id: string;
@@ -41,9 +47,10 @@ export interface OmrExamSession {
   group: string; // 'সাধারণ' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা'
   subjectCode: string;
   subjectName: string;
-  subjectMcqMax: number; // NCTB max MCQ marks (e.g. 25 or 30), 0 if custom test
+  subjectMcqMax: number; // NCTB max MCQ marks (e.g. 25 or 30), or custom
   templateId: OmrTemplateId;
-  questionCount: number;
+  paperFormat: OmrPaperFormat; // 'legal_half' (default) | 'a5' | 'a4'
+  questionCount: number; // dynamic 10..100
   rollDigits: number; // 2..6
   optionStyle: OmrOptionStyle; // 'bn' | 'en'
   setCount: 1 | 4;
@@ -52,6 +59,12 @@ export interface OmrExamSession {
   negativeMark: number;
   /** Map of setCode ('default' or 'ক'/'খ'/'গ'/'ঘ' or 'A'/'B'/'C'/'D') -> Array<0|1|2|3|null> */
   answerKeys: Record<string, Array<number | null>>;
+  /** Optional lock flag preventing accidental Answer Key edits during scanning */
+  isKeyLocked?: boolean;
+  /** Optional teacher note about this Answer Key (e.g., revision note or paper set reference) */
+  keyNote?: string;
+  /** Name of the admin/teacher who last edited or locked the Answer Key */
+  keyUpdatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +94,11 @@ export interface OmrScanRecord {
   studentName: string;
   studentRoll: string; // Normalized clean roll (e.g. "05" or "5")
   decodedRollRaw: string; // Raw digits from OMR (e.g. "005" or "0?5")
+  /** Auto-decoded identity fields from the sheet */
+  decodedSubjectCodeRaw?: string;
+  decodedGrade?: string | null;
+  decodedGroup?: string | null;
+  autoRouted?: boolean;
   matchStatus: OmrStudentMatchStatus;
   setCode: string; // 'default' or 'ক'/'খ'/'গ'/'ঘ' or 'A'/'B'/'C'/'D'
   setIndex: number | null;
@@ -126,6 +144,9 @@ export interface OmrSaveScanOutcome {
   status: 'saved' | 'updated' | 'duplicate_conflict';
   record: OmrScanRecord;
   existingRecord?: OmrScanRecord;
+  targetSession: OmrExamSession;
+  autoRouted: boolean;
+  routingSummaryBn?: string;
 }
 
 export interface OmrMarkSyncReport {
@@ -135,7 +156,85 @@ export interface OmrMarkSyncReport {
   storageKeysWritten: string[];
 }
 
+export interface OmrSetReadinessSummary {
+  setCode: string;
+  filled: number;
+  total: number;
+  isComplete: boolean;
+}
+
+export interface OmrSubjectKeyReadiness {
+  subjectCode: string;
+  subjectName: string;
+  defaultMcqMax: number;
+  category: string;
+  subjectGroup: string;
+  sessionId: string | null;
+  questionCount: number;
+  setCount: 1 | 4;
+  optionStyle: OmrOptionStyle;
+  markPerCorrect: number;
+  negativeMark: number;
+  setSummaries: OmrSetReadinessSummary[];
+  completedSetCount: number;
+  totalSetCount: number;
+  totalFilledAcrossSets: number;
+  status: 'complete' | 'partial' | 'empty';
+  isKeyLocked: boolean;
+  keyNote: string;
+  scannedCount: number;
+  updatedAt: string | null;
+}
+
+export interface OmrSiblingScopeDescriptor {
+  branch: string;
+  group: string;
+  labelBn: string;
+}
+
+export interface OmrSiblingScopeSyncResult {
+  updatedCount: number;
+  targetLabelsBn: string[];
+}
+
+export interface OmrAnswerKeyBackupEntry {
+  examTitle: string;
+  academicYear: string;
+  grade: string;
+  branch: string;
+  group: string;
+  subjectCode: string;
+  subjectName: string;
+  subjectMcqMax: number;
+  questionCount: number;
+  paperFormat: OmrPaperFormat;
+  rollDigits: number;
+  optionStyle: OmrOptionStyle;
+  setCount: 1 | 4;
+  markPerCorrect: number;
+  negativeMark: number;
+  answerKeys: Record<string, Array<number | null>>;
+  isKeyLocked?: boolean;
+  keyNote?: string;
+}
+
+export interface OmrAnswerKeyBackupBundle {
+  schemaVersion: 1;
+  exportedAt: string;
+  examTitleFilter?: string;
+  gradeFilter?: string;
+  entries: OmrAnswerKeyBackupEntry[];
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+export const OMR_GRADE_LABELS_BN: Record<string, string> = {
+  '6th': '৬ষ্ঠ শ্রেণি',
+  '7th': '৭ম শ্রেণি',
+  '8th': '৮ম শ্রেণি',
+  '9th': '৯ম শ্রেণি',
+  '10th': '১০ম শ্রেণি',
+};
 
 export function normalizeRollNumeric(roll: string | number | null | undefined): string {
   const ascii = toAsciiDigits(String(roll ?? '')).trim();
@@ -145,6 +244,12 @@ export function normalizeRollNumeric(roll: string | number | null | undefined): 
   return Number.isFinite(num) ? String(num) : digits;
 }
 
+export function normalizeSubjectCode3Digit(code: string | number | null | undefined): string {
+  const digits = toAsciiDigits(String(code ?? '')).replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.slice(-3).padStart(3, '0');
+}
+
 export function normalizeGroupToBn(grade: string, group?: string, branch?: string): string {
   const is9or10 = grade === '9th' || grade === '10th';
   if (!is9or10) return 'সাধারণ';
@@ -152,6 +257,16 @@ export function normalizeGroupToBn(grade: string, group?: string, branch?: strin
   if (raw.includes('মানবিক') || raw.includes('humanities')) return 'মানবিক';
   if (raw.includes('ব্যবসা') || raw.includes('commerce') || raw.includes('business')) return 'ব্যবসায় শিক্ষা';
   return 'বিজ্ঞান';
+}
+
+export function normalizeGroupToBranch(grade: string, groupBn: string, fallbackBranch = 'A'): string {
+  if (grade === '9th' || grade === '10th') {
+    if (groupBn === 'মানবিক') return 'Humanities';
+    if (groupBn === 'ব্যবসায় শিক্ষা' || groupBn === 'ব্যবসায় শিক্ষা') return 'Commerce';
+    return 'Science';
+  }
+  if (['Science', 'Humanities', 'Commerce'].includes(fallbackBranch)) return 'A';
+  return fallbackBranch || 'A';
 }
 
 export function normalizeGroupToCode(grade: string, group?: string, branch?: string): 'science' | 'humanities' | 'commerce' | 'সাধারণ' {
@@ -172,31 +287,248 @@ export function createEmptyAnswerKeys(
   setCount: 1 | 4,
   optionStyle: OmrOptionStyle,
 ): Record<string, Array<number | null>> {
+  const count = clampOmrQuestionCount(questionCount, 30);
   const keys: Record<string, Array<number | null>> = {};
   const codes = setCount === 1 ? ['default'] : [...OMR_SET_LABELS[optionStyle]];
   for (const code of codes) {
-    keys[code] = Array.from({ length: questionCount }, () => null);
+    keys[code] = Array.from({ length: count }, () => null);
   }
   return keys;
+}
+
+/**
+ * Universal Class 6–10 Curriculum Sync for OMR Studio.
+ *
+ * Combines `curriculumService.getCurriculumList()` (custom + NCTB subjects)
+ * and `getActiveCurriculumSubjects(grade, group)` so EVERY compulsory,
+ * group-specific (Science/Humanities/Business Studies), Islam (111), Hindu (112),
+ * 4th/optional, and custom-added subject is available in real time —
+ * including subjects with `mcq: 0` for custom MCQ class/model tests.
+ * (Excludes Buddhist 113 & Christian 114 unless explicitly added by the school.)
+ */
+export function getAllOmrCurriculumSubjects(
+  grade: string,
+  group?: string,
+): OmrCurriculumSubjectOption[] {
+  const is9or10 = grade === '9th' || grade === '10th';
+  const groupBn = normalizeGroupToBn(grade, group);
+  const groupCode = normalizeGroupToCode(grade, group);
+
+  const rawList = curriculumService.getCurriculumList();
+  const gradeMatches = rawList.filter((item) => {
+    const g = String(item.grade || '').toLowerCase();
+    return (
+      g === grade.toLowerCase() ||
+      (grade === '6th' && (g.includes('6') || g.includes('৬'))) ||
+      (grade === '7th' && (g.includes('7') || g.includes('৭'))) ||
+      (grade === '8th' && (g.includes('8') || g.includes('৮'))) ||
+      (grade === '9th' && (g.includes('9') || g.includes('৯'))) ||
+      (grade === '10th' && (g.includes('10') || g.includes('১০')))
+    );
+  });
+
+  const filterByGroup = (itemGroupRaw: string): boolean => {
+    if (!is9or10) return true;
+    const itemGroup = (itemGroupRaw || '').replace('ব্যবসায়', 'ব্যবসায়').trim();
+    if (!itemGroup || itemGroup === 'সাধারণ' || itemGroup === 'সকল') return true;
+    if (
+      itemGroup.includes('মানবিক ও ব্যবসায়') &&
+      (groupBn === 'মানবিক' || groupBn === 'ব্যবসায় শিক্ষা')
+    ) {
+      return true;
+    }
+    return itemGroup === groupBn || itemGroup.includes(groupBn);
+  };
+
+  const result: OmrCurriculumSubjectOption[] = [];
+  const seenCodes = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const pushUnique = (opt: OmrCurriculumSubjectOption) => {
+    const cleanCode = String(opt.code || '').trim();
+    const cleanName = String(opt.name || '').trim();
+    if (!cleanName) return;
+    // Skip Buddhist (113) & Christian (114) default noise if not explicitly custom-configured
+    if (cleanCode && seenCodes.has(cleanCode)) return;
+    if (seenNames.has(cleanName.toLowerCase())) return;
+    if (cleanCode) seenCodes.add(cleanCode);
+    seenNames.add(cleanName.toLowerCase());
+    result.push({ ...opt, code: cleanCode || cleanName, name: cleanName });
+  };
+
+  // 1. Primary source: live Curriculum Manager subjects (includes custom subjects & both 111 Islam + 112 Hindu!)
+  for (const item of gradeMatches) {
+    if (!filterByGroup(item.group)) continue;
+    const code = String(item.code || '').trim();
+    // Skip 113/114 unless school intentionally customized it
+    if (code === '113' || code === '114') continue;
+    const mcqNum = typeof item.mcq === 'number' ? item.mcq : Number(item.mcq) || 0;
+    const isRel =
+      item.subjectType === 'religion' ||
+      isReligionSubject(`${code} ${item.name}`);
+
+    pushUnique({
+      code,
+      name: item.name,
+      nameEn: item.nameEn,
+      mcqMax: mcqNum,
+      category: item.category || 'আবশ্যিক',
+      group: item.group || (is9or10 ? groupBn : 'সাধারণ'),
+      isReligion: isRel,
+    });
+  }
+
+  // 2. Supplement with active curriculum defaults (in case custom storage had sparse subset)
+  const activeDefaults = getActiveCurriculumSubjects(grade, groupCode, undefined, 'Muslim');
+  for (const sub of activeDefaults) {
+    const code = String(sub.code || '').trim();
+    if (code === '113' || code === '114') continue;
+    const isRel = isReligionSubject(`${code} ${sub.name}`);
+    pushUnique({
+      code,
+      name: sub.name,
+      nameEn: sub.nameEn,
+      mcqMax: Number(sub.mcq) || 0,
+      category: sub.category || 'আবশ্যিক',
+      group: sub.group || (is9or10 ? groupBn : 'সাধারণ'),
+      isReligion: isRel,
+    });
+  }
+
+  // 3. Ensure Hindu Religion (112) is always selectable alongside Islam (111)
+  if (!seenCodes.has('112')) {
+    pushUnique({
+      code: '112',
+      name: 'হিন্দুধর্ম ও নৈতিক শিক্ষা',
+      nameEn: 'Hindu Religion & Moral Education',
+      mcqMax: is9or10 ? 30 : 0,
+      category: 'আবশ্যিক',
+      group: 'সাধারণ',
+      isReligion: true,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Resolves a 3-digit subject code (e.g. "136", "101", "154") against the school's
+ * live Class 6–10 Curriculum + `markStorageUtils.ts` alias dictionary.
+ */
+export function resolveOmrSubjectByCode(
+  grade: string,
+  preferredGroup: string,
+  rawCode: string,
+): { subject: OmrCurriculumSubjectOption; inferredGroup: string } | null {
+  const digits = normalizeSubjectCode3Digit(rawCode);
+  if (!digits || digits.includes('?')) return null;
+
+  const is9or10 = grade === '9th' || grade === '10th';
+  const normalizedPrefGroup = normalizeGroupToBn(grade, preferredGroup);
+
+  const groupsToSearch = is9or10
+    ? Array.from(new Set([normalizedPrefGroup, 'বিজ্ঞান', 'মানবিক', 'ব্যবসায় শিক্ষা']))
+    : ['সাধারণ'];
+
+  // 1. Direct code match in preferred group first, then other groups
+  for (const grp of groupsToSearch) {
+    const subjects = getAllOmrCurriculumSubjects(grade, grp);
+    const exact = subjects.find((s) => normalizeSubjectCode3Digit(s.code) === digits);
+    if (exact) {
+      // If subject is compulsory ('সাধারণ'), keep caller's preferredGroup; if group-specific, infer group
+      const subGroupClean = (exact.group || '').replace('ব্যবসায়', 'ব্যবসায়');
+      const inferred =
+        !is9or10
+          ? 'সাধারণ'
+          : subGroupClean === 'বিজ্ঞান' || subGroupClean === 'মানবিক' || subGroupClean === 'ব্যবসায় শিক্ষা'
+            ? subGroupClean
+            : normalizedPrefGroup;
+      return { subject: exact, inferredGroup: inferred };
+    }
+  }
+
+  // 2. Fallback via SUBJECT_SYNONYMS alias table from markStorageUtils.ts
+  for (const syn of Object.values(SUBJECT_SYNONYMS)) {
+    const hasCode = syn.codes.some((c) => normalizeSubjectCode3Digit(c) === digits);
+    if (!hasCode) continue;
+    for (const grp of groupsToSearch) {
+      const subjects = getAllOmrCurriculumSubjects(grade, grp);
+      const aliasHit = subjects.find((s) =>
+        syn.names.some((n) => s.name.toLowerCase().includes(n.toLowerCase())),
+      );
+      if (aliasHit) {
+        return { subject: aliasHit, inferredGroup: is9or10 ? grp : 'সাধারণ' };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Computes sibling scopes that share the exact same question paper / Answer Key:
+ *  - Class 6–8: sibling sections ('A' | 'B' | 'C') other than the active branch
+ *  - Class 9–10: sibling groups ('বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা') that also offer this subject
+ */
+export function getSiblingScopesForSession(
+  session: Pick<OmrExamSession, 'grade' | 'branch' | 'group' | 'subjectCode' | 'subjectName'>,
+): OmrSiblingScopeDescriptor[] {
+  const is9or10 = session.grade === '9th' || session.grade === '10th';
+  if (!is9or10) {
+    const currentBranch = session.branch || 'A';
+    return ['A', 'B', 'C']
+      .filter((b) => b !== currentBranch)
+      .map((b) => ({
+        branch: b,
+        group: 'সাধারণ',
+        labelBn: `শাখা ${b}`,
+      }));
+  }
+
+  const currentGroup = normalizeGroupToBn(session.grade, session.group, session.branch);
+  const targetCodeNorm = normalizeSubjectCode3Digit(session.subjectCode);
+  const targetNameNorm = (session.subjectName || '').trim().toLowerCase();
+  const siblingGroups: Array<'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা'> = [
+    'বিজ্ঞান',
+    'মানবিক',
+    'ব্যবসায় শিক্ষা',
+  ].filter((g): g is 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা' => g !== currentGroup);
+
+  const scopes: OmrSiblingScopeDescriptor[] = [];
+  for (const grp of siblingGroups) {
+    const grpSubjects = getAllOmrCurriculumSubjects(session.grade, grp);
+    const hasMatch = grpSubjects.some(
+      (s) =>
+        s.name.trim().toLowerCase() === targetNameNorm ||
+        (Boolean(targetCodeNorm) && normalizeSubjectCode3Digit(s.code) === targetCodeNorm),
+    );
+    if (hasMatch) {
+      scopes.push({
+        branch: normalizeGroupToBranch(session.grade, grp),
+        group: grp,
+        labelBn: grp,
+      });
+    }
+  }
+  return scopes;
 }
 
 export function getEligibleStudentsForSession(
   session: Pick<OmrExamSession, 'grade' | 'branch' | 'group' | 'subjectName'>,
 ): Student[] {
   const targetGroupBn = normalizeGroupToBn(session.grade, session.group, session.branch);
-  const effectiveBranch =
-    session.grade === '9th' || session.grade === '10th'
-      ? targetGroupBn === 'বিজ্ঞান'
-        ? 'Science'
-        : targetGroupBn === 'মানবিক'
-          ? 'Humanities'
-          : 'Commerce'
-      : session.branch || 'A';
+  const effectiveBranch = normalizeGroupToBranch(session.grade, targetGroupBn, session.branch);
 
   let students = studentService.getStudentsByFilter(session.grade, effectiveBranch, targetGroupBn);
   if (students.length === 0 && (session.grade === '9th' || session.grade === '10th')) {
-    // Fallback when students are stored under section A/B/C with Bengali group
     students = studentService.getStudentsByFilter(session.grade, 'all', targetGroupBn);
+  }
+  // Strictly guard 9th–10th group isolation so Science Roll 1 NEVER matches Humanities Roll 1
+  if (session.grade === '9th' || session.grade === '10th') {
+    students = students.filter((st) => {
+      const stGroupBn = normalizeGroupToBn(session.grade, st.group, st.section || st.branch);
+      return stGroupBn === targetGroupBn;
+    });
   }
   students = filterStudentsBySubjectReligion(students, session.subjectName);
   return sortStudentsGroupAndRoll(students, 'roll_asc');
@@ -375,7 +707,12 @@ class OmrService {
       const raw = localStorage.getItem(OMR_SESSIONS_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((s: OmrExamSession) => ({
+        ...s,
+        paperFormat: s.paperFormat || (s.templateId === 'a4_100' ? 'a4' : 'legal_half'),
+        questionCount: clampOmrQuestionCount(s.questionCount, 30),
+      }));
     } catch {
       return [];
     }
@@ -402,6 +739,8 @@ class OmrService {
     subjectCode: string;
     subjectName: string;
     subjectMcqMax?: number;
+    questionCount?: number;
+    paperFormat?: OmrPaperFormat;
     templateId?: OmrTemplateId;
     rollDigits?: number;
     optionStyle?: OmrOptionStyle;
@@ -409,30 +748,32 @@ class OmrService {
     colorTheme?: OmrColorTheme;
   }): OmrExamSession {
     const groupBn = normalizeGroupToBn(params.grade, params.group, params.branch);
-    const branchNorm =
-      params.grade === '9th' || params.grade === '10th'
-        ? groupBn === 'বিজ্ঞান'
-          ? 'Science'
-          : groupBn === 'মানবিক'
-            ? 'Humanities'
-            : 'Commerce'
-        : params.branch || 'A';
+    const branchNorm = normalizeGroupToBranch(params.grade, groupBn, params.branch);
+    const targetSubCode = normalizeSubjectCode3Digit(params.subjectCode) || params.subjectCode;
 
     const sessions = this.getSessions();
-    const existing = sessions.find(
-      (s) =>
+    const existing = sessions.find((s) => {
+      const sameScope =
         s.examTitle === params.examTitle &&
         s.grade === params.grade &&
         s.branch === branchNorm &&
-        s.group === groupBn &&
-        (s.subjectName === params.subjectName ||
-          (params.subjectCode && s.subjectCode === params.subjectCode)),
-    );
+        s.group === groupBn;
+      if (!sameScope) return false;
+      if (s.subjectName === params.subjectName) return true;
+      const sCodeNorm = normalizeSubjectCode3Digit(s.subjectCode);
+      return Boolean(targetSubCode && sCodeNorm && sCodeNorm === targetSubCode);
+    });
     if (existing) return existing;
 
-    const mcqMax = Number(params.subjectMcqMax) > 0 ? Number(params.subjectMcqMax) : 30;
-    const templateId = params.templateId || recommendTemplateForMcqCount(mcqMax);
-    const preset = OMR_TEMPLATE_PRESETS[templateId];
+    const mcqDefault =
+      params.questionCount !== undefined
+        ? clampOmrQuestionCount(params.questionCount, 30)
+        : Number(params.subjectMcqMax) >= 10
+          ? clampOmrQuestionCount(params.subjectMcqMax, 30)
+          : 30;
+    const templateId = params.templateId || recommendTemplateForMcqCount(mcqDefault);
+    const paperFormat: OmrPaperFormat =
+      params.paperFormat || (templateId === 'a4_100' ? 'a4' : 'legal_half');
     const optionStyle: OmrOptionStyle = params.optionStyle || 'bn';
     const setCount: 1 | 4 = params.setCount === 1 ? 1 : 4;
     const now = new Date().toISOString();
@@ -447,16 +788,17 @@ class OmrService {
       group: groupBn,
       subjectCode: params.subjectCode || params.subjectName,
       subjectName: params.subjectName,
-      subjectMcqMax: mcqMax,
+      subjectMcqMax: Number(params.subjectMcqMax) > 0 ? Number(params.subjectMcqMax) : mcqDefault,
       templateId,
-      questionCount: preset.questionCount,
-      rollDigits: params.rollDigits ?? preset.defaultRollDigits,
+      paperFormat,
+      questionCount: mcqDefault,
+      rollDigits: params.rollDigits ?? (paperFormat === 'a4' ? 4 : 3),
       optionStyle,
       setCount,
       colorTheme: params.colorTheme || 'pink',
       markPerCorrect: 1,
       negativeMark: 0,
-      answerKeys: createEmptyAnswerKeys(preset.questionCount, setCount, optionStyle),
+      answerKeys: createEmptyAnswerKeys(mcqDefault, setCount, optionStyle),
       createdAt: now,
       updatedAt: now,
     };
@@ -471,6 +813,8 @@ class OmrService {
       Pick<
         OmrExamSession,
         | 'templateId'
+        | 'paperFormat'
+        | 'questionCount'
         | 'rollDigits'
         | 'optionStyle'
         | 'setCount'
@@ -486,14 +830,28 @@ class OmrService {
     const nextSessions = sessions.map((s) => {
       if (s.id !== sessionId) return s;
 
-      const templateId = updates.templateId || s.templateId;
-      const preset = OMR_TEMPLATE_PRESETS[templateId] || OMR_TEMPLATE_PRESETS[s.templateId];
-      const questionCount = preset.questionCount;
+      // Determine new questionCount (explicit questionCount takes priority over templateId)
+      let questionCount = s.questionCount;
+      if (updates.questionCount !== undefined) {
+        questionCount = clampOmrQuestionCount(updates.questionCount, s.questionCount);
+      } else if (updates.templateId && updates.templateId !== 'custom') {
+        const presetCounts: Record<Exclude<OmrTemplateId, 'custom'>, number> = {
+          a5_25: 25,
+          a5_30: 30,
+          a5_40: 40,
+          a5_50: 50,
+          a4_100: 100,
+        };
+        questionCount = presetCounts[updates.templateId];
+      }
+
+      const templateId = updates.templateId || recommendTemplateForMcqCount(questionCount);
+      const paperFormat = updates.paperFormat || s.paperFormat || 'legal_half';
       const optionStyle = updates.optionStyle || s.optionStyle;
       const setCount = updates.setCount ?? s.setCount;
       const validSetCodes = setCount === 1 ? ['default'] : [...OMR_SET_LABELS[optionStyle]];
 
-      // Preserve existing answers when resizing or switching optionStyle
+      // Preserve existing answers when resizing questionCount or switching optionStyle
       const nextKeys: Record<string, Array<number | null>> = {};
       const oldCodes = Object.keys(s.answerKeys);
       validSetCodes.forEach((code, idx) => {
@@ -507,6 +865,7 @@ class OmrService {
         ...s,
         ...updates,
         templateId,
+        paperFormat,
         questionCount,
         optionStyle,
         setCount,
@@ -526,12 +885,18 @@ class OmrService {
     sessionId: string,
     setCode: string,
     answers: Array<number | null>,
+    options?: { bypassLock?: boolean; updatedBy?: string },
   ): OmrExamSession | null {
     const sessions = this.getSessions();
     let updatedSession: OmrExamSession | null = null;
+    let blockedByLock = false;
 
     const nextSessions = sessions.map((s) => {
       if (s.id !== sessionId) return s;
+      if (s.isKeyLocked && !options?.bypassLock) {
+        blockedByLock = true;
+        return s;
+      }
       const normalized = Array.from({ length: s.questionCount }, (_, i) => {
         const val = answers[i];
         return val === 0 || val === 1 || val === 2 || val === 3 ? val : null;
@@ -542,6 +907,43 @@ class OmrService {
           ...s.answerKeys,
           [setCode]: normalized,
         },
+        keyUpdatedBy: options?.updatedBy || s.keyUpdatedBy,
+        updatedAt: new Date().toISOString(),
+      };
+      return updatedSession;
+    });
+
+    if (blockedByLock || !updatedSession) return null;
+    this.saveSessions(nextSessions);
+    this.regradeSessionScans(updatedSession);
+    return updatedSession;
+  }
+
+  public setAnswerKeyLock(
+    sessionId: string,
+    locked: boolean,
+    updatedBy?: string,
+  ): OmrExamSession | null {
+    return this.updateSessionKeyMeta(sessionId, {
+      isKeyLocked: locked,
+      keyUpdatedBy: updatedBy,
+    });
+  }
+
+  public updateSessionKeyMeta(
+    sessionId: string,
+    updates: { keyNote?: string; isKeyLocked?: boolean; keyUpdatedBy?: string },
+  ): OmrExamSession | null {
+    const sessions = this.getSessions();
+    let updatedSession: OmrExamSession | null = null;
+
+    const nextSessions = sessions.map((s) => {
+      if (s.id !== sessionId) return s;
+      updatedSession = {
+        ...s,
+        ...(updates.keyNote !== undefined ? { keyNote: updates.keyNote } : {}),
+        ...(updates.isKeyLocked !== undefined ? { isKeyLocked: updates.isKeyLocked } : {}),
+        ...(updates.keyUpdatedBy !== undefined ? { keyUpdatedBy: updates.keyUpdatedBy } : {}),
         updatedAt: new Date().toISOString(),
       };
       return updatedSession;
@@ -549,8 +951,381 @@ class OmrService {
 
     if (!updatedSession) return null;
     this.saveSessions(nextSessions);
-    this.regradeSessionScans(updatedSession);
     return updatedSession;
+  }
+
+  /**
+   * Read-only Answer Key readiness matrix for EVERY subject of a Class + Branch/Group.
+   * Deliberately does NOT auto-create empty sessions for untouched subjects.
+   */
+  public getSubjectKeyReadinessList(params: {
+    examTitle: string;
+    grade: string;
+    branch: string;
+    group?: string;
+    subjects: Array<{
+      code: string;
+      name: string;
+      mcqMax: number;
+      category?: string;
+      group?: string;
+    }>;
+  }): OmrSubjectKeyReadiness[] {
+    const groupBn = normalizeGroupToBn(params.grade, params.group, params.branch);
+    const branchNorm = normalizeGroupToBranch(params.grade, groupBn, params.branch);
+    const allSessions = this.getSessions();
+    const scanCounts = this.getScanCountBySession();
+
+    const scopedSessions = allSessions.filter(
+      (s) =>
+        s.examTitle === params.examTitle &&
+        s.grade === params.grade &&
+        s.branch === branchNorm &&
+        s.group === groupBn,
+    );
+
+    return params.subjects.map((sub) => {
+      const subCodeNorm = normalizeSubjectCode3Digit(sub.code);
+      const matched = scopedSessions.find(
+        (s) =>
+          s.subjectName === sub.name ||
+          (Boolean(subCodeNorm) && normalizeSubjectCode3Digit(s.subjectCode) === subCodeNorm),
+      );
+
+      const questionCount = matched
+        ? matched.questionCount
+        : sub.mcqMax >= 10
+          ? clampOmrQuestionCount(sub.mcqMax, 30)
+          : 30;
+      const setCount: 1 | 4 = matched ? matched.setCount : 4;
+      const optionStyle: OmrOptionStyle = matched ? matched.optionStyle : 'bn';
+      const validSetCodes = getSessionSetCodes({ setCount, optionStyle });
+
+      const setSummaries: OmrSetReadinessSummary[] = validSetCodes.map((sc) => {
+        const arr = matched?.answerKeys?.[sc] || [];
+        let filled = 0;
+        for (let i = 0; i < questionCount; i++) {
+          const v = arr[i];
+          if (v === 0 || v === 1 || v === 2 || v === 3) filled++;
+        }
+        return {
+          setCode: sc,
+          filled,
+          total: questionCount,
+          isComplete: filled === questionCount && questionCount > 0,
+        };
+      });
+
+      const completedSetCount = setSummaries.filter((st) => st.isComplete).length;
+      const totalFilledAcrossSets = setSummaries.reduce((acc, st) => acc + st.filled, 0);
+      const status: 'complete' | 'partial' | 'empty' =
+        completedSetCount === validSetCodes.length && validSetCodes.length > 0
+          ? 'complete'
+          : totalFilledAcrossSets > 0
+            ? 'partial'
+            : 'empty';
+
+      return {
+        subjectCode: sub.code || sub.name,
+        subjectName: sub.name,
+        defaultMcqMax: sub.mcqMax,
+        category: sub.category || 'আবশ্যিক',
+        subjectGroup: sub.group || groupBn,
+        sessionId: matched?.id ?? null,
+        questionCount,
+        setCount,
+        optionStyle,
+        markPerCorrect: matched?.markPerCorrect ?? 1,
+        negativeMark: matched?.negativeMark ?? 0,
+        setSummaries,
+        completedSetCount,
+        totalSetCount: validSetCodes.length,
+        totalFilledAcrossSets,
+        status,
+        isKeyLocked: Boolean(matched?.isKeyLocked),
+        keyNote: matched?.keyNote || '',
+        scannedCount: matched ? scanCounts[matched.id] || 0 : 0,
+        updatedAt: matched?.updatedAt ?? null,
+      };
+    });
+  }
+
+  /**
+   * Copies a prepared Answer Key (+ questionCount, setCount, optionStyle, scoring rules, note)
+   * to sibling sections (Class 6-8: A/B/C) or sibling groups (Class 9-10 shared compulsory subjects),
+   * and automatically re-grades any scans already recorded in those sibling sessions.
+   */
+  public applyAnswerKeyToSiblingScopes(
+    sessionId: string,
+    options?: { updatedBy?: string },
+  ): OmrSiblingScopeSyncResult {
+    const source = this.getSessionById(sessionId);
+    if (!source) return { updatedCount: 0, targetLabelsBn: [] };
+
+    const siblingScopes = getSiblingScopesForSession(source);
+    if (siblingScopes.length === 0) {
+      return { updatedCount: 0, targetLabelsBn: [] };
+    }
+
+    const sessions = this.getSessions();
+    const nextSessions = [...sessions];
+    const regradeTargets: OmrExamSession[] = [];
+    const targetLabelsBn: string[] = [];
+    const now = new Date().toISOString();
+    const sourceCodeNorm = normalizeSubjectCode3Digit(source.subjectCode);
+
+    const cloneKeys = (keys: Record<string, Array<number | null>>): Record<string, Array<number | null>> => {
+      const cloned: Record<string, Array<number | null>> = {};
+      for (const [k, arr] of Object.entries(keys)) {
+        cloned[k] = Array.from({ length: source.questionCount }, (_, i) =>
+          arr[i] === 0 || arr[i] === 1 || arr[i] === 2 || arr[i] === 3 ? arr[i] : null,
+        );
+      }
+      return cloned;
+    };
+
+    for (const scope of siblingScopes) {
+      const existingIdx = nextSessions.findIndex((s) => {
+        const sameScope =
+          s.examTitle === source.examTitle &&
+          s.grade === source.grade &&
+          s.branch === scope.branch &&
+          s.group === scope.group;
+        if (!sameScope) return false;
+        if (s.subjectName === source.subjectName) return true;
+        return Boolean(sourceCodeNorm) && normalizeSubjectCode3Digit(s.subjectCode) === sourceCodeNorm;
+      });
+
+      if (existingIdx >= 0) {
+        const existing = nextSessions[existingIdx];
+        const updated: OmrExamSession = {
+          ...existing,
+          templateId: source.templateId,
+          paperFormat: source.paperFormat,
+          questionCount: source.questionCount,
+          rollDigits: source.rollDigits,
+          optionStyle: source.optionStyle,
+          setCount: source.setCount,
+          colorTheme: source.colorTheme,
+          markPerCorrect: source.markPerCorrect,
+          negativeMark: source.negativeMark,
+          answerKeys: cloneKeys(source.answerKeys),
+          isKeyLocked: source.isKeyLocked,
+          keyNote: source.keyNote,
+          keyUpdatedBy: options?.updatedBy || source.keyUpdatedBy,
+          updatedAt: now,
+        };
+        nextSessions[existingIdx] = updated;
+        regradeTargets.push(updated);
+      } else {
+        const created: OmrExamSession = {
+          ...source,
+          id: `omr-sess-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          branch: scope.branch,
+          group: scope.group,
+          answerKeys: cloneKeys(source.answerKeys),
+          keyUpdatedBy: options?.updatedBy || source.keyUpdatedBy,
+          createdAt: now,
+          updatedAt: now,
+        };
+        nextSessions.unshift(created);
+        regradeTargets.push(created);
+      }
+      targetLabelsBn.push(scope.labelBn);
+    }
+
+    this.saveSessions(nextSessions);
+    for (const target of regradeTargets) {
+      this.regradeSessionScans(target);
+    }
+
+    return {
+      updatedCount: targetLabelsBn.length,
+      targetLabelsBn,
+    };
+  }
+
+  /**
+   * Exports Answer Keys as a portable versioned JSON bundle (filtered optionally by examTitle / grade).
+   */
+  public exportAnswerKeysBundle(filter?: {
+    examTitle?: string;
+    grade?: string;
+  }): OmrAnswerKeyBackupBundle {
+    const sessions = this.getSessions().filter((s) => {
+      if (filter?.examTitle && s.examTitle !== filter.examTitle) return false;
+      if (filter?.grade && s.grade !== filter.grade) return false;
+      // Include sessions that have at least 1 answer set
+      return Object.values(s.answerKeys || {}).some((arr) =>
+        Array.isArray(arr) && arr.some((v) => v === 0 || v === 1 || v === 2 || v === 3),
+      );
+    });
+
+    const entries: OmrAnswerKeyBackupEntry[] = sessions.map((s) => ({
+      examTitle: s.examTitle,
+      academicYear: s.academicYear,
+      grade: s.grade,
+      branch: s.branch,
+      group: s.group,
+      subjectCode: s.subjectCode,
+      subjectName: s.subjectName,
+      subjectMcqMax: s.subjectMcqMax,
+      questionCount: s.questionCount,
+      paperFormat: s.paperFormat,
+      rollDigits: s.rollDigits,
+      optionStyle: s.optionStyle,
+      setCount: s.setCount,
+      markPerCorrect: s.markPerCorrect,
+      negativeMark: s.negativeMark,
+      answerKeys: s.answerKeys,
+      isKeyLocked: s.isKeyLocked,
+      keyNote: s.keyNote,
+    }));
+
+    return {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      examTitleFilter: filter?.examTitle,
+      gradeFilter: filter?.grade,
+      entries,
+    };
+  }
+
+  /**
+   * Safely validates and restores a portable Answer Key JSON bundle across devices,
+   * creating missing sessions or updating existing ones and re-grading any affected scans.
+   */
+  public importAnswerKeysBundle(
+    raw: unknown,
+    updatedBy?: string,
+  ): { importedCount: number; updatedCount: number; skippedCount: number } {
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('অবৈধ উত্তরপত্র ব্যাকআপ ফাইল।');
+    }
+    const bundle = raw as Partial<OmrAnswerKeyBackupBundle>;
+    if (!Array.isArray(bundle.entries) || bundle.entries.length === 0) {
+      throw new Error('ফাইলে কোনো উত্তরপত্র পাওয়া যায়নি।');
+    }
+
+    const sessions = this.getSessions();
+    const nextSessions = [...sessions];
+    const regradeTargets: OmrExamSession[] = [];
+    const now = new Date().toISOString();
+
+    let importedCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    for (const entry of bundle.entries) {
+      if (
+        !entry ||
+        typeof entry !== 'object' ||
+        !entry.examTitle ||
+        !entry.grade ||
+        !entry.subjectName ||
+        !entry.answerKeys ||
+        typeof entry.answerKeys !== 'object'
+      ) {
+        skippedCount++;
+        continue;
+      }
+
+      const groupBn = normalizeGroupToBn(entry.grade, entry.group, entry.branch);
+      const branchNorm = normalizeGroupToBranch(entry.grade, groupBn, entry.branch);
+      const qCount = clampOmrQuestionCount(entry.questionCount, 30);
+      const setCount: 1 | 4 = entry.setCount === 1 ? 1 : 4;
+      const optionStyle: OmrOptionStyle = entry.optionStyle === 'en' ? 'en' : 'bn';
+      const validSetCodes = getSessionSetCodes({ setCount, optionStyle });
+
+      const cleanKeys: Record<string, Array<number | null>> = {};
+      for (const code of validSetCodes) {
+        const srcArr = Array.isArray(entry.answerKeys[code]) ? entry.answerKeys[code] : [];
+        cleanKeys[code] = Array.from({ length: qCount }, (_, i) => {
+          const val = srcArr[i];
+          return val === 0 || val === 1 || val === 2 || val === 3 ? val : null;
+        });
+      }
+
+      const targetCodeNorm = normalizeSubjectCode3Digit(entry.subjectCode);
+      const existingIdx = nextSessions.findIndex((s) => {
+        const sameScope =
+          s.examTitle === entry.examTitle &&
+          s.grade === entry.grade &&
+          s.branch === branchNorm &&
+          s.group === groupBn;
+        if (!sameScope) return false;
+        if (s.subjectName === entry.subjectName) return true;
+        return Boolean(targetCodeNorm) && normalizeSubjectCode3Digit(s.subjectCode) === targetCodeNorm;
+      });
+
+      const templateId = recommendTemplateForMcqCount(qCount);
+      const paperFormat: OmrPaperFormat =
+        entry.paperFormat === 'a4' || entry.paperFormat === 'a5' || entry.paperFormat === 'legal_half'
+          ? entry.paperFormat
+          : templateId === 'a4_100'
+            ? 'a4'
+            : 'legal_half';
+
+      if (existingIdx >= 0) {
+        const existing = nextSessions[existingIdx];
+        const updated: OmrExamSession = {
+          ...existing,
+          templateId,
+          paperFormat,
+          questionCount: qCount,
+          optionStyle,
+          setCount,
+          markPerCorrect: Number(entry.markPerCorrect) > 0 ? Number(entry.markPerCorrect) : existing.markPerCorrect,
+          negativeMark: Math.max(0, Number(entry.negativeMark) || 0),
+          answerKeys: cleanKeys,
+          isKeyLocked: Boolean(entry.isKeyLocked),
+          keyNote: typeof entry.keyNote === 'string' ? entry.keyNote : existing.keyNote,
+          keyUpdatedBy: updatedBy || existing.keyUpdatedBy,
+          updatedAt: now,
+        };
+        nextSessions[existingIdx] = updated;
+        regradeTargets.push(updated);
+        updatedCount++;
+      } else {
+        const created: OmrExamSession = {
+          id: `omr-sess-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          examId: entry.examTitle,
+          examTitle: entry.examTitle,
+          academicYear: entry.academicYear || String(new Date().getFullYear()),
+          grade: entry.grade,
+          branch: branchNorm,
+          group: groupBn,
+          subjectCode: entry.subjectCode || entry.subjectName,
+          subjectName: entry.subjectName,
+          subjectMcqMax: Number(entry.subjectMcqMax) > 0 ? Number(entry.subjectMcqMax) : qCount,
+          templateId,
+          paperFormat,
+          questionCount: qCount,
+          rollDigits: Math.min(6, Math.max(2, Number(entry.rollDigits) || 3)),
+          optionStyle,
+          setCount,
+          colorTheme: 'pink',
+          markPerCorrect: Number(entry.markPerCorrect) > 0 ? Number(entry.markPerCorrect) : 1,
+          negativeMark: Math.max(0, Number(entry.negativeMark) || 0),
+          answerKeys: cleanKeys,
+          isKeyLocked: Boolean(entry.isKeyLocked),
+          keyNote: typeof entry.keyNote === 'string' ? entry.keyNote : '',
+          keyUpdatedBy: updatedBy,
+          createdAt: now,
+          updatedAt: now,
+        };
+        nextSessions.unshift(created);
+        regradeTargets.push(created);
+        importedCount++;
+      }
+    }
+
+    this.saveSessions(nextSessions);
+    for (const target of regradeTargets) {
+      this.regradeSessionScans(target);
+    }
+
+    return { importedCount, updatedCount, skippedCount };
   }
 
   public deleteSession(sessionId: string): void {
@@ -562,7 +1337,7 @@ class OmrService {
     this.saveSessions(sessions);
   }
 
-  // ── SCANS ─────────────────────────────────────────────────────────────────
+  // ── SCANS & AUTO-SYNC ROUTING ─────────────────────────────────────────────
 
   public getAllScans(): OmrScanRecord[] {
     if (typeof window === 'undefined') return [];
@@ -578,7 +1353,6 @@ class OmrService {
 
   private saveAllScans(scans: OmrScanRecord[]): void {
     if (typeof window === 'undefined') return;
-    // Keep storage quota safe: cap stored thumbnails to latest 120 scans
     const trimmed = scans.map((scan, idx) =>
       idx >= 120 && scan.warpedThumbnail ? { ...scan, warpedThumbnail: undefined } : scan,
     );
@@ -609,8 +1383,115 @@ class OmrService {
   }
 
   /**
-   * Converts a Vision Engine decode result into a graded, student-matched OmrScanRecord
-   * and saves it with duplicate-roll protection.
+   * Resolves the exact destination OMR session from decoded on-sheet identity bubbles:
+   * 3-digit Subject Code + Class (6th–10th) + Department/Group.
+   * Falls back cleanly to `activeSession` when identity grids are left blank.
+   */
+  public resolveAutoSyncTargetSession(
+    activeSession: OmrExamSession,
+    decode: Pick<
+      OmrDecodeResult,
+      | 'decodedSubjectCodeRaw'
+      | 'subjectCodeFilled'
+      | 'subjectCodeUncertain'
+      | 'decodedGrade'
+      | 'gradeStatus'
+      | 'decodedGroup'
+      | 'groupStatus'
+    >,
+  ): { targetSession: OmrExamSession; autoRouted: boolean; routingSummaryBn?: string } {
+    const targetGrade =
+      decode.decodedGrade && (decode.gradeStatus === 'filled' || decode.gradeStatus === 'uncertain')
+        ? decode.decodedGrade
+        : activeSession.grade;
+
+    const decodedGroupValid =
+      decode.decodedGroup && (decode.groupStatus === 'filled' || decode.groupStatus === 'uncertain')
+        ? decode.decodedGroup
+        : null;
+
+    let targetGroupBn = normalizeGroupToBn(
+      targetGrade,
+      decodedGroupValid || (targetGrade === activeSession.grade ? activeSession.group : 'বিজ্ঞান'),
+      targetGrade === activeSession.grade ? activeSession.branch : undefined,
+    );
+
+    let targetSubjectCode = activeSession.subjectCode;
+    let targetSubjectName = activeSession.subjectName;
+    let targetSubjectMcqMax = activeSession.subjectMcqMax;
+
+    if (
+      decode.subjectCodeFilled &&
+      decode.decodedSubjectCodeRaw &&
+      !decode.decodedSubjectCodeRaw.includes('?')
+    ) {
+      const resolved = resolveOmrSubjectByCode(
+        targetGrade,
+        targetGroupBn,
+        decode.decodedSubjectCodeRaw,
+      );
+      if (resolved) {
+        targetSubjectCode = resolved.subject.code;
+        targetSubjectName = resolved.subject.name;
+        if (resolved.subject.mcqMax > 0) {
+          targetSubjectMcqMax = resolved.subject.mcqMax;
+        }
+        // Only override group with subject's inferred group if sheet didn't explicitly fill a group bubble
+        if (!decodedGroupValid && (targetGrade === '9th' || targetGrade === '10th')) {
+          targetGroupBn = resolved.inferredGroup;
+        }
+      }
+    }
+
+    const targetBranch = normalizeGroupToBranch(targetGrade, targetGroupBn, activeSession.branch);
+
+    const sameAsActive =
+      targetGrade === activeSession.grade &&
+      targetGroupBn === activeSession.group &&
+      targetBranch === activeSession.branch &&
+      (targetSubjectName === activeSession.subjectName ||
+        normalizeSubjectCode3Digit(targetSubjectCode) ===
+          normalizeSubjectCode3Digit(activeSession.subjectCode));
+
+    if (sameAsActive) {
+      return { targetSession: activeSession, autoRouted: false };
+    }
+
+    const targetSession = this.findOrCreateSession({
+      examId: activeSession.examId,
+      examTitle: activeSession.examTitle,
+      academicYear: activeSession.academicYear,
+      grade: targetGrade,
+      branch: targetBranch,
+      group: targetGroupBn,
+      subjectCode: targetSubjectCode,
+      subjectName: targetSubjectName,
+      subjectMcqMax: targetSubjectMcqMax,
+      questionCount: activeSession.questionCount,
+      paperFormat: activeSession.paperFormat,
+      rollDigits: activeSession.rollDigits,
+      optionStyle: activeSession.optionStyle,
+      setCount: activeSession.setCount,
+      colorTheme: activeSession.colorTheme,
+    });
+
+    const gradeBn = OMR_GRADE_LABELS_BN[targetSession.grade] || targetSession.grade;
+    const grpOrSec =
+      targetSession.grade === '9th' || targetSession.grade === '10th'
+        ? targetSession.group
+        : `শাখা ${targetSession.branch}`;
+
+    return {
+      targetSession,
+      autoRouted: true,
+      routingSummaryBn: `${gradeBn} (${grpOrSec}) · ${targetSession.subjectName} (${targetSession.subjectCode})`,
+    };
+  }
+
+  /**
+   * Converts a Vision Engine decode result into a graded, student-matched OmrScanRecord,
+   * automatically routing to the exact Class/Group/Subject session when on-sheet identity
+   * bubbles (3-digit Subject Code / Class / Group) are filled.
    */
   public recordDecodedScan(params: {
     session: OmrExamSession;
@@ -619,11 +1500,19 @@ class OmrService {
     scannedBy: string;
     warpedThumbnail?: string;
     overwriteDuplicate?: boolean;
+    autoSyncIdentity?: boolean; // default true
     overrideRoll?: string;
     overrideSetCode?: string;
     overrideStudentId?: string | null;
   }): OmrSaveScanOutcome {
-    const { session, decode, sourceType, scannedBy, warpedThumbnail } = params;
+    const { decode, sourceType, scannedBy, warpedThumbnail } = params;
+    const enableAutoSync = params.autoSyncIdentity !== false;
+
+    const routed = enableAutoSync
+      ? this.resolveAutoSyncTargetSession(params.session, decode)
+      : { targetSession: params.session, autoRouted: false };
+
+    const session = routed.targetSession;
     const rawRoll = params.overrideRoll !== undefined ? params.overrideRoll : decode.decodedRollRaw;
     const match = matchStudentByRollForSession(session, rawRoll, params.overrideStudentId);
 
@@ -653,6 +1542,7 @@ class OmrService {
     const needsReview =
       !match.student ||
       decode.rollUncertain ||
+      decode.subjectCodeUncertain ||
       graded.uncertainCount > 0 ||
       graded.doubleCount > 0 ||
       (session.setCount === 4 && decode.setStatus === 'uncertain');
@@ -670,6 +1560,10 @@ class OmrService {
       studentName: match.student?.name ?? 'অজানা শিক্ষার্থী (রোল যাচাই করুন)',
       studentRoll: match.normalizedRoll,
       decodedRollRaw: rawRoll,
+      decodedSubjectCodeRaw: decode.decodedSubjectCodeRaw || undefined,
+      decodedGrade: decode.decodedGrade ?? null,
+      decodedGroup: decode.decodedGroup ?? null,
+      autoRouted: routed.autoRouted,
       matchStatus: match.student ? 'matched' : 'unmatched',
       setCode: resolvedSetCode,
       setIndex: resolvedSetIndex !== null && resolvedSetIndex >= 0 ? resolvedSetIndex : null,
@@ -711,6 +1605,9 @@ class OmrService {
         status: 'duplicate_conflict',
         record: proposedRecord,
         existingRecord: existing,
+        targetSession: session,
+        autoRouted: routed.autoRouted,
+        routingSummaryBn: routed.routingSummaryBn,
       };
     }
 
@@ -721,21 +1618,39 @@ class OmrService {
       };
       const nextScans = allScans.map((sc) => (sc.id === existing.id ? updated : sc));
       this.saveAllScans(nextScans);
-      return { status: 'updated', record: updated, existingRecord: existing };
+      return {
+        status: 'updated',
+        record: updated,
+        existingRecord: existing,
+        targetSession: session,
+        autoRouted: routed.autoRouted,
+        routingSummaryBn: routed.routingSummaryBn,
+      };
     }
 
     this.saveAllScans([proposedRecord, ...allScans]);
-    return { status: 'saved', record: proposedRecord };
+    return {
+      status: 'saved',
+      record: proposedRecord,
+      targetSession: session,
+      autoRouted: routed.autoRouted,
+      routingSummaryBn: routed.routingSummaryBn,
+    };
   }
 
   /**
-   * Updates a scan record after manual teacher verification (roll fix, set fix, or tap-to-fix bubble).
+   * Updates a scan record after manual teacher verification (roll, class, group,
+   * 3-digit subject code, set code, or tap-to-fix MCQ bubble). Automatically moves
+   * the scan into the right target session if class/group/subject changed!
    */
   public updateScanAfterVerification(
     scanId: string,
     updates: {
       roll?: string;
       studentId?: string | null;
+      grade?: string;
+      group?: string;
+      subjectCode?: string;
       setCode?: string;
       answers?: Array<number | null>;
     },
@@ -744,29 +1659,81 @@ class OmrService {
     const target = allScans.find((sc) => sc.id === scanId);
     if (!target) return null;
 
-    const session = this.getSessionById(target.sessionId);
-    if (!session) return null;
+    const currentSession = this.getSessionById(target.sessionId);
+    if (!currentSession) return null;
+
+    // Resolve destination session if teacher edited grade, group, or subjectCode
+    let destSession = currentSession;
+    const nextGrade = updates.grade || currentSession.grade;
+    const nextGroupBn = normalizeGroupToBn(
+      nextGrade,
+      updates.group || currentSession.group,
+      currentSession.branch,
+    );
+    const nextBranch = normalizeGroupToBranch(nextGrade, nextGroupBn, currentSession.branch);
+
+    let nextSubCode = currentSession.subjectCode;
+    let nextSubName = currentSession.subjectName;
+    let nextSubMcqMax = currentSession.subjectMcqMax;
+
+    if (updates.subjectCode && normalizeSubjectCode3Digit(updates.subjectCode)) {
+      const resolvedSub = resolveOmrSubjectByCode(nextGrade, nextGroupBn, updates.subjectCode);
+      if (resolvedSub) {
+        nextSubCode = resolvedSub.subject.code;
+        nextSubName = resolvedSub.subject.name;
+        if (resolvedSub.subject.mcqMax > 0) nextSubMcqMax = resolvedSub.subject.mcqMax;
+      } else {
+        nextSubCode = updates.subjectCode.trim();
+      }
+    }
+
+    if (
+      nextGrade !== currentSession.grade ||
+      nextGroupBn !== currentSession.group ||
+      nextBranch !== currentSession.branch ||
+      nextSubName !== currentSession.subjectName ||
+      normalizeSubjectCode3Digit(nextSubCode) !== normalizeSubjectCode3Digit(currentSession.subjectCode)
+    ) {
+      destSession = this.findOrCreateSession({
+        examId: currentSession.examId,
+        examTitle: currentSession.examTitle,
+        academicYear: currentSession.academicYear,
+        grade: nextGrade,
+        branch: nextBranch,
+        group: nextGroupBn,
+        subjectCode: nextSubCode,
+        subjectName: nextSubName,
+        subjectMcqMax: nextSubMcqMax,
+        questionCount: currentSession.questionCount,
+        paperFormat: currentSession.paperFormat,
+        rollDigits: currentSession.rollDigits,
+        optionStyle: currentSession.optionStyle,
+        setCount: currentSession.setCount,
+        colorTheme: currentSession.colorTheme,
+      });
+    }
 
     const nextRawRoll = updates.roll !== undefined ? updates.roll : target.studentRoll;
-    const match = matchStudentByRollForSession(session, nextRawRoll, updates.studentId);
+    const match = matchStudentByRollForSession(destSession, nextRawRoll, updates.studentId);
 
-    const validSets = getSessionSetCodes(session);
+    const validSets = getSessionSetCodes(destSession);
     const nextSetCode =
       updates.setCode && validSets.includes(updates.setCode) ? updates.setCode : target.setCode;
 
-    const nextResponses = target.answers.map((ans, idx) => {
+    const nextResponses = Array.from({ length: destSession.questionCount }, (_, idx) => {
+      const orig = target.answers[idx];
       if (!updates.answers || idx >= updates.answers.length) {
         return {
-          questionNumber: ans.questionNumber,
-          selectedIndex: ans.selectedIndex,
-          filledIndices: ans.filledIndices,
-          status: ans.status,
-          confidence: ans.confidence,
+          questionNumber: idx + 1,
+          selectedIndex: orig?.selectedIndex ?? null,
+          filledIndices: orig?.filledIndices ?? [],
+          status: orig?.status ?? ('blank' as BubbleChoiceStatus),
+          confidence: orig?.confidence ?? 1,
         };
       }
       const chosen = updates.answers[idx];
       return {
-        questionNumber: ans.questionNumber,
+        questionNumber: idx + 1,
         selectedIndex: chosen,
         filledIndices: chosen !== null ? [chosen] : [],
         status: (chosen !== null ? 'filled' : 'blank') as BubbleChoiceStatus,
@@ -774,17 +1741,26 @@ class OmrService {
       };
     });
 
-    const graded = gradeOmrQuestionResponses(session, nextSetCode, nextResponses);
+    const graded = gradeOmrQuestionResponses(destSession, nextSetCode, nextResponses);
 
     const updatedRecord: OmrScanRecord = {
       ...target,
+      sessionId: destSession.id,
+      grade: destSession.grade,
+      branch: destSession.branch,
+      group: destSession.group,
+      subjectCode: destSession.subjectCode,
+      subjectName: destSession.subjectName,
+      decodedSubjectCodeRaw: updates.subjectCode ?? target.decodedSubjectCodeRaw,
+      decodedGrade: destSession.grade,
+      decodedGroup: destSession.group,
       studentId: match.student?.id ?? null,
       studentName: match.student?.name ?? 'অজানা শিক্ষার্থী (রোল যাচাই করুন)',
       studentRoll: match.normalizedRoll,
       decodedRollRaw: nextRawRoll,
       matchStatus: match.student ? 'matched' : 'unmatched',
       setCode: nextSetCode,
-      setIndex: session.setCount === 4 ? validSets.indexOf(nextSetCode) : null,
+      setIndex: destSession.setCount === 4 ? validSets.indexOf(nextSetCode) : null,
       answers: graded.answers,
       correctCount: graded.correctCount,
       wrongCount: graded.wrongCount,
@@ -799,11 +1775,10 @@ class OmrService {
       syncedToMarkEntry: false,
     };
 
-    // If re-matching resolved to an already existing student record, merge cleanly to prevent duplicates
     const duplicateOther = allScans.find(
       (sc) =>
         sc.id !== scanId &&
-        sc.sessionId === session.id &&
+        sc.sessionId === destSession.id &&
         updatedRecord.studentId &&
         sc.studentId === updatedRecord.studentId,
     );
@@ -939,11 +1914,6 @@ class OmrService {
 
   // ── LOSSLESS SYNC INTO OFFICIAL MARK ENTRY (sms_marks_*) ──────────────────
 
-  /**
-   * Syncs verified matched student MCQ marks from this OMR session straight into
-   * SchoolPro's official Exam Mark Entry storage (`sms_marks_*`), strictly preserving
-   * existing `written` (CQ) and `practical` marks and updating `total`.
-   */
   public syncSessionMarksToMarkEntry(
     sessionId: string,
     performedBy: string = 'অ্যাডমিন',
@@ -962,15 +1932,18 @@ class OmrService {
     const groupCode = normalizeGroupToCode(session.grade, session.group, session.branch);
     const configuredSubjects = getActiveCurriculumSubjects(session.grade, groupCode);
     const matchedSubCfg = configuredSubjects.find(
-      (s) => s.name === session.subjectName || s.code === session.subjectCode,
+      (s) =>
+        s.name === session.subjectName ||
+        normalizeSubjectCode3Digit(s.code) === normalizeSubjectCode3Digit(session.subjectCode),
     );
 
     const mcqMax =
       Number(matchedSubCfg?.mcq) > 0
         ? Number(matchedSubCfg?.mcq)
-        : session.subjectMcqMax > 0
-          ? session.subjectMcqMax
-          : Math.round(session.questionCount * (session.markPerCorrect || 1));
+        : Math.max(
+            session.subjectMcqMax || 0,
+            Math.round(session.questionCount * (session.markPerCorrect || 1)),
+          );
 
     const students = getEligibleStudentsForSession(session);
     const scans = this.getScansForSession(session.id);
@@ -986,7 +1959,6 @@ class OmrService {
       }
     }
 
-    // 1. Read existing saved marks so CQ (written) & Practical are 100% preserved!
     const aliases = getAllSubjectAliases(session.subjectName);
     const allIdentifiers = Array.from(
       new Set([
@@ -1033,7 +2005,6 @@ class OmrService {
       if (foundExisting) break;
     }
 
-    // 2. Merge OMR MCQ score into each student row without touching CQ or Practical
     let syncedCount = 0;
     const syncedScanIds = new Set<string>();
 
@@ -1065,7 +2036,6 @@ class OmrService {
       };
     });
 
-    // 3. Persist across canonical + alias storage keys (identical to mark-entry/page.tsx)
     const jsonVal = JSON.stringify(mergedRows);
     const storageKeysWritten: string[] = [];
 
@@ -1078,14 +2048,12 @@ class OmrService {
       }
     }
 
-    // Track last mark save time
     const now = new Date();
     localStorage.setItem(
       'sms_last_mark_save',
       `${now.toLocaleDateString('bn-BD')} ${now.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}`,
     );
 
-    // 4. Mark synced OMR scan records
     const syncedAt = now.toISOString();
     const allScans = this.getAllScans();
     const updatedScans = allScans.map((sc) =>
@@ -1093,7 +2061,6 @@ class OmrService {
     );
     this.saveAllScans(updatedScans);
 
-    // 5. Cloud Firestore sync + Audit Trail + Offline Sync Queue
     import('./firebaseSyncService')
       .then(({ firebaseSyncService }) => {
         firebaseSyncService.syncMarksKeysToCloud(storageKeysWritten).catch(() => {});

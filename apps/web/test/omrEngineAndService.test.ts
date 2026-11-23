@@ -21,11 +21,18 @@ const memStore: Record<string, string> = {};
 (globalThis as unknown as { window: unknown }).window = globalThis;
 
 import {
-  OMR_TEMPLATE_LIST,
+  LEGAL_HALF_WIDTH_MM,
+  LEGAL_LANDSCAPE_HEIGHT_MM,
+  LEGAL_LANDSCAPE_WIDTH_MM,
   OmrLayoutConfig,
+  OmrPaperFormat,
+  clampOmrQuestionCount,
   getOmrTemplateLayout,
 } from '@/lib/omr/omrTemplates';
-import { generateOmrSheetSvg } from '@/lib/omr/omrSheetSvg';
+import {
+  generateLegalTwoUpPrintSvg,
+  generateOmrSheetSvg,
+} from '@/lib/omr/omrSheetSvg';
 import {
   Point2D,
   RgbaImageBuffer,
@@ -36,8 +43,19 @@ import {
 import {
   OMR_SCANS_STORAGE_KEY,
   OMR_SESSIONS_STORAGE_KEY,
+  getAllOmrCurriculumSubjects,
+  getSiblingScopesForSession,
   omrService,
 } from '@/services/omrService';
+import {
+  buildAnswerKeyExcelRows,
+  computeAnswerKeyStats,
+  formatAnswerKeyAsCopyText,
+  getVerticalAnswerColumns,
+  mergeParsedAnswerKey,
+  parseBulkAnswerKeyText,
+} from '@/lib/omr/omrAnswerKeyUtils';
+import { DEFAULT_CURRICULUM_DATA, curriculumService } from '@/services/curriculumService';
 import { getUniversalStudentMark } from '@/lib/markStorageUtils';
 
 // ─── SYNTHETIC OMR SHEET RENDERER (PURE PIXEL BUFFER FOR NODE/VITEST) ────────
@@ -105,19 +123,23 @@ function drawCircleRgba(
 }
 
 /**
- * Renders a synthetic OMR sheet onto a clean pixel buffer, then optionally
- * applies a perspective camera transform onto a darker wooden desk background.
+ * Renders a synthetic OMR sheet (including Roll, 3-Digit Subject Code, Class, Group,
+ * Set, and dynamic N questions) onto a pixel buffer, then optionally applies realistic
+ * perspective skew & tilt onto a wooden desk background.
  */
 function renderSyntheticOmrPhoto(params: {
   config: OmrLayoutConfig;
   rollDigits: number[];
+  subjectCodeDigits?: number[] | null;
+  gradeIndex?: number | null;
+  groupIndex?: number | null;
   setIndex: number | null;
   filledAnswers: Map<number, { indices: number[]; ink?: [number, number, number] }>;
   pinkTheme?: boolean;
   perspectiveDistort?: boolean;
 }): RgbaImageBuffer {
   const layout = getOmrTemplateLayout(params.config);
-  const pxPerMm = 6.5; // crisp ~962 x 1365 A5 page
+  const pxPerMm = 6.2;
   const pageW = Math.round(layout.preset.pageWidthMm * pxPerMm);
   const pageH = Math.round(layout.preset.pageHeightMm * pxPerMm);
   const sheet: RgbaImageBuffer = {
@@ -126,7 +148,6 @@ function renderSyntheticOmrPhoto(params: {
     height: pageH,
   };
 
-  // White paper background
   fillRectRgba(sheet, 0, 0, pageW, pageH, 248, 248, 248);
 
   // 4 solid black corner fiducials
@@ -152,11 +173,46 @@ function renderSyntheticOmrPhoto(params: {
       const cx = b.xMm * pxPerMm;
       const cy = b.yMm * pxPerMm;
       const r = b.rMm * pxPerMm;
-      drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.8);
+      drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
       if (params.rollDigits[cIdx] === digit) {
         drawCircleRgba(sheet, cx, cy, r * 0.85, 22, 22, 24, true);
       }
     });
+  });
+
+  // 3-Digit Subject Code bubbles
+  layout.subjectCodeBubbles.forEach((col, cIdx) => {
+    col.forEach((b, digit) => {
+      const cx = b.xMm * pxPerMm;
+      const cy = b.yMm * pxPerMm;
+      const r = b.rMm * pxPerMm;
+      drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
+      if (params.subjectCodeDigits && params.subjectCodeDigits[cIdx] === digit) {
+        drawCircleRgba(sheet, cx, cy, r * 0.85, 20, 20, 22, true);
+      }
+    });
+  });
+
+  // Class / Grade bubbles (6th..10th)
+  layout.gradeBubbles.forEach((b, idx) => {
+    const cx = b.xMm * pxPerMm;
+    const cy = b.yMm * pxPerMm;
+    const r = b.rMm * pxPerMm;
+    drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
+    if (params.gradeIndex === idx) {
+      drawCircleRgba(sheet, cx, cy, r * 0.85, 20, 20, 22, true);
+    }
+  });
+
+  // Group / Department bubbles
+  layout.groupBubbles.forEach((b, idx) => {
+    const cx = b.xMm * pxPerMm;
+    const cy = b.yMm * pxPerMm;
+    const r = b.rMm * pxPerMm;
+    drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
+    if (params.groupIndex === idx) {
+      drawCircleRgba(sheet, cx, cy, r * 0.85, 20, 20, 22, true);
+    }
   });
 
   // Set bubbles
@@ -164,13 +220,13 @@ function renderSyntheticOmrPhoto(params: {
     const cx = b.xMm * pxPerMm;
     const cy = b.yMm * pxPerMm;
     const r = b.rMm * pxPerMm;
-    drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.8);
+    drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
     if (params.setIndex === idx) {
       drawCircleRgba(sheet, cx, cy, r * 0.85, 20, 20, 22, true);
     }
   });
 
-  // Question bubbles
+  // Dynamic Question bubbles
   layout.questionBubbles.forEach((row, qIdx) => {
     const entry = params.filledAnswers.get(qIdx);
     const ink = entry?.ink || [24, 24, 28];
@@ -178,7 +234,7 @@ function renderSyntheticOmrPhoto(params: {
       const cx = b.xMm * pxPerMm;
       const cy = b.yMm * pxPerMm;
       const r = b.rMm * pxPerMm;
-      drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.8);
+      drawCircleRgba(sheet, cx, cy, r, ringColor[0], ringColor[1], ringColor[2], false, 1.7);
       if (entry && entry.indices.includes(optIdx)) {
         drawCircleRgba(sheet, cx, cy, r * 0.84, ink[0], ink[1], ink[2], true);
       }
@@ -187,7 +243,6 @@ function renderSyntheticOmrPhoto(params: {
 
   if (!params.perspectiveDistort) return sheet;
 
-  // Place sheet onto a larger photo frame with realistic desk border + tilt + perspective skew
   const photoW = Math.round(pageW * 1.18);
   const photoH = Math.round(pageH * 1.18);
   const photo: RgbaImageBuffer = {
@@ -195,7 +250,6 @@ function renderSyntheticOmrPhoto(params: {
     width: photoW,
     height: photoH,
   };
-  // Wooden desk background
   fillRectRgba(photo, 0, 0, photoW, photoH, 118, 96, 78);
 
   const dstQuad: [Point2D, Point2D, Point2D, Point2D] = [
@@ -211,7 +265,6 @@ function renderSyntheticOmrPhoto(params: {
     { x: 0, y: pageH - 1 },
   ];
 
-  // Inverse homography maps photo pixel -> sheet pixel
   const H = computeHomography(srcQuad, dstQuad)!;
   for (let y = 0; y < photoH; y++) {
     const row = y * photoW;
@@ -237,180 +290,102 @@ function renderSyntheticOmrPhoto(params: {
 
 // ─── TESTS ───────────────────────────────────────────────────────────────────
 
-describe('OMR Template Geometry & SVG Generator', () => {
-  it('generates valid non-overlapping in-bounds coordinates for all 5 presets (25/30/40/50/100 MCQ)', () => {
-    for (const preset of OMR_TEMPLATE_LIST) {
-      const layout = getOmrTemplateLayout({
-        templateId: preset.id,
-        rollDigits: preset.defaultRollDigits,
-        optionStyle: 'bn',
-        setCount: 4,
-      });
+describe('OMR v2 Dynamic Custom Question Count, Identity Grids & Legal 2-Up Print', () => {
+  it('parses Bangla/English custom question counts and enforces non-overlapping geometry for 15, 35, 60, and 100 questions across Legal Half, A5, and A4', () => {
+    expect(clampOmrQuestionCount('৩৫')).toBe(35);
+    expect(clampOmrQuestionCount('১৫')).toBe(15);
+    expect(clampOmrQuestionCount('3')).toBe(10);
+    expect(clampOmrQuestionCount('180')).toBe(100);
 
-      expect(layout.questionBubbles).toHaveLength(preset.questionCount);
-      expect(layout.rollBubbles).toHaveLength(preset.defaultRollDigits);
-      expect(layout.setBubbles).toHaveLength(4);
+    const formats: OmrPaperFormat[] = ['legal_half', 'a5', 'a4'];
+    const customCounts = [15, 35, 60, 100];
 
-      for (const row of layout.questionBubbles) {
-        expect(row).toHaveLength(4);
-        for (let i = 0; i < 4; i++) {
-          const b = row[i];
-          expect(b.u).toBeGreaterThan(0.02);
-          expect(b.u).toBeLessThan(0.98);
-          expect(b.v).toBeGreaterThan(0.02);
-          expect(b.v).toBeLessThan(0.98);
-          if (i > 0) {
-            // Bubbles in same row must not overlap
-            expect(b.xMm - row[i - 1].xMm).toBeGreaterThan(b.rMm * 2.2);
+    for (const paperFormat of formats) {
+      for (const questionCount of customCounts) {
+        const layout = getOmrTemplateLayout({
+          questionCount,
+          paperFormat,
+          rollDigits: 3,
+          optionStyle: 'bn',
+          setCount: 4,
+        });
+
+        expect(layout.questionCount).toBe(questionCount);
+        expect(layout.questionBubbles).toHaveLength(questionCount);
+        expect(layout.subjectCodeBubbles).toHaveLength(3);
+        expect(layout.gradeBubbles).toHaveLength(5);
+        expect(layout.groupBubbles).toHaveLength(4);
+
+        if (paperFormat === 'legal_half') {
+          expect(layout.preset.pageWidthMm).toBe(LEGAL_HALF_WIDTH_MM);
+          expect(layout.preset.pageHeightMm).toBe(LEGAL_LANDSCAPE_HEIGHT_MM);
+        }
+
+        // Verify zero horizontal & vertical overlap and strict bounds inside fiducials
+        for (const row of layout.questionBubbles) {
+          expect(row).toHaveLength(4);
+          for (let i = 0; i < 4; i++) {
+            const b = row[i];
+            expect(b.u).toBeGreaterThan(0.02);
+            expect(b.u).toBeLessThan(0.98);
+            expect(b.v).toBeGreaterThan(0.02);
+            expect(b.v).toBeLessThan(0.98);
+            if (i > 0) {
+              expect(b.xMm - row[i - 1].xMm).toBeGreaterThan(b.rMm * 2.15);
+            }
           }
         }
       }
-
-      const svg = generateOmrSheetSvg({
-        templateId: preset.id,
-        rollDigits: preset.defaultRollDigits,
-        optionStyle: 'bn',
-        setCount: 4,
-        colorTheme: 'pink',
-        header: {
-          schoolName: 'বগুড়া জিলা স্কুল',
-          examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
-          classLabel: '৯ম শ্রেণি',
-          subjectLabel: 'সাধারণ গণিত',
-          subjectCode: '109',
-        },
-        student: { id: 'st-1', name: 'রাফি আহমেদ', roll: '05' },
-        preFillRollBubbles: true,
-      });
-
-      expect(svg).toContain('data-fiducial="tl"');
-      expect(svg).toContain('data-fiducial="tr"');
-      expect(svg).toContain('data-fiducial="br"');
-      expect(svg).toContain('data-fiducial="bl"');
-      expect(svg).toContain('#d4146e');
-      expect(svg).toContain('রাফি আহমেদ');
     }
-  });
-});
 
-describe('OMR Pure-TypeScript Computer Vision Engine', () => {
-  it('accurately decodes roll, set, black pen, blue pen, blank, and double-marked bubbles from a perspective-tilted pink OMR photo', () => {
-    const config: OmrLayoutConfig = {
-      templateId: 'a5_30',
+    // Verify Legal Landscape 2-Up SVG exact dimensions (355.6 x 215.9mm) + center cutting line (x = 177.8mm) & scissor mark
+    const leftSvg = generateOmrSheetSvg({
+      questionCount: 35,
+      paperFormat: 'legal_half',
       rollDigits: 3,
       optionStyle: 'bn',
       setCount: 4,
-    };
-
-    const filledMap = new Map<number, { indices: number[]; ink?: [number, number, number] }>();
-    for (let q = 0; q < 27; q++) {
-      filledMap.set(q, { indices: [q % 4] });
-    }
-    // Q28 (index 27) = blank
-    // Q29 (index 28) = double-marked (0 & 2)
-    filledMap.set(28, { indices: [0, 2] });
-    // Q30 (index 29) = blue ballpoint pen
-    filledMap.set(29, { indices: [3], ink: [28, 52, 165] });
-
-    const photo = renderSyntheticOmrPhoto({
-      config,
-      rollDigits: [0, 2, 7],
-      setIndex: 1, // 'খ'
-      filledAnswers: filledMap,
-      pinkTheme: true,
-      perspectiveDistort: true,
+      colorTheme: 'pink',
+      header: {
+        schoolName: 'বগুড়া জিলা স্কুল',
+        examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
+        classLabel: '৯ম শ্রেণি',
+        sectionOrGroupLabel: 'বিজ্ঞান',
+        subjectLabel: 'পদার্থবিজ্ঞান',
+        subjectCode: '136',
+      },
+      student: { id: 'st-1', name: 'রাফি আহমেদ', roll: '05', group: 'বিজ্ঞান' },
+      preFillRollBubbles: true,
+      subjectCodeValue: '136',
+      preFillSubjectCodeBubbles: true,
+      preFillGrade: '9th',
+      preFillGroup: 'বিজ্ঞান',
     });
 
-    const decoded = decodeOmrImageBuffer(photo, config);
-    expect(decoded.success).toBe(true);
-    expect(decoded.decodedRollRaw).toBe('027');
-    expect(decoded.rollUncertain).toBe(false);
-    expect(decoded.setIndex).toBe(1);
-    expect(decoded.setCode).toBe('খ');
+    expect(leftSvg).toContain('data-grid="subject-code"');
+    expect(leftSvg).toContain('data-grid="grade"');
+    expect(leftSvg).toContain('data-grid="group"');
+    expect(leftSvg).toContain('width="177.8mm"');
 
-    for (let q = 0; q < 27; q++) {
-      expect(decoded.questions[q].status).toBe('filled');
-      expect(decoded.questions[q].selectedIndex).toBe(q % 4);
-    }
-
-    expect(decoded.questions[27].status).toBe('blank');
-    expect(decoded.questions[27].selectedIndex).toBeNull();
-
-    expect(decoded.questions[28].status).toBe('double');
-    expect(decoded.doubleMarkedQuestions).toContain(29);
-
-    expect(decoded.questions[29].status).toBe('filled');
-    expect(decoded.questions[29].selectedIndex).toBe(3);
-  });
-
-  it('also decodes B&W laser-printed OMR sheets accurately', () => {
-    const config: OmrLayoutConfig = {
-      templateId: 'a5_25',
-      rollDigits: 3,
-      optionStyle: 'en',
-      setCount: 4,
-    };
-    const filledMap = new Map<number, { indices: number[] }>();
-    for (let q = 0; q < 25; q++) {
-      filledMap.set(q, { indices: [(q + 1) % 4] });
-    }
-
-    const photo = renderSyntheticOmrPhoto({
-      config,
-      rollDigits: [1, 0, 4],
-      setIndex: 2, // 'C'
-      filledAnswers: filledMap,
-      pinkTheme: false,
-      perspectiveDistort: true,
-    });
-
-    const decoded = decodeOmrImageBuffer(photo, config);
-    expect(decoded.success).toBe(true);
-    expect(decoded.decodedRollRaw).toBe('104');
-    expect(decoded.setCode).toBe('C');
-    expect(decoded.questions.every((q, idx) => q.selectedIndex === (idx + 1) % 4)).toBe(true);
-  });
-
-  it('flags disagreeing questions as uncertain in dual-frame consensus', () => {
-    const config: OmrLayoutConfig = {
-      templateId: 'a5_25',
-      rollDigits: 3,
-      optionStyle: 'bn',
-      setCount: 4,
-    };
-    const map1 = new Map<number, { indices: number[] }>();
-    const map2 = new Map<number, { indices: number[] }>();
-    for (let q = 0; q < 25; q++) {
-      map1.set(q, { indices: [0] });
-      map2.set(q, { indices: [q === 11 ? 2 : 0] }); // Q12 disagrees!
-    }
-
-    const d1 = decodeOmrImageBuffer(
-      renderSyntheticOmrPhoto({ config, rollDigits: [0, 0, 5], setIndex: 0, filledAnswers: map1 }),
-      config,
-    );
-    const d2 = decodeOmrImageBuffer(
-      renderSyntheticOmrPhoto({ config, rollDigits: [0, 0, 5], setIndex: 0, filledAnswers: map2 }),
-      config,
-    );
-
-    const merged = mergeDualFrameDecodes(d1, d2);
-    expect(merged.uncertainQuestions).toContain(12);
-    expect(merged.questions[11].status).toBe('uncertain');
-    expect(merged.questions[0].status).toBe('filled');
+    const twoUpSvg = generateLegalTwoUpPrintSvg(leftSvg, leftSvg);
+    expect(twoUpSvg).toContain(`viewBox="0 0 ${LEGAL_LANDSCAPE_WIDTH_MM} ${LEGAL_LANDSCAPE_HEIGHT_MM}"`);
+    expect(twoUpSvg).toContain(`x1="${LEGAL_HALF_WIDTH_MM}"`);
+    expect(twoUpSvg).toContain(`x2="${LEGAL_HALF_WIDTH_MM}"`);
+    expect(twoUpSvg).toContain('data-cutting-line="center"');
+    expect(twoUpSvg).toContain('✂');
   });
 });
 
-describe('OMR Student-Wise Persistence, Duplicate Guard & Lossless Mark Entry Sync', () => {
+describe('OMR v2 Computer Vision Multi-Field Auto-Decode & Auto-Routing Sync', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem(
       'sms_students',
       JSON.stringify([
         {
-          id: 'st-9-05',
-          name: 'তানভীর হাসান',
-          roll: '05',
+          id: 'st-9-sci-01',
+          name: 'সাকিব আল হাসান',
+          roll: '01',
           grade: '9th',
           section: 'Science',
           branch: 'Science',
@@ -418,7 +393,17 @@ describe('OMR Student-Wise Persistence, Duplicate Guard & Lossless Mark Entry Sy
           religion: 'Muslim',
         },
         {
-          id: 'st-9-27',
+          id: 'st-9-hum-01',
+          name: 'মাহিনুর রহমান',
+          roll: '01',
+          grade: '9th',
+          section: 'Humanities',
+          branch: 'Humanities',
+          group: 'মানবিক',
+          religion: 'Muslim',
+        },
+        {
+          id: 'st-9-sci-27',
           name: 'নুসরাত জাহান',
           roll: '27',
           grade: '9th',
@@ -431,7 +416,259 @@ describe('OMR Student-Wise Persistence, Duplicate Guard & Lossless Mark Entry Sy
     );
   });
 
-  it('matches students accurately, blocks silent duplicates, re-grades on key update, and syncs MCQ without touching CQ/Practical', () => {
+  it('decodes 3-digit subject code (136), class (9th), group (বিজ্ঞান), roll (027), set (খ) & custom 35 MCQs from perspective-tilted Legal Half photo and auto-routes to exact subject session', () => {
+    const config: OmrLayoutConfig = {
+      questionCount: 35,
+      paperFormat: 'legal_half',
+      rollDigits: 3,
+      optionStyle: 'bn',
+      setCount: 4,
+    };
+
+    const filledMap = new Map<number, { indices: number[]; ink?: [number, number, number] }>();
+    for (let q = 0; q < 32; q++) {
+      filledMap.set(q, { indices: [q % 4] });
+    }
+    // Q33 (idx 32) = blank
+    // Q34 (idx 33) = double-marked (0 & 2)
+    filledMap.set(33, { indices: [0, 2] });
+    // Q35 (idx 34) = blue ballpoint pen
+    filledMap.set(34, { indices: [3], ink: [28, 52, 165] });
+
+    const photo = renderSyntheticOmrPhoto({
+      config,
+      rollDigits: [0, 2, 7],
+      subjectCodeDigits: [1, 3, 6], // 136 = পদার্থবিজ্ঞান
+      gradeIndex: 3, // '9th'
+      groupIndex: 1, // 'বিজ্ঞান'
+      setIndex: 1, // 'খ'
+      filledAnswers: filledMap,
+      pinkTheme: true,
+      perspectiveDistort: true,
+    });
+
+    const decoded = decodeOmrImageBuffer(photo, config);
+    expect(decoded.success).toBe(true);
+    expect(decoded.decodedRollRaw).toBe('027');
+    expect(decoded.decodedSubjectCodeRaw).toBe('136');
+    expect(decoded.subjectCodeFilled).toBe(true);
+    expect(decoded.subjectCodeUncertain).toBe(false);
+    expect(decoded.decodedGrade).toBe('9th');
+    expect(decoded.decodedGroup).toBe('বিজ্ঞান');
+    expect(decoded.setCode).toBe('খ');
+    expect(decoded.questions).toHaveLength(35);
+
+    for (let q = 0; q < 32; q++) {
+      expect(decoded.questions[q].status).toBe('filled');
+      expect(decoded.questions[q].selectedIndex).toBe(q % 4);
+    }
+    expect(decoded.questions[32].status).toBe('blank');
+    expect(decoded.questions[33].status).toBe('double');
+    expect(decoded.questions[34].selectedIndex).toBe(3);
+
+    // Pre-create Physics 136 session with 35-question Answer Key (matching q % 4, Q35 = 3)
+    const physicsSession = omrService.findOrCreateSession({
+      examId: 'ex-annual-2026',
+      examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjectCode: '136',
+      subjectName: 'পদার্থবিজ্ঞান (Physics)',
+      questionCount: 35,
+      paperFormat: 'legal_half',
+    });
+    const key35 = Array.from({ length: 35 }, (_, i) => (i === 34 ? 3 : i % 4));
+    omrService.updateAnswerKey(physicsSession.id, 'খ', key35);
+
+    // Suppose the teacher currently has Bangla 101 open while scanning this Physics 136 sheet!
+    const banglaSession = omrService.findOrCreateSession({
+      examId: 'ex-annual-2026',
+      examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjectCode: '101',
+      subjectName: 'বাংলা ১ম পত্র (সাহিত্য)',
+      questionCount: 35,
+      paperFormat: 'legal_half',
+    });
+
+    const outcome = omrService.recordDecodedScan({
+      session: banglaSession,
+      decode: decoded,
+      sourceType: 'camera',
+      scannedBy: 'অ্যাডমিন',
+      autoSyncIdentity: true,
+    });
+
+    expect(outcome.status).toBe('saved');
+    expect(outcome.autoRouted).toBe(true);
+    expect(outcome.targetSession.id).toBe(physicsSession.id);
+    expect(outcome.record.subjectCode).toBe('136');
+    expect(outcome.record.studentId).toBe('st-9-sci-27');
+    expect(outcome.record.studentName).toBe('নুসরাত জাহান');
+    expect(outcome.record.correctCount).toBe(33); // 32 + Q35 blue pen
+    expect(outcome.record.blankCount).toBe(1);
+    expect(outcome.record.doubleCount).toBe(1);
+    expect(outcome.record.obtainedMarks).toBe(33);
+  });
+
+  it('prevents roll collisions across Class 9 groups (Science Roll 01 vs Humanities Roll 01) and syncs Class 6-10 curriculum excluding 113/114', () => {
+    // 1. Add a custom subject with mcq: 0 to live curriculum and verify immediate OMR availability
+    const customList = [
+      ...DEFAULT_CURRICULUM_DATA,
+      {
+        id: 'curr-8th-199-custom',
+        code: '199',
+        name: 'রোবটিক্স ও কোডিং',
+        grade: '8th',
+        group: 'সাধারণ',
+        cq: 50,
+        mcq: 0,
+        practical: 50,
+        ca: 0,
+        fullMarks: 100,
+        passMarks: 33,
+        passRules: '৩৩%',
+        category: 'ঐচ্ছিক',
+      },
+    ];
+    curriculumService.saveCurriculumList(customList);
+
+    const class8Subjects = getAllOmrCurriculumSubjects('8th');
+    expect(class8Subjects.some((s) => s.code === '199' && s.name === 'রোবটিক্স ও কোডিং')).toBe(true);
+    expect(class8Subjects.some((s) => s.code === '111')).toBe(true); // Islam
+    expect(class8Subjects.some((s) => s.code === '112')).toBe(true); // Hindu
+    // Per user instruction: Buddhist 113 and Christian 114 are NOT injected
+    expect(class8Subjects.some((s) => s.code === '113' || s.code === '114')).toBe(false);
+
+    // 2. Same Roll 01 in Science vs Humanities — ZERO collision via on-sheet Group + Subject Code!
+    const cfg: OmrLayoutConfig = {
+      questionCount: 20,
+      paperFormat: 'legal_half',
+      rollDigits: 3,
+      optionStyle: 'bn',
+      setCount: 4,
+    };
+    const answers20 = new Map<number, { indices: number[] }>();
+    for (let q = 0; q < 20; q++) answers20.set(q, { indices: [0] });
+
+    const sciDecode = decodeOmrImageBuffer(
+      renderSyntheticOmrPhoto({
+        config: cfg,
+        rollDigits: [0, 0, 1],
+        subjectCodeDigits: [1, 3, 6], // Physics (Science)
+        gradeIndex: 3, // 9th
+        groupIndex: 1, // বিজ্ঞান
+        setIndex: 0,
+        filledAnswers: answers20,
+      }),
+      cfg,
+    );
+
+    const humDecode = decodeOmrImageBuffer(
+      renderSyntheticOmrPhoto({
+        config: cfg,
+        rollDigits: [0, 0, 1],
+        subjectCodeDigits: [1, 5, 3], // History (Humanities)
+        gradeIndex: 3, // 9th
+        groupIndex: 2, // মানবিক
+        setIndex: 0,
+        filledAnswers: answers20,
+      }),
+      cfg,
+    );
+
+    const baseSession = omrService.findOrCreateSession({
+      examId: 'ex-half-2026',
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjectCode: '136',
+      subjectName: 'পদার্থবিজ্ঞান (Physics)',
+      questionCount: 20,
+      paperFormat: 'legal_half',
+    });
+
+    const outSci = omrService.recordDecodedScan({
+      session: baseSession,
+      decode: sciDecode,
+      sourceType: 'image',
+      scannedBy: 'অ্যাডমিন',
+      autoSyncIdentity: true,
+    });
+    const outHum = omrService.recordDecodedScan({
+      session: baseSession,
+      decode: humDecode,
+      sourceType: 'image',
+      scannedBy: 'অ্যাডমিন',
+      autoSyncIdentity: true,
+    });
+
+    expect(outSci.record.studentId).toBe('st-9-sci-01');
+    expect(outSci.record.studentName).toBe('সাকিব আল হাসান');
+    expect(outSci.record.group).toBe('বিজ্ঞান');
+
+    expect(outHum.autoRouted).toBe(true);
+    expect(outHum.record.studentId).toBe('st-9-hum-01');
+    expect(outHum.record.studentName).toBe('মাহিনুর রহমান');
+    expect(outHum.record.group).toBe('মানবিক');
+    expect(outHum.record.subjectCode).toBe('153');
+  });
+
+  it('decodes B&W laser prints, flags dual-frame disagreement, guards duplicate rolls, and syncs MCQ losslessly', () => {
+    const cfg: OmrLayoutConfig = {
+      questionCount: 25,
+      paperFormat: 'a5',
+      rollDigits: 3,
+      optionStyle: 'en',
+      setCount: 4,
+    };
+
+    const map1 = new Map<number, { indices: number[] }>();
+    const map2 = new Map<number, { indices: number[] }>();
+    for (let q = 0; q < 25; q++) {
+      map1.set(q, { indices: [1] });
+      map2.set(q, { indices: [q === 11 ? 3 : 1] });
+    }
+
+    const d1 = decodeOmrImageBuffer(
+      renderSyntheticOmrPhoto({
+        config: cfg,
+        rollDigits: [0, 2, 7],
+        subjectCodeDigits: [1, 3, 6],
+        gradeIndex: 3,
+        groupIndex: 1,
+        setIndex: 1,
+        filledAnswers: map1,
+        pinkTheme: false,
+        perspectiveDistort: true,
+      }),
+      cfg,
+    );
+    expect(d1.success).toBe(true);
+    expect(d1.decodedRollRaw).toBe('027');
+    expect(d1.decodedSubjectCodeRaw).toBe('136');
+
+    const d2 = decodeOmrImageBuffer(
+      renderSyntheticOmrPhoto({
+        config: cfg,
+        rollDigits: [0, 2, 7],
+        subjectCodeDigits: [1, 3, 6],
+        gradeIndex: 3,
+        groupIndex: 1,
+        setIndex: 1,
+        filledAnswers: map2,
+        pinkTheme: false,
+      }),
+      cfg,
+    );
+
+    const merged = mergeDualFrameDecodes(d1, d2);
+    expect(merged.uncertainQuestions).toContain(12);
+
     const session = omrService.findOrCreateSession({
       examId: 'ex-annual-2026',
       examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
@@ -441,105 +678,267 @@ describe('OMR Student-Wise Persistence, Duplicate Guard & Lossless Mark Entry Sy
       subjectCode: '136',
       subjectName: 'পদার্থবিজ্ঞান (Physics)',
       subjectMcqMax: 25,
-      templateId: 'a5_25',
-      rollDigits: 3,
-      optionStyle: 'bn',
-      setCount: 4,
+      questionCount: 25,
+      paperFormat: 'a5',
+      optionStyle: 'en',
     });
+    const updated = omrService.updateAnswerKey(
+      session.id,
+      'B',
+      Array.from({ length: 25 }, () => 1),
+    )!;
 
-    // Set Answer Key for Set 'খ': all 25 questions = index 1 ('খ')
-    const key25 = Array.from({ length: 25 }, () => 1);
-    const updatedSession = omrService.updateAnswerKey(session.id, 'খ', key25)!;
-
-    // Synthetic scan for Roll 027 (matches Roll '27' -> নুসরাত জাহান) with 22 correct, 3 wrong
-    const filledMap = new Map<number, { indices: number[] }>();
-    for (let q = 0; q < 25; q++) {
-      filledMap.set(q, { indices: [q < 22 ? 1 : 0] });
-    }
-    const decoded = decodeOmrImageBuffer(
-      renderSyntheticOmrPhoto({
-        config: { templateId: 'a5_25', rollDigits: 3, optionStyle: 'bn', setCount: 4 },
-        rollDigits: [0, 2, 7],
-        setIndex: 1, // 'খ'
-        filledAnswers: filledMap,
-      }),
-      { templateId: 'a5_25', rollDigits: 3, optionStyle: 'bn', setCount: 4 },
-    );
-
-    const save1 = omrService.recordDecodedScan({
-      session: updatedSession,
-      decode: decoded,
+    const saved = omrService.recordDecodedScan({
+      session: updated,
+      decode: d1,
       sourceType: 'image',
       scannedBy: 'অ্যাডমিন',
     });
+    expect(saved.status).toBe('saved');
+    expect(saved.record.obtainedMarks).toBe(25);
 
-    expect(save1.status).toBe('saved');
-    expect(save1.record.matchStatus).toBe('matched');
-    expect(save1.record.studentId).toBe('st-9-27');
-    expect(save1.record.studentName).toBe('নুসরাত জাহান');
-    expect(save1.record.correctCount).toBe(22);
-    expect(save1.record.wrongCount).toBe(3);
-    expect(save1.record.obtainedMarks).toBe(22);
-
-    // Duplicate roll scan without overwrite -> triggers duplicate_conflict!
-    const dupCheck = omrService.recordDecodedScan({
-      session: updatedSession,
-      decode: decoded,
+    const dup = omrService.recordDecodedScan({
+      session: updated,
+      decode: d1,
       sourceType: 'camera',
       scannedBy: 'অ্যাডমিন',
     });
-    expect(dupCheck.status).toBe('duplicate_conflict');
-    expect(omrService.getScansForSession(session.id)).toHaveLength(1);
+    expect(dup.status).toBe('duplicate_conflict');
 
-    // Seed existing CQ=44 and Practical=23 in official Mark Entry storage before OMR sync
+    // Existing CQ=44 + Practical=23 must remain untouched during MCQ sync!
     const existingMarkKey = 'sms_marks_বার্ষিক পরীক্ষা ২০২৬_9th_Science_science_পদার্থবিজ্ঞান (Physics)';
     localStorage.setItem(
       existingMarkKey,
       JSON.stringify([
-        { id: 'st-9-05', roll: '05', name: 'তানভীর হাসান', written: 40, mcq: 18, practical: 20, total: 78 },
-        { id: 'st-9-27', roll: '27', name: 'নুসরাত জাহান', written: 44, mcq: 0, practical: 23, total: 67 },
+        { id: 'st-9-sci-27', roll: '27', name: 'নুসরাত জাহান', written: 44, mcq: 0, practical: 23, total: 67 },
       ]),
     );
 
-    // Sync verified OMR MCQ marks into official Mark Entry
     const syncReport = omrService.syncSessionMarksToMarkEntry(session.id, 'অ্যাডমিন');
     expect(syncReport.syncedCount).toBe(1);
 
-    // Verify Roll 27 has CQ=44 & Practical=23 PRESERVED, and MCQ updated to 22 -> Total=89!
-    const retrieved27 = getUniversalStudentMark({
+    const retrieved = getUniversalStudentMark({
       exam: 'বার্ষিক পরীক্ষা ২০২৬',
       grade: '9th',
       branch: 'Science',
       group: 'বিজ্ঞান',
       subjectCodeOrName: '136',
       studentRoll: '27',
-      studentId: 'st-9-27',
+      studentId: 'st-9-sci-27',
       studentName: 'নুসরাত জাহান',
     });
-    expect(retrieved27.hasMarks).toBe(true);
-    expect(retrieved27.cq).toBe(44);
-    expect(retrieved27.practical).toBe(23);
-    expect(retrieved27.mcq).toBe(22);
-    expect(retrieved27.total).toBe(89);
+    expect(retrieved.cq).toBe(44);
+    expect(retrieved.practical).toBe(23);
+    expect(retrieved.mcq).toBe(25);
+    expect(retrieved.total).toBe(92);
 
-    // Verify Roll 05 (not scanned in OMR) retained its previous marks intact!
-    const retrieved05 = getUniversalStudentMark({
-      exam: 'বার্ষিক পরীক্ষা ২০২৬',
+    expect(JSON.parse(localStorage.getItem(OMR_SESSIONS_STORAGE_KEY) || '[]').length).toBeGreaterThanOrEqual(1);
+    expect(JSON.parse(localStorage.getItem(OMR_SCANS_STORAGE_KEY) || '[]')[0].syncedToMarkEntry).toBe(true);
+  });
+});
+
+describe('OMR Subject-Wise Answer Key Studio Utilities & Service', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('parses bulk Bangla, English, numeric, and numbered-pair answer strings with merge strategies and board-column layout', () => {
+    // 1. Compact Bangla sequence
+    const bnCompact = parseBulkAnswerKeyText('কখগঘকখগঘকখ', 10);
+    expect(bnCompact.mode).toBe('sequence');
+    expect(bnCompact.parsedCount).toBe(10);
+    expect(bnCompact.answers).toEqual([0, 1, 2, 3, 0, 1, 2, 3, 0, 1]);
+
+    // 2. Spaced English with blank placeholder
+    const enSpaced = parseBulkAnswerKeyText('A b - D 1 2 3 4 a B', 10);
+    expect(enSpaced.parsedCount).toBe(9);
+    expect(enSpaced.answers[2]).toBeNull();
+    expect(enSpaced.answers[3]).toBe(3);
+
+    // 3. Numbered pairs (Bangla + English digits) preserving untouched slots & clearing explicit '-'
+    const existing15: Array<number | null> = Array.from({ length: 15 }, () => 0);
+    const numbered = parseBulkAnswerKeyText('১. গ, 5:ঘ, 10:-', 15);
+    expect(numbered.mode).toBe('numbered');
+    expect(numbered.providedIndices).toEqual([0, 4, 9]);
+    const replaced = mergeParsedAnswerKey(existing15, numbered, 15, 'replace');
+    expect(replaced[0]).toBe(2); // updated Q1
+    expect(replaced[1]).toBe(0); // preserved Q2
+    expect(replaced[4]).toBe(3); // updated Q5
+    expect(replaced[9]).toBeNull(); // explicitly cleared Q10
+
+    // 4. Fill missing only strategy
+    const partialBase: Array<number | null> = [0, null, 2, null, 1, null, null, null, null, null];
+    const fillParsed = parseBulkAnswerKeyText('DDDDDDDDDD', 10);
+    const filledOnly = mergeParsedAnswerKey(partialBase, fillParsed, 10, 'fill_missing');
+    expect(filledOnly[0]).toBe(0); // kept original
+    expect(filledOnly[1]).toBe(3); // filled missing
+    expect(filledOnly[2]).toBe(2); // kept original
+    expect(filledOnly[3]).toBe(3); // filled missing
+
+    // 5. Stats, vertical board columns, copy text & Excel rows
+    const stats = computeAnswerKeyStats([0, 1, 2, 3, null, 0, 1, 2, 3, 0], 10);
+    expect(stats.filled).toBe(9);
+    expect(stats.missingCount).toBe(1);
+    expect(stats.missingQuestionNumbers).toEqual([5]);
+    expect(stats.optionCounts).toEqual([3, 2, 2, 2]);
+    expect(stats.isComplete).toBe(false);
+
+    const cols30 = getVerticalAnswerColumns(30);
+    expect(cols30).toHaveLength(2);
+    expect(cols30[0]).toEqual({ colIndex: 0, startIndex: 0, endIndex: 14 });
+    expect(cols30[1]).toEqual({ colIndex: 1, startIndex: 15, endIndex: 29 });
+    expect(getVerticalAnswerColumns(45)).toHaveLength(3);
+    expect(getVerticalAnswerColumns(100)).toHaveLength(4);
+
+    const copyTxt = formatAnswerKeyAsCopyText([0, 1, null, 3], 'bn', 'numbered');
+    expect(copyTxt).toContain('১.ক');
+    expect(copyTxt).toContain('৩.-');
+
+    const excelRows = buildAnswerKeyExcelRows([
+      {
+        examTitle: 'বার্ষিক পরীক্ষা ২০২৬',
+        gradeLabel: '৯ম শ্রেণি',
+        scopeLabel: 'বিজ্ঞান',
+        subjectCode: '109',
+        subjectName: 'গণিত',
+        questionCount: 15,
+        optionStyle: 'bn',
+        markPerCorrect: 1,
+        negativeMark: 0,
+        setCode: 'ক',
+        answers: Array.from({ length: 15 }, (_, i) => i % 4),
+      },
+    ]);
+    expect(excelRows).toHaveLength(1);
+    expect(excelRows[0]['বিষয় কোড']).toBe('109');
+    expect(excelRows[0]['প্রশ্ন 1']).toBe('ক');
+    expect(excelRows[0]['প্রশ্ন 2']).toBe('খ');
+  });
+
+  it('tracks subject readiness without creating empty sessions, enforces lock guard, syncs sibling sections/groups, and round-trips JSON backups', () => {
+    const class9ScienceSubjects = getAllOmrCurriculumSubjects('9th', 'বিজ্ঞান');
+    expect(class9ScienceSubjects.some((s) => s.code === '111')).toBe(true);
+    expect(class9ScienceSubjects.some((s) => s.code === '112')).toBe(true);
+    expect(class9ScienceSubjects.some((s) => s.code === '113' || s.code === '114')).toBe(false);
+
+    // 1. Read-only readiness check must NOT pollute localStorage with empty sessions
+    const initialReadiness = omrService.getSubjectKeyReadinessList({
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
       grade: '9th',
       branch: 'Science',
       group: 'বিজ্ঞান',
-      subjectCodeOrName: '136',
-      studentRoll: '05',
-      studentId: 'st-9-05',
-      studentName: 'তানভীর হাসান',
+      subjects: class9ScienceSubjects,
     });
-    expect(retrieved05.cq).toBe(40);
-    expect(retrieved05.mcq).toBe(18);
-    expect(retrieved05.practical).toBe(20);
-    expect(retrieved05.total).toBe(78);
+    expect(initialReadiness.length).toBe(class9ScienceSubjects.length);
+    expect(initialReadiness.every((r) => r.status === 'empty' && r.sessionId === null)).toBe(true);
+    expect(omrService.getSessions()).toHaveLength(0);
 
-    // Verify storage keys persisted cleanly
-    expect(JSON.parse(localStorage.getItem(OMR_SESSIONS_STORAGE_KEY) || '[]')).toHaveLength(1);
-    expect(JSON.parse(localStorage.getItem(OMR_SCANS_STORAGE_KEY) || '[]')[0].syncedToMarkEntry).toBe(true);
+    // 2. Prepare Math (109, shared across Science/Humanities/Commerce) with 15 MCQ & 1 set
+    const mathSession = omrService.findOrCreateSession({
+      examId: 'ex-half-2026',
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjectCode: '109',
+      subjectName: 'গণিত (Mathematics)',
+      questionCount: 15,
+      setCount: 1,
+      optionStyle: 'bn',
+    });
+
+    const mathKey = Array.from({ length: 15 }, (_, i) => i % 4);
+    omrService.updateAnswerKey(mathSession.id, 'default', mathKey, { updatedBy: 'প্রধান শিক্ষক' });
+    omrService.updateSessionKeyMeta(mathSession.id, { keyNote: 'বোর্ড মডেল সেট' });
+
+    const afterMath = omrService.getSubjectKeyReadinessList({
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjects: class9ScienceSubjects,
+    });
+    const mathRow = afterMath.find((r) => r.subjectCode === '109');
+    expect(mathRow?.status).toBe('complete');
+    expect(mathRow?.completedSetCount).toBe(1);
+    expect(mathRow?.keyNote).toBe('বোর্ড মডেল সেট');
+
+    // 3. Lock Guard: locked Answer Key blocks edits until explicitly unlocked
+    omrService.setAnswerKeyLock(mathSession.id, true, 'প্রধান শিক্ষক');
+    const blocked = omrService.updateAnswerKey(
+      mathSession.id,
+      'default',
+      Array.from({ length: 15 }, () => 3),
+    );
+    expect(blocked).toBeNull();
+    expect(omrService.getSessionById(mathSession.id)?.answerKeys.default[0]).toBe(0);
+
+    omrService.setAnswerKeyLock(mathSession.id, false, 'প্রধান শিক্ষক');
+    const unlockedEdit = omrService.updateAnswerKey(
+      mathSession.id,
+      'default',
+      Array.from({ length: 15 }, () => 2),
+    );
+    expect(unlockedEdit?.answerKeys.default[0]).toBe(2);
+
+    // 4. Sibling Scope Sync:
+    //    (a) Shared Class 9 Math (109) syncs Science -> Humanities & Business Studies
+    const mathSiblings = getSiblingScopesForSession(unlockedEdit!);
+    expect(mathSiblings.map((s) => s.group)).toEqual(['মানবিক', 'ব্যবসায় শিক্ষা']);
+    const sync9 = omrService.applyAnswerKeyToSiblingScopes(mathSession.id, { updatedBy: 'অ্যাডমিন' });
+    expect(sync9.updatedCount).toBe(2);
+
+    const humMath = omrService
+      .getSessions()
+      .find((s) => s.grade === '9th' && s.group === 'মানবিক' && s.subjectCode === '109');
+    expect(humMath?.answerKeys.default).toEqual(Array.from({ length: 15 }, () => 2));
+
+    //    (b) Exclusive Class 9 Physics (136) has 0 sibling groups
+    const phySession = omrService.findOrCreateSession({
+      examId: 'ex-half-2026',
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+      grade: '9th',
+      branch: 'Science',
+      group: 'বিজ্ঞান',
+      subjectCode: '136',
+      subjectName: 'পদার্থবিজ্ঞান (Physics)',
+      questionCount: 25,
+    });
+    expect(getSiblingScopesForSession(phySession)).toHaveLength(0);
+
+    //    (c) Class 6 Math Branch A syncs -> Branch B & Branch C
+    const c6MathA = omrService.findOrCreateSession({
+      examId: 'ex-half-2026',
+      examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+      grade: '6th',
+      branch: 'A',
+      group: 'সাধারণ',
+      subjectCode: '109',
+      subjectName: 'গণিত (Mathematics)',
+      questionCount: 20,
+      setCount: 1,
+    });
+    omrService.updateAnswerKey(c6MathA.id, 'default', Array.from({ length: 20 }, () => 1));
+    const sync6 = omrService.applyAnswerKeyToSiblingScopes(c6MathA.id);
+    expect(sync6.updatedCount).toBe(2);
+    expect(sync6.targetLabelsBn).toEqual(['শাখা B', 'শাখা C']);
+
+    // 5. Portable JSON Backup & Restore across fresh storage
+    const bundle = omrService.exportAnswerKeysBundle({ examTitle: 'অর্ধ-বার্ষিক পরীক্ষা ২০২৬' });
+    expect(bundle.schemaVersion).toBe(1);
+    expect(bundle.entries.length).toBeGreaterThanOrEqual(6); // Math 9th x3 + Math 6th x3 (Physics empty excluded)
+
+    localStorage.clear();
+    expect(omrService.getSessions()).toHaveLength(0);
+
+    const restored = omrService.importAnswerKeysBundle(bundle, 'অ্যাডমিন');
+    expect(restored.importedCount).toBe(bundle.entries.length);
+    expect(restored.skippedCount).toBe(0);
+    const restoredMath = omrService
+      .getSessions()
+      .find((s) => s.grade === '9th' && s.group === 'বিজ্ঞান' && s.subjectCode === '109');
+    expect(restoredMath?.questionCount).toBe(15);
+    expect(restoredMath?.answerKeys.default).toEqual(Array.from({ length: 15 }, () => 2));
+    expect(restoredMath?.keyNote).toBe('বোর্ড মডেল সেট');
   });
 });

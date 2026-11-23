@@ -44,6 +44,7 @@ interface OmrScannerTabProps {
   onScansChanged: () => void;
   onInspectScan: (scan: OmrScanRecord) => void;
   onJumpToAnswerKey: () => void;
+  onSwitchToSession?: (targetSession: OmrExamSession) => void;
 }
 
 interface DuplicatePromptState {
@@ -84,16 +85,24 @@ export default function OmrScannerTab({
   onScansChanged,
   onInspectScan,
   onJumpToAnswerKey,
+  onSwitchToSession,
 }: OmrScannerTabProps) {
   const [scanMode, setScanMode] = useState<'camera' | 'upload'>('camera');
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [autoCapture, setAutoCapture] = useState(true);
+  const [autoSyncIdentity, setAutoSyncIdentity] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [quality, setQuality] = useState<LiveFrameQualityReport | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [lastAutoRouted, setLastAutoRouted] = useState<{
+    session: OmrExamSession;
+    summaryBn: string;
+    studentRoll: string;
+    studentName: string;
+  } | null>(null);
 
   const [batchProgress, setBatchProgress] = useState<{
     active: boolean;
@@ -255,6 +264,7 @@ export default function OmrScannerTab({
         scannedBy: scannerUserName,
         warpedThumbnail: thumb,
         overwriteDuplicate,
+        autoSyncIdentity,
       });
 
       if (outcome.status === 'duplicate_conflict' && outcome.existingRecord) {
@@ -274,7 +284,18 @@ export default function OmrScannerTab({
         playFeedbackBeep(outcome.record.needsReview ? 'warn' : 'success');
       }
 
-      if (outcome.record.matchStatus === 'matched') {
+      if (outcome.autoRouted && outcome.routingSummaryBn) {
+        setLastAutoRouted({
+          session: outcome.targetSession,
+          summaryBn: outcome.routingSummaryBn,
+          studentRoll: outcome.record.studentRoll,
+          studentName: outcome.record.studentName,
+        });
+        showToast(
+          `অটো-সিংক: ${outcome.routingSummaryBn} · রোল ${outcome.record.studentRoll} (${outcome.record.studentName}) — ${outcome.record.obtainedMarks}/${outcome.record.totalMarks}`,
+          'success',
+        );
+      } else if (outcome.record.matchStatus === 'matched') {
         showToast(
           `রোল ${outcome.record.studentRoll} (${outcome.record.studentName}) — ${outcome.record.obtainedMarks}/${outcome.record.totalMarks} সংরক্ষিত${outcome.record.needsReview ? ' (যাচাই করুন)' : ''}`,
           outcome.record.needsReview ? 'info' : 'success',
@@ -287,7 +308,7 @@ export default function OmrScannerTab({
       }
       return true;
     },
-    [session, scannerUserName, onScansChanged, soundEnabled],
+    [session, scannerUserName, onScansChanged, soundEnabled, autoSyncIdentity],
   );
 
   // Dual-frame capture from live camera
@@ -299,6 +320,8 @@ export default function OmrScannerTab({
     try {
       const cfg = {
         templateId: session.templateId,
+        questionCount: session.questionCount,
+        paperFormat: session.paperFormat,
         rollDigits: session.rollDigits,
         optionStyle: session.optionStyle,
         setCount: session.setCount,
@@ -370,6 +393,8 @@ export default function OmrScannerTab({
 
     const cfg = {
       templateId: session.templateId,
+      questionCount: session.questionCount,
+      paperFormat: session.paperFormat,
       rollDigits: session.rollDigits,
       optionStyle: session.optionStyle,
       setCount: session.setCount,
@@ -418,6 +443,7 @@ export default function OmrScannerTab({
                 scannedBy: scannerUserName,
                 warpedThumbnail: thumb,
                 overwriteDuplicate: pages.length > 1,
+                autoSyncIdentity,
               });
               if (outcome.status === 'duplicate_conflict' && outcome.existingRecord) {
                 setDuplicatePrompt({
@@ -461,6 +487,7 @@ export default function OmrScannerTab({
               scannedBy: scannerUserName,
               warpedThumbnail: thumb,
               overwriteDuplicate: true,
+              autoSyncIdentity,
             });
             successCount++;
           } else {
@@ -522,6 +549,30 @@ export default function OmrScannerTab({
           >
             উত্তরপত্র সেট করুন →
           </button>
+        </div>
+      )}
+
+      {/* Auto-Routed Cross-Session Notification Banner */}
+      {lastAutoRouted && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-emerald-900 dark:text-emerald-200">
+            <Sparkles className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
+            <span>
+              অটো-সিংক (বিষয় কোড + বিভাগ): <strong>{lastAutoRouted.summaryBn}</strong> — রোল {lastAutoRouted.studentRoll} ({lastAutoRouted.studentName}) সঠিক সেশনে জমা হয়েছে।
+            </span>
+          </div>
+          {onSwitchToSession && (
+            <button
+              type="button"
+              onClick={() => {
+                onSwitchToSession(lastAutoRouted.session);
+                setLastAutoRouted(null);
+              }}
+              className="h-7 px-3 rounded-lg bg-[#0B5D3B] hover:bg-[#094a2f] text-white text-[11px] font-bold shrink-0"
+            >
+              সেই সেশনে যান →
+            </button>
+          )}
         </div>
       )}
 
@@ -593,6 +644,18 @@ export default function OmrScannerTab({
             </div>
 
             <div className="flex items-center gap-1.5">
+              <label
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                title="শিটের ৩-ডিজিট বিষয় কোড, শ্রেণি ও বিভাগ পড়ে স্বয়ংক্রিয়ভাবে সঠিক সেশনে সেভ করবে"
+              >
+                <input
+                  type="checkbox"
+                  checked={autoSyncIdentity}
+                  onChange={(e) => setAutoSyncIdentity(e.target.checked)}
+                  className="rounded border-slate-300 text-[#0B5D3B] focus:ring-[#0B5D3B]"
+                />
+                অটো-সিংক
+              </label>
               {scanMode === 'camera' && (
                 <>
                   <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
@@ -901,6 +964,11 @@ export default function OmrScannerTab({
                       {sc.needsReview && (
                         <span className="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold text-[10px]">
                           যাচাই প্রয়োজন
+                        </span>
+                      )}
+                      {sc.decodedSubjectCodeRaw && (
+                        <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                          কোড {sc.decodedSubjectCodeRaw}
                         </span>
                       )}
                       {session.setCount === 4 && (

@@ -13,12 +13,19 @@ import {
 import {
   OmrExamSession,
   OmrScanRecord,
+  getAllOmrCurriculumSubjects,
   getEligibleStudentsForSession,
   getSessionSetCodes,
   gradeOmrQuestionResponses,
   matchStudentByRollForSession,
+  normalizeGroupToBranch,
+  normalizeGroupToBn,
+  normalizeSubjectCode3Digit,
+  resolveOmrSubjectByCode,
 } from '@/services/omrService';
 import {
+  OMR_GRADE_OPTIONS,
+  OMR_GROUP_OPTIONS,
   OMR_OPTION_LABELS,
   getOmrTemplateLayout,
   toBanglaDigits,
@@ -31,6 +38,9 @@ interface OmrVerifyModalProps {
   onSave: (updates: {
     roll: string;
     studentId: string | null;
+    grade: string;
+    group: string;
+    subjectCode: string;
     setCode: string;
     answers: Array<number | null>;
   }) => void;
@@ -46,21 +56,33 @@ export default function OmrVerifyModal({
     () =>
       getOmrTemplateLayout({
         templateId: session.templateId,
+        questionCount: session.questionCount,
+        paperFormat: session.paperFormat,
         rollDigits: session.rollDigits,
         optionStyle: session.optionStyle,
         setCount: session.setCount,
       }),
-    [session.templateId, session.rollDigits, session.optionStyle, session.setCount],
+    [
+      session.templateId,
+      session.questionCount,
+      session.paperFormat,
+      session.rollDigits,
+      session.optionStyle,
+      session.setCount,
+    ],
   );
 
-  const eligibleStudents = useMemo(
-    () => getEligibleStudentsForSession(session),
-    [session],
-  );
   const validSets = useMemo(() => getSessionSetCodes(session), [session]);
   const optionLabels = OMR_OPTION_LABELS[session.optionStyle];
   const isBn = session.optionStyle === 'bn';
 
+  const [gradeInput, setGradeInput] = useState<string>(scan.grade || session.grade);
+  const [groupInput, setGroupInput] = useState<string>(
+    normalizeGroupToBn(scan.grade || session.grade, scan.group || session.group, scan.branch || session.branch),
+  );
+  const [subjectCodeInput, setSubjectCodeInput] = useState<string>(
+    scan.decodedSubjectCodeRaw || normalizeSubjectCode3Digit(scan.subjectCode || session.subjectCode) || session.subjectCode,
+  );
   const [rollInput, setRollInput] = useState(scan.studentRoll === '?' ? '' : scan.studentRoll);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(scan.studentId);
   const [setCode, setSetCode] = useState(scan.setCode || validSets[0]);
@@ -69,9 +91,40 @@ export default function OmrVerifyModal({
   );
   const [filterFlaggedOnly, setFilterFlaggedOnly] = useState(false);
 
+  const isGrade9or10 = gradeInput === '9th' || gradeInput === '10th';
+  const effectiveGroupBn = normalizeGroupToBn(gradeInput, groupInput);
+  const effectiveBranch = normalizeGroupToBranch(gradeInput, effectiveGroupBn, session.branch);
+
+  const curriculumSubjectsForTarget = useMemo(
+    () => getAllOmrCurriculumSubjects(gradeInput, effectiveGroupBn),
+    [gradeInput, effectiveGroupBn],
+  );
+
+  const resolvedSubject = useMemo(
+    () => resolveOmrSubjectByCode(gradeInput, effectiveGroupBn, subjectCodeInput),
+    [gradeInput, effectiveGroupBn, subjectCodeInput],
+  );
+
+  const effectiveSubjectName = resolvedSubject?.subject.name || session.subjectName;
+
+  const previewSessionScope = useMemo(
+    () => ({
+      grade: gradeInput,
+      branch: effectiveBranch,
+      group: effectiveGroupBn,
+      subjectName: effectiveSubjectName,
+    }),
+    [gradeInput, effectiveBranch, effectiveGroupBn, effectiveSubjectName],
+  );
+
+  const eligibleStudents = useMemo(
+    () => getEligibleStudentsForSession(previewSessionScope),
+    [previewSessionScope],
+  );
+
   const liveMatch = useMemo(
-    () => matchStudentByRollForSession(session, rollInput, selectedStudentId),
-    [session, rollInput, selectedStudentId],
+    () => matchStudentByRollForSession(previewSessionScope, rollInput, selectedStudentId),
+    [previewSessionScope, rollInput, selectedStudentId],
   );
 
   const liveGraded = useMemo(() => {
@@ -132,6 +185,9 @@ export default function OmrVerifyModal({
     return flaggedIndices;
   }, [filterFlaggedOnly, flaggedIndices, session.questionCount]);
 
+  const vbW = layout.canonicalWidthPx;
+  const vbH = layout.canonicalHeightPx;
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
@@ -152,7 +208,7 @@ export default function OmrVerifyModal({
                 OMR শিট যাচাই ও সংশোধন (Tap-to-Fix)
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {session.subjectName} · রোল: {rollInput || '?'} · স্কোর:{' '}
+                {effectiveSubjectName} ({subjectCodeInput || '—'}) · রোল: {rollInput || '?'} · স্কোর:{' '}
                 <strong className="text-emerald-700 dark:text-emerald-400">
                   {liveGraded.obtainedMarks}/{liveGraded.totalMarks}
                 </strong>
@@ -190,16 +246,15 @@ export default function OmrVerifyModal({
             </div>
 
             {scan.warpedThumbnail ? (
-              <div className="relative w-full max-w-[380px] rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-sm bg-white">
+              <div className="relative w-full max-w-[390px] rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-sm bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={scan.warpedThumbnail}
                   alt="Warped OMR Sheet"
                   className="w-full h-auto block select-none"
                 />
-                {/* Exact-coordinate interactive SVG bubble overlay */}
                 <svg
-                  viewBox="0 0 1000 1463"
+                  viewBox={`0 0 ${vbW} ${vbH}`}
                   preserveAspectRatio="none"
                   className="absolute inset-0 w-full h-full"
                 >
@@ -207,10 +262,10 @@ export default function OmrVerifyModal({
                     const ans = liveGraded.answers[qIdx];
                     if (!ans) return null;
                     return rowBubbles.map((b, optIdx) => {
-                      const cx = b.u * 1000;
-                      const cy = b.v * 1463;
-                      const rx = b.rU * 1000 * 1.15;
-                      const ry = b.rV * 1463 * 1.15;
+                      const cx = b.u * vbW;
+                      const cy = b.v * vbH;
+                      const rx = b.rU * vbW * 1.15;
+                      const ry = b.rV * vbH * 1.15;
 
                       const isSelected = ans.selectedIndex === optIdx;
                       const isCorrectKey = ans.correctIndex === optIdx;
@@ -259,16 +314,95 @@ export default function OmrVerifyModal({
               </div>
             ) : (
               <div className="w-full max-w-[360px] py-14 px-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
-                এই রেকর্ডের লোকাল থাম্বনেইল সংরক্ষিত নেই। ডান পাশের গ্রিড থেকে রোল ও উত্তর সংশোধন করুন।
+                এই রেকর্ডের লোকাল থাম্বনেইল সংরক্ষিত নেই। ডান পাশের গ্রিড থেকে রোল, বিষয় কোড ও উত্তর সংশোধন করুন।
               </div>
             )}
           </div>
 
-          {/* Right: Identity Matching + Fast Tap-to-Fix Grid */}
+          {/* Right: Identity (Class + Group + Subject Code + Roll) + Tap-to-Fix Grid */}
           <div className="lg:col-span-7 p-4 sm:p-5 flex flex-col gap-4">
-            {/* Student Match & Roll Box */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 bg-slate-50/60 dark:bg-slate-950/40 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+              {/* Row 1: Decoded Class + Group + 3-Digit Subject Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-3">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    শ্রেণি
+                  </label>
+                  <select
+                    value={gradeInput}
+                    onChange={(e) => {
+                      const nextG = e.target.value;
+                      setGradeInput(nextG);
+                      setGroupInput(normalizeGroupToBn(nextG, groupInput));
+                      setSelectedStudentId(null);
+                    }}
+                    className="w-full h-9 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100"
+                  >
+                    {OMR_GRADE_OPTIONS.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.labelBn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    বিভাগ / গ্রুপ
+                  </label>
+                  <select
+                    value={effectiveGroupBn}
+                    disabled={!isGrade9or10}
+                    onChange={(e) => {
+                      setGroupInput(e.target.value);
+                      setSelectedStudentId(null);
+                    }}
+                    className="w-full h-9 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-60 text-xs font-bold text-slate-800 dark:text-slate-100"
+                  >
+                    {isGrade9or10 ? (
+                      OMR_GROUP_OPTIONS.filter((g) => g.id !== 'সাধারণ').map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.labelBn}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="সাধারণ">সাধারণ</option>
+                    )}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-5">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    ৩-ডিজিট বিষয় কোড / বিষয়
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={subjectCodeInput}
+                      onChange={(e) => setSubjectCodeInput(e.target.value)}
+                      placeholder="136"
+                      className="w-20 h-9 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white"
+                    />
+                    <select
+                      value={resolvedSubject?.subject.code || ''}
+                      onChange={(e) => {
+                        if (e.target.value) setSubjectCodeInput(e.target.value);
+                      }}
+                      className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                    >
+                      <option value="">{effectiveSubjectName}</option>
+                      {curriculumSubjectsForTarget.map((sub) => (
+                        <option key={`${sub.code}-${sub.name}`} value={sub.code}>
+                          {sub.code} — {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Roll + Student Match + Set */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                 <div className="sm:col-span-3">
                   <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
                     রোল নম্বর
@@ -284,7 +418,7 @@ export default function OmrVerifyModal({
 
                 <div className="sm:col-span-6">
                   <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                    শিক্ষার্থী নির্বাচন (শ্রেণি তালিকা থেকে)
+                    শিক্ষার্থী নির্বাচন (শ্রেণি ও বিভাগ তালিকা থেকে)
                   </label>
                   <select
                     value={liveMatch.student?.id || ''}
@@ -325,7 +459,7 @@ export default function OmrVerifyModal({
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/70 dark:border-slate-800 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-200/70 dark:border-slate-800 text-xs">
                 {liveMatch.student ? (
                   <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
                     <CheckCircle2 className="w-4 h-4" />
@@ -334,7 +468,7 @@ export default function OmrVerifyModal({
                 ) : (
                   <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-4 h-4" />
-                    এই রোল শ্রেণি তালিকায় মেলেনি — উপরের ড্রপডাউন থেকে সঠিক শিক্ষার্থী নির্বাচন করুন।
+                    এই শ্রেণি ও বিভাগে রোল মেলেনি — ড্রপডাউন থেকে সঠিক শিক্ষার্থী নির্বাচন করুন।
                   </span>
                 )}
 
@@ -388,7 +522,7 @@ export default function OmrVerifyModal({
             </div>
 
             {/* Interactive Question Answer Matrix */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[380px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1">
               {visibleQuestionIndices.map((qIdx) => {
                 const ans = liveGraded.answers[qIdx];
                 if (!ans) return null;
@@ -468,6 +602,9 @@ export default function OmrVerifyModal({
                 onSave({
                   roll: rollInput.trim() || scan.studentRoll,
                   studentId: liveMatch.student?.id ?? null,
+                  grade: gradeInput,
+                  group: effectiveGroupBn,
+                  subjectCode: subjectCodeInput.trim() || session.subjectCode,
                   setCode,
                   answers,
                 })

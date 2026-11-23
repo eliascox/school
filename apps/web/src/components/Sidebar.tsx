@@ -290,6 +290,7 @@ function SidebarContent({
                       <Link
                         key={item.id}
                         href={item.href}
+                        prefetch={false}
                         onClick={handleLinkClick}
                         title={isCollapsed ? itemLabel : undefined}
                         className={`relative flex items-center rounded-xl text-[13px] transition-all group ${
@@ -408,6 +409,7 @@ function SidebarContent({
                               <Link
                                 key={sub.id}
                                 href={sub.href}
+                                prefetch={false}
                                 onClick={handleLinkClick}
                                 className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-[12.5px] transition-all group ${
                                   subActive
@@ -466,6 +468,7 @@ function SidebarContent({
         {isAdmin && !isCollapsed && (
           <Link
             href="/dashboard/mobile-app"
+            prefetch={false}
             onClick={handleLinkClick}
             className="flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50/80 dark:from-emerald-950/50 dark:to-teal-950/40 border border-emerald-200/80 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition group"
           >
@@ -605,19 +608,21 @@ export default function Sidebar({
           }`}
           onClick={onClose}
         />
-        {/* Drawer */}
+        {/* Drawer — mount inner nav tree only when open to avoid duplicate subscriptions & link trees */}
         <aside
           className={`absolute left-0 top-0 bottom-0 w-[272px] shadow-2xl transition-transform duration-300 ease-in-out border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <React.Suspense
-            fallback={
-              <div className="w-[272px] bg-white dark:bg-slate-950 h-full border-r border-slate-200/90 dark:border-slate-800" />
-            }
-          >
-            <SidebarContent session={session} onClose={onClose} />
-          </React.Suspense>
+          {isOpen && (
+            <React.Suspense
+              fallback={
+                <div className="w-[272px] bg-white dark:bg-slate-950 h-full border-r border-slate-200/90 dark:border-slate-800" />
+              }
+            >
+              <SidebarContent session={session} onClose={onClose} />
+            </React.Suspense>
+          )}
         </aside>
       </div>
     </>

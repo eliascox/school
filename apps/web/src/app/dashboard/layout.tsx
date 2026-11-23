@@ -72,6 +72,7 @@ function MobileBottomNav({
           <Link
             key={tab.id}
             href={tab.href}
+            prefetch={false}
             className={`flex flex-col items-center justify-center gap-0.5 min-w-[56px] py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
               active
                 ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/90 dark:bg-indigo-500/15'
@@ -175,7 +176,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     normalizedPath === '/dashboard/teacher' ||
     normalizedPath === '/dashboard/leaves' ||
     normalizedPath === '/dashboard/teacher-portal' ||
-    normalizedPath === '/dashboard/exam/omr';
+    normalizedPath === '/dashboard/exam/omr' ||
+    normalizedPath === '/dashboard/exam/rank-result' ||
+    normalizedPath === '/dashboard/exam/seat-plan' ||
+    normalizedPath === '/dashboard/academic/marksheet';
 
   return (
     <Suspense fallback={<LoadingScreen />}>

@@ -284,8 +284,231 @@ export function getAllSubjectAliases(subjectQuery: string): { names: string[]; c
   };
 }
 
+// ─── HIGH-SPEED IN-MEMORY MARKS INDEX CACHE (ELIMINATES O(N*S*1300) FREEZE) ──
+
+interface IndexedMarkSheet {
+  raw: string;
+  byId: Map<string, RetrievedMark>;
+  byRoll: Map<string, RetrievedMark>;
+  byName: Map<string, RetrievedMark>;
+}
+
+interface TurnMarksKeySnapshot {
+  storageRef: Storage;
+  storageLength: number;
+  firstKey: string | null;
+  lastKey: string | null;
+  marksKeySet: Set<string>;
+  marksKeys: string[];
+  /** Caches exact ordered matching `sms_marks_*` keys per (exam|grade|branch|group|subject|religion) */
+  subjectKeysCache: Map<string, string[]>;
+}
+
+const parsedSheetCache = new Map<string, IndexedMarkSheet>();
+const MAX_PARSED_SHEET_CACHE = 320;
+let activeTurnSnapshot: TurnMarksKeySnapshot | null = null;
+let turnClearScheduled = false;
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (e) => {
+    if (!e.key || e.key.startsWith('sms_marks_')) {
+      invalidateMarkStorageCache();
+    }
+  });
+}
+
 /**
- * Robust Universal Mark Retriever from LocalStorage.
+ * Explicitly clears the in-memory marks index cache (called automatically every microtask
+ * and whenever `localStorage` length or boundary keys change).
+ */
+export function invalidateMarkStorageCache(): void {
+  activeTurnSnapshot = null;
+  parsedSheetCache.clear();
+}
+
+function toAsciiRollDigits(raw: string): string {
+  return String(raw || '').replace(/[০-৯]/g, (d) => '0123456789'['০১২৩৪৫৬৭৮৯'.indexOf(d)]);
+}
+
+function normalizeRollKeyVariants(rawRoll: string): string[] {
+  const trimmed = String(rawRoll || '').trim();
+  const ascii = toAsciiRollDigits(trimmed);
+  const digitsOnly = ascii.replace(/\D/g, '');
+  const set = new Set<string>();
+  if (trimmed) set.add(trimmed);
+  if (ascii) set.add(ascii);
+  if (digitsOnly) {
+    const num = parseInt(digitsOnly, 10);
+    if (Number.isFinite(num)) {
+      const s = String(num);
+      set.add(s);
+      set.add(s.padStart(2, '0'));
+      set.add(s.padStart(3, '0'));
+    }
+  }
+  return Array.from(set);
+}
+
+function supportsStorageEnumeration(): boolean {
+  return (
+    typeof localStorage !== 'undefined' &&
+    typeof localStorage.length === 'number' &&
+    typeof localStorage.key === 'function'
+  );
+}
+
+function getTurnMarksKeySnapshot(): TurnMarksKeySnapshot | null {
+  if (!supportsStorageEnumeration()) return null;
+
+  const len = localStorage.length;
+  const firstKey = len > 0 ? localStorage.key(0) : null;
+  const lastKey = len > 0 ? localStorage.key(len - 1) : null;
+
+  if (
+    activeTurnSnapshot &&
+    activeTurnSnapshot.storageRef === localStorage &&
+    activeTurnSnapshot.storageLength === len &&
+    activeTurnSnapshot.firstKey === firstKey &&
+    activeTurnSnapshot.lastKey === lastKey
+  ) {
+    return activeTurnSnapshot;
+  }
+
+  const marksKeySet = new Set<string>();
+  const marksKeys: string[] = [];
+  for (let i = 0; i < len; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('sms_marks_')) {
+      marksKeySet.add(k);
+      marksKeys.push(k);
+    }
+  }
+
+  activeTurnSnapshot = {
+    storageRef: localStorage,
+    storageLength: len,
+    firstKey,
+    lastKey,
+    marksKeySet,
+    marksKeys,
+    subjectKeysCache: new Map<string, string[]>(),
+  };
+
+  if (!turnClearScheduled) {
+    turnClearScheduled = true;
+    Promise.resolve().then(() => {
+      activeTurnSnapshot = null;
+      turnClearScheduled = false;
+    });
+  }
+
+  return activeTurnSnapshot;
+}
+
+function extractRetrievedMark(entry: unknown): RetrievedMark | null {
+  if (entry === null || entry === undefined) return null;
+  if (typeof entry === 'number') {
+    return { cq: entry, mcq: 0, practical: 0, ca: 0, total: entry, hasMarks: true };
+  }
+  if (typeof entry !== 'object') return null;
+  const obj = entry as Record<string, unknown>;
+  if (
+    obj.cq !== undefined ||
+    obj.written !== undefined ||
+    obj.mcq !== undefined ||
+    obj.practical !== undefined ||
+    obj.ca !== undefined ||
+    obj.total !== undefined
+  ) {
+    const cq = Number(obj.cq !== undefined ? obj.cq : obj.written || 0);
+    const mcq = Number(obj.mcq || 0);
+    const practical = Number(obj.practical || 0);
+    const ca = Number(obj.ca || 0);
+    const total = obj.total !== undefined ? Number(obj.total) : cq + mcq + practical + ca;
+    return { cq, mcq, practical, ca, total, hasMarks: true };
+  }
+  return null;
+}
+
+function getIndexedMarkSheet(key: string): IndexedMarkSheet | null {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+
+  const cached = parsedSheetCache.get(key);
+  if (cached && cached.raw === raw) {
+    return cached;
+  }
+
+  const byId = new Map<string, RetrievedMark>();
+  const byRoll = new Map<string, RetrievedMark>();
+  const byName = new Map<string, RetrievedMark>();
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      for (const row of parsed) {
+        if (!row || typeof row !== 'object') continue;
+        const mark = extractRetrievedMark(row);
+        if (!mark) continue;
+        const r = row as Record<string, unknown>;
+        if (r.id) byId.set(String(r.id), mark);
+        if (r.studentId) byId.set(String(r.studentId), mark);
+        if (r.roll !== undefined && r.roll !== null) {
+          for (const rv of normalizeRollKeyVariants(String(r.roll))) {
+            if (!byRoll.has(rv)) byRoll.set(rv, mark);
+          }
+        }
+        if (r.name) {
+          const cleanName = String(r.name).trim();
+          if (cleanName && !byName.has(cleanName)) byName.set(cleanName, mark);
+        }
+      }
+    } else if (typeof parsed === 'object' && parsed !== null) {
+      for (const [k, val] of Object.entries(parsed)) {
+        const mark = extractRetrievedMark(val);
+        if (!mark) continue;
+        byId.set(k, mark);
+        for (const rv of normalizeRollKeyVariants(k)) {
+          if (!byRoll.has(rv)) byRoll.set(rv, mark);
+        }
+      }
+    }
+  } catch {
+    // ignore malformed sheet JSON
+  }
+
+  const indexed: IndexedMarkSheet = { raw, byId, byRoll, byName };
+  if (parsedSheetCache.size >= MAX_PARSED_SHEET_CACHE) {
+    parsedSheetCache.clear();
+  }
+  parsedSheetCache.set(key, indexed);
+  return indexed;
+}
+
+function lookupStudentInSheet(
+  sheet: IndexedMarkSheet | null,
+  normalizedRolls: string[],
+  studentId?: string,
+  studentName?: string,
+): RetrievedMark | null {
+  if (!sheet) return null;
+  if (studentId) {
+    const byIdHit = sheet.byId.get(studentId);
+    if (byIdHit) return byIdHit;
+  }
+  for (const r of normalizedRolls) {
+    const byRollHit = sheet.byRoll.get(r);
+    if (byRollHit) return byRollHit;
+  }
+  if (studentName) {
+    const byNameHit = sheet.byName.get(studentName.trim());
+    if (byNameHit) return byNameHit;
+  }
+  return null;
+}
+
+/**
+ * Robust Universal Mark Retriever from LocalStorage (O(1) per-turn indexed).
  * Searches across accurate key permutations without cross-group leakage.
  */
 export function getUniversalStudentMark(params: {
@@ -310,21 +533,31 @@ export function getUniversalStudentMark(params: {
     hasMarks: false
   };
 
-  if (typeof window === 'undefined') return defaultResult;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return defaultResult;
 
-  const rollNum = parseInt(studentRoll || '1', 10);
-  const normalizedRolls = [
-    studentRoll,
-    String(rollNum),
-    String(rollNum).padStart(2, '0'),
-    String(rollNum).padStart(3, '0')
-  ];
+  const snapshot = getTurnMarksKeySnapshot();
+  if (snapshot && snapshot.marksKeys.length === 0) return defaultResult;
+
+  const normalizedRolls = normalizeRollKeyVariants(studentRoll || '1');
+
+  // FAST PATH (O(1)): Reuse pre-resolved existing storage keys for this (exam, grade, branch, group, subject, religion)
+  const subjectCacheKey = `${exam}|${grade}|${branch || ''}|${group || ''}|${subjectCodeOrName}|${religion || ''}`;
+  if (snapshot) {
+    const cachedKeys = snapshot.subjectKeysCache.get(subjectCacheKey);
+    if (cachedKeys !== undefined) {
+      for (const key of cachedKeys) {
+        const sheet = getIndexedMarkSheet(key);
+        const hit = lookupStudentInSheet(sheet, normalizedRolls, studentId, studentName);
+        if (hit) return hit;
+      }
+      return defaultResult;
+    }
+  }
 
   // 1. Resolve Subject Synonyms
   let targetNames: string[] = [subjectCodeOrName];
   let targetCodes: string[] = [subjectCodeOrName];
 
-  // Religion special check
   const trimmedQ = subjectCodeOrName.trim();
   if (
     trimmedQ.includes('ধর্ম') ||
@@ -355,23 +588,16 @@ export function getUniversalStudentMark(params: {
   if (isClass9or10 && group) {
     if (group.includes('বিজ্ঞান') || group === 'science') {
       groupsToTry = ['বিজ্ঞান', 'science', 'সাধারণ', ''];
-    } else if (group.includes('ব্যবসায়') || group === 'commerce') {
+    } else if (group.includes('ব্যবসায়') || group.includes('ব্যবসায়') || group === 'commerce') {
       groupsToTry = ['ব্যবসায় শিক্ষা', 'commerce', 'সাধারণ', ''];
     } else if (group.includes('মানবিক') || group === 'humanities') {
       groupsToTry = ['মানবিক', 'humanities', 'সাধারণ', ''];
     }
   }
 
-  const branchesToTry = [
-    branch || 'A',
-    'A',
-    'B',
-    'C',
-    'Science',
-    'Humanities',
-    'Commerce',
-    ''
-  ];
+  const branchesToTry = Array.from(
+    new Set([branch || 'A', 'A', 'B', 'C', 'Science', 'Humanities', 'Commerce', '']),
+  );
 
   const examAliases: Record<string, string[]> = {
     'Annual Examination 2026': ['Annual Examination 2026', 'বার্ষিক পরীক্ষা ২০২৬'],
@@ -401,127 +627,83 @@ export function getUniversalStudentMark(params: {
     ...(parentheticalPart ? (examAliases[parentheticalPart] || [parentheticalPart]) : []),
     strippedPart
   ])).filter(Boolean);
-  const gradesToTry = [grade];
 
-  // Try direct lookup with priority keys
-  for (const ex of examsToTry) {
-    for (const gr of gradesToTry) {
+  const identifiers = Array.from(new Set([...targetNames, ...targetCodes])).filter(Boolean);
+
+  if (snapshot) {
+    // Resolve ordered matching existing keys ONCE per turn for this subject scope!
+    const matchedKeyList: string[] = [];
+    const seenMatched = new Set<string>();
+
+    for (const ex of examsToTry) {
       for (const br of branchesToTry) {
         for (const gp of groupsToTry) {
-          for (const ident of [...targetNames, ...targetCodes]) {
-            if (!ident) continue;
-            const key = gp ? `sms_marks_${ex}_${gr}_${br}_${gp}_${ident}` : `sms_marks_${ex}_${gr}_${br}_${ident}`;
-            const stored = localStorage.getItem(key);
-            if (stored) {
-              const res = parseStudentMarkFromJson(stored, normalizedRolls, studentId, studentName);
-              if (res.hasMarks) return res;
+          for (const ident of identifiers) {
+            const key = gp ? `sms_marks_${ex}_${grade}_${br}_${gp}_${ident}` : `sms_marks_${ex}_${grade}_${br}_${ident}`;
+            if (snapshot.marksKeySet.has(key) && !seenMatched.has(key)) {
+              seenMatched.add(key);
+              matchedKeyList.push(key);
             }
           }
         }
       }
     }
+
+    // Resilient fallback keys from snapshot
+    for (const key of snapshot.marksKeys) {
+      if (seenMatched.has(key)) continue;
+      if (examsToTry.length > 0 && !examsToTry.some(ex => key.includes(ex))) continue;
+      if (grade && !key.includes(grade)) continue;
+      const keyMatchesSubject =
+        targetNames.some(n => key.endsWith(`_${n}`) || key.includes(`_${n}_`)) ||
+        targetCodes.some(c => key.endsWith(`_${c}`) || key.includes(`_${c}_`));
+      if (!keyMatchesSubject) continue;
+      seenMatched.add(key);
+      matchedKeyList.push(key);
+    }
+
+    snapshot.subjectKeysCache.set(subjectCacheKey, matchedKeyList);
+
+    for (const key of matchedKeyList) {
+      const sheet = getIndexedMarkSheet(key);
+      const hit = lookupStudentInSheet(sheet, normalizedRolls, studentId, studentName);
+      if (hit) return hit;
+    }
+    return defaultResult;
   }
 
-  // 3. Resilient Fallback: Scan keys for current grade and exam
+  // Fallback for minimal mock `localStorage` implementations lacking `.length` / `.key(i)`
+  for (const ex of examsToTry) {
+    for (const br of branchesToTry) {
+      for (const gp of groupsToTry) {
+        for (const ident of identifiers) {
+          const key = gp ? `sms_marks_${ex}_${grade}_${br}_${gp}_${ident}` : `sms_marks_${ex}_${grade}_${br}_${ident}`;
+          const sheet = getIndexedMarkSheet(key);
+          const hit = lookupStudentInSheet(sheet, normalizedRolls, studentId, studentName);
+          if (hit) return hit;
+        }
+      }
+    }
+  }
+
   try {
     const allKeys = Object.keys(localStorage);
     for (const key of allKeys) {
       if (!key.startsWith('sms_marks_')) continue;
       if (examsToTry.length > 0 && !examsToTry.some(ex => key.includes(ex))) continue;
       if (grade && !key.includes(grade)) continue;
-
-      // Check if key matches target subject identifiers safely on boundaries
       const keyMatchesSubject =
         targetNames.some(n => key.endsWith(`_${n}`) || key.includes(`_${n}_`)) ||
         targetCodes.some(c => key.endsWith(`_${c}`) || key.includes(`_${c}_`));
       if (!keyMatchesSubject) continue;
-
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const res = parseStudentMarkFromJson(raw, normalizedRolls, studentId, studentName);
-        if (res.hasMarks) return res;
-      }
+      const sheet = getIndexedMarkSheet(key);
+      const hit = lookupStudentInSheet(sheet, normalizedRolls, studentId, studentName);
+      if (hit) return hit;
     }
   } catch (e) {
     console.error('Error in universal mark retrieval', e);
   }
 
   return defaultResult;
-}
-
-/**
- * Helper to safely extract student mark row from parsed JSON array or object
- */
-function parseStudentMarkFromJson(
-  rawJson: string,
-  normalizedRolls: string[],
-  studentId?: string,
-  studentName?: string
-): RetrievedMark {
-  try {
-    const parsed = JSON.parse(rawJson);
-    let match: any = null;
-
-    if (Array.isArray(parsed)) {
-      match = parsed.find((s: any) => {
-        if (!s) return false;
-        if (studentId && (s.id === studentId || s.studentId === studentId)) return true;
-        const sRollStr = s.roll ? String(s.roll).trim() : '';
-        if (normalizedRolls.includes(sRollStr)) return true;
-        if (sRollStr && normalizedRolls.includes(String(parseInt(sRollStr, 10)))) return true;
-        if (studentName && s.name && s.name.trim() === studentName.trim()) return true;
-        return false;
-      });
-    } else if (typeof parsed === 'object' && parsed !== null) {
-      for (const r of normalizedRolls) {
-        if (parsed[r]) {
-          match = parsed[r];
-          break;
-        }
-      }
-      if (!match && studentId && parsed[studentId]) {
-        match = parsed[studentId];
-      }
-    }
-
-    if (match) {
-      if (typeof match === 'number') {
-        return {
-          cq: match,
-          mcq: 0,
-          practical: 0,
-          ca: 0,
-          total: match,
-          hasMarks: true
-        };
-      }
-
-      if (match.cq !== undefined || match.written !== undefined || match.mcq !== undefined || match.practical !== undefined || match.ca !== undefined || match.total !== undefined) {
-        const cq = Number(match.cq !== undefined ? match.cq : match.written || 0);
-        const mcq = Number(match.mcq || 0);
-        const practical = Number(match.practical || 0);
-        const ca = Number(match.ca || 0);
-        const total = match.total !== undefined ? Number(match.total) : cq + mcq + practical + ca;
-
-        return {
-          cq,
-          mcq,
-          practical,
-          ca,
-          total,
-          hasMarks: true
-        };
-      }
-    }
-  } catch (e) {}
-
-  return {
-    cq: 0,
-    mcq: 0,
-    practical: 0,
-    ca: 0,
-    total: 0,
-    hasMarks: false
-  };
 }
 

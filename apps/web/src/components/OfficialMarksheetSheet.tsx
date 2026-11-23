@@ -18,6 +18,14 @@ import {
   gpaToLetterGrade,
   PassEvaluationMode,
 } from '@/services/resultService';
+import {
+  MarksheetBorderPreset,
+  buildMarksheetQrPayload,
+  formatMeritPositionEn,
+  generateQrSvgPath,
+  normalizeMarksheetRollNumber,
+  resolveBranchForGradeAndGroup,
+} from '@/lib/marksheetStudioUtils';
 
 export interface StudentProfile {
   id: string;
@@ -84,7 +92,8 @@ export const getStudentsForClassSectionGroup = (
   group: string
 ): StudentProfile[] => {
   const isClass9or10 = grade === '9th' || grade === '10th';
-  const targetGroup = isClass9or10 ? group : 'সাধারণ';
+  const { normalizedBranch, normalizedGroupBn } = resolveBranchForGradeAndGroup(grade, section, group);
+  const targetGroup = isClass9or10 ? normalizedGroupBn : 'সাধারণ';
   const gradeBnMap: Record<string, string> = {
     '6th': '৬ষ্ঠ শ্রেণি',
     '7th': '৭ম শ্রেণি',
@@ -105,10 +114,10 @@ export const getStudentsForClassSectionGroup = (
       const storedUploaded = localStorage.getItem('sms_uploaded_students');
       const storedStudents = localStorage.getItem('sms_students');
       if (storedUploaded) {
-        try { all = [...all, ...JSON.parse(storedUploaded)]; } catch (e) {}
+        try { all = [...all, ...JSON.parse(storedUploaded)]; } catch {}
       }
       if (storedStudents) {
-        try { all = [...all, ...JSON.parse(storedStudents)]; } catch (e) {}
+        try { all = [...all, ...JSON.parse(storedStudents)]; } catch {}
       }
     } catch (e) {
       console.error('Error reading student storage', e);
@@ -127,50 +136,60 @@ export const getStudentsForClassSectionGroup = (
       (grade === '9th' && (sGrade.includes('9') || sGrade.includes('Nine') || sGrade.includes('৯'))) ||
       (grade === '10th' && (sGrade.includes('10') || sGrade.includes('Ten') || sGrade.includes('১০')));
 
-    const secLower = (section || '').toLowerCase().trim();
+    if (!matchedGrade) return false;
+
+    if (isClass9or10) {
+      // Auto-sync Class 9-10 strictly by Group (accepting section/branch aligned to group OR legacy 'A'/'')
+      const resolvedSt = resolveBranchForGradeAndGroup(grade, sSection, sGroup);
+      return resolvedSt.normalizedGroupBn === targetGroup;
+    }
+
+    const secLower = (normalizedBranch || '').toLowerCase().trim();
     const sSecLower = sSection.toLowerCase().trim();
     const matchedSection = !section || secLower === 'all' || sSecLower === secLower ||
       (secLower === 'a' && (sSecLower === 'a' || sSecLower === 'ক' || sSecLower.includes('section a') || sSecLower.includes('শাখা a'))) ||
       (secLower === 'b' && (sSecLower === 'b' || sSecLower === 'খ' || sSecLower.includes('section b') || sSecLower.includes('শাখা b'))) ||
       (secLower === 'c' && (sSecLower === 'c' || sSecLower === 'গ' || sSecLower.includes('section c') || sSecLower.includes('শাখা c')));
 
-    let matchedGroup = true;
-    if (isClass9or10) {
-      const grpLower = targetGroup.toLowerCase().trim();
-      const sGrpLower = sGroup.toLowerCase().trim();
-      matchedGroup = sGrpLower === grpLower || sGrpLower.includes(grpLower) ||
-        ((grpLower.includes('বিজ্ঞান') || grpLower.includes('science')) && (sGrpLower.includes('science') || sGrpLower.includes('বিজ্ঞান'))) ||
-        ((grpLower.includes('মানবিক') || grpLower.includes('humanities') || grpLower.includes('arts')) && (sGrpLower.includes('humanities') || sGrpLower.includes('মানবিক') || sGrpLower.includes('arts'))) ||
-        ((grpLower.includes('ব্যবসায়') || grpLower.includes('ব্যবসায়') || grpLower.includes('commerce') || grpLower.includes('business')) && (sGrpLower.includes('commerce') || sGrpLower.includes('business') || sGrpLower.includes('ব্যবসায়') || sGrpLower.includes('ব্যবসায়'))) ||
-        ((grpLower.includes('সাধারণ') || grpLower.includes('general')) && (sGrpLower.includes('general') || sGrpLower.includes('সাধারণ')));
-    }
-
-    return matchedGrade && matchedSection && matchedGroup;
+    return matchedSection;
   });
 
-  // Sort by roll ascending
+  // Sort numerically ascending (supports both Bengali ০–৯ and English 0–9 rolls)
   filtered.sort((a, b) => {
-    const rA = parseInt(String(a.roll || '').replace(/\D/g, ''), 10) || 0;
-    const rB = parseInt(String(b.roll || '').replace(/\D/g, ''), 10) || 0;
-    return rA - rB;
+    const rA = normalizeMarksheetRollNumber(a.roll);
+    const rB = normalizeMarksheetRollNumber(b.roll);
+    if (rA !== rB) return rA - rB;
+    return String(a.roll || '').localeCompare(String(b.roll || ''));
   });
 
-  return filtered.map((st, idx) => {
-    const r = st.roll || String(idx + 1).padStart(2, '0');
-    return {
-      id: st.id || `st_${r}_${idx}`,
+  // Deduplicate cleanly by normalized roll inside this class/section/group
+  const seenKeys = new Set<string>();
+  const uniqueList: StudentProfile[] = [];
+  const currentYearBn = String(new Date().getFullYear());
+
+  filtered.forEach((st, idx) => {
+    const r = String(st.roll || String(idx + 1).padStart(2, '0')).trim();
+    const rollNum = normalizeMarksheetRollNumber(r);
+    const dedupKey = `${grade}_${targetGroup}_${normalizedBranch}_${rollNum !== Number.MAX_SAFE_INTEGER ? rollNum : r}`;
+    if (seenKeys.has(dedupKey)) return;
+    seenKeys.add(dedupKey);
+
+    uniqueList.push({
+      id: st.id || `st_${dedupKey}`,
       roll: r,
       name: st.name || `শিক্ষার্থী ${r}`,
       grade: grade,
       gradeBn: gradeBn,
-      section: st.section || st.branch || section,
-      group: isClass9or10 ? (st.group || targetGroup) : 'সাধারণ',
-      fatherName: st.fatherName || (st as any).guardian || '',
+      section: isClass9or10 ? normalizedBranch : (st.section || st.branch || normalizedBranch),
+      group: isClass9or10 ? targetGroup : 'সাধারণ',
+      fatherName: st.fatherName || (st as { guardian?: string }).guardian || '',
       motherName: st.motherName || '',
-      session: st.session || '২০২৬',
-      optionalSubject: st.optionalSubject || (isClass9or10 && (st.group || targetGroup).includes('বিজ্ঞান') ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা')
-    };
+      session: st.session || currentYearBn,
+      optionalSubject: st.optionalSubject || (isClass9or10 && targetGroup === 'বিজ্ঞান' ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা')
+    });
   });
+
+  return uniqueList;
 };
 
 // ─── NCTB MARKSHEET DATA CALCULATION ENGINE ───
@@ -591,17 +610,20 @@ export const MARKSHEET_A4_PRINT_STYLES = `
       border: none !important;
       overflow: hidden !important;
     }
-    /* Force parent containers to have zero margins/paddings */
-    main, #marksheet-result-container, [id^="marksheet"] {
+    /* Force parent containers to have zero margins/paddings and zero screen-scale transforms */
+    main, #marksheet-result-container, [id^="marksheet"], .marksheet-preview-shell {
       margin: 0mm !important;
       padding: 0mm !important;
       border: none !important;
       display: block !important;
-      width: 100% !important;
+      width: 210mm !important;
       max-width: none !important;
+      transform: none !important;
+      box-shadow: none !important;
+      background: #ffffff !important;
     }
-    /* Neutralize Tailwind sibling vertical space-y margins */
-    [class*="space-y-"] > * {
+    /* Neutralize Tailwind sibling vertical space-y margins on outer wrappers only */
+    .marksheet-bulk-container > * {
       margin-top: 0mm !important;
       margin-bottom: 0mm !important;
     }
@@ -609,7 +631,7 @@ export const MARKSHEET_A4_PRINT_STYLES = `
       display: block !important;
       margin: 0 !important;
       padding: 0 !important;
-      width: 100% !important;
+      width: 210mm !important;
     }
     .marksheet-card-wrapper {
       width: 210mm !important;
@@ -617,17 +639,18 @@ export const MARKSHEET_A4_PRINT_STYLES = `
       min-height: 297mm !important;
       height: 297mm !important;
       max-height: 297mm !important;
-      padding: 0.5in !important;
+      padding: 11mm !important;
       box-sizing: border-box !important;
       margin: 0mm auto !important;
       box-shadow: none !important;
       border: none !important;
+      border-radius: 0 !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
       overflow: hidden !important;
     }
-    /* Multi-page bulk marksheet */
-    .marksheet-bulk-container .marksheet-card-wrapper:not(:last-child) {
+    /* Multi-page bulk marksheet: strictly 1 student per A4 page */
+    .marksheet-bulk-container > .marksheet-card-wrapper:not(:last-child) {
       page-break-after: always !important;
       break-after: page !important;
     }
@@ -640,16 +663,74 @@ export const MARKSHEET_A4_PRINT_STYLES = `
   }
 `;
 
+interface BorderThemePalette {
+  outerBorderColor: string;
+  innerBorderColor: string;
+  cornerColor: string;
+  bannerBg: string;
+  accentSoftBg: string;
+  accentText: string;
+  showCorners: boolean;
+  showDoubleInner: boolean;
+}
+
+const BORDER_PALETTES: Record<Exclude<MarksheetBorderPreset, 'custom_png'>, BorderThemePalette> = {
+  classic_double: {
+    outerBorderColor: '#0f172a',
+    innerBorderColor: '#334155',
+    cornerColor: '#0f172a',
+    bannerBg: '#0f172a',
+    accentSoftBg: '#f1f5f9',
+    accentText: '#0f172a',
+    showCorners: true,
+    showDoubleInner: true,
+  },
+  emerald_gold: {
+    outerBorderColor: '#0B5D3B',
+    innerBorderColor: '#b48228',
+    cornerColor: '#0B5D3B',
+    bannerBg: '#0B5D3B',
+    accentSoftBg: '#ecfdf5',
+    accentText: '#064e3b',
+    showCorners: true,
+    showDoubleInner: true,
+  },
+  royal_navy: {
+    outerBorderColor: '#0f294a',
+    innerBorderColor: '#9a7b3c',
+    cornerColor: '#0f294a',
+    bannerBg: '#0f294a',
+    accentSoftBg: '#eff6ff',
+    accentText: '#0f294a',
+    showCorners: true,
+    showDoubleInner: true,
+  },
+  minimal: {
+    outerBorderColor: '#1e293b',
+    innerBorderColor: '#cbd5e1',
+    cornerColor: '#334155',
+    bannerBg: '#1e293b',
+    accentSoftBg: '#f8fafc',
+    accentText: '#0f172a',
+    showCorners: false,
+    showDoubleInner: false,
+  },
+};
+
 // ═════════════════════════════════════════════════════════════════
-// 🖨️ A4 PRINTABLE MARKSHEET SHEET COMPONENT (EXACT MASTER TEMPLATE)
+// 🖨️ A4 PRINTABLE MARKSHEET SHEET COMPONENT (BOARD-GRADE MASTER TEMPLATE)
 // ═════════════════════════════════════════════════════════════════
-export function MarksheetSheetCard({
+function MarksheetSheetCardInner({
   student,
   settings,
   examName,
   data,
   borderImageUrl = '',
-  lang = 'bn',
+  borderPreset,
+  meritPosition = null,
+  totalClassStudents,
+  showWatermark,
+  showQrCode = true,
   includePrintStyles = true,
 }: {
   student: StudentProfile;
@@ -658,9 +739,14 @@ export function MarksheetSheetCard({
   data: any;
   borderImageUrl?: string;
   lang?: 'bn' | 'en';
+  borderPreset?: MarksheetBorderPreset;
+  meritPosition?: number | null;
+  totalClassStudents?: number;
+  showWatermark?: boolean;
+  showQrCode?: boolean;
   includePrintStyles?: boolean;
 }) {
-  // Marksheet is ALWAYS in English as requested by user ("মার্কশীট সবসময় ইংরেজীতে থাকবে")
+  // Official Academic Transcript renders in crisp standard English
   const isEn = true;
 
   // ── Convert Bengali numerals to English numerals ──
@@ -680,17 +766,14 @@ export function MarksheetSheetCard({
     return g;
   };
 
-  // ── School Name & Address in English ──
   const getEnglishSchoolName = (name: string | undefined): string =>
     resolveEnglishSchoolName({ ...settings, schoolName: name || settings?.schoolName }).toUpperCase();
 
   const getEnglishAddress = (addr: string | undefined): string =>
     resolveEnglishAddress({ ...settings, address: addr || settings?.address });
 
-  // Dynamic institutional abbreviation for crest/watermark fallback
   const schoolInitials = getSchoolInitials(settings);
 
-  // ── Format Class / Grade ──
   const formatGrade = (grade: string, gradeBn: string): string => {
     const raw = `${grade || ''} ${gradeBn || ''}`;
     if (raw.includes('6') || raw.includes('৬') || raw.toLowerCase().includes('six')) return 'Class Six (6th)';
@@ -706,7 +789,6 @@ export function MarksheetSheetCard({
     return grade || gradeBn;
   };
 
-  // ── Robust Subject Translation (handles all Yya / Nukta character variations) ──
   const translateSubject = (name: string | undefined): string => {
     if (!name) return '';
     const n = name.trim().normalize('NFC');
@@ -722,7 +804,7 @@ export function MarksheetSheetCard({
     if (n.includes('বাংলাদেশের ইতিহাস ও বিশ্বসভ্যতা') || n.includes('ইতিহাস ও বিশ্বসভ্যতা')) return 'History of Bangladesh & World Civilization';
     if (n.includes('ইসলাম') || n.includes('Islam')) return 'Islam & Moral Education';
     if (n.includes('হিন্দু') || n.includes('Hindu')) return 'Hinduism & Moral Education';
-    if (n.includes('খ্রিস্টান') || n.includes('Christian')) return 'Christianity & Moral Education';
+    if (n.includes('খ্রিস্টান') || n.includes('খ্রিষ্ট') || n.includes('Christian')) return 'Christianity & Moral Education';
     if (n.includes('বৌদ্ধ') || n.includes('Buddhist')) return 'Buddhism & Moral Education';
     if (n.includes('ধর্ম') || n.includes('Religion')) return 'Religion & Moral Education';
     if (n.includes('কৃষি') || n.includes('Agri')) return 'Agricultural Studies';
@@ -747,66 +829,84 @@ export function MarksheetSheetCard({
     return n;
   };
 
-  // ── Translate exam name ──
   const translateExamName = (name: string): string => {
-    if (!name) return 'EXAMINATION 2026';
+    if (!name) return `EXAMINATION ${new Date().getFullYear()}`;
     return name
       .replace(/অর্ধ[\s-]?বার্ষিক\s*পরীক্ষা/gi, 'Half-Yearly Examination')
       .replace(/বার্ষিক\s*পরীক্ষা/gi, 'Annual Examination')
       .replace(/১ম\s*সাময়িক\s*পরীক্ষা|১ম\s*সাময়িক\s*পরীক্ষা/gi, '1st Terminal Examination')
       .replace(/২য়\s*সাময়িক\s*পরীক্ষা|২য়\s*সাময়িক\s*পরীক্ষা/gi, '2nd Terminal Examination')
       .replace(/মডেল\s*টেস্ট\s*পরীক্ষা/gi, 'Model Test Examination')
+      .replace(/এসএসসি\s*নির্বাচনী\s*\(টেস্ট\)\s*পরীক্ষা/gi, 'SSC Selection (Test) Examination')
       .replace(/নির্বাচনী\s*পরীক্ষা/gi, 'Test Examination')
-      .replace(/এসএসসি\s*প্রাক[\s-]?নির্বাচনী/gi, 'SSC Pre-Selection Examination')
-      .replace(/২০২৬/g, '2026')
-      .replace(/২০২৫/g, '2025')
-      .replace(/২০২৪/g, '2024')
+      .replace(/এসএসসি\s*প্রাক[\s-]?নির্বাচনী(\s*পরীক্ষা)?/gi, 'SSC Pre-Selection Examination')
       .replace(/[০-৯]/g, d => "0123456789"["০১২৩৪৫৬৭৮৯".indexOf(d)]);
   };
 
-  // ── English Labels ──
-  const L = {
-    transcript: 'ACADEMIC TRANSCRIPT / MARKSHEET',
-    studentName: "Student's Name",
-    fatherName: "Father's Name",
-    motherName: "Mother's Name",
-    roll: 'Roll No.',
-    class: 'Class',
-    session: 'Session',
-    group: 'Group',
-    optional: 'Optional Sub.',
-    slNo: 'Sl. No.',
-    subjectName: 'Subject Name',
-    fullMarks: 'Full Marks',
-    obtained: 'Obtained',
-    grade: 'Grade',
-    addSub: 'ADDITIONAL SUBJECT :',
-    gpAbove2: 'GP above 2',
-    grandTotal: 'GRAND TOTAL',
-    resultSummary: 'RESULT SUMMARY',
-    totalMarks: 'Total Marks Obtained',
-    gpaExcl: 'GPA (Excl. 4th Sub.)',
-    finalGpa: 'Final GPA (Incl. Bonus)',
-    overallGrade: 'Overall Grade',
-    totalGrade: 'Overall Grade',
-    classTeacher: "Class Teacher's Signature",
-    guardian: "Guardian's Signature",
-    headmaster: 'Headmaster',
-    branch: 'Section',
-  };
+  // Resolve active border preset & palette
+  const useCustomPngBorder = Boolean(
+    borderImageUrl && (borderPreset === 'custom_png' || !borderPreset),
+  );
+  const resolvedPresetKey: Exclude<MarksheetBorderPreset, 'custom_png'> =
+    borderPreset && borderPreset !== 'custom_png' ? borderPreset : 'classic_double';
+  const palette = BORDER_PALETTES[resolvedPresetKey];
+
+  const watermarkEnabled =
+    showWatermark !== undefined ? showWatermark : settings?.showWatermark !== false;
+
+  const isCompactTable = (data?.subjects?.length || 0) >= 11;
+  const cellPadY = isCompactTable ? 'py-[2.5px]' : 'py-[4px]';
+  const isClass9or10 = student.grade === '9th' || student.grade === '10th';
+  const percentageVal =
+    data?.totalFull > 0 ? Number(((data.totalObtained / data.totalFull) * 100).toFixed(1)) : 0;
+  const meritFormatted =
+    !data?.hasFailed && meritPosition
+      ? totalClassStudents
+        ? `${formatMeritPositionEn(meritPosition)} (of ${totalClassStudents})`
+        : formatMeritPositionEn(meritPosition)
+      : '—';
+  const translatedExam = translateExamName(examName);
+  const issueDateEn = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  // Synchronous Vector QR Code (memoized; zero async flash on immediate single/batch print!)
+  const qrPayload = showQrCode
+    ? buildMarksheetQrPayload({
+        eiin: settings?.eiin,
+        examName: translatedExam,
+        grade: student.grade,
+        roll: student.roll,
+        studentName: student.name,
+        gpa: data?.hasFailed ? '0.00' : Number(data?.finalGPA || 0).toFixed(2),
+        gradeLetter: data?.overallGrade || 'F',
+        meritPosition: data?.hasFailed ? null : meritPosition,
+      })
+    : '';
+
+  const qrData = React.useMemo(
+    () => (qrPayload ? generateQrSvgPath(qrPayload) : null),
+    [qrPayload],
+  );
 
   return (
     <div
-      className="marksheet-card-wrapper bg-white shadow-xl max-w-4xl mx-auto text-slate-950 font-sans relative print:shadow-none print:max-w-none print:m-0 print:[&:not(:last-child)]:break-after-page"
+      className="marksheet-card-wrapper bg-white shadow-lg border border-slate-200/80 rounded-xl print:rounded-none mx-auto text-slate-950 font-sans relative print:shadow-none print:max-w-none print:m-0 print:[&:not(:last-child)]:break-after-page"
       style={{
-        padding: '0.5in',
+        width: '210mm',
+        maxWidth: '100%',
+        minHeight: '297mm',
+        padding: '11mm',
         boxSizing: 'border-box',
         position: 'relative',
         background: '#ffffff',
       }}
     >
-      {/* ── PNG BORDER OVERLAY (Layer above background, spans all 4 edges of the marksheet) ── */}
-      {borderImageUrl && (
+      {/* ── CUSTOM PNG BORDER OVERLAY ── */}
+      {useCustomPngBorder && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={borderImageUrl}
           alt="Marksheet Border"
@@ -823,449 +923,611 @@ export function MarksheetSheetCard({
         />
       )}
 
-      {/* ── INNER OFFICIAL A4 DOCUMENT FRAME (0.5in safe margin content container) ── */}
-      <div 
-        className={`h-full min-h-[260mm] print:min-h-0 print:h-full flex flex-col justify-between relative z-10 ${
-          borderImageUrl ? 'p-3 sm:p-4 print:p-3' : 'border-2 border-slate-950 p-5 sm:p-6 print:p-4'
-        }`}
+      {/* ── INNER OFFICIAL A4 DOCUMENT FRAME ── */}
+      <div
+        className="h-full min-h-[275mm] print:min-h-0 print:h-full flex flex-col justify-between relative z-10"
+        style={{
+          border: useCustomPngBorder ? 'none' : `2.2px solid ${palette.outerBorderColor}`,
+          padding: useCustomPngBorder ? '4mm' : '3.5mm',
+        }}
       >
+        {/* Inner Hairline Double Frame & Ornamental Corner L-Brackets */}
+        {!useCustomPngBorder && palette.showDoubleInner && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute inset-[3.5px]"
+            style={{ border: `0.9px solid ${palette.innerBorderColor}` }}
+          />
+        )}
+        {!useCustomPngBorder && palette.showCorners && (
+          <>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-[6px] left-[6px] w-3.5 h-3.5"
+              style={{
+                borderTop: `2px solid ${palette.cornerColor}`,
+                borderLeft: `2px solid ${palette.cornerColor}`,
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-[6px] right-[6px] w-3.5 h-3.5"
+              style={{
+                borderTop: `2px solid ${palette.cornerColor}`,
+                borderRight: `2px solid ${palette.cornerColor}`,
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-[6px] left-[6px] w-3.5 h-3.5"
+              style={{
+                borderBottom: `2px solid ${palette.cornerColor}`,
+                borderLeft: `2px solid ${palette.cornerColor}`,
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-[6px] right-[6px] w-3.5 h-3.5"
+              style={{
+                borderBottom: `2px solid ${palette.cornerColor}`,
+                borderRight: `2px solid ${palette.cornerColor}`,
+              }}
+            />
+          </>
+        )}
 
         {/* Background School Logo Watermark */}
-        {settings?.showWatermark !== false && (
-          <div 
+        {watermarkEnabled && (
+          <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0"
-            style={{ opacity: settings?.watermarkOpacity || 0.04 }}
+            style={{ opacity: settings?.watermarkOpacity || 0.045 }}
           >
             {settings?.schoolLogo ? (
-              <img src={settings.schoolLogo} alt="Watermark Logo" className="w-[360px] h-[360px] object-contain grayscale" />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={settings.schoolLogo}
+                alt="Watermark Logo"
+                className="w-[330px] h-[330px] object-contain grayscale"
+              />
             ) : (
-              <div className="w-[320px] h-[320px] flex flex-col items-center justify-center text-slate-950">
-                <span className="text-amber-500 text-6xl font-bold">★</span>
+              <div className="w-[300px] h-[300px] flex flex-col items-center justify-center text-slate-950">
+                <span className="text-5xl font-bold">★</span>
                 <span className="text-5xl font-black tracking-tighter">{schoolInitials}</span>
-                <span className="text-2xl font-bold text-slate-700">{isEn ? toEnNumber(settings?.estdYear || '1969') : (settings?.estdYear || '১৯৬৯')}</span>
+                <span className="text-2xl font-bold text-slate-700">
+                  {toEnNumber(settings?.estdYear || String(new Date().getFullYear()))}
+                </span>
               </div>
             )}
           </div>
         )}
 
-        <div>
-          {/* 1. SCHOOL IDENTITY HEADER (CENTERED WITH INLINE LEFT LOGO & CLEAN DIVIDER) */}
-          <div className="relative mb-3">
-            
-            {/* Centered School Name & Address Block with Logo on the Left of School Name */}
-            <div className="text-center flex flex-col items-center justify-center space-y-1">
-              
-              {/* Inline Header with Logo directly on the left of School Name */}
-              <div className="flex items-center justify-center gap-3">
-                
-                {/* School Logo (Positioned on Left of School Name) */}
-                <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0">
-                  {settings?.schoolLogo ? (
-                    <img src={settings.schoolLogo} alt="School Logo" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full border border-slate-950 flex flex-col items-center justify-center p-1">
-                      <span className="text-amber-600 text-[10px] font-bold">★</span>
-                      <span className="text-[9px] font-black tracking-tighter text-slate-950">{schoolInitials}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* School Name Centered */}
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight font-sans uppercase leading-snug">
-                  {isEn ? getEnglishSchoolName(settings?.schoolName) : (settings?.schoolName || 'SMART SCHOOL MANAGEMENT')}
-                </h1>
+        {/* ══ TOP & BODY CONTENT ══ */}
+        <div className="relative z-10 px-2 pt-1.5">
+          {/* 1. SCHOOL IDENTITY BANNER */}
+          <div className="mb-2.5">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center overflow-hidden shrink-0">
+                {settings?.schoolLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={settings.schoolLogo}
+                    alt="School Logo"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-full flex flex-col items-center justify-center p-1"
+                    style={{ border: `1.5px solid ${palette.outerBorderColor}` }}
+                  >
+                    <span className="text-[10px] font-bold" style={{ color: palette.innerBorderColor }}>
+                      ★
+                    </span>
+                    <span className="text-[9px] font-black tracking-tighter text-slate-950">
+                      {schoolInitials}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Location */}
-              <p className="text-xs sm:text-sm font-bold text-slate-900 font-sans">
-                {isEn ? getEnglishAddress(settings?.address) : (settings?.address || '')}
-              </p>
-
-              {/* Estd & EIIN */}
-              <p className="text-[11px] font-bold text-slate-800 font-mono">
-                {isEn
-                  ? `${settings?.estdYear ? `Estd: ${toEnNumber(settings.estdYear)} | ` : ''}EIIN: ${toEnNumber(settings?.eiin || '---')}`
-                  : `${settings?.estdYear ? `স্থাপিত: ${settings.estdYear} খ্রি. । ` : ''}EIIN: ${settings?.eiin || '---'}`
-                }
-              </p>
+              <div className="text-center">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight uppercase leading-tight">
+                  {getEnglishSchoolName(settings?.schoolName)}
+                </h1>
+                {getEnglishAddress(settings?.address) && (
+                  <p className="text-[11px] font-bold text-slate-800 leading-snug">
+                    {getEnglishAddress(settings?.address)}
+                  </p>
+                )}
+                <p className="text-[10px] font-bold text-slate-700 font-mono">
+                  {`${settings?.estdYear ? `Estd: ${toEnNumber(settings.estdYear)}  |  ` : ''}EIIN: ${toEnNumber(settings?.eiin || '---')}`}
+                </p>
+              </div>
             </div>
 
-            {/* FULL WIDTH HORIZONTAL DIVIDING LINE (ডান থেকে বামে টানা দাগ) */}
-            <div className="w-full border-b-2 border-slate-950 my-2"></div>
-
+            {/* Institutional Double Divider */}
+            <div
+              className="w-full mt-2"
+              style={{
+                borderTop: `1.8px solid ${palette.outerBorderColor}`,
+                borderBottom: `0.7px solid ${palette.innerBorderColor}`,
+                height: '3px',
+              }}
+            />
           </div>
 
-          {/* 2. TRANSCRIPT TITLE + STUDENT PROFILE + INDEPENDENT FLOATING GRADING TABLE LAYER */}
-          <div className="relative mb-3">
-
-            {/* ── INDEPENDENT GRADING TABLE LAYER (Absolute right-0 top-0, completely separate layer) ── */}
-            <div 
-              className="absolute right-0 top-0 z-20 w-[124px] border border-slate-950 bg-white shadow-xs overflow-hidden font-sans hidden sm:block print:block"
-              style={{ pointerEvents: 'auto' }}
-            >
-              {/* Header */}
-              <div className="bg-slate-950 text-white font-black text-[8px] tracking-wider py-0.5 text-center uppercase border-b border-slate-950">
-                GRADING SYSTEM
+          {/* 2. TRANSCRIPT TITLE + STUDENT PROFILE + FLOATING GRADING SCALE */}
+          <div className="relative mb-2.5">
+            {/* Compact Top-Right Grading Scale Table */}
+            <div className="absolute right-0 top-0 z-20 w-[122px] border border-slate-900 bg-white overflow-hidden hidden sm:block print:block">
+              <div
+                className="text-white font-black text-[7.5px] tracking-wider py-0.5 text-center uppercase"
+                style={{ backgroundColor: palette.bannerBg }}
+              >
+                GRADING SCALE
               </div>
-
-              {/* Table with Clean Grid & Sub-headers */}
               <table className="w-full border-collapse text-center text-[7.5px] leading-tight">
                 <thead>
-                  <tr className="bg-slate-200/90 text-slate-950 font-black border-b border-slate-950">
-                    <th className="py-0.5 px-1 border-r border-slate-950 font-black">Range</th>
-                    <th className="py-0.5 px-1 border-r border-slate-950 font-black">Grade</th>
-                    <th className="py-0.5 px-1 font-black">GPA</th>
+                  <tr className="bg-slate-100 text-slate-950 font-black border-b border-slate-900">
+                    <th className="py-0.5 px-1 border-r border-slate-900">Marks</th>
+                    <th className="py-0.5 px-1 border-r border-slate-900">Grade</th>
+                    <th className="py-0.5 px-1">GP</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-950 font-bold text-slate-950">
-                  <tr className="bg-white">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">80-100</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black text-emerald-900">A+</td>
-                    <td className="py-[1.5px] px-1 font-mono font-black">5.00</td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">70-79</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black">A</td>
-                    <td className="py-[1.5px] px-1 font-mono">4.00</td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">60-69</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black">A-</td>
-                    <td className="py-[1.5px] px-1 font-mono">3.50</td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">50-59</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black">B</td>
-                    <td className="py-[1.5px] px-1 font-mono">3.00</td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">40-49</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black">C</td>
-                    <td className="py-[1.5px] px-1 font-mono">2.00</td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-bold">33-39</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black">D</td>
-                    <td className="py-[1.5px] px-1 font-mono">1.00</td>
-                  </tr>
-                  <tr className="bg-rose-50/70 text-rose-900">
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-mono font-black text-rose-800">00-32</td>
-                    <td className="py-[1.5px] px-1 border-r border-slate-950 font-black text-rose-700">F</td>
-                    <td className="py-[1.5px] px-1 font-mono font-black text-rose-800">0.00</td>
-                  </tr>
+                <tbody className="divide-y divide-slate-800 font-bold text-slate-950">
+                  {[
+                    { r: '80-100', g: 'A+', gp: '5.00', cls: 'text-emerald-900 font-black' },
+                    { r: '70-79', g: 'A', gp: '4.00', cls: '' },
+                    { r: '60-69', g: 'A-', gp: '3.50', cls: '' },
+                    { r: '50-59', g: 'B', gp: '3.00', cls: '' },
+                    { r: '40-49', g: 'C', gp: '2.00', cls: '' },
+                    { r: '33-39', g: 'D', gp: '1.00', cls: '' },
+                    { r: '00-32', g: 'F', gp: '0.00', cls: 'text-rose-700 font-black bg-rose-50/70' },
+                  ].map((row, idx) => (
+                    <tr key={row.g} className={idx % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'}>
+                      <td className="py-[1.5px] px-1 border-r border-slate-800 font-mono">{row.r}</td>
+                      <td className={`py-[1.5px] px-1 border-r border-slate-800 font-black ${row.cls}`}>
+                        {row.g}
+                      </td>
+                      <td className="py-[1.5px] px-1 font-mono">{row.gp}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* ── ACADEMIC TRANSCRIPT TITLE & EXAM NAME BADGE (TRUE PAGE CENTER) ── */}
-            <div className="text-center pt-0.5 pb-2.5 space-y-1 w-full">
-              <h2 className="text-base sm:text-lg font-black text-slate-950 tracking-wide uppercase font-sans">
-                {L.transcript}
+            {/* Centered Transcript Heading & Exam Ribbon */}
+            <div className="text-center pb-2 space-y-1">
+              <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-wider uppercase">
+                ACADEMIC TRANSCRIPT / MARKSHEET
               </h2>
               <div className="flex justify-center">
-                <span className="inline-block px-5 py-0.5 bg-slate-950 text-white font-black text-xs rounded-none uppercase tracking-wider">
-                  {translateExamName(examName)}
+                <span
+                  className="inline-block px-4 py-0.5 text-white font-extrabold text-[11px] uppercase tracking-wider"
+                  style={{ backgroundColor: palette.bannerBg }}
+                >
+                  {translatedExam}
                 </span>
               </div>
             </div>
 
-            {/* ── STUDENT PROFILE DETAILS (2 Columns with right-margin to clear floating grading table) ── */}
-            <div className="py-1 px-1 text-[11px] font-bold grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 sm:mr-[135px]">
-              
-              {/* Left Column */}
-              <div className="space-y-1.5">
-                <div className="flex items-center">
-                  <span className="w-24 text-slate-950 font-black shrink-0">{L.studentName}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950 text-xs">{student.name}</span>
+            {/* Student Identity Grid (clears top-right grading scale cleanly) */}
+            <div className="py-1.5 px-2.5 text-[10.5px] font-bold grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1 sm:mr-[132px] print:mr-[132px] bg-slate-50/70 border border-slate-300">
+              <div className="space-y-1">
+                <div className="flex items-baseline">
+                  <span className="w-[86px] text-slate-600 font-bold shrink-0">Student&apos;s Name</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-black text-slate-950 text-[11.5px] truncate">{student.name}</span>
                 </div>
-
-                <div className="flex items-center">
-                  <span className="w-24 text-slate-950 font-black shrink-0">{L.fatherName}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950">{student.fatherName}</span>
+                <div className="flex items-baseline">
+                  <span className="w-[86px] text-slate-600 font-bold shrink-0">Father&apos;s Name</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-bold text-slate-900 truncate">{student.fatherName || '—'}</span>
                 </div>
-
-                <div className="flex items-center">
-                  <span className="w-24 text-slate-950 font-black shrink-0">{L.motherName}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950">{student.motherName}</span>
+                <div className="flex items-baseline">
+                  <span className="w-[86px] text-slate-600 font-bold shrink-0">Mother&apos;s Name</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-bold text-slate-900 truncate">{student.motherName || '—'}</span>
                 </div>
-
-                <div className="flex items-center">
-                  <span className="w-24 text-slate-950 font-black shrink-0">{L.roll}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950 font-mono">{toEnNumber(student.roll)}</span>
-                </div>
-
-                <div className="flex items-center">
-                  <span className="w-24 text-slate-950 font-black shrink-0">{L.class}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
+                <div className="flex items-baseline">
+                  <span className="w-[86px] text-slate-600 font-bold shrink-0">Class</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
                   <span className="font-black text-slate-950">
-                    {isEn
-                      ? `${formatGrade(student.grade, student.gradeBn)} (${L.branch} ${student.section})`
-                      : `${student.gradeBn} (${L.branch} ${student.section})`
-                    }
+                    {isClass9or10
+                      ? formatGrade(student.grade, student.gradeBn)
+                      : `${formatGrade(student.grade, student.gradeBn)} (Sec: ${student.section})`}
                   </span>
                 </div>
               </div>
 
-              {/* Right Column */}
-              <div className="space-y-1.5 sm:pl-2">
-                <div className="flex items-center">
-                  <span className="w-20 text-slate-950 font-black shrink-0">{L.session}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950 font-mono">{toEnNumber(student.session)}</span>
+              <div className="space-y-1">
+                <div className="flex items-baseline">
+                  <span className="w-[78px] text-slate-600 font-bold shrink-0">Roll No.</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-black text-slate-950 font-mono text-[11.5px]">
+                    {toEnNumber(student.roll)}
+                  </span>
                 </div>
-
-                <div className="flex items-center">
-                  <span className="w-20 text-slate-950 font-black shrink-0">{L.group}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
+                <div className="flex items-baseline">
+                  <span className="w-[78px] text-slate-600 font-bold shrink-0">Group</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
                   <span className="font-black text-slate-950">{translateGroup(student.group)}</span>
                 </div>
-
-                <div className="flex items-center">
-                  <span className="w-20 text-slate-950 font-black shrink-0">{L.optional}</span>
-                  <span className="mr-2 font-black text-slate-950">:</span>
-                  <span className="font-black text-slate-950">{translateSubject(student.optionalSubject || '-')}</span>
+                <div className="flex items-baseline">
+                  <span className="w-[78px] text-slate-600 font-bold shrink-0">Session</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-bold text-slate-950 font-mono">{toEnNumber(student.session)}</span>
+                </div>
+                <div className="flex items-baseline">
+                  <span className="w-[78px] text-slate-600 font-bold shrink-0">Merit Pos.</span>
+                  <span className="mr-1.5 font-black text-slate-900">:</span>
+                  <span className="font-black" style={{ color: palette.accentText }}>
+                    {meritFormatted}
+                  </span>
                 </div>
               </div>
-
             </div>
-
           </div>
 
-          {/* 3. SUBJECT-WISE MARKS TABLE WITH DUAL GPA COLUMNS */}
-          <div className="mb-3 border border-slate-950 rounded-none overflow-hidden">
-            <table className="w-full text-left text-[11px] border-collapse font-sans table-fixed">
+          {/* 3. SUBJECT-WISE MARKS TABLE (BOARD-GRADE DUAL GPA LAYOUT) */}
+          <div className="mb-2.5 border border-slate-950 overflow-hidden">
+            <table className="w-full text-left text-[10.5px] border-collapse font-sans table-fixed">
               <colgroup>
-                <col className="w-[55px]" />
+                <col className="w-[34px]" />
                 <col className="w-auto" />
-                <col className="w-[50px]" />
-                <col className="w-[40px]" />
-                <col className="w-[40px]" />
-                <col className="w-[50px]" />
-                <col className="w-[60px]" />
                 <col className="w-[42px]" />
-                <col className="w-[42px]" />
-                <col className="w-[85px]" />
-                <col className="w-[70px]" />
+                <col className="w-[36px]" />
+                <col className="w-[36px]" />
+                <col className="w-[44px]" />
+                <col className="w-[52px]" />
+                <col className="w-[38px]" />
+                <col className="w-[38px]" />
+                <col className="w-[74px]" />
+                <col className="w-[64px]" />
               </colgroup>
               <thead>
-                <tr className="bg-slate-200 text-slate-950 font-black uppercase text-[9px] border-b border-slate-950">
-                  <th className="p-1 text-center border-r border-slate-950 whitespace-nowrap">{L.slNo}</th>
-                  <th className="p-1 border-r border-slate-950">{L.subjectName}</th>
-                  <th className="p-1 text-center border-r border-slate-950">{L.fullMarks}</th>
-                  <th className="p-1 text-center border-r border-slate-950">CQ</th>
-                  <th className="p-1 text-center border-r border-slate-950">MCQ</th>
-                  <th className="p-1 text-center border-r border-slate-950">Prac/CA</th>
-                  <th className="p-1 text-center border-r border-slate-950">{L.obtained}</th>
-                  <th className="p-1 text-center border-r border-slate-950">{L.grade}</th>
-                  <th className="p-1 text-center border-r border-slate-950">GP</th>
-                  <th className="p-1 text-center border-r border-slate-950 leading-tight bg-slate-250">
+                <tr className="bg-slate-200/90 text-slate-950 font-black uppercase text-[8.5px] border-b border-slate-950">
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">Sl.</th>
+                  <th className="py-1.5 px-1.5 border-r border-slate-950">Subject Name</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">Full</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">CQ</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">MCQ</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">Prac/CA</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">Obtained</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">Grade</th>
+                  <th className="py-1.5 px-1 text-center border-r border-slate-950">GP</th>
+                  <th className="py-1 px-1 text-center border-r border-slate-950 leading-tight bg-slate-200">
                     <div>GPA</div>
-                    <div className="text-[7px] font-bold text-slate-700 font-sans tracking-tighter uppercase">(Without add. sub)</div>
+                    <div className="text-[6.5px] font-bold text-slate-700 tracking-tighter">(Excl. 4th)</div>
                   </th>
-                  <th className="p-1 text-center bg-indigo-100 text-indigo-950 font-black leading-tight">
-                    <div>GPA</div>
-                    <div className="text-[7.5px] font-bold text-indigo-800 font-sans tracking-tighter uppercase">{isEn ? '(Total GPA)' : '(মোট জিপিএ)'}</div>
+                  <th
+                    className="py-1 px-1 text-center font-black leading-tight"
+                    style={{ backgroundColor: palette.accentSoftBg, color: palette.accentText }}
+                  >
+                    <div>Final GPA</div>
+                    <div className="text-[6.5px] font-bold tracking-tighter">(Total)</div>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-950 font-medium">
-                
-                {/* ── MAIN SUBJECTS ROWS ── */}
+              <tbody className="divide-y divide-slate-800 font-medium">
                 {data.subjects.map((sub: any, idx: number) => (
-                  <tr key={idx} className="border-b border-slate-950">
-                    <td className="p-1 text-center font-black font-mono border-r border-slate-950 whitespace-nowrap text-[11px]">{idx + 1}</td>
-                    <td className="p-1 font-bold border-r border-slate-950 truncate text-[11px]">{translateSubject(sub.name)}</td>
-                    <td className="p-1 text-center border-r border-slate-950 font-mono text-[10.5px]">{sub.fullMarks}</td>
-                    <td className="p-1 text-center border-r border-slate-950 font-mono text-[10.5px]">{sub.cq || '-'}</td>
-                    <td className="p-1 text-center border-r border-slate-950 font-mono text-[10.5px]">{sub.mcq || '-'}</td>
-                    <td className="p-1 text-center border-r border-slate-950 font-mono text-[10.5px]">{sub.practical || sub.ca || '-'}</td>
+                  <tr key={idx} className={idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}>
+                    <td className={`${cellPadY} px-1 text-center font-bold font-mono border-r border-slate-900`}>
+                      {idx + 1}
+                    </td>
+                    <td className={`${cellPadY} px-1.5 font-bold border-r border-slate-900 truncate`}>
+                      {translateSubject(sub.name)}
+                    </td>
+                    <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                      {sub.fullMarks}
+                    </td>
+                    <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                      {sub.cq || '-'}
+                    </td>
+                    <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                      {sub.mcq || '-'}
+                    </td>
+                    <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                      {sub.practical || sub.ca || '-'}
+                    </td>
 
-                    {/* MERGED CELL LOGIC FOR OBTAINED MARKS, GRADE & GP */}
                     {sub.isJointMaster ? (
                       <>
-                        <td rowSpan={2} className="p-1 text-center border-r border-slate-950 font-black font-mono text-xs align-middle bg-slate-50/70">
+                        <td
+                          rowSpan={2}
+                          className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black font-mono text-[11px] align-middle bg-slate-50`}
+                        >
                           {sub.jointCombinedTotal}
                         </td>
-                        <td rowSpan={2} className="p-1 text-center border-r border-slate-950 font-black text-xs align-middle bg-slate-50/70">
-                          <span className={sub.jointCombinedGrade === 'A+' ? 'text-emerald-800' : sub.jointCombinedGrade === 'F' ? 'text-rose-800' : 'text-slate-950'}>
+                        <td
+                          rowSpan={2}
+                          className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black text-[11px] align-middle bg-slate-50`}
+                        >
+                          <span
+                            className={
+                              sub.jointCombinedGrade === 'A+'
+                                ? 'text-emerald-800'
+                                : sub.jointCombinedGrade === 'F'
+                                  ? 'text-rose-700'
+                                  : 'text-slate-950'
+                            }
+                          >
                             {sub.jointCombinedGrade}
                           </span>
                         </td>
-                        <td rowSpan={2} className="p-1 text-center border-r border-slate-950 font-black font-mono text-xs align-middle bg-slate-50/70">
+                        <td
+                          rowSpan={2}
+                          className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black font-mono text-[11px] align-middle bg-slate-50`}
+                        >
                           {sub.jointCombinedPoint?.toFixed(2)}
                         </td>
                       </>
-                    ) : sub.isJointSlave ? (
-                      null
-                    ) : (
+                    ) : sub.isJointSlave ? null : (
                       <>
-                        <td className="p-1 text-center border-r border-slate-950 font-black font-mono text-[10.5px]">{sub.totalMarks}</td>
-                        <td className="p-1 text-center border-r border-slate-950 font-black text-[11px]">
-                          <span className={sub.letterGrade === 'A+' ? 'text-emerald-800' : sub.letterGrade === 'F' ? 'text-rose-800' : ''}>
+                        <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black font-mono`}>
+                          {sub.totalMarks}
+                        </td>
+                        <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black`}>
+                          <span
+                            className={
+                              sub.letterGrade === 'A+'
+                                ? 'text-emerald-800'
+                                : sub.letterGrade === 'F'
+                                  ? 'text-rose-700'
+                                  : ''
+                            }
+                          >
                             {sub.letterGrade}
                           </span>
                         </td>
-                        <td className="p-1 text-center border-r border-slate-950 font-black font-mono text-[10.5px]">{sub.gradePoint?.toFixed(2)}</td>
+                        <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black font-mono`}>
+                          {sub.gradePoint?.toFixed(2)}
+                        </td>
                       </>
                     )}
 
-                    {/* GPA (WITHOUT ADDITIONAL SUBJECT) COLUMN - SPANS ALL MAIN SUBJECTS */}
                     {idx === 0 && (
                       <td
                         rowSpan={data.subjects.length}
-                        className="p-1 text-center font-black align-middle border-r border-slate-950 bg-slate-50 font-mono text-xs select-none"
+                        className="p-1 text-center font-black align-middle border-r border-slate-900 bg-slate-50/90 font-mono text-sm select-none"
                       >
-                        <span className="text-sm font-black font-mono text-slate-900 block">
-                          {data.hasFailed ? '0.00' : data.gpaWithout4th?.toFixed(2)}
-                        </span>
+                        {data.hasFailed ? '0.00' : data.gpaWithout4th?.toFixed(2)}
                       </td>
                     )}
 
-                    {/* RIGHTMOST TOTAL GPA COLUMN - SPANS ENTIRE TABLE */}
                     {idx === 0 && (
                       <td
                         rowSpan={data.subjects.length + (data.optionalSubject ? 3 : 1)}
-                        className="p-2 text-center font-black align-middle bg-indigo-50/90 text-indigo-950 border-l border-slate-950 select-none"
+                        className="p-1.5 text-center font-black align-middle border-l border-slate-950 select-none"
+                        style={{ backgroundColor: palette.accentSoftBg, color: palette.accentText }}
                       >
-                        <span className="text-base sm:text-lg font-black font-mono text-indigo-950 block">
+                        <span className="text-base sm:text-lg font-black font-mono block">
                           {data.hasFailed ? '0.00' : data.finalGPA?.toFixed(2)}
+                        </span>
+                        <span className="text-[8.5px] font-extrabold uppercase tracking-wide block mt-0.5">
+                          {data.overallGrade}
                         </span>
                       </td>
                     )}
                   </tr>
                 ))}
 
-                {/* ── ADDITIONAL / OPTIONAL SUBJECT ROW ── */}
+                {/* ── ADDITIONAL / OPTIONAL SUBJECT ── */}
                 {data.optionalSubject && (
                   <>
-                    <tr className="bg-slate-200 border-t-2 border-b border-slate-950 font-black text-[9px]">
+                    <tr className="bg-slate-200/80 border-t-2 border-b border-slate-950 font-black text-[8.5px]">
                       <td colSpan={9} className="px-2 py-0.5 text-slate-950 uppercase tracking-wide border-r border-slate-950">
-                        Additional Subject :
+                        Additional / 4th Subject :
                       </td>
-                      <td className="p-0.5 text-center font-extrabold text-[7.5px] border-r border-slate-950 text-slate-800 uppercase leading-none bg-slate-250">
-                        GP above 2
+                      <td className="py-0.5 px-1 text-center font-extrabold text-[7.5px] border-r border-slate-950 text-slate-800 uppercase leading-none">
+                        GP Above 2
                       </td>
                     </tr>
 
-                    <tr className="border-b border-slate-950 text-[10.5px] font-medium bg-amber-50/30">
-                      <td className="p-1 text-center font-black font-mono border-r border-slate-950 whitespace-nowrap text-[11px]">
+                    <tr className="border-b border-slate-950 bg-amber-50/35">
+                      <td className={`${cellPadY} px-1 text-center font-bold font-mono border-r border-slate-900`}>
                         {data.subjects.length + 1}
                       </td>
-                      <td className="p-1 font-bold border-r border-slate-950 truncate text-[11px]">{translateSubject(data.optionalSubject.name)}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono">{data.optionalSubject.fullMarks}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono">{data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.cq || '-') : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono">{data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.mcq || '-') : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono">{data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.practical || data.optionalSubject.ca || '-') : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono font-black">{data.optionalSubject.hasEnteredMarks ? data.optionalSubject.totalMarks : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-black text-[11px]">{data.optionalSubject.hasEnteredMarks ? data.optionalSubject.letterGrade : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono font-black">{data.optionalSubject.hasEnteredMarks ? data.optionalSubject.gradePoint?.toFixed(0) : '-'}</td>
-                      <td className="p-1 text-center border-r border-slate-950 font-mono font-black text-xs text-indigo-950 bg-indigo-50/70">
-                        {data.optionalSubject.hasEnteredMarks && data.bonusGP > 0 ? data.bonusGP.toFixed(1) : '-'}
+                      <td className={`${cellPadY} px-1.5 font-bold border-r border-slate-900 truncate`}>
+                        {translateSubject(data.optionalSubject.name)}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                        {data.optionalSubject.fullMarks}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                        {data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.cq || '-') : '-'}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                        {data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.mcq || '-') : '-'}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono`}>
+                        {data.optionalSubject.hasEnteredMarks ? (data.optionalSubject.practical || data.optionalSubject.ca || '-') : '-'}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono font-black`}>
+                        {data.optionalSubject.hasEnteredMarks ? data.optionalSubject.totalMarks : '-'}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-black`}>
+                        {data.optionalSubject.hasEnteredMarks ? data.optionalSubject.letterGrade : '-'}
+                      </td>
+                      <td className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono font-black`}>
+                        {data.optionalSubject.hasEnteredMarks ? Number(data.optionalSubject.gradePoint || 0).toFixed(2) : '-'}
+                      </td>
+                      <td
+                        className={`${cellPadY} px-1 text-center border-r border-slate-900 font-mono font-black text-[11px]`}
+                        style={{ backgroundColor: palette.accentSoftBg, color: palette.accentText }}
+                      >
+                        {data.optionalSubject.hasEnteredMarks && data.bonusGP > 0
+                          ? `+${data.bonusGP.toFixed(2)}`
+                          : '0.00'}
                       </td>
                     </tr>
                   </>
                 )}
 
-                {/* ── 📊 TOTAL SUMMARY ROW ── */}
-                <tr className="bg-slate-200 text-slate-950 font-black border-t-2 border-slate-950 text-[10.5px]">
-                  <td colSpan={2} className="p-1 text-center border-r border-slate-950 font-black tracking-wider uppercase text-[10px]">
-                    {L.grandTotal}
+                {/* ── GRAND TOTAL ROW ── */}
+                <tr className="bg-slate-200/90 text-slate-950 font-black border-t-2 border-slate-950 text-[10.5px]">
+                  <td colSpan={2} className="py-1.5 px-2 text-center border-r border-slate-950 uppercase tracking-wider text-[9.5px]">
+                    GRAND TOTAL
                   </td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono font-black text-xs">{data.totalFull}</td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono">{data.totalCq || '-'}</td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono">{data.totalMcq || '-'}</td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono">{data.totalPrac || '-'}</td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono text-xs font-black">{data.totalObtained}</td>
-                  <td className="p-1 text-center border-r border-slate-950 text-xs font-black">{data.overallGrade}</td>
-                  <td className="p-1 text-center border-r border-slate-950 font-mono text-xs font-black">{data.gpaWithout4th?.toFixed(2)}</td>
-                  
-                  {/* BOTTOM CELL FOR OVERALL TOTAL GRADE */}
-                  <td className="p-1 text-center bg-amber-200 text-amber-950 font-black border-r border-slate-950">
-                    <div className="text-[7.5px] uppercase font-extrabold text-amber-900 leading-tight">{isEn ? 'Overall\nGrade' : 'মোট গ্রেড'}</div>
-                    <div className="text-xs font-black leading-none">{data.overallGrade}</div>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono font-black">
+                    {data.totalFull}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono">
+                    {data.totalCq || '-'}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono">
+                    {data.totalMcq || '-'}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono">
+                    {data.totalPrac || '-'}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono font-black text-[11px]">
+                    {data.totalObtained}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-black text-[11px]">
+                    {data.overallGrade}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-slate-950 font-mono font-black">
+                    {data.hasFailed ? '0.00' : data.gpaWithout4th?.toFixed(2)}
+                  </td>
+                  <td className="py-1 px-1 text-center bg-amber-100/90 text-slate-950 font-black border-r border-slate-950">
+                    <div className="text-[7px] uppercase font-extrabold text-slate-700 leading-none">
+                      Percentage
+                    </div>
+                    <div className="text-[11px] font-mono font-black leading-tight">{percentageVal}%</div>
                   </td>
                 </tr>
-
               </tbody>
             </table>
           </div>
 
-          {/* 📊 RESULT SUMMARY BOX */}
-          <div className="mb-3 border-2 border-slate-950 bg-slate-100/90 p-2 text-center font-sans">
-            <div className="text-[9.5px] font-black text-slate-950 tracking-wider uppercase mb-1 border-b border-slate-950 pb-0.5">
-              {L.resultSummary}
+          {/* 4. BOARD-GRADE 5-METRIC RESULT SUMMARY BAR */}
+          <div
+            className="border-2 bg-slate-50/90 overflow-hidden"
+            style={{ borderColor: palette.outerBorderColor }}
+          >
+            <div
+              className="text-[9px] font-black text-white tracking-widest uppercase py-0.5 text-center"
+              style={{ backgroundColor: palette.bannerBg }}
+            >
+              RESULT SUMMARY &amp; MERIT EVALUATION
             </div>
-            <div className="grid grid-cols-4 gap-2 text-xs font-bold divide-x divide-slate-950">
-              
-              {/* TOTAL OBTAINED MARKS */}
+            <div className="grid grid-cols-5 divide-x divide-slate-400 text-center py-1.5">
               <div className="px-1">
-                <span className="text-[9px] text-slate-700 block uppercase font-bold">{L.totalMarks}</span>
-                <span className="text-xs font-black font-mono text-slate-950">{data.totalObtained} / {data.totalFull}</span>
+                <span className="text-[8px] text-slate-600 block uppercase font-bold">Total Marks</span>
+                <span className="text-xs font-black font-mono text-slate-950">
+                  {data.totalObtained} / {data.totalFull}
+                </span>
               </div>
-
-              {/* GPA WITHOUT 4TH SUBJECT */}
               <div className="px-1">
-                <span className="text-[9px] text-slate-700 block uppercase font-bold">{L.gpaExcl}</span>
-                <span className="text-xs font-black font-mono text-slate-800">{data.hasFailed ? '0.00' : data.gpaWithout4th?.toFixed(2)}</span>
+                <span className="text-[8px] text-slate-600 block uppercase font-bold">Percentage</span>
+                <span className="text-xs font-black font-mono text-slate-950">{percentageVal}%</span>
               </div>
-
-              {/* FINAL COMBINED GPA WITH BONUS */}
-              <div className="px-1 bg-indigo-50/80 py-0.5">
-                <span className="text-[9px] text-indigo-950 block uppercase font-black">{L.finalGpa}</span>
-                <span className="text-sm font-black font-mono text-indigo-950 leading-none">
+              <div className="px-1">
+                <span className="text-[8px] text-slate-600 block uppercase font-bold">GPA (Excl. 4th)</span>
+                <span className="text-xs font-black font-mono text-slate-900">
+                  {data.hasFailed ? '0.00' : data.gpaWithout4th?.toFixed(2)}
+                </span>
+              </div>
+              <div className="px-1" style={{ backgroundColor: palette.accentSoftBg }}>
+                <span
+                  className="text-[8px] block uppercase font-black"
+                  style={{ color: palette.accentText }}
+                >
+                  Final GPA
+                </span>
+                <span
+                  className="text-sm font-black font-mono leading-none"
+                  style={{ color: palette.accentText }}
+                >
                   {data.hasFailed ? '0.00' : data.finalGPA?.toFixed(2)}
                 </span>
               </div>
-
-              {/* OVERALL GRADE BADGE */}
-              <div className="px-1 flex flex-col items-center justify-center">
-                <span className="text-[9px] text-slate-700 block uppercase font-bold mb-0.5">{L.overallGrade}</span>
-                <span className={`inline-block px-2.5 py-0.5 rounded-none text-[11px] font-black uppercase text-white shadow-sm ${
-                  data.overallGrade === 'A+' ? 'bg-emerald-700' :
-                  data.overallGrade === 'F' ? 'bg-rose-700' : 'bg-slate-950'
-                }`}>
-                  {data.overallGrade}
-                </span>
+              <div className="px-1">
+                <span className="text-[8px] text-slate-600 block uppercase font-bold">Grade / Merit</span>
+                <div className="flex items-center justify-center gap-1 mt-0.5">
+                  <span
+                    className={`inline-block px-1.5 py-0.2 text-[10px] font-black text-white ${
+                      data.overallGrade === 'A+'
+                        ? 'bg-emerald-700'
+                        : data.overallGrade === 'F'
+                          ? 'bg-rose-700'
+                          : 'bg-slate-900'
+                    }`}
+                  >
+                    {data.overallGrade}
+                  </span>
+                  {!data.hasFailed && meritPosition && (
+                    <span className="text-[10px] font-black text-slate-900">
+                      · {formatMeritPositionEn(meritPosition)}
+                    </span>
+                  )}
+                </div>
               </div>
-
             </div>
           </div>
         </div>
 
-        {/* 5. OFFICIAL THREE SIGNATURE FOOTER */}
-        <div className="pt-5 flex justify-between items-end text-center text-xs font-bold text-slate-950 relative z-10">
-          <div className="space-y-1">
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p>{L.classTeacher}</p>
-          </div>
-
-          <div className="space-y-1">
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p>{L.guardian}</p>
-          </div>
-
-          <div className="space-y-1">
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p className="font-black">{L.headmaster}</p>
-            {settings?.principalName && (
-              <p className="text-[10px] text-slate-700 font-normal">
-                ({isEn && (settings.principalName === 'মোহাম্মদ রফিকুল ইসলাম' || settings.principalName.includes('রফিকুল ইসলাম'))
-                  ? 'Mohammad Rafiqul Islam'
-                  : settings.principalName})
-              </p>
+        {/* ══ 5. OFFICIAL QR VERIFICATION & THREE-SIGNATURE FOOTER ══ */}
+        <div className="relative z-10 px-2 pb-1.5 pt-3">
+          <div className="flex items-end justify-between gap-4">
+            {/* Synchronous Vector QR Verification Seal */}
+            {qrData ? (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="p-1 bg-white border border-slate-800">
+                  <svg
+                    viewBox={`0 0 ${qrData.size} ${qrData.size}`}
+                    className="w-11 h-11 block"
+                    shapeRendering="crispEdges"
+                    aria-label="Transcript Verification QR"
+                  >
+                    <rect width={qrData.size} height={qrData.size} fill="#ffffff" />
+                    <path d={qrData.path} fill="#0f172a" />
+                  </svg>
+                </div>
+                <div className="text-[8.5px] leading-tight text-slate-700">
+                  <div className="font-black text-slate-950 uppercase tracking-wide">
+                    Verified Transcript
+                  </div>
+                  <div className="font-mono">Roll: {toEnNumber(student.roll)}</div>
+                  <div>Date: {issueDateEn}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[9px] font-bold text-slate-600 shrink-0">
+                Date of Issue: <span className="text-slate-900 font-mono">{issueDateEn}</span>
+              </div>
             )}
+
+            {/* 3 Official Signatures */}
+            <div className="flex-1 grid grid-cols-3 gap-4 text-center text-[10.5px] font-bold text-slate-950 pt-4">
+              <div>
+                <div className="w-28 sm:w-32 border-b border-slate-900 mx-auto" />
+                <p className="mt-1">Class Teacher</p>
+              </div>
+              <div>
+                <div className="w-28 sm:w-32 border-b border-slate-900 mx-auto" />
+                <p className="mt-1">Guardian&apos;s Signature</p>
+              </div>
+              <div>
+                <div className="w-28 sm:w-32 border-b border-slate-900 mx-auto" />
+                <p className="mt-1 font-black">
+                  {settings?.principalTitleEn || 'Headmaster'}
+                </p>
+                {settings?.principalName && (
+                  <p className="text-[9px] text-slate-700 font-semibold leading-tight truncate">
+                    {isEn && settings.principalName ? settings.principalName : ''}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
 
-      {/* 🖨️ PROFESSIONAL A4 PRINT & PDF EXPORT STYLES (SHARED CANONICAL 1-PAGE A4) */}
+      {/* 🖨️ CANONICAL A4 PRINT & PDF EXPORT STYLES */}
       {includePrintStyles && <style>{MARKSHEET_A4_PRINT_STYLES}</style>}
-
     </div>
   );
 }
+
+export const MarksheetSheetCard = React.memo(MarksheetSheetCardInner);

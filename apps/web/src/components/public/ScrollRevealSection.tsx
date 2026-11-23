@@ -13,9 +13,36 @@ interface ScrollRevealSectionProps {
   sectionKey?: string;
 }
 
+function tagSectionChildrenForMotion(root: HTMLElement) {
+  // 1. Tag section header items (eyebrow pill, h2 title, divider, subtitle)
+  const headerContainers = root.querySelectorAll('.text-center.max-w-3xl, .text-center.max-w-4xl');
+  headerContainers.forEach((hdr) => {
+    Array.from(hdr.children).forEach((child, idx) => {
+      const htmlChild = child as HTMLElement;
+      if (!htmlChild.hasAttribute('data-reveal-header-item')) {
+        htmlChild.setAttribute('data-reveal-header-item', 'true');
+        htmlChild.style.setProperty('--header-index', String(Math.min(idx, 5)));
+      }
+    });
+  });
+
+  // 2. Tag direct children of grids inside this section for staggered cascade animation
+  const grids = root.querySelectorAll('.grid');
+  grids.forEach((grid) => {
+    Array.from(grid.children).forEach((child, idx) => {
+      const htmlChild = child as HTMLElement;
+      if (!htmlChild.hasAttribute('data-stagger-child')) {
+        htmlChild.setAttribute('data-stagger-child', 'true');
+        htmlChild.style.setProperty('--stagger-index', String(Math.min(idx, 10)));
+      }
+    });
+  });
+}
+
 /**
- * Wraps any landing page section with smooth scroll-triggered entrance animations
- * AND automatically staggers internal grid cards/items for a rich, fluid experience.
+ * Wraps any landing page section with smooth scroll-triggered entrance animations,
+ * cascades section headers & internal grid cards, and clears entrance delays after
+ * completion so card hover micro-interactions respond with zero latency.
  */
 export function ScrollRevealSection({
   children,
@@ -26,26 +53,19 @@ export function ScrollRevealSection({
 }: ScrollRevealSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    // Respect prefers-reduced-motion
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setIsVisible(true);
+      setIsDone(true);
       return;
     }
 
-    // Tag direct children of grids inside this section for staggered cascade animation
-    const grids = el.querySelectorAll('.grid');
-    grids.forEach((grid) => {
-      Array.from(grid.children).forEach((child, idx) => {
-        const htmlChild = child as HTMLElement;
-        htmlChild.setAttribute('data-stagger-child', 'true');
-        htmlChild.style.setProperty('--stagger-index', String(Math.min(idx, 10)));
-      });
-    });
+    tagSectionChildrenForMotion(el);
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -57,9 +77,9 @@ export function ScrollRevealSection({
         });
       },
       {
-        threshold: 0.08,
-        rootMargin: '0px 0px -45px 0px',
-      }
+        threshold: 0.07,
+        rootMargin: '0px 0px -36px 0px',
+      },
     );
 
     observer.observe(el);
@@ -67,12 +87,21 @@ export function ScrollRevealSection({
     return () => observer.disconnect();
   }, [sectionKey]);
 
+  useEffect(() => {
+    if (!isVisible || isDone) return;
+    const timer = window.setTimeout(() => {
+      setIsDone(true);
+    }, 950 + delayMs);
+    return () => window.clearTimeout(timer);
+  }, [isVisible, isDone, delayMs]);
+
   return (
     <div
       ref={containerRef}
       data-reveal-section={variant}
       data-revealed={isVisible ? 'true' : 'false'}
-      style={{ transitionDelay: delayMs ? `${delayMs}ms` : undefined }}
+      data-reveal-done={isDone ? 'true' : 'false'}
+      style={{ transitionDelay: delayMs && !isDone ? `${delayMs}ms` : undefined }}
       className={`scroll-reveal-wrapper ${className}`}
     >
       {children}
@@ -88,8 +117,6 @@ export function LandingScrollFeatures() {
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
-    // requestAnimationFrame-throttled scroll tracking: at most one state update per frame,
-    // and only when the rounded value actually changes -> buttery smooth 60fps scrolling.
     let ticking = false;
     let lastPct = -1;
     let lastShow: boolean | null = null;
@@ -131,7 +158,6 @@ export function LandingScrollFeatures() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // SVG circle parameters
   const radius = 20;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (scrollProgress / 100) * circumference;
@@ -144,7 +170,7 @@ export function LandingScrollFeatures() {
         className="fixed top-0 left-0 right-0 h-1 z-[100] pointer-events-none bg-transparent print:hidden"
       >
         <div
-          className="h-full origin-left bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-[#F4B400] shadow-[0_0_10px_rgba(16,185,129,0.6)] will-change-transform"
+          className="h-full origin-left bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-[#F4B400] shadow-[0_0_10px_rgba(16,185,129,0.6)] transition-transform duration-150 ease-out will-change-transform"
           style={{ transform: `scaleX(${scrollProgress / 100})` }}
         />
       </div>

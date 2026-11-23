@@ -13,6 +13,8 @@
  */
 
 import {
+  OMR_GRADE_OPTIONS,
+  OMR_GROUP_OPTIONS,
   OmrBubbleCoord,
   OmrLayoutConfig,
   OmrResolvedLayout,
@@ -64,6 +66,19 @@ export interface OmrDecodeResult {
   decodedRollRaw: string; // e.g. "027" or "0?7"
   rollColumns: DecodedRollColumnResult[];
   rollUncertain: boolean;
+  /** 3-digit subject code decoded from on-sheet subject code grid (e.g. "136", or "" if blank) */
+  decodedSubjectCodeRaw: string;
+  subjectCodeColumns: DecodedRollColumnResult[];
+  subjectCodeFilled: boolean;
+  subjectCodeUncertain: boolean;
+  /** Class/grade decoded from on-sheet grade bubbles ('6th'..'10th' or null if blank) */
+  decodedGradeIndex: number | null;
+  decodedGrade: '6th' | '7th' | '8th' | '9th' | '10th' | null;
+  gradeStatus: BubbleChoiceStatus;
+  /** Department/group decoded from on-sheet group bubbles or null if blank */
+  decodedGroupIndex: number | null;
+  decodedGroup: 'সাধারণ' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা' | null;
+  groupStatus: BubbleChoiceStatus;
   setIndex: number | null; // 0..3
   setCode: string | null; // 'ক'|'খ'|'গ'|'ঘ' or 'A'|'B'|'C'|'D'
   setStatus: BubbleChoiceStatus;
@@ -406,11 +421,11 @@ export function detectCornerFiducials(buf: RgbaImageBuffer): DetectedCorners | n
           const areaConsistency = minA / maxA;
           if (areaConsistency < 0.42) continue;
 
-          // Expect portrait OMR aspect ratio ~ 0.65..0.78 (allow perspective 0.50..0.95)
+          // Expect portrait OMR aspect ratio ~ 0.65..0.84 (allow perspective 0.46..1.05)
           const avgW = (topW + botW) / 2;
           const avgH = (leftH + rightH) / 2;
           const sheetAspect = avgW / avgH;
-          if (sheetAspect < 0.46 || sheetAspect > 0.98) continue;
+          if (sheetAspect < 0.46 || sheetAspect > 1.05) continue;
 
           const baseScore = (tl.score + tr.score + br.score + bl.score) / 4;
           const geomScore = widthRatio * 0.35 + heightRatio * 0.35 + areaConsistency * 0.3;
@@ -792,7 +807,66 @@ export function decodeCanonicalOmrBuffer(
     }
   }
 
-  // 2. Set code (optional 4-set grid)
+  // 2. 3-Digit Subject Code columns (optional if left completely blank on older sheets)
+  const subjectCodeColumns: DecodedRollColumnResult[] = [];
+  let rawSubDigits = '';
+  let anySubColMarked = false;
+  let subjectCodeUncertain = false;
+
+  for (let c = 0; c < layout.subjectCodeBubbles.length; c++) {
+    const colBubbles = layout.subjectCodeBubbles[c];
+    const scores = colBubbles.map((b) => sampleBubbleFillScore(warped, b));
+    const cls = classifyBubbleGroup(scores);
+    subjectCodeColumns.push({
+      colIndex: c,
+      digit: cls.selectedIndex,
+      status: cls.status,
+      confidence: cls.confidence,
+      scores,
+    });
+    if (cls.status !== 'blank') anySubColMarked = true;
+    if (cls.selectedIndex !== null && cls.status === 'filled') {
+      rawSubDigits += String(cls.selectedIndex);
+    } else if (cls.selectedIndex !== null && cls.status === 'uncertain') {
+      rawSubDigits += String(cls.selectedIndex);
+      subjectCodeUncertain = true;
+    } else {
+      rawSubDigits += '?';
+      if (cls.status !== 'blank') subjectCodeUncertain = true;
+    }
+  }
+  const decodedSubjectCodeRaw = anySubColMarked ? rawSubDigits : '';
+  if (anySubColMarked && rawSubDigits.includes('?')) {
+    subjectCodeUncertain = true;
+  }
+
+  // 3. Class / Grade bubbles (6th..10th)
+  let decodedGradeIndex: number | null = null;
+  let decodedGrade: '6th' | '7th' | '8th' | '9th' | '10th' | null = null;
+  let gradeStatus: BubbleChoiceStatus = 'blank';
+  if (layout.gradeBubbles.length === OMR_GRADE_OPTIONS.length) {
+    const gradeScores = layout.gradeBubbles.map((b) => sampleBubbleFillScore(warped, b));
+    const gradeCls = classifyBubbleGroup(gradeScores);
+    decodedGradeIndex = gradeCls.selectedIndex;
+    decodedGrade =
+      decodedGradeIndex !== null ? OMR_GRADE_OPTIONS[decodedGradeIndex]?.id ?? null : null;
+    gradeStatus = gradeCls.status;
+  }
+
+  // 4. Department / Group bubbles (সাধারণ, বিজ্ঞান, মানবিক, ব্যবসায় শিক্ষা)
+  let decodedGroupIndex: number | null = null;
+  let decodedGroup: 'সাধারণ' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা' | null = null;
+  let groupStatus: BubbleChoiceStatus = 'blank';
+  if (layout.groupBubbles.length === OMR_GROUP_OPTIONS.length) {
+    const groupScores = layout.groupBubbles.map((b) => sampleBubbleFillScore(warped, b));
+    const groupCls = classifyBubbleGroup(groupScores);
+    decodedGroupIndex = groupCls.selectedIndex;
+    decodedGroup =
+      decodedGroupIndex !== null ? OMR_GROUP_OPTIONS[decodedGroupIndex]?.id ?? null : null;
+    groupStatus = groupCls.status;
+  }
+
+  // 5. Set code (optional 4-set grid)
   let setIndex: number | null = null;
   let setCode: string | null = null;
   let setStatus: BubbleChoiceStatus = 'blank';
@@ -804,7 +878,7 @@ export function decodeCanonicalOmrBuffer(
     setStatus = setCls.status;
   }
 
-  // 3. MCQ questions
+  // 6. MCQ questions
   const questions: DecodedQuestionResult[] = [];
   const uncertainQuestions: number[] = [];
   const doubleMarkedQuestions: number[] = [];
@@ -839,6 +913,16 @@ export function decodeCanonicalOmrBuffer(
     decodedRollRaw,
     rollColumns,
     rollUncertain,
+    decodedSubjectCodeRaw,
+    subjectCodeColumns,
+    subjectCodeFilled: anySubColMarked,
+    subjectCodeUncertain,
+    decodedGradeIndex,
+    decodedGrade,
+    gradeStatus,
+    decodedGroupIndex,
+    decodedGroup,
+    groupStatus,
     setIndex,
     setCode,
     setStatus,
@@ -861,23 +945,37 @@ export function decodeOmrImageBuffer(
   const layout = getOmrTemplateLayout(config);
   const corners = preDetectedCorners ?? detectCornerFiducials(src);
 
+  const makeFailure = (error: string, detected: DetectedCorners | null): OmrDecodeResult => ({
+    success: false,
+    error,
+    corners: detected,
+    decodedRollRaw: '?'.repeat(layout.rollDigits),
+    rollColumns: [],
+    rollUncertain: true,
+    decodedSubjectCodeRaw: '',
+    subjectCodeColumns: [],
+    subjectCodeFilled: false,
+    subjectCodeUncertain: false,
+    decodedGradeIndex: null,
+    decodedGrade: null,
+    gradeStatus: 'blank',
+    decodedGroupIndex: null,
+    decodedGroup: null,
+    groupStatus: 'blank',
+    setIndex: null,
+    setCode: null,
+    setStatus: 'blank',
+    questions: [],
+    uncertainQuestions: [],
+    doubleMarkedQuestions: [],
+    overallConfidence: 0,
+  });
+
   if (!corners) {
-    return {
-      success: false,
-      error:
-        'OMR শিটের ৪ কোণার কালো বর্গাকার চিহ্ন (Fiducial Marks) সঠিকভাবে পাওয়া যায়নি। শিটটি সোজা ও পর্যাপ্ত আলোতে ধরে আবার চেষ্টা করুন।',
-      corners: null,
-      decodedRollRaw: '?'.repeat(layout.rollDigits),
-      rollColumns: [],
-      rollUncertain: true,
-      setIndex: null,
-      setCode: null,
-      setStatus: 'blank',
-      questions: [],
-      uncertainQuestions: [],
-      doubleMarkedQuestions: [],
-      overallConfidence: 0,
-    };
+    return makeFailure(
+      'OMR শিটের ৪ কোণার কালো বর্গাকার চিহ্ন (Fiducial Marks) সঠিকভাবে পাওয়া যায়নি। শিটটি সোজা ও পর্যাপ্ত আলোতে ধরে আবার চেষ্টা করুন।',
+      null,
+    );
   }
 
   const warped = warpSheetToCanonical(
@@ -888,21 +986,10 @@ export function decodeOmrImageBuffer(
   );
 
   if (!warped) {
-    return {
-      success: false,
-      error: 'শিটের পার্সপেক্টিভ সংশোধন (Homography) সম্পন্ন করা যায়নি। ক্যামেরা সোজা রেখে আবার চেষ্টা করুন।',
+    return makeFailure(
+      'শিটের পার্সপেক্টিভ সংশোধন (Homography) সম্পন্ন করা যায়নি। ক্যামেরা সোজা রেখে আবার চেষ্টা করুন।',
       corners,
-      decodedRollRaw: '?'.repeat(layout.rollDigits),
-      rollColumns: [],
-      rollUncertain: true,
-      setIndex: null,
-      setCode: null,
-      setStatus: 'blank',
-      questions: [],
-      uncertainQuestions: [],
-      doubleMarkedQuestions: [],
-      overallConfidence: 0,
-    };
+    );
   }
 
   return decodeCanonicalOmrBuffer(warped, layout, corners);
@@ -911,9 +998,9 @@ export function decodeOmrImageBuffer(
 // ─── 5. DUAL-FRAME CONSENSUS VERIFIER ────────────────────────────────────────
 
 /**
- * Merges two consecutive live-camera decodes. Any roll digit, set code, or MCQ
- * where Frame 1 and Frame 2 disagree is explicitly flagged as `uncertain`
- * instead of guessing silently.
+ * Merges two consecutive live-camera decodes. Any roll digit, subject code digit,
+ * class, group, set code, or MCQ where Frame 1 and Frame 2 disagree is explicitly
+ * flagged as `uncertain` instead of guessing silently.
  */
 export function mergeDualFrameDecodes(
   frame1: OmrDecodeResult,
@@ -949,7 +1036,43 @@ export function mergeDualFrameDecodes(
     }
   }
 
-  // Set consensus
+  // Subject Code consensus
+  const subjectCodeColumns: DecodedRollColumnResult[] = frame2.subjectCodeColumns.map((c2, idx) => {
+    const c1 = frame1.subjectCodeColumns[idx];
+    if (c1 && c1.digit !== c2.digit) {
+      return {
+        ...c2,
+        status: 'uncertain',
+        confidence: Math.min(c1.confidence, c2.confidence) * 0.65,
+      };
+    }
+    return c2;
+  });
+
+  const subjectCodeFilled = frame1.subjectCodeFilled || frame2.subjectCodeFilled;
+  let decodedSubjectCodeRaw = '';
+  let subjectCodeUncertain = false;
+  if (subjectCodeFilled) {
+    for (const col of subjectCodeColumns) {
+      if (col.digit !== null && col.status === 'filled') {
+        decodedSubjectCodeRaw += String(col.digit);
+      } else if (col.digit !== null && col.status === 'uncertain') {
+        decodedSubjectCodeRaw += String(col.digit);
+        subjectCodeUncertain = true;
+      } else {
+        decodedSubjectCodeRaw += '?';
+        subjectCodeUncertain = true;
+      }
+    }
+  }
+
+  // Class, Group, Set consensus
+  const gradeDisagrees = frame1.decodedGrade !== frame2.decodedGrade;
+  const gradeStatus: BubbleChoiceStatus = gradeDisagrees ? 'uncertain' : frame2.gradeStatus;
+
+  const groupDisagrees = frame1.decodedGroup !== frame2.decodedGroup;
+  const groupStatus: BubbleChoiceStatus = groupDisagrees ? 'uncertain' : frame2.groupStatus;
+
   const setDisagrees = frame1.setIndex !== frame2.setIndex;
   const setStatus: BubbleChoiceStatus = setDisagrees ? 'uncertain' : frame2.setStatus;
 
@@ -965,7 +1088,6 @@ export function mergeDualFrameDecodes(
     let confidence = q2.confidence;
 
     if (!agrees) {
-      // Frame disagreement -> never silently guess!
       status = 'uncertain';
       confidence = Math.min(q1.confidence, q2.confidence) * 0.6;
     } else if (status === 'filled') {
@@ -992,6 +1114,12 @@ export function mergeDualFrameDecodes(
     decodedRollRaw,
     rollColumns,
     rollUncertain,
+    decodedSubjectCodeRaw,
+    subjectCodeColumns,
+    subjectCodeFilled,
+    subjectCodeUncertain,
+    gradeStatus,
+    groupStatus,
     setStatus,
     questions,
     uncertainQuestions,

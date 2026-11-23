@@ -83,7 +83,7 @@ export default function PublicStats({
   const milestoneData = [
     {
       id: 'founded',
-      number: toBn(counts.estd || targetEstd),
+      number: toBn(hasAnimated ? counts.estd : targetEstd),
       suffix: '',
       label: 'স্থাপিত (Founded)',
       subtitle: 'ঐতিহ্যের ৫৫+ বছরের গৌরবময় ইতিহাস',
@@ -91,7 +91,7 @@ export default function PublicStats({
     },
     {
       id: 'teachers',
-      number: toBn(counts.teachers || targetTeachers),
+      number: toBn(hasAnimated ? counts.teachers : targetTeachers),
       suffix: '+',
       label: 'শিক্ষক ও কর্মচারী',
       subtitle: 'উচ্চশিক্ষিত ও প্রশিক্ষণপ্রাপ্ত শিক্ষক পরিষদ',
@@ -99,7 +99,7 @@ export default function PublicStats({
     },
     {
       id: 'students',
-      number: toBn(counts.students || targetStudents),
+      number: toBn(hasAnimated ? counts.students : targetStudents),
       suffix: '+',
       label: 'নিয়মিত শিক্ষার্থী',
       subtitle: '৬ষ্ঠ থেকে ১০ম শ্রেণিতে সক্রিয় শিক্ষার্থী',
@@ -107,7 +107,7 @@ export default function PublicStats({
     },
     {
       id: 'passingRate',
-      number: toBn(counts.passRate || passRateClean),
+      number: toBn(hasAnimated ? counts.passRate : passRateClean),
       suffix: '%',
       label: 'এসএসসি পাশের হার',
       subtitle: 'পাবলিক পরীক্ষায় ধারাবাহিক শতভাগ সাফল্য',
@@ -121,7 +121,7 @@ export default function PublicStats({
       id: 'ten',
       name: 'দশম শ্রেণি',
       enClass: 'Class 10',
-      count: counts.ten || count10,
+      count: hasAnimated ? counts.ten : count10,
       icon: <GraduationCap className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />,
       subtitle: 'এসএসসি পরীক্ষার্থী ব্যাচ'
     },
@@ -129,7 +129,7 @@ export default function PublicStats({
       id: 'nine',
       name: 'নবম শ্রেণি',
       enClass: 'Class 9',
-      count: counts.nine || count9,
+      count: hasAnimated ? counts.nine : count9,
       icon: <BookOpen className="w-6 h-6 text-teal-600 dark:text-teal-400" />,
       subtitle: 'বিজ্ঞান, মানবিক ও ব্যবসায় শিক্ষা'
     },
@@ -137,7 +137,7 @@ export default function PublicStats({
       id: 'eight',
       name: 'অষ্টম শ্রেণি',
       enClass: 'Class 8',
-      count: counts.eight || count8,
+      count: hasAnimated ? counts.eight : count8,
       icon: <Award className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />,
       subtitle: 'জুনিয়র সেকেন্ডারি স্তর'
     },
@@ -145,7 +145,7 @@ export default function PublicStats({
       id: 'seven',
       name: 'সপ্তম শ্রেণি',
       enClass: 'Class 7',
-      count: counts.seven || count7,
+      count: hasAnimated ? counts.seven : count7,
       icon: <Sparkles className="w-6 h-6 text-amber-500 dark:text-amber-400" />,
       subtitle: 'নতুন জাতীয় শিক্ষাক্রম'
     },
@@ -153,7 +153,7 @@ export default function PublicStats({
       id: 'six',
       name: 'ষষ্ঠ শ্রেণি',
       enClass: 'Class 6',
-      count: counts.six || count6,
+      count: hasAnimated ? counts.six : count6,
       icon: <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />,
       subtitle: 'প্রাথমিক উত্তীর্ণ প্রবেশ স্তর'
     }
@@ -161,21 +161,21 @@ export default function PublicStats({
 
   useEffect(() => {
     if (isDisabled) return;
+    let rafId = 0;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimated) {
           setHasAnimated(true);
 
-          const duration = 2000; // 2 seconds
-          const steps = 45;
-          const stepTime = duration / steps;
-          let currentStep = 0;
+          const duration = 1650; // 1.65s smooth 60fps count-up
+          const startTime = performance.now();
 
-          const timer = setInterval(() => {
-            currentStep++;
-            const progress = currentStep / steps;
-            // Ease out cubic
-            const ease = 1 - Math.pow(1 - progress, 3);
+          const tick = (now: number) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            // Executive easeOutExpo curve
+            const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
             setCounts({
               estd: Math.round(targetEstd * ease),
@@ -189,31 +189,25 @@ export default function PublicStats({
               six: Math.round(count6 * ease),
             });
 
-            if (currentStep >= steps) {
-              clearInterval(timer);
-              setCounts({
-                estd: targetEstd,
-                teachers: targetTeachers,
-                students: targetStudents,
-                passRate: passRateClean,
-                ten: count10,
-                nine: count9,
-                eight: count8,
-                seven: count7,
-                six: count6
-              });
+            if (progress < 1) {
+              rafId = window.requestAnimationFrame(tick);
             }
-          }, stepTime);
+          };
+
+          rafId = window.requestAnimationFrame(tick);
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.18 }
     );
 
     if (sectionRef.current) {
       observer.observe(sectionRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
   }, [isDisabled, hasAnimated, targetEstd, targetTeachers, targetStudents, passRateClean, count10, count9, count8, count7, count6]);
 
   if (isDisabled) {

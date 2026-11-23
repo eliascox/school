@@ -18,10 +18,11 @@ import { examService, ExamItem } from '@/services/examService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, SubjectAssignment } from '@/services/teacherRBACService';
-import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
+import { curriculumService } from '@/services/curriculumService';
 import {
   OmrExamSession,
   OmrScanRecord,
+  getAllOmrCurriculumSubjects,
   normalizeGroupToBn,
   normalizeGroupToCode,
   omrService,
@@ -73,8 +74,9 @@ export default function OmrStudioAndScannerPage() {
   const [sessionScans, setSessionScans] = useState<OmrScanRecord[]>([]);
   const [inspectingScan, setInspectingScan] = useState<OmrScanRecord | null>(null);
   const [versionTick, setVersionTick] = useState(0);
+  const [curriculumTick, setCurriculumTick] = useState(0);
 
-  // Boot session, exams, settings & teacher RBAC
+  // Boot session, exams, settings, curriculum real-time listener & teacher RBAC
   useEffect(() => {
     setMounted(true);
     const active = teacherAuthService.getSession();
@@ -93,7 +95,19 @@ export default function OmrStudioAndScannerPage() {
     }
 
     const unsubOmr = omrService.subscribe(() => setVersionTick((t) => t + 1));
-    return () => unsubOmr();
+    const unsubCurr = curriculumService.subscribe(() => setCurriculumTick((t) => t + 1));
+    const onStorageChange = (e: StorageEvent) => {
+      if (e.key === 'sms_curriculum_subjects') {
+        setCurriculumTick((t) => t + 1);
+      }
+    };
+    window.addEventListener('storage', onStorageChange);
+
+    return () => {
+      unsubOmr();
+      unsubCurr();
+      window.removeEventListener('storage', onStorageChange);
+    };
   }, [router]);
 
   // Close context popover on outside click
@@ -146,21 +160,40 @@ export default function OmrStudioAndScannerPage() {
   }, [isClass9or10, selectedBranch]);
 
   const configuredSubjects = useMemo(
-    () => getActiveCurriculumSubjects(selectedGrade, isClass9or10 ? selectedGroup : 'সাধারণ'),
-    [selectedGrade, isClass9or10, selectedGroup],
+    () =>
+      getAllOmrCurriculumSubjects(
+        selectedGrade,
+        isClass9or10 ? selectedGroup : 'সাধারণ',
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedGrade, isClass9or10, selectedGroup, curriculumTick],
   );
 
   const availableSubjects = useMemo(() => {
-    const map = new Map<string, { code: string; name: string; mcqMax: number }>();
+    const map = new Map<
+      string,
+      { code: string; name: string; mcqMax: number; category?: string; group?: string }
+    >();
     configuredSubjects.forEach((s) => {
-      const mcqNum = Number(s.mcq) > 0 ? Number(s.mcq) : 30;
-      map.set(s.name, { code: s.code || s.name, name: s.name, mcqMax: mcqNum });
+      // Allow EVERY subject including mcqMax=0 so teachers can create custom class/model test OMRs
+      map.set(s.name, {
+        code: s.code || s.name,
+        name: s.name,
+        mcqMax: s.mcqMax,
+        category: s.category,
+        group: s.group,
+      });
     });
 
     if (isTeacher) {
       myAssignedSubjectsForGrade.forEach((a) => {
         if (a.subjectId && !map.has(a.subjectId)) {
-          map.set(a.subjectId, { code: a.subjectId, name: a.subjectId, mcqMax: 30 });
+          map.set(a.subjectId, {
+            code: a.subjectId,
+            name: a.subjectId,
+            mcqMax: 30,
+            category: 'আবশ্যিক',
+          });
         }
       });
     }
@@ -200,7 +233,8 @@ export default function OmrStudioAndScannerPage() {
       group: groupBn,
       subjectCode: subMeta?.code || selectedSubject,
       subjectName: selectedSubject,
-      subjectMcqMax: subMeta?.mcqMax || 30,
+      subjectMcqMax: subMeta?.mcqMax && subMeta.mcqMax > 0 ? subMeta.mcqMax : 30,
+      paperFormat: 'legal_half',
     });
 
     setActiveSession(resolved);
@@ -481,7 +515,7 @@ export default function OmrStudioAndScannerPage() {
           <button
             type="button"
             onClick={
-              activeTab === 'studio'
+              activeTab === 'studio' || activeTab === 'key'
                 ? () => window.print()
                 : handleQuickHeaderSync
             }
@@ -490,6 +524,10 @@ export default function OmrStudioAndScannerPage() {
             {activeTab === 'studio' ? (
               <>
                 <Printer className="w-3.5 h-3.5" /> শিট প্রিন্ট
+              </>
+            ) : activeTab === 'key' ? (
+              <>
+                <Printer className="w-3.5 h-3.5" /> উত্তরপত্র প্রিন্ট
               </>
             ) : (
               <>
@@ -517,20 +555,54 @@ export default function OmrStudioAndScannerPage() {
                 onScansChanged={() => setVersionTick((t) => t + 1)}
                 onInspectScan={(sc) => setInspectingScan(sc)}
                 onJumpToAnswerKey={() => setActiveTab('key')}
+                onSwitchToSession={handleSelectExistingSession}
               />
             )}
 
             {activeTab === 'key' && (
               <OmrAnswerKeyTab
                 session={activeSession}
+                allSessions={allSessions}
+                availableSubjects={availableSubjects}
+                schoolSettings={schoolSettings}
+                classLabelBn={classLabelBn}
+                userDisplayName={userDisplayName}
+                selectedExamTitle={selectedExamTitle}
+                selectedGrade={selectedGrade}
+                selectedBranch={selectedBranch}
+                selectedGroup={selectedGroup}
+                onChangeContext={(next) => {
+                  if (next.grade !== undefined) {
+                    setSelectedGrade(next.grade);
+                    const nextIs9or10 = next.grade === '9th' || next.grade === '10th';
+                    if (nextIs9or10 && !['Science', 'Humanities', 'Commerce'].includes(selectedBranch)) {
+                      setSelectedGroup('science');
+                      setSelectedBranch('Science');
+                    } else if (!nextIs9or10 && !SECTIONS_6_TO_8.includes(selectedBranch)) {
+                      setSelectedBranch('A');
+                    }
+                  }
+                  if (next.group !== undefined) {
+                    setSelectedGroup(next.group);
+                  }
+                  if (next.branch !== undefined) {
+                    setSelectedBranch(next.branch);
+                  }
+                  if (next.subjectName !== undefined) {
+                    setSelectedSubject(next.subjectName);
+                  }
+                }}
                 onSaveAnswerKey={(setCode, answers) => {
-                  omrService.updateAnswerKey(activeSession.id, setCode, answers);
+                  omrService.updateAnswerKey(activeSession.id, setCode, answers, {
+                    updatedBy: userDisplayName,
+                  });
                   setVersionTick((t) => t + 1);
                 }}
-                onUpdateScoringRules={(updates) => {
+                onUpdateConfig={(updates) => {
                   omrService.updateSessionConfig(activeSession.id, updates);
                   setVersionTick((t) => t + 1);
                 }}
+                onSessionsMutated={() => setVersionTick((t) => t + 1)}
               />
             )}
 

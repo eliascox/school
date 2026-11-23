@@ -230,7 +230,7 @@ export default function PublicNavbar({ settings, headerConfig, isOverHero = true
       <div className="fixed top-3 sm:top-4 left-0 right-0 z-50 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none transition-all duration-300 print:hidden">
         <nav
           aria-label="প্রধান নেভিগেশন"
-          className={`glass-nav rounded-2xl px-4 sm:px-6 flex items-center justify-between gap-4 pointer-events-auto transition-all duration-300 ease-out ${
+          className={`animate-navbar-enter glass-nav rounded-2xl px-4 sm:px-6 flex items-center justify-between gap-4 pointer-events-auto transition-all duration-300 ease-out ${
             isScrolled ? 'glass-nav-scrolled py-2 sm:py-2.5 shadow-xl shadow-slate-900/15' : 'py-2.5 sm:py-3.5'
           }`}
         >

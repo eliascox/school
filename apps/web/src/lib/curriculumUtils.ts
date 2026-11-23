@@ -128,6 +128,40 @@ export const DEFAULT_9_TO_10_SUBJECTS = (
   return [...compulsory, ...groupSubjects];
 };
 
+// Cache parsed & normalized curriculum by exact raw JSON + hindu migration flag
+// so batch student evaluation never re-parses `sms_curriculum_subjects` 500× per render.
+let cachedCurriculumRaw: string | null = null;
+let cachedCurriculumHinduFlag: string | null = null;
+let cachedNormalizedCurriculum: any[] | null = null;
+
+function getNormalizedStoredCurriculum(): any[] | null {
+  if (typeof window === 'undefined') return null;
+  const storedCurriculum = localStorage.getItem('sms_curriculum_subjects');
+  if (!storedCurriculum) {
+    cachedCurriculumRaw = null;
+    cachedNormalizedCurriculum = null;
+    return null;
+  }
+  const hinduFlag = localStorage.getItem('sms_curriculum_hindu_v1');
+  if (
+    cachedCurriculumRaw === storedCurriculum &&
+    cachedCurriculumHinduFlag === hinduFlag &&
+    cachedNormalizedCurriculum
+  ) {
+    return cachedNormalizedCurriculum;
+  }
+  const parsed = JSON.parse(storedCurriculum);
+  if (!Array.isArray(parsed) || parsed.length === 0) return null;
+  let normalized = normalizeLegacyNctbSubjectCodes(parsed);
+  if (normalized.length >= 5 && hinduFlag !== '1') {
+    normalized = ensureHinduReligionSubjects(normalized).updated;
+  }
+  cachedCurriculumRaw = storedCurriculum;
+  cachedCurriculumHinduFlag = hinduFlag;
+  cachedNormalizedCurriculum = normalized;
+  return normalized;
+}
+
 /**
  * Loads dynamic subjects configured in Curriculum (/dashboard/academic/curriculum)
  * or falls back to standardized NCTB syllabus.
@@ -146,14 +180,9 @@ export function getActiveCurriculumSubjects(
   // 1. Try reading customized curriculum from localStorage (sms_curriculum_subjects)
   if (typeof window !== 'undefined') {
     try {
-      const storedCurriculum = localStorage.getItem('sms_curriculum_subjects');
-      if (storedCurriculum) {
-        const parsed = JSON.parse(storedCurriculum);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          let normalized = normalizeLegacyNctbSubjectCodes(parsed);
-          if (normalized.length >= 5 && localStorage.getItem('sms_curriculum_hindu_v1') !== '1') {
-            normalized = ensureHinduReligionSubjects(normalized).updated;
-          }
+      const normalized = getNormalizedStoredCurriculum();
+      if (normalized && normalized.length > 0) {
+        {
           const matchingForGrade = normalized.filter((c: any) => c.grade === gradeKey);
           if (matchingForGrade.length > 0) {
             const mapped: DynamicClassSubject[] = matchingForGrade.map((c: any) => {
