@@ -18,7 +18,12 @@ import {
   Unsubscribe,
   Firestore
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured, firebaseConfig } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { db, auth, isFirebaseConfigured, firebaseConfig } from '../lib/firebase';
 import { studentService, Student } from './studentService';
 import { settingsService, SchoolSettings } from './settingsService';
 import { classSectionService } from './classSectionService';
@@ -206,9 +211,109 @@ function isOfflineOrUnavailableError(err: any): boolean {
   );
 }
 
+function isPermissionDeniedError(err: any): boolean {
+  const code = String(err?.code || '').toLowerCase();
+  const msg = String(err?.message || '').toLowerCase();
+  return code === 'permission-denied' || msg.includes('missing or insufficient permissions');
+}
+
+function mapFirebaseAuthErrorMessage(err: any): string {
+  const code = String(err?.code || '').toLowerCase();
+  if (
+    code.includes('invalid-credential') ||
+    code.includes('wrong-password') ||
+    code.includes('user-not-found')
+  ) {
+    return 'ইমেইল বা পাসওয়ার্ড সঠিক নয়। অনুগ্রহ করে আবার যাচাই করুন।';
+  }
+  if (code.includes('invalid-email')) {
+    return 'সঠিক ইমেইল ঠিকানা লিখুন।';
+  }
+  if (code.includes('too-many-requests')) {
+    return 'অতিরিক্ত চেষ্টার কারণে সাময়িকভাবে ব্লক করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।';
+  }
+  if (code.includes('network-request-failed')) {
+    return 'ইন্টারনেট সংযোগ ব্যর্থ হয়েছে। নেটওয়ার্ক যাচাই করুন।';
+  }
+  if (code.includes('operation-not-allowed')) {
+    return 'Firebase Authentication-এ Email/Password চালু নেই।';
+  }
+  return err?.message || 'Firebase সাইন-ইন সম্পন্ন করা যায়নি।';
+}
+
+export interface CloudAuthUser {
+  uid: string;
+  email: string | null;
+}
+
 class FirebaseSyncService {
   private activeStudentsUnsub: Unsubscribe | null = null;
   private activeSettingsUnsub: Unsubscribe | null = null;
+
+  public getCloudAuthUser(): CloudAuthUser | null {
+    if (!auth?.currentUser) return null;
+    return {
+      uid: auth.currentUser.uid,
+      email: auth.currentUser.email,
+    };
+  }
+
+  public subscribeCloudAuth(callback: (user: CloudAuthUser | null) => void): () => void {
+    if (!auth || typeof window === 'undefined') {
+      callback(null);
+      return () => {};
+    }
+    return onAuthStateChanged(auth, (user) => {
+      callback(user ? { uid: user.uid, email: user.email } : null);
+    });
+  }
+
+  public async signInCloudAdmin(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; message: string; user?: CloudAuthUser }> {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      return { success: false, message: 'ইমেইল এবং পাসওয়ার্ড উভয়ই লিখুন।' };
+    }
+    if (!auth) {
+      return { success: false, message: 'Firebase Auth এই পরিবেশে সক্রিয় নয়।' };
+    }
+    try {
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      if (typeof sessionStorage !== 'undefined') {
+        try {
+          sessionStorage.removeItem('sms_cloud_restore_checked');
+          sessionStorage.removeItem('sms_students_cloud_pull_done');
+        } catch {
+          // Ignore sessionStorage restrictions
+        }
+      }
+      const user: CloudAuthUser = {
+        uid: cred.user.uid,
+        email: cred.user.email,
+      };
+      return {
+        success: true,
+        message: 'Firebase ক্লাউড অ্যাকাউন্ট সফলভাবে সংযুক্ত হয়েছে।',
+        user,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: mapFirebaseAuthErrorMessage(err),
+      };
+    }
+  }
+
+  public async signOutCloudAdmin(): Promise<void> {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn('[FirebaseSync] Cloud signOut warning:', err);
+    }
+  }
 
   /**
    * Check current Cloud Firestore connectivity status
@@ -237,6 +342,15 @@ class FirebaseSyncService {
       };
     } catch (error: any) {
       console.warn('[FirebaseSync] Connection test failed:', error);
+      if (isPermissionDeniedError(error)) {
+        const uid = auth?.currentUser?.uid;
+        return {
+          success: false,
+          message: uid
+            ? `পারমিশন পাওয়া যায়নি (UID: ${uid}) — Firebase Console-এ firestore.rules আপডেট/পাবলিশ করা আছে কি না যাচাই করুন।`
+            : 'Missing or insufficient permissions — উপরে আপনার অ্যাডমিন Firebase Email ও Password দিয়ে সাইন-ইন করুন।'
+        };
+      }
       return {
         success: false,
         message: error?.message || 'ক্লাউড সংযোগ স্থাপন করা সম্ভব হয়নি।'
@@ -673,8 +787,12 @@ class FirebaseSyncService {
 
       if (cloudStudents.length > 0 && typeof window !== 'undefined') {
         localStorage.setItem('sms_students', JSON.stringify(cloudStudents));
-        // Trigger student listeners
-        studentService.getAllStudents();
+        if (typeof studentService.notifyExternalUpdate === 'function') {
+          studentService.notifyExternalUpdate();
+        } else {
+          studentService.invalidateCache?.();
+          studentService.getAllStudents();
+        }
       }
 
       // 6. Pull Certificates, Exam Setup, Exam Marks, Attendance & Online Applications
@@ -769,6 +887,11 @@ class FirebaseSyncService {
         }
 
         await this.pullExtendedModulesFromCloud(firestore);
+        if (typeof studentService.notifyExternalUpdate === 'function') {
+          studentService.notifyExternalUpdate();
+        } else {
+          window.dispatchEvent(new Event('storage'));
+        }
       }
 
       const now = new Date().toISOString();
@@ -1303,6 +1426,9 @@ class FirebaseSyncService {
         if (cloudStudents.length > 0) {
           localStorage.setItem('sms_students', JSON.stringify(cloudStudents));
           studentCount = cloudStudents.length;
+          if (typeof studentService.notifyExternalUpdate === 'function') {
+            studentService.notifyExternalUpdate();
+          }
         }
       } catch (e) {}
 

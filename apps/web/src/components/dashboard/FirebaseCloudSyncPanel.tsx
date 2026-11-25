@@ -14,15 +14,29 @@ import {
   Zap,
   HardDrive,
   Bell,
-  Send
+  Send,
+  KeyRound,
+  LogOut,
+  Lock
 } from 'lucide-react';
-import { firebaseSyncService, CloudSyncProgress, CloudSyncStatus } from '@/services/firebaseSyncService';
+import {
+  firebaseSyncService,
+  CloudSyncProgress,
+  CloudSyncStatus,
+  CloudAuthUser,
+} from '@/services/firebaseSyncService';
 import { studentService } from '@/services/studentService';
 import { pushNotificationService } from '@/services/pushNotificationService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
 export default function FirebaseCloudSyncPanel() {
   const [status, setStatus] = useState<CloudSyncStatus>(firebaseSyncService.getStatus());
+  const [cloudUser, setCloudUser] = useState<CloudAuthUser | null>(firebaseSyncService.getCloudAuthUser());
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState<{ success: boolean; message: string } | null>(null);
+
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   
@@ -41,13 +55,70 @@ export default function FirebaseCloudSyncPanel() {
   useEffect(() => {
     setLocalStudentCount(studentService.getAllStudents().length);
     setStatus(firebaseSyncService.getStatus());
+    const unsubAuth = firebaseSyncService.subscribeCloudAuth((user) => {
+      setCloudUser(user);
+    });
+    const unsubStudents = studentService.subscribe(() => {
+      setLocalStudentCount(studentService.getAllStudents().length);
+    });
     if (typeof window !== 'undefined') {
       const token = pushNotificationService.getCurrentToken();
       if (token) {
         setPushStatus({ active: true, message: 'এই ডিভাইসে পুশ নোটিফিকেশন সক্রিয় আছে।' });
       }
     }
+    return () => {
+      unsubAuth();
+      unsubStudents();
+    };
   }, []);
+
+  const handleCloudSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signingIn) return;
+    setSigningIn(true);
+    setAuthFeedback(null);
+    setTestResult(null);
+    try {
+      const res = await firebaseSyncService.signInCloudAdmin(authEmail, authPassword);
+      setAuthFeedback({ success: res.success, message: res.message });
+      if (res.success) {
+        setAuthPassword('');
+        showToast(res.message, 'success');
+        const conn = await firebaseSyncService.testConnection();
+        setTestResult(conn);
+        if (conn.success && studentService.getAllStudents().length === 0) {
+          setIsPulling(true);
+          try {
+            const pullRes = await firebaseSyncService.pullAllFromCloud((p) => setPullProgress(p));
+            setLocalStudentCount(pullRes.studentCount);
+            setStatus(firebaseSyncService.getStatus());
+            if (pullRes.studentCount > 0) {
+              showToast(pullRes.message, 'success');
+            }
+          } catch (pullErr: any) {
+            setTestResult({
+              success: false,
+              message: pullErr?.message || 'ডাটা সিঙ্ক করা যায়নি।',
+            });
+          } finally {
+            setIsPulling(false);
+          }
+        }
+      } else {
+        showToast(res.message, 'error');
+      }
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleCloudSignOut = async () => {
+    await firebaseSyncService.signOutCloudAdmin();
+    setAuthFeedback(null);
+    setTestResult(null);
+    showToast('Firebase ক্লাউড অ্যাকাউন্ট থেকে সাইন-আউট করা হয়েছে।', 'info');
+  };
 
   const handleSubscribePush = async () => {
     setPushSubscribing(true);
@@ -99,12 +170,16 @@ export default function FirebaseCloudSyncPanel() {
     });
 
     try {
-      await firebaseSyncService.uploadAllToCloud((p) => {
+      const res = await firebaseSyncService.uploadAllToCloud((p) => {
         setUploadProgress(p);
       });
       setStatus(firebaseSyncService.getStatus());
+      showToast(res.message, 'success');
     } catch (err: any) {
       console.warn('[FirebaseCloudSyncPanel] Upload warning:', err);
+      const errMsg = err?.message || 'ক্লাউডে ডাটা আপলোড করতে ব্যর্থ হয়েছে।';
+      setTestResult({ success: false, message: errMsg });
+      showToast(errMsg, 'error');
     } finally {
       setIsUploading(false);
     }
@@ -133,10 +208,15 @@ export default function FirebaseCloudSyncPanel() {
       const res = await firebaseSyncService.pullAllFromCloud((p) => {
         setPullProgress(p);
       });
-      setLocalStudentCount(res.studentCount);
+      setLocalStudentCount(studentService.getAllStudents().length || res.studentCount);
       setStatus(firebaseSyncService.getStatus());
+      setTestResult({ success: true, message: res.message });
+      showToast(res.message, 'success');
     } catch (err: any) {
       console.warn('[FirebaseCloudSyncPanel] Pull warning:', err);
+      const errMsg = err?.message || 'ক্লাউড থেকে ডাটা নামাতে ব্যর্থ হয়েছে।';
+      setTestResult({ success: false, message: errMsg });
+      showToast(errMsg, 'error');
     } finally {
       setIsPulling(false);
     }
@@ -189,6 +269,97 @@ export default function FirebaseCloudSyncPanel() {
           <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin text-sky-600' : ''}`} />
           <span>{testingConnection ? 'সংযোগ পরীক্ষা হচ্ছে...' : 'সংযোগ পরীক্ষা করুন'}</span>
         </button>
+      </div>
+
+      {/* Firebase Cloud Authentication Box */}
+      <div className={`p-4 rounded-2xl border ${
+        cloudUser
+          ? 'bg-emerald-50/70 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/70'
+          : 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60'
+      }`}>
+        {cloudUser ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-extrabold text-emerald-900 dark:text-emerald-200 truncate">
+                  Firebase ক্লাউড অ্যাকাউন্ট সংযুক্ত: {cloudUser.email || 'Admin User'}
+                </p>
+                <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 truncate">
+                  UID: {cloudUser.uid}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCloudSignOut}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer self-start sm:self-auto"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>সাইন-আউট</span>
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleCloudSignIn} className="space-y-3">
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <Lock className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                  Firebase ক্লাউড সাইন-ইন (পারমিশনের জন্য প্রয়োজনীয়)
+                </h4>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  শিক্ষার্থী ও ক্লাউড ডাটা সিঙ্ক করতে আপনার Firebase Authentication-এর অ্যাডমিন Email ও Password দিয়ে একবার সাইন-ইন করুন।
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="অ্যাডমিন Email (Firebase Auth)"
+                required
+                className="sm:col-span-5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Firebase Password"
+                required
+                className="sm:col-span-4 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+              <button
+                type="submit"
+                disabled={signingIn}
+                className="sm:col-span-3 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500 text-white text-xs font-black flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+              >
+                {signingIn ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>যাচাই হচ্ছে...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>ক্লাউড সাইন-ইন</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {authFeedback && !authFeedback.success && (
+              <p className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                {authFeedback.message}
+              </p>
+            )}
+          </form>
+        )}
       </div>
 
       {/* Test Result Toast */}

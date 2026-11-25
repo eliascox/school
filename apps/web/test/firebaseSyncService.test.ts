@@ -180,4 +180,26 @@ describe('firebaseSyncService Unit Tests', () => {
       isStipend: true,
     })).resolves.not.toThrow();
   });
+
+  it('refreshes student cache and notifies listeners on notifyExternalUpdate and exposes safe auth helpers', async () => {
+    let notified = 0;
+    const unsub = studentService.subscribe(() => {
+      notified++;
+    });
+
+    localStorage.setItem('sms_students', JSON.stringify([{ id: 'STD-CLOUD-1', name: 'Cloud Student', grade: '8th', roll: '05' }]));
+    studentService.notifyExternalUpdate();
+    unsub();
+
+    expect(notified).toBe(1);
+    expect(studentService.getAllStudents().map((s) => s.id)).toContain('STD-CLOUD-1');
+
+    expect(firebaseSyncService.getCloudAuthUser()).toBeNull();
+    const unsubAuth = firebaseSyncService.subscribeCloudAuth(() => {});
+    expect(typeof unsubAuth).toBe('function');
+    unsubAuth();
+
+    const emptySignIn = await firebaseSyncService.signInCloudAdmin('', '');
+    expect(emptySignIn.success).toBe(false);
+  });
 });

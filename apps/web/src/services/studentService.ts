@@ -118,6 +118,20 @@ export const studentService = {
   // Explicitly invalidate in-memory cache (useful for tests/external mutations)
   invalidateCache: invalidateStudentCache,
 
+  // Notify subscribers and refresh cache when external sync (e.g. Firebase pull) writes sms_students
+  notifyExternalUpdate: (): void => {
+    invalidateStudentCache();
+    studentService.getAllStudents();
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch {
+        // Ignore storage event dispatch errors
+      }
+    }
+    listeners.forEach((fn) => fn());
+  },
+
   // Get all active students from Central Storage (cached by raw localStorage string fingerprint)
   getAllStudents: (): Student[] => {
     if (typeof window === 'undefined') return [];

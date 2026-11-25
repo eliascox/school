@@ -9,26 +9,31 @@ rules_version = '2';
 // =============================================================================
 //
 // Authority & Authentication Model:
-//   - Identity relies strictly on Firebase Authentication + Verified Custom Claims:
+//   - Identity relies strictly on Firebase Authentication + Verified Custom Claims
+//     or the designated Firebase Console Email/Password Admin UID:
+//     * request.auth.uid == 'sXHTp7LN7We9PxBaeCPPhcTpoXo1' -> Designated Console Admin
+//       (recognized via isSignedIn() before email_verified enforcement)
 //     * request.auth.token.role == 'admin'   -> Full administrative authority
 //     * request.auth.token.role == 'teacher' -> Staff/teacher authority
 //     * request.auth.token.teacherId         -> Teacher document/leave binding
-//   - If an email claim is present in the ID token, email_verified == true is enforced.
+//   - If an email claim is present in the ID token, email_verified == true is enforced
+//     by isAuthenticated() for all custom-claim accounts.
 //   - NEVER derive privilege from user-writable Firestore documents.
 //
 // Collection: settings/{docId}
 //   Document ID: 'general' (public metadata), other docIds (admin-only)
 //   Fields:
-//     - schoolName: string (optional, <= 200)
+//     - schoolName, schoolNameEn: string (optional, <= 200)
 //     - schoolLogo, schoolPhoto, customBorderPng, uploadedPadTemplateUrl: media/path string (optional, <= 700000)
-//     - address: string (optional, <= 400), eiin: string (optional, <= 30), estdYear: string (optional, <= 20)
+//     - address, addressEn: string (optional, <= 400), eiin: string (optional, <= 30), estdYear: string (optional, <= 20)
 //     - principalName, principalTitle, classTeacherTitle, guardianTitle, watermarkText, padRefPrefix: string (optional, <= 200)
 //     - phone, email, website, selectedBorderId, uploadedPadFileName: string (optional, <= 300)
 //     - uploadedPadType: 'image' | 'pdf' (optional), activePadMode: 'uploaded' | 'preprinted' (optional)
+//     - uploadedPadUpdatedAt: number (0..9999999999999) | string (0..64) (optional)
 //     - language: 'bn' | 'en' (optional), theme: 'light' | 'dark' (optional)
 //     - showWatermark, showClassSelection, showSectionSelection, showRollInput, onlineAdmissionEnabled: bool (optional)
 //     - watermarkOpacity, uploadedPadFileSize, padFontSize, padLineHeight, padSignatureGap: number (optional, >= 0)
-//     - customBorders: list (optional, <= 20), committeeMembers: list (optional, <= 100), padMargins: map (optional, <= 4 keys)
+//     - customBorders: list (optional, <= 20), committeeMembers: list (optional, <= 100), padMargins: map (optional, <= 4 keys), padHeaderFields: map (optional, <= 20 keys)
 //     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
 //
 // Collection: landing_page/{docId}
@@ -62,7 +67,7 @@ rules_version = '2';
 //     - schoolId: string (optional, <= 64), updatedAt: timestamp (optional), createdAt: timestamp (optional, immutable)
 //
 // Collection: academic_data/{docId}
-//   Document ID: 'exam_setup' | 'curriculum_subjects' | 'session_setup' | 'class_routines'
+//   Document ID: 'exam_setup' | 'curriculum_subjects' | 'session_setup' | 'class_routines' | 'omr_store'
 //   Fields: doc-specific bounded lists/maps + schoolId, updatedAt, createdAt (immutable)
 //
 // Collection: teachers/{teacherId}
@@ -80,7 +85,7 @@ rules_version = '2';
 //   Document ID: string (e.g. STD-...)
 //   Fields:
 //     - id: string (required, immutable, 1..120), name: string (required, 1..120), grade: string (required, 1..30), roll: string (required, 1..30)
-//     - nameEn, section, branch, group, optionalSubject, guardian, fatherName, motherName, session, dob, gender, religion, bloodGroup,
+//     - nameEn, section, branch, group, optionalSubject, guardian, fatherName, fatherNameEn, motherName, motherNameEn, session, studyStartYear, studyEndYear, dob, gender, religion, bloodGroup,
 //       fatherNid, motherNid, mobile, birthRegNo, registrationNo, sscRoll, prevRoll, gpa, fatherOcc, motherOcc, prevSchoolName,
 //       prevGpa, appId, appliedAt, status, stipendCategory, stipendStartMonth, stipendMonth: string (optional, <= 200)
 //     - currentAddress, permanentAddress, remarks: string (optional, <= 400)
@@ -173,10 +178,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-             ('role' in request.auth.token) &&
-             request.auth.token.role is string &&
-             request.auth.token.role == 'admin';
+      return (isSignedIn() && request.auth.uid == 'sXHTp7LN7We9PxBaeCPPhcTpoXo1') ||
+             (isAuthenticated() &&
+              ('role' in request.auth.token) &&
+              request.auth.token.role is string &&
+              request.auth.token.role == 'admin');
     }
 
     function isTeacher() {
@@ -329,19 +335,21 @@ service cloud.firestore {
 
     function isValidSchoolSettings(data) {
       let allowed = [
-        'schoolName', 'schoolLogo', 'schoolPhoto', 'customBorderPng', 'customBorders',
-        'selectedBorderId', 'address', 'eiin', 'estdYear', 'principalName',
+        'schoolName', 'schoolNameEn', 'schoolLogo', 'schoolPhoto', 'customBorderPng', 'customBorders',
+        'selectedBorderId', 'address', 'addressEn', 'eiin', 'estdYear', 'principalName',
         'principalTitle', 'classTeacherTitle', 'guardianTitle', 'showWatermark',
         'watermarkText', 'watermarkOpacity', 'phone', 'email', 'website',
         'showClassSelection', 'showSectionSelection', 'showRollInput', 'language',
         'theme', 'onlineAdmissionEnabled', 'uploadedPadTemplateUrl', 'uploadedPadType',
-        'uploadedPadFileName', 'uploadedPadFileSize', 'activePadMode', 'padMargins',
+        'uploadedPadFileName', 'uploadedPadFileSize', 'uploadedPadUpdatedAt',
+        'activePadMode', 'padMargins', 'padHeaderFields',
         'padFontSize', 'padLineHeight', 'padSignatureGap', 'padRefPrefix',
         'committeeMembers', 'updatedAt', 'createdAt', 'schoolId'
       ];
       return data.keys().hasOnly(allowed) &&
-             data.keys().size() <= 45 &&
+             data.keys().size() <= 48 &&
              isOptStr(data, 'schoolName', 0, 200) &&
+             isOptStr(data, 'schoolNameEn', 0, 200) &&
              (!('schoolLogo' in data) || isValidMediaOrPath(data.schoolLogo, 700000)) &&
              (!('schoolPhoto' in data) || isValidMediaOrPath(data.schoolPhoto, 700000)) &&
              (!('customBorderPng' in data) || isValidMediaOrPath(data.customBorderPng, 700000)) &&
@@ -349,6 +357,7 @@ service cloud.firestore {
              isOptList(data, 'customBorders', 20) &&
              isOptStr(data, 'selectedBorderId', 0, 100) &&
              isOptStr(data, 'address', 0, 400) &&
+             isOptStr(data, 'addressEn', 0, 400) &&
              isOptStr(data, 'eiin', 0, 30) &&
              isOptStr(data, 'estdYear', 0, 20) &&
              isOptStr(data, 'principalName', 0, 120) &&
@@ -370,8 +379,12 @@ service cloud.firestore {
              (!('uploadedPadType' in data) || data.uploadedPadType in ['image', 'pdf']) &&
              isOptStr(data, 'uploadedPadFileName', 0, 200) &&
              isOptNum(data, 'uploadedPadFileSize', 0, 20000000) &&
+             (!('uploadedPadUpdatedAt' in data) ||
+              (data.uploadedPadUpdatedAt is number && data.uploadedPadUpdatedAt >= 0 && data.uploadedPadUpdatedAt <= 9999999999999) ||
+              isStr(data.uploadedPadUpdatedAt, 0, 64)) &&
              (!('activePadMode' in data) || data.activePadMode in ['uploaded', 'preprinted']) &&
              isOptMap(data, 'padMargins', 4) &&
+             isOptMap(data, 'padHeaderFields', 20) &&
              isOptNum(data, 'padFontSize', 6, 48) &&
              isOptNum(data, 'padLineHeight', 0.5, 5) &&
              isOptNum(data, 'padSignatureGap', 0, 20) &&
@@ -490,7 +503,12 @@ service cloud.firestore {
                isOptList(data, 'routines', 1000) &&
                isOptList(data, 'slots', 1000) &&
                isOptList(data, 'periods', 50) &&
-               (('routines' in data) || ('slots' in data) || ('periods' in data))));
+               (('routines' in data) || ('slots' in data) || ('periods' in data))) ||
+              (docId == 'omr_store' &&
+               data.keys().hasOnly(['sessions', 'scans', 'updatedAt', 'createdAt', 'schoolId']) &&
+               isOptList(data, 'sessions', 200) &&
+               isOptList(data, 'scans', 700) &&
+               (('sessions' in data) || ('scans' in data))));
     }
 
     function isValidTeacher(data) {
@@ -528,8 +546,9 @@ service cloud.firestore {
     function isValidStudent(data) {
       let allowed = [
         'id', 'name', 'nameEn', 'roll', 'grade', 'gradeBn', 'section', 'branch',
-        'group', 'optionalSubject', 'guardian', 'fatherName', 'fatherNid',
-        'fatherOcc', 'motherName', 'motherNid', 'motherOcc', 'session',
+        'group', 'optionalSubject', 'guardian', 'fatherName', 'fatherNameEn', 'fatherNid',
+        'fatherOcc', 'motherName', 'motherNameEn', 'motherNid', 'motherOcc',
+        'session', 'studyStartYear', 'studyEndYear',
         'mobile', 'attendance', 'gpa', 'birthRegNo', 'registrationNo',
         'sscRoll', 'prevRoll', 'dob', 'gender', 'religion', 'bloodGroup',
         'currentAddress', 'permanentAddress', 'photo', 'remarks', 'isStipend',
@@ -538,7 +557,7 @@ service cloud.firestore {
         'status', 'version', 'updatedAt', 'createdAt', 'schoolId'
       ];
       return data.keys().hasOnly(allowed) &&
-             data.keys().size() <= 48 &&
+             data.keys().size() <= 54 &&
              data.keys().hasAll(['id', 'name', 'grade', 'roll']) &&
              isStr(data.id, 1, 120) &&
              isStr(data.name, 1, 120) &&
@@ -552,12 +571,16 @@ service cloud.firestore {
              isOptStr(data, 'optionalSubject', 0, 120) &&
              isOptStr(data, 'guardian', 0, 120) &&
              isOptStr(data, 'fatherName', 0, 120) &&
+             isOptStr(data, 'fatherNameEn', 0, 200) &&
              isOptStr(data, 'fatherNid', 0, 40) &&
              isOptStr(data, 'fatherOcc', 0, 100) &&
              isOptStr(data, 'motherName', 0, 120) &&
+             isOptStr(data, 'motherNameEn', 0, 200) &&
              isOptStr(data, 'motherNid', 0, 40) &&
              isOptStr(data, 'motherOcc', 0, 100) &&
              isOptStr(data, 'session', 0, 40) &&
+             isOptStr(data, 'studyStartYear', 0, 200) &&
+             isOptStr(data, 'studyEndYear', 0, 200) &&
              isOptStr(data, 'mobile', 0, 40) &&
              isOptNum(data, 'attendance', 0, 500) &&
              isOptStr(data, 'gpa', 0, 20) &&
@@ -1665,7 +1688,7 @@ service cloud.firestore {
     // 14. FCM Push Notification Device Tokens (discovered in pushNotificationService.ts)
     match /fcm_tokens/{tokenId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated() &&
+      allow create: if (isAuthenticated() || isAdmin()) &&
                        isValidFcmToken(request.resource.data) &&
                        uidUnchanged() &&
                        (request.resource.data.role == 'guardian' ||
