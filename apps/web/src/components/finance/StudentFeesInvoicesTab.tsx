@@ -23,7 +23,9 @@ export function StudentFeesInvoicesTab({
   const [invoiceMonthFilter, setInvoiceMonthFilter] = useState<string>('all');
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [invoiceSearch, setInvoiceSearch] = useState<string>('');
-  const [generateInvoiceMonth, setGenerateInvoiceMonth] = useState<string>('সেপ্টেম্বর');
+  const [generateInvoiceMonth, setGenerateInvoiceMonth] = useState<string>(
+    () => BANGLA_MONTHS[new Date().getMonth()] || 'জানুয়ারি'
+  );
   const [generateInvoiceGrade, setGenerateInvoiceGrade] = useState<string>('all');
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<FeeInvoice | null>(null);
   const [invoicePayAmount, setInvoicePayAmount] = useState<number | string>('');

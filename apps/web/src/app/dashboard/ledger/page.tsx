@@ -7,9 +7,6 @@ import {
   TrendingUp,
   TrendingDown,
   Scale,
-  Calendar,
-  Filter,
-  Download,
   Printer,
   Edit,
   Trash2,
@@ -19,9 +16,11 @@ import {
   GraduationCap,
   PieChart,
   ListFilter,
-  DollarSign
+  RefreshCw,
 } from 'lucide-react';
 import { ledgerService, LedgerRecord, LedgerFilterOptions } from '@/services/ledgerService';
+import { financeService } from '@/services/financeService';
+import { FinanceSlimHeader } from '@/components/finance/financeShared';
 import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import { SystemPurgeReport } from '@/services/systemResetService';
 import { settingsService } from '@/services/settingsService';
@@ -79,15 +78,34 @@ export default function LedgerDashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    try {
+      financeService.syncFinanceVouchersToLedger();
+    } catch {
+      // Ignore sync error on initial mount
+    }
     refreshData();
+    const unsubFinance = financeService.subscribe(() => {
+      refreshData();
+    });
     const handleStorageChange = () => {
       refreshData();
     };
     window.addEventListener('storage', handleStorageChange);
     return () => {
+      unsubFinance();
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [refreshData]);
+
+  const handleSyncFromFinance = () => {
+    const { syncedCount } = financeService.syncFinanceVouchersToLedger();
+    refreshData();
+    if (syncedCount > 0) {
+      showToast(`আয়-ব্যয় মডিউল থেকে নতুন ${syncedCount}টি ভাউচার খতিয়ানে সিংক করা হয়েছে।`, 'success');
+    } else {
+      showToast('সকল ফি, ব্যয়, পে-রোল ও রিফান্ড ভাউচার ইতিমধ্যেই খতিয়ানের সাথে সিংক করা আছে।', 'info');
+    }
+  };
 
   // Calculate Summary
   const summary = useMemo(() => {
@@ -163,21 +181,34 @@ export default function LedgerDashboardPage() {
     }
 
     if (editingRecord) {
-      ledgerService.updateRecord(editingRecord.id, {
+      const ok = ledgerService.updateRecord(editingRecord.id, {
         type: formType,
         category: formCategory,
         grade: formGrade,
         studentName: formStudentName,
         studentRoll: formStudentRoll,
         amount: amountNum,
-        voucherNo: formVoucherNo,
+        voucherNo: formVoucherNo || editingRecord.voucherNo,
         date: formDate,
         paymentMethod: formPaymentMethod,
         description: formDescription
       });
-      setAlertMessage('লেজার এন্ট্রি সফলভাবে আপডেট করা হয়েছে!');
+      if (ok && (!editingRecord.sourceModule || editingRecord.sourceModule === 'manual_voucher')) {
+        financeService.postManualLedgerEntryJournal({
+          id: editingRecord.id,
+          type: formType,
+          category: formCategory,
+          amount: amountNum,
+          voucherNo: formVoucherNo || editingRecord.voucherNo,
+          date: formDate,
+          paymentMethod: formPaymentMethod,
+          description: formDescription,
+          createdByName: editingRecord.createdByName || 'অ্যাডমিন/ক্যাশিয়ার',
+        });
+      }
+      setAlertMessage('লেজার এন্ট্রি সফলভাবে আপডেট এবং হিসাববইয়ে সিংক করা হয়েছে!');
     } else {
-      ledgerService.addRecord({
+      const added = ledgerService.addRecord({
         type: formType,
         category: formCategory,
         grade: formGrade,
@@ -188,9 +219,11 @@ export default function LedgerDashboardPage() {
         date: formDate,
         paymentMethod: formPaymentMethod,
         description: formDescription,
-        createdByName: 'অ্যাডমিন/ক্যাশিয়ার'
+        createdByName: 'অ্যাডমিন/ক্যাশিয়ার',
+        sourceModule: 'manual_voucher',
       });
-      setAlertMessage('নতুন লেজার রেকর্ড সফলভাবে সংরক্ষণ করা হয়েছে!');
+      financeService.postManualLedgerEntryJournal(added);
+      setAlertMessage('নতুন লেজার রেকর্ড ও ডাবল-এন্ট্রি ভাউচার সফলভাবে সংরক্ষণ করা হয়েছে!');
     }
 
     setIsModalOpen(false);
@@ -201,7 +234,11 @@ export default function LedgerDashboardPage() {
   // Delete Record
   const handleDeleteRecord = async (id: string) => {
     if (await confirmDialog({ title: 'লেজার এন্ট্রি মুছে ফেলা', message: 'আপনি কি নিশ্চিত যে এই লেজার এন্ট্রিটি মুছে ফেলতে চান?', confirmLabel: 'মুছে ফেলুন', danger: true })) {
+      const target = records.find((r) => r.id === id);
       ledgerService.deleteRecord(id);
+      if (!target?.sourceModule || target.sourceModule === 'manual_voucher') {
+        financeService.deleteManualLedgerVoucher(id, target?.voucherNo);
+      }
       setAlertMessage('লেজার এন্ট্রি সফলভাবে মুছে ফেলা হয়েছে!');
       refreshData();
       setTimeout(() => setAlertMessage(''), 5000);
@@ -248,49 +285,49 @@ export default function LedgerDashboardPage() {
         }
       `}</style>
 
-      {/* HERO BANNER & HEADER */}
-      <div className="relative overflow-hidden bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 print:hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg">
-              <BookOpen size={24} />
+      {/* SLIM INDEPENDENT WORKSPACE HEADER */}
+      <div className="print:hidden">
+        <FinanceSlimHeader
+          title="খতিয়ান ও লেজার বই (General Ledger)"
+          subtitle="শিক্ষার্থী ফি, ব্যয়, পে-রোল ও ম্যানুয়াল এন্ট্রির স্বয়ংক্রিয় দ্বিমুখী সমন্বিত খতিয়ান"
+          icon={<BookOpen size={20} />}
+          iconBg="bg-indigo-600"
+          iconColor="text-white"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSyncFromFinance}
+                className="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800 cursor-pointer transition"
+                title="আয়-ব্যয় মডিউলের সকল ভাউচার খতিয়ানে সিংক করুন"
+              >
+                <RefreshCw size={14} /> ফাইন্যান্স সিংক
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenAddModal('Income')}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+              >
+                <PlusCircle size={14} /> আয় যোগ করুন
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenAddModal('Expense')}
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+              >
+                <PlusCircle size={14} /> ব্যয় যোগ করুন
+              </button>
+              <button
+                type="button"
+                onClick={handleResetLedger}
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer transition"
+                title="সকল ডেমো ডাটা মুছে লেজার সম্পূর্ণ খালি (৳০) করুন"
+              >
+                <Trash2 size={14} /> ডেমো মুছুন
+              </button>
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
-                শ্রেণিভিত্তিক আয় ও সকল ব্যয় পাশাপাশি ল্যান্ডস্কেপ খতিয়ান (Side-by-Side Landscape Ledger)
-              </h1>
-              <p className="text-xs text-slate-400 font-medium">
-                শ্রেণিভিত্তিক আয়ের সংক্ষেপ এবং দফাওয়ারী ব্যয়ের পাশাপাশি ল্যান্ডস্কেপ অফিশিয়াল খতিয়ান রিপোর্ট।
-              </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleResetLedger}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 shadow cursor-pointer transition"
-              title="সকল ডেমো ডাটা মুছে লেজার সম্পূর্ণ খালি (৳০) করুন"
-            >
-              <Trash2 size={15} className="text-rose-400" /> ডেমো মুছুন
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenAddModal('Income')}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer transition"
-            >
-              <PlusCircle size={15} /> আয় যোগ করুন
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenAddModal('Expense')}
-              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer transition"
-            >
-              <PlusCircle size={15} /> ব্যয় যোগ করুন
-            </button>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* ALERT MESSAGE */}
@@ -304,46 +341,50 @@ export default function LedgerDashboardPage() {
       {/* SUMMARY KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
         {/* Total Income */}
-        <div className="bg-emerald-900 text-white p-5 rounded-3xl shadow-md border border-emerald-800 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-emerald-300 uppercase block tracking-wider mb-1">
-              • শ্রেণিভিত্তিক সংগৃহীত মোট আয়
+            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase block tracking-wider mb-1">
+              মোট সংগৃহীত আয় (Income)
             </span>
-            <strong className="text-2xl font-black font-mono">৳{summary.totalIncome.toLocaleString('bn-BD')}</strong>
-            <span className="text-[11px] text-emerald-200 block mt-1">৬ষ্ঠ থেকে ১০ম শ্রেণির মোট জমা</span>
+            <strong className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+              ৳{summary.totalIncome.toLocaleString('bn-BD')}
+            </strong>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-1">৬ষ্ঠ থেকে ১০ম শ্রেণি ও অন্যান্য আয়</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-800/80 text-emerald-300 flex items-center justify-center font-bold">
-            <TrendingUp size={24} />
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
+            <TrendingUp size={22} />
           </div>
         </div>
 
         {/* Total Expense */}
-        <div className="bg-rose-950 text-white p-5 rounded-3xl shadow-md border border-rose-900 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-rose-300 uppercase block tracking-wider mb-1">
-              • দফাওয়ারী সর্বমোট ব্যয় (Total Expenses)
+            <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase block tracking-wider mb-1">
+              সর্বমোট প্রাতিষ্ঠানিক ব্যয় (Expense)
             </span>
-            <strong className="text-2xl font-black font-mono">৳{summary.totalExpense.toLocaleString('bn-BD')}</strong>
-            <span className="text-[11px] text-rose-200 block mt-1">বেতন, ইউটিলিটি ও দফাওয়ারি খরচ</span>
+            <strong className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+              ৳{summary.totalExpense.toLocaleString('bn-BD')}
+            </strong>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-1">বেতন, রিফান্ড, ইউটিলিটি ও অন্যান্য খরচ</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-900/80 text-rose-300 flex items-center justify-center font-bold">
-            <TrendingDown size={24} />
+          <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shrink-0">
+            <TrendingDown size={22} />
           </div>
         </div>
 
         {/* Net Balance */}
-        <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-md border border-slate-800 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-indigo-300 uppercase block tracking-wider mb-1">
-              • নিট উদ্বৃত্ত (Net Surplus Balance)
+            <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 uppercase block tracking-wider mb-1">
+              নিট উদ্বৃত্ত / স্থিতি (Net Balance)
             </span>
-            <strong className={`text-2xl font-black font-mono ${summary.netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <strong className={`text-2xl font-black font-mono ${summary.netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
               ৳{summary.netBalance.toLocaleString('bn-BD')}
             </strong>
-            <span className="text-[11px] text-slate-400 block mt-1">মোট আয় - মোট ব্যয়</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-1">মোট আয় − মোট ব্যয় ({records.length}টি এন্ট্রি)</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-slate-800 text-indigo-400 flex items-center justify-center font-bold">
-            <Scale size={24} />
+          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0">
+            <Scale size={22} />
           </div>
         </div>
       </div>
@@ -634,10 +675,10 @@ export default function LedgerDashboardPage() {
         /* ══════════════════════════════════════════════════════════ */
         /* VIEW MODE 2: বিস্তারিত লেনদেন মাস্টার (MASTER LEDGER TABLE) */
         /* ══════════════════════════════════════════════════════════ */
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between print:hidden">
-            <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
-              <BookOpen size={16} className="text-indigo-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden">
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+              <BookOpen size={16} className="text-indigo-600 dark:text-indigo-400" />
               বিস্তারিত খতিয়ান লেনদেন তালিকা ({records.length} টি রেকর্ড)
             </h3>
           </div>
@@ -645,7 +686,7 @@ export default function LedgerDashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-900 text-white font-bold text-[11px] border-b border-slate-800">
+                <tr className="bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 font-bold text-[11px] border-b border-slate-200 dark:border-slate-700">
                   <th className="p-3 text-center w-24">তারিখ</th>
                   <th className="p-3 text-center w-28">ভাউচার/রশিদ</th>
                   <th className="p-3 text-center w-24">ধরন</th>
@@ -657,33 +698,33 @@ export default function LedgerDashboardPage() {
                   <th className="p-3 text-center w-24 print:hidden">অ্যাকশন</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {records.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-500 italic">
+                    <td colSpan={9} className="p-8 text-center text-slate-500 dark:text-slate-400 italic">
                       কোনো লেজার খতিয়ান রেকর্ড পাওয়া যায়নি।
                     </td>
                   </tr>
                 ) : (
                   records.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/80 transition">
-                      <td className="p-3 text-center font-mono text-[11px] font-bold text-slate-700">{r.date}</td>
-                      <td className="p-3 text-center font-mono font-bold text-slate-800">{r.voucherNo}</td>
+                    <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition">
+                      <td className="p-3 text-center font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">{r.date}</td>
+                      <td className="p-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{r.voucherNo}</td>
                       <td className="p-3 text-center">
                         {r.type === 'Income' ? (
-                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-lg uppercase inline-flex items-center gap-1">
+                          <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-black rounded-lg uppercase inline-flex items-center gap-1">
                             ▲ আয়
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 bg-rose-100 text-rose-800 text-[10px] font-black rounded-lg uppercase inline-flex items-center gap-1">
+                          <span className="px-2.5 py-1 bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-black rounded-lg uppercase inline-flex items-center gap-1">
                             ▼ ব্যয়
                           </span>
                         )}
                       </td>
-                      <td className="p-3 font-bold text-slate-900">{r.category}</td>
-                      <td className="p-3 text-center font-bold text-slate-700">
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">{r.category}</td>
+                      <td className="p-3 text-center font-bold text-slate-700 dark:text-slate-300">
                         {r.grade && r.grade !== 'all' ? (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md font-mono">
+                          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-mono">
                             {r.grade}
                           </span>
                         ) : (
@@ -693,15 +734,15 @@ export default function LedgerDashboardPage() {
                       <td className="p-3">
                         {r.studentName ? (
                           <div>
-                            <strong className="text-slate-900 block">{r.studentName}</strong>
-                            <span className="text-[10px] text-slate-500 font-mono">রোল: #{r.studentRoll} • {r.description}</span>
+                            <strong className="text-slate-900 dark:text-white block">{r.studentName}</strong>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">রোল: #{r.studentRoll} • {r.description}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-700">{r.description}</span>
+                          <span className="text-slate-700 dark:text-slate-300">{r.description}</span>
                         )}
                       </td>
-                      <td className="p-3 text-center font-mono text-[11px] text-slate-600">{r.paymentMethod}</td>
-                      <td className={`p-3 text-right font-mono font-black text-sm ${r.type === 'Income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      <td className="p-3 text-center font-mono text-[11px] text-slate-600 dark:text-slate-400">{r.paymentMethod}</td>
+                      <td className={`p-3 text-right font-mono font-black text-sm ${r.type === 'Income' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                         ৳{r.amount.toLocaleString('bn-BD')}
                       </td>
                       <td className="p-3 text-center print:hidden">
@@ -710,7 +751,7 @@ export default function LedgerDashboardPage() {
                             type="button"
                             onClick={() => handleOpenEditModal(r)}
                             title="সম্পাদনা / আপডেট করুন"
-                            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition cursor-pointer"
                           >
                             <Edit size={14} />
                           </button>
@@ -718,7 +759,7 @@ export default function LedgerDashboardPage() {
                             type="button"
                             onClick={() => handleDeleteRecord(r.id)}
                             title="মুছে ফেলুন"
-                            className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
                           >
                             <Trash2 size={14} />
                           </button>

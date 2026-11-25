@@ -34,7 +34,6 @@ import { classSectionService } from '@/services/classSectionService';
 import { leaveService, LeaveApplication, LEAVE_TYPE_LABELS } from '@/services/leaveService';
 import { noticeService, Notice } from '@/services/noticeService';
 import { financeService, FeeCollectionStats } from '@/services/financeService';
-import { firebaseSyncService } from '@/services/firebaseSyncService';
 import { examService, ExamItem } from '@/services/examService';
 import { attendanceService } from '@/services/attendanceService';
 import { alumniService } from '@/services/alumniService';
@@ -45,11 +44,7 @@ import { teacherAuthService } from '@/services/teacherAuthService';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
 import { getUniversalStudentMark } from '@/lib/markStorageUtils';
 import { calculateGradeAndPoint } from '@/services/resultService';
-import {
-  downloadBANBEISWorkbook,
-  downloadEMISWorkbook,
-  downloadStipendBoardWorkbook,
-} from '@/lib/boardExcelExport';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import { showToast } from '@/components/ui/ToastProvider';
 
 import AttendanceTrendChart from '@/components/dashboard/AttendanceTrendChart';
@@ -200,18 +195,29 @@ function UnifiedDashboardContent() {
   const [activeLoansCount, setActiveLoansCount] = useState(0);
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'analytics' || tabParam === 'exports' || tabParam === 'overview') {
-      setActiveTab(tabParam);
-    }
+    const syncTabFromUrl = () => {
+      const tabParam =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('tab')
+          : searchParams.get('tab');
+      if (tabParam === 'analytics' || tabParam === 'exports' || tabParam === 'overview') {
+        setActiveTab(tabParam);
+      } else if (!tabParam) {
+        setActiveTab('overview');
+      }
+    };
+    syncTabFromUrl();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncTabFromUrl);
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncTabFromUrl);
+      window.removeEventListener('popstate', syncTabFromUrl);
+    };
   }, [searchParams]);
 
   const switchTab = (next: DashboardTab) => {
     setActiveTab(next);
-    if (typeof window !== 'undefined') {
-      const url = next === 'overview' ? '/dashboard' : `/dashboard?tab=${next}`;
-      window.history.replaceState(null, '', url);
-    }
+    syncUrlQueryParams('/dashboard', { tab: next === 'overview' ? null : next });
   };
 
   const loadDashboardData = useCallback(() => {
@@ -301,6 +307,7 @@ function UnifiedDashboardContent() {
     if (syncing) return;
     setSyncing(true);
     try {
+      const { firebaseSyncService } = await import('@/services/firebaseSyncService');
       await firebaseSyncService.pullAllFromCloud();
       loadDashboardData();
       showToast('ক্লাউড ডেটা সফলভাবে সিঙ্ক হয়েছে।', 'success');
@@ -567,8 +574,11 @@ function UnifiedDashboardContent() {
       ? parseFloat(((grandTotalPresent / grandTotalAttStudents) * 100).toFixed(1))
       : 0;
 
-  // 4. Monthly Rolling Attendance Chart Data (Merged from Analytics Portal)
+  // 4. Monthly Rolling Attendance Chart Data (lazy: only computed when monthly view or analytics tab is visible)
   const monthlyClassAttendance: MonthlyClassAttendanceItem[] = useMemo(() => {
+    if (!mounted || (attendanceView !== 'monthly' && activeTab !== 'analytics')) {
+      return [];
+    }
     const ymPrefix = todayStr.slice(0, 7);
     const branches = ['A', 'B', 'C', 'Science', 'Humanities', 'Commerce'];
 
@@ -604,11 +614,11 @@ function UnifiedDashboardContent() {
         todayRate: Math.round(liveAtt?.rate || 0),
       };
     });
-  }, [classOrder, demographics, classAttendanceList, todayStr]);
+  }, [mounted, attendanceView, activeTab, classOrder, demographics, classAttendanceList, todayStr]);
 
-  // 5. Subject-wise Pass/Fail Performance Analytics & Heatmap (Merged from Analytics Portal)
+  // 5. Subject-wise Pass/Fail Performance Analytics & Heatmap (lazy: only computed on Analytics tab)
   const subjectHeatmap: SubjectHeatmapCell[] = useMemo(() => {
-    if (!mounted) return [];
+    if (!mounted || activeTab !== 'analytics') return [];
     const targetGrades =
       selectedGrade === 'all' ? classOrder.map((g) => g.key) : [selectedGrade];
     const rows: SubjectHeatmapCell[] = [];
@@ -682,22 +692,24 @@ function UnifiedDashboardContent() {
     }
 
     return rows;
-  }, [mounted, students, selectedGrade, selectedExam, classOrder]);
+  }, [mounted, activeTab, students, selectedGrade, selectedExam, classOrder]);
 
-  // 6. Export Handlers (BANBEIS / EMIS / HSP Stipend)
-  const handleDownloadBANBEIS = () => {
+  // 6. Export Handlers (BANBEIS / EMIS / HSP Stipend — dynamically loads xlsx only on click)
+  const handleDownloadBANBEIS = async () => {
     const cfg = schoolSettings || settingsService.getSettings();
+    const { downloadBANBEISWorkbook } = await import('@/lib/boardExcelExport');
     const count = downloadBANBEISWorkbook(students, cfg);
     showToast(`BANBEIS রিপোর্ট (.xlsx) ডাউনলোড হয়েছে (${count} জন শিক্ষার্থী)।`, 'success');
   };
 
-  const handleDownloadEMIS = () => {
+  const handleDownloadEMIS = async () => {
     const cfg = schoolSettings || settingsService.getSettings();
+    const { downloadEMISWorkbook } = await import('@/lib/boardExcelExport');
     const count = downloadEMISWorkbook(students, cfg);
     showToast(`EMIS প্রোফাইল এক্সেল (.xlsx) ডাউনলোড হয়েছে (${count} জন শিক্ষার্থী)।`, 'success');
   };
 
-  const handleDownloadStipend = () => {
+  const handleDownloadStipend = async () => {
     const cfg = schoolSettings || settingsService.getSettings();
     const stipendRows = students
       .filter((s) => s.isStipend || s.stipendCategory || s.stipendStatus === 'Active')
@@ -708,6 +720,7 @@ function UnifiedDashboardContent() {
         monthlyAmount: 500,
         isEligible: (s.attendance ?? 85) >= 75 && (s.examMarkAvg ?? 60) >= 45,
       }));
+    const { downloadStipendBoardWorkbook } = await import('@/lib/boardExcelExport');
     const count = downloadStipendBoardWorkbook(stipendRows, cfg);
     showToast(`বোর্ড উপবৃত্তি এক্সেল (.xlsx) ডাউনলোড হয়েছে (${count} জন)।`, 'success');
   };

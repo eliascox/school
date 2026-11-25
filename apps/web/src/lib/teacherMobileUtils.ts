@@ -20,6 +20,64 @@ export const STANDARD_EXAMS: readonly string[] = [
   '১ম টিউটোরিয়াল পরীক্ষা ২০২৬',
 ];
 
+export type MarkInputField = 'written' | 'mcq' | 'practical';
+
+const autoAuditThrottleMap = new Map<string, number>();
+const AUTO_AUDIT_THROTTLE_MS = 30_000;
+
+/** Returns active + custom exams configured in sms_exam_setup merged with STANDARD_EXAMS. */
+export function getAvailableExamNames(): string[] {
+  const ordered: string[] = [];
+  const pushUnique = (name?: unknown) => {
+    const clean = typeof name === 'string' ? name.trim() : '';
+    if (clean && !ordered.includes(clean)) ordered.push(clean);
+  };
+
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('sms_exam_setup');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.activeExam) pushUnique(parsed.activeExam);
+        if (Array.isArray(parsed?.exams)) {
+          parsed.exams.forEach((item: any) => {
+            pushUnique(typeof item === 'string' ? item : item?.name || item?.title);
+          });
+        }
+      }
+    } catch {
+      // Ignore malformed exam setup
+    }
+  }
+
+  STANDARD_EXAMS.forEach((ex) => pushUnique(ex));
+  return ordered;
+}
+
+/** Computes the next logical cell key (`studentId:field`) for keyboard/keypad auto-advance during rapid marks entry. */
+export function getNextMarkInputKey(
+  rowIds: string[],
+  currentStudentId: string,
+  currentField: MarkInputField,
+  limits: Pick<SubjectMarksLimits, 'hasMcq' | 'hasPractical'>
+): string | null {
+  const fields: MarkInputField[] = ['written'];
+  if (limits.hasMcq) fields.push('mcq');
+  if (limits.hasPractical) fields.push('practical');
+
+  const fieldIdx = fields.indexOf(currentField);
+  if (fieldIdx >= 0 && fieldIdx + 1 < fields.length) {
+    return `${currentStudentId}:${fields[fieldIdx + 1]}`;
+  }
+
+  const rowIdx = rowIds.indexOf(currentStudentId);
+  if (rowIdx >= 0 && rowIdx + 1 < rowIds.length) {
+    return `${rowIds[rowIdx + 1]}:written`;
+  }
+
+  return null;
+}
+
 export type GroupKey = 'science' | 'humanities' | 'commerce';
 
 export interface MobileMarkRow {
@@ -199,8 +257,16 @@ export function saveTeacherSubjectMarks(params: {
   group: GroupKey;
   subject: string;
   rows: MobileMarkRow[];
-}): { success: boolean; message: string; savedKeys: string[]; normalizedRows: MobileMarkRow[] } {
-  const { session, exam, grade, branch, group, subject, rows } = params;
+  mode?: 'auto' | 'manual';
+  skipCloudSync?: boolean;
+}): {
+  success: boolean;
+  message: string;
+  savedKeys: string[];
+  normalizedRows: MobileMarkRow[];
+  savedTimeBn?: string;
+} {
+  const { session, exam, grade, branch, group, subject, rows, mode = 'manual', skipCloudSync = false } = params;
 
   if (!session || (session.role !== 'admin' && session.role !== 'teacher')) {
     return {
@@ -269,43 +335,57 @@ export function saveTeacherSubjectMarks(params: {
   }
 
   const now = new Date();
-  const timeStr = `${now.toLocaleDateString('bn-BD')} ${now.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}`;
+  const shortTimeBn = now.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = `${now.toLocaleDateString('bn-BD')} ${shortTimeBn}`;
   localStorage.setItem('sms_last_mark_save', timeStr);
 
-  auditTrailService.addLog({
-    action: 'UPDATE_EXAM_MARKS',
-    category: 'MARKS',
-    details: `[মোবাইল অ্যাপ] শ্রেণি ${grade} (${effectiveBranch}) এর বিষয় '${subject}' এর নম্বর সংরক্ষণ করা হয়েছে`,
-    performedBy: session.teacherName || (session.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'),
-    status: 'SUCCESS',
-  });
+  const throttleKey = `marks:${exam}:${grade}:${effectiveBranch}:${subject}`;
+  const lastAuditAt = autoAuditThrottleMap.get(throttleKey) || 0;
+  const shouldLogAudit = mode === 'manual' || Date.now() - lastAuditAt > AUTO_AUDIT_THROTTLE_MS;
 
-  const markEntityId = `${exam}-${grade}-${effectiveBranch}-${subject}`;
-  syncQueueService
-    .enqueue('exam_mark', markEntityId, 'UPDATE', {
-      examId: exam,
-      grade,
-      branch: effectiveBranch,
-      group,
-      subject,
-      marksCount: normalizedRows.length,
-      marks: normalizedRows,
-    })
-    .catch(() => {});
+  if (shouldLogAudit) {
+    autoAuditThrottleMap.set(throttleKey, Date.now());
+    auditTrailService.addLog({
+      action: 'UPDATE_EXAM_MARKS',
+      category: 'MARKS',
+      details: `[মোবাইল অ্যাপ${mode === 'auto' ? ' অটো-সেভ' : ''}] শ্রেণি ${grade} (${effectiveBranch}) এর বিষয় '${subject}' এর নম্বর সংরক্ষণ করা হয়েছে`,
+      performedBy: session.teacherName || (session.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'),
+      status: 'SUCCESS',
+    });
+  }
 
-  import('@/services/firebaseSyncService')
-    .then(({ firebaseSyncService }) => {
-      firebaseSyncService.syncMarksKeysToCloud(savedKeys).catch(() => {});
-    })
-    .catch(() => {});
+  if (!skipCloudSync) {
+    const markEntityId = `${exam}-${grade}-${effectiveBranch}-${subject}`;
+    syncQueueService
+      .enqueue('exam_mark', markEntityId, 'UPDATE', {
+        examId: exam,
+        grade,
+        branch: effectiveBranch,
+        group,
+        subject,
+        marksCount: normalizedRows.length,
+        marks: normalizedRows,
+      })
+      .catch(() => {});
+
+    import('@/services/firebaseSyncService')
+      .then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncMarksKeysToCloud(savedKeys).catch(() => {});
+      })
+      .catch(() => {});
+  }
 
   window.dispatchEvent(new Event('storage'));
 
   return {
     success: true,
-    message: `${subject} বিষয়ের ${normalizedRows.length} জন শিক্ষার্থীর নম্বর সফলভাবে সংরক্ষিত হয়েছে!`,
+    message:
+      mode === 'auto'
+        ? `${subject} নম্বর স্বয়ংক্রিয়ভাবে সংরক্ষিত (${shortTimeBn})`
+        : `${subject} বিষয়ের ${normalizedRows.length} জন শিক্ষার্থীর নম্বর সফলভাবে সংরক্ষিত হয়েছে!`,
     savedKeys,
     normalizedRows,
+    savedTimeBn: shortTimeBn,
   };
 }
 
@@ -315,8 +395,17 @@ export function saveClassTeacherDailyAttendance(params: {
   grade: string;
   branch: string;
   records: StudentAttendanceRecord[];
-}): { success: boolean; message: string } {
-  const { session, date, grade, branch, records } = params;
+  mode?: 'auto' | 'manual';
+  skipCloudSync?: boolean;
+}): {
+  success: boolean;
+  message: string;
+  savedTimeBn?: string;
+  presentCount?: number;
+  absentCount?: number;
+  leaveCount?: number;
+} {
+  const { session, date, grade, branch, records, mode = 'manual', skipCloudSync = false } = params;
 
   if (!session || (session.role !== 'admin' && session.role !== 'teacher')) {
     return {
@@ -337,12 +426,21 @@ export function saveClassTeacherDailyAttendance(params: {
     };
   }
 
+  const throttleKey = `att:${date}:${grade}:${branch}`;
+  const lastAuditAt = autoAuditThrottleMap.get(throttleKey) || 0;
+  const silentAudit = mode === 'auto' && Date.now() - lastAuditAt <= AUTO_AUDIT_THROTTLE_MS;
+  if (!silentAudit) {
+    autoAuditThrottleMap.set(throttleKey, Date.now());
+  }
+
   const saved = attendanceService.saveAttendance({
     date,
     grade,
     branch,
     records,
     performedBy: session.teacherName || (session.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'),
+    silentAudit,
+    skipCloudSync,
   });
 
   if (!saved) {
@@ -352,8 +450,20 @@ export function saveClassTeacherDailyAttendance(params: {
     };
   }
 
+  const presentCount = records.filter((r) => r.status === 'Present').length;
+  const absentCount = records.filter((r) => r.status === 'Absent').length;
+  const leaveCount = records.filter((r) => r.status === 'Leave').length;
+  const savedTimeBn = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
+
   return {
     success: true,
-    message: `${date} তারিখের ${records.length} জন শিক্ষার্থীর হাজিরা সফলভাবে সংরক্ষিত হয়েছে!`,
+    message:
+      mode === 'auto'
+        ? `অটো-সেভড (${savedTimeBn}) • উপস্থিত: ${presentCount}, অনুপস্থিত: ${absentCount}`
+        : `${date} তারিখের ${records.length} জন শিক্ষার্থীর হাজিরা সফলভাবে সংরক্ষিত হয়েছে!`,
+    savedTimeBn,
+    presentCount,
+    absentCount,
+    leaveCount,
   };
 }

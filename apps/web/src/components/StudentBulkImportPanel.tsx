@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import * as XLSX from 'xlsx';
 import {
   FileSpreadsheet,
   Download,
@@ -332,8 +331,9 @@ export default function StudentBulkImportPanel({
   }, [rolledResult.students]);
 
   // ─── DOWNLOAD EXCEL TEMPLATE ─────────────────────────────────────────────
-  const downloadExcelTemplate = (lang: 'bn' | 'en') => {
+  const downloadExcelTemplate = async (lang: 'bn' | 'en') => {
     try {
+      const XLSX = await import('xlsx');
       const data = lang === 'bn' ? SAMPLE_STUDENTS_BN : SAMPLE_STUDENTS_EN;
       const wsStudents = XLSX.utils.json_to_sheet(data);
       wsStudents['!cols'] = [
@@ -440,6 +440,7 @@ export default function StudentBulkImportPanel({
       const rawJsonRows: Record<string, unknown>[] = [];
       let detectedGrade: GradeOptionKey | null = null;
 
+      const XLSX = await import('xlsx');
       if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
         const buffer = await selectedFile.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });

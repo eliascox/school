@@ -49,6 +49,13 @@ import { settingsService } from '@/services/settingsService';
 import { themeService, AppTheme } from '@/services/themeService';
 import { syncQueueService, SyncStatus } from '@/services/syncQueueService';
 import { leaveService } from '@/services/leaveService';
+import {
+  URL_QUERY_CHANGED_EVENT,
+  areSessionsEqual,
+  createLiveQueryLookup,
+  notifyNavigationPending,
+  toCanonicalRouteHref,
+} from '@/lib/urlTabSync';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -348,6 +355,8 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [currentTheme, setCurrentTheme] = useState<AppTheme>('light');
+  const [liveSearch, setLiveSearch] = useState<string | null>(null);
+  const [todayLabel, setTodayLabel] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     isOnline: true,
     pendingCount: 0,
@@ -356,21 +365,58 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
   const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
 
   useEffect(() => {
-    const updateLeaves = () => {
+    setLiveSearch(null);
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const syncQuery = () => {
+      if (typeof window !== 'undefined') {
+        setLiveSearch(window.location.search);
+      }
+    };
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncQuery);
+    window.addEventListener('popstate', syncQuery);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncQuery);
+      window.removeEventListener('popstate', syncQuery);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      setTodayLabel(
+        currentLang === 'en'
+          ? new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+          : new Date().toLocaleDateString('bn-BD', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      );
+    } catch {
+      setTodayLabel('');
+    }
+  }, [currentLang]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const updateLeavesNow = () => {
       try {
         const leaves = leaveService.getLeaves();
-        setPendingLeavesCount(leaves.filter(l => l.status === 'pending').length);
+        const nextCount = leaves.filter(l => l.status === 'pending').length;
+        setPendingLeavesCount((prev) => (prev === nextCount ? prev : nextCount));
       } catch (e) {}
     };
-    updateLeaves();
-    const unsubLeaves = leaveService.subscribe(updateLeaves);
+    const scheduleLeavesUpdate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(updateLeavesNow, 150);
+    };
+    updateLeavesNow();
+    const unsubLeaves = leaveService.subscribe(scheduleLeavesUpdate);
     if (typeof window !== 'undefined') {
-      window.addEventListener('storage', updateLeaves);
+      window.addEventListener('storage', scheduleLeavesUpdate);
     }
     return () => {
+      if (timer) clearTimeout(timer);
       unsubLeaves();
       if (typeof window !== 'undefined') {
-        window.removeEventListener('storage', updateLeaves);
+        window.removeEventListener('storage', scheduleLeavesUpdate);
       }
     };
   }, []);
@@ -390,9 +436,9 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
     const handleStorage = () => {
       const activeSession = teacherAuthService.getSession();
       if (!activeSession) {
-        router.push('/login');
+        router.push('/login/');
       } else {
-        setSession(activeSession);
+        setSession((prev) => (areSessionsEqual(prev, activeSession) ? prev : activeSession));
       }
       setIsLoading(false);
     };
@@ -463,7 +509,8 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
     );
   if (!session) return null;
 
-  const pageInfo = getPageInfo(pathname, searchParams, currentLang);
+  const liveQuery = createLiveQueryLookup(searchParams, liveSearch);
+  const pageInfo = getPageInfo(pathname, liveQuery, currentLang);
 
   return (
     <header className="h-14 lg:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs transition-colors duration-200 print:hidden">
@@ -492,9 +539,7 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
       <div className="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs">
         <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <span className="font-extrabold">
-          {currentLang === 'en' 
-            ? new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-            : new Date().toLocaleDateString('bn-BD', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {todayLabel || (currentLang === 'en' ? 'Active Session' : 'সক্রিয় সেশন')}
         </span>
         <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
         <span className="flex items-center gap-1.5 text-[11px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -527,7 +572,9 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
         {/* ✉️ TEACHER LEAVE APPLICATIONS ALERT BADGE (FOR PRINCIPAL/ADMIN) */}
         {session.role === 'admin' && pendingLeavesCount > 0 && (
           <Link
-            href="/dashboard/leaves"
+            href="/dashboard/leaves/"
+            prefetch={false}
+            onClick={() => notifyNavigationPending('/dashboard/leaves/')}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-black transition shadow-xs cursor-pointer active:scale-95 animate-pulse shrink-0"
             title={currentLang === 'en' ? `${pendingLeavesCount} Pending Leave Applications` : `${pendingLeavesCount}টি ছুটির আবেদন বিবেচনাধীন`}
           >
@@ -642,7 +689,11 @@ export default function Header({ onMenuToggle, isSidebarOpen }: HeaderProps) {
 
         {/* Notification Bell */}
         <button 
-          onClick={() => router.push('/dashboard/notices')}
+          onClick={() => {
+            const target = toCanonicalRouteHref('/dashboard/notices');
+            notifyNavigationPending(target);
+            router.push(target);
+          }}
           className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           title={currentLang === 'bn' ? 'নোটিফিকেশন বোর্ড' : 'Notification Board'}
           aria-label="Notifications"

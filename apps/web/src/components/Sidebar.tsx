@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
   GraduationCap,
+  Loader2,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,6 +29,15 @@ import {
   isNavHrefActive,
 } from '@/config/navigationConfig';
 import { NavIcon } from '@/components/NavIcon';
+import { normalizePath } from '@/lib/routeAccess';
+import {
+  URL_QUERY_CHANGED_EVENT,
+  areSessionsEqual,
+  createLiveQueryLookup,
+  notifyNavigationPending,
+  toCanonicalRouteHref,
+  trySameRouteQueryNavigation,
+} from '@/lib/urlTabSync';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -50,85 +60,119 @@ function SidebarContent({
   onToggleCollapse,
 }: SidebarContentProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [liveSearch, setLiveSearch] = useState<string | null>(null);
+  const [pendingNavId, setPendingNavId] = useState<string | null>(null);
+  const prefetchedHrefsRef = useRef<Set<string>>(new Set());
 
   const isAdmin = session?.role === 'admin';
 
-  // Live metric counters (dynamically synced from storage/services)
-  const [studentCount, setStudentCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return studentService.getAllStudents().length;
-      } catch {}
-    }
-    return 0;
-  });
-
-  const [teacherCount, setTeacherCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const t1 = teacherRBACService.getTeachers()?.length || 0;
-        const t2 = teacherAuthService.getAllTeachers()?.length || 0;
-        return Math.max(t1, t2);
-      } catch {}
-    }
-    return 0;
-  });
-
+  // Hydration-safe live metric counters (populated inside useEffect)
+  const [studentCount, setStudentCount] = useState<number>(0);
+  const [teacherCount, setTeacherCount] = useState<number>(0);
   const [pendingLeavesCount, setPendingLeavesCount] = useState<number>(0);
+
+  // Reset live search override & pending spinner once Next.js route/search settles
+  useEffect(() => {
+    setLiveSearch(null);
+    setPendingNavId(null);
+  }, [pathname, searchParams]);
+
+  // Listen to 0ms in-place tab query sync events so Sidebar active highlights update instantaneously
+  useEffect(() => {
+    const syncLiveQuery = () => {
+      if (typeof window !== 'undefined') {
+        setLiveSearch(window.location.search);
+      }
+      setPendingNavId(null);
+    };
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncLiveQuery);
+    window.addEventListener('popstate', syncLiveQuery);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncLiveQuery);
+      window.removeEventListener('popstate', syncLiveQuery);
+    };
+  }, []);
 
   useEffect(() => {
     setCurrentLang(languageService.getLanguage());
     setSchoolSettings(settingsService.getSettings());
     const unsubLang = languageService.subscribe((lang) => setCurrentLang(lang));
 
-    const updateMetrics = () => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const updateMetricsNow = () => {
       try {
         const students = studentService.getAllStudents();
-        setStudentCount(Array.isArray(students) ? students.length : 0);
+        const nextCount = Array.isArray(students) ? students.length : 0;
+        setStudentCount((prev) => (prev === nextCount ? prev : nextCount));
       } catch {
-        setStudentCount(0);
+        setStudentCount((prev) => (prev === 0 ? prev : 0));
       }
       try {
         const t1 = teacherRBACService.getTeachers()?.length || 0;
         const t2 = teacherAuthService.getAllTeachers()?.length || 0;
-        setTeacherCount(Math.max(t1, t2));
+        const nextTeachers = Math.max(t1, t2);
+        setTeacherCount((prev) => (prev === nextTeachers ? prev : nextTeachers));
       } catch {
-        setTeacherCount(0);
+        setTeacherCount((prev) => (prev === 0 ? prev : 0));
       }
       try {
         const leaves = leaveService.getLeaves();
-        setPendingLeavesCount(leaves.filter((l) => l.status === 'pending').length);
+        const nextPending = leaves.filter((l) => l.status === 'pending').length;
+        setPendingLeavesCount((prev) => (prev === nextPending ? prev : nextPending));
       } catch {
-        setPendingLeavesCount(0);
+        setPendingLeavesCount((prev) => (prev === 0 ? prev : 0));
       }
     };
 
-    updateMetrics();
-    const unsubStudents = studentService.subscribe(updateMetrics);
-    const unsubLeaves = leaveService.subscribe(updateMetrics);
+    const scheduleMetricsUpdate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(updateMetricsNow, 150);
+    };
+
+    updateMetricsNow();
+    const unsubStudents = studentService.subscribe(scheduleMetricsUpdate);
+    const unsubLeaves = leaveService.subscribe(scheduleMetricsUpdate);
     const unsubSettings = settingsService.subscribe((s) => setSchoolSettings(s));
 
     if (typeof window !== 'undefined') {
-      window.addEventListener('storage', updateMetrics);
+      window.addEventListener('storage', scheduleMetricsUpdate);
     }
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       unsubLang();
       unsubStudents();
       unsubLeaves();
       unsubSettings();
       if (typeof window !== 'undefined') {
-        window.removeEventListener('storage', updateMetrics);
+        window.removeEventListener('storage', scheduleMetricsUpdate);
       }
     };
   }, []);
 
+  const queryLookup = createLiveQueryLookup(searchParams, liveSearch);
   const visibleSections = isAdmin ? ADMIN_NAV_SECTIONS : TEACHER_NAV_SECTIONS;
+
+  const warmPrefetchHref = useCallback(
+    (rawHref: string) => {
+      const canonical = toCanonicalRouteHref(rawHref);
+      if (prefetchedHrefsRef.current.has(canonical)) return;
+      prefetchedHrefsRef.current.add(canonical);
+      try {
+        router.prefetch(canonical);
+      } catch {
+        // Ignore prefetch errors safely
+      }
+    },
+    [router],
+  );
 
   const resolveBadgeValue = (
     badgeKey?: NavBadgeKey,
@@ -142,13 +186,35 @@ function SidebarContent({
     return staticBadgeBn || staticBadge || null;
   };
 
-  const toggleGroup = (id: string) => {
+  const toggleGroup = (id: string, currentlyExpanded: boolean) => {
     if (isCollapsed && onToggleCollapse) {
       onToggleCollapse();
       setOpenGroups((prev) => ({ ...prev, [id]: true }));
       return;
     }
-    setOpenGroups((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
+    setOpenGroups((prev) => ({ ...prev, [id]: !currentlyExpanded }));
+  };
+
+  const handleNavLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    navId: string,
+    rawHref: string,
+  ) => {
+    if (onClose) onClose();
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+    // 0ms instant query switch when staying on the same dashboard route (e.g. Finance tabs, Students Print, Settings tabs)
+    if (trySameRouteQueryNavigation(rawHref, pathname)) {
+      e.preventDefault();
+      return;
+    }
+
+    const targetNorm = normalizePath(rawHref);
+    const currentNorm = normalizePath(pathname);
+    if (targetNorm !== currentNorm) {
+      setPendingNavId(navId);
+      notifyNavigationPending(toCanonicalRouteHref(rawHref));
+    }
   };
 
   const handleLinkClick = () => {
@@ -157,7 +223,7 @@ function SidebarContent({
 
   const handleLogout = () => {
     teacherAuthService.logout();
-    window.location.href = '/login';
+    window.location.href = '/login/';
   };
 
   return (
@@ -269,19 +335,23 @@ function SidebarContent({
                   const isDirect = Boolean(item.href);
                   const isDirectActive =
                     isDirect && item.href
-                      ? isNavHrefActive(item.href, pathname, searchParams)
+                      ? isNavHrefActive(item.href, pathname, queryLookup)
                       : false;
-                  const isGActive = isNavGroupActive(item, pathname, searchParams);
+                  const isGActive = isNavGroupActive(item, pathname, queryLookup);
                   const isExpanded = openGroups[item.id] ?? isGActive;
                   const itemLabel = currentLang === 'en' ? item.title : item.titleBn;
                   const itemBadge = resolveBadgeValue(item.badgeKey, item.badge, item.badgeBn);
 
                   if (isDirect && item.href) {
                     const isEmeraldAccent = item.accent === 'emerald';
+                    const isPending = pendingNavId === item.id;
+                    const canonicalHref = toCanonicalRouteHref(item.href);
                     const linkClasses = isDirectActive
                       ? isEmeraldAccent
                         ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/25 font-semibold'
                         : 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25 font-semibold'
+                      : isPending
+                      ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-200 font-semibold'
                       : isEmeraldAccent
                       ? 'bg-emerald-50/70 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-500/20 hover:bg-emerald-100/80 dark:hover:bg-emerald-500/15 font-semibold'
                       : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 hover:text-slate-950 dark:hover:text-white font-medium';
@@ -289,9 +359,11 @@ function SidebarContent({
                     return (
                       <Link
                         key={item.id}
-                        href={item.href}
+                        href={canonicalHref}
                         prefetch={false}
-                        onClick={handleLinkClick}
+                        onMouseEnter={() => warmPrefetchHref(item.href!)}
+                        onFocus={() => warmPrefetchHref(item.href!)}
+                        onClick={(e) => handleNavLinkClick(e, item.id, item.href!)}
                         title={isCollapsed ? itemLabel : undefined}
                         className={`relative flex items-center rounded-xl text-[13px] transition-all group ${
                           isCollapsed
@@ -305,7 +377,11 @@ function SidebarContent({
                               isDirectActive ? 'text-white' : item.iconColor
                             }`}
                           >
-                            <NavIcon name={item.icon} className="w-[17px] h-[17px]" />
+                            {isPending ? (
+                              <Loader2 className="w-[17px] h-[17px] animate-spin text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <NavIcon name={item.icon} className="w-[17px] h-[17px]" />
+                            )}
                           </span>
                           {!isCollapsed && <span className="truncate">{itemLabel}</span>}
                         </div>
@@ -339,7 +415,7 @@ function SidebarContent({
                     <div key={item.id} className="space-y-0.5">
                       <button
                         type="button"
-                        onClick={() => toggleGroup(item.id)}
+                        onClick={() => toggleGroup(item.id, isExpanded)}
                         title={isCollapsed ? itemLabel : undefined}
                         aria-expanded={!isCollapsed && isExpanded}
                         className={`relative w-full flex items-center rounded-xl text-[13px] transition-all group cursor-pointer ${
@@ -398,7 +474,9 @@ function SidebarContent({
                       {!isCollapsed && isExpanded && item.subItems && (
                         <div className="ml-4 pl-3 border-l border-slate-200/90 dark:border-slate-800 space-y-0.5 py-0.5">
                           {item.subItems.map((sub) => {
-                            const subActive = isNavHrefActive(sub.href, pathname, searchParams);
+                            const subActive = isNavHrefActive(sub.href, pathname, queryLookup);
+                            const subPending = pendingNavId === sub.id;
+                            const canonicalSubHref = toCanonicalRouteHref(sub.href);
                             const subBadge = resolveBadgeValue(
                               sub.badgeKey,
                               sub.badge,
@@ -408,12 +486,16 @@ function SidebarContent({
                             return (
                               <Link
                                 key={sub.id}
-                                href={sub.href}
+                                href={canonicalSubHref}
                                 prefetch={false}
-                                onClick={handleLinkClick}
+                                onMouseEnter={() => warmPrefetchHref(sub.href)}
+                                onFocus={() => warmPrefetchHref(sub.href)}
+                                onClick={(e) => handleNavLinkClick(e, sub.id, sub.href)}
                                 className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg text-[12.5px] transition-all group ${
                                   subActive
                                     ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold'
+                                    : subPending
+                                    ? 'bg-indigo-50/70 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-200 font-semibold'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 font-medium'
                                 }`}
                               >
@@ -425,7 +507,11 @@ function SidebarContent({
                                         : sub.iconColor || 'text-slate-400 dark:text-slate-500'
                                     }`}
                                   >
-                                    <NavIcon name={sub.icon} className="w-3.5 h-3.5" />
+                                    {subPending ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                    ) : (
+                                      <NavIcon name={sub.icon} className="w-3.5 h-3.5" />
+                                    )}
                                   </span>
                                   <span className="truncate">
                                     {currentLang === 'en' ? sub.label : sub.labelBn}
@@ -467,9 +553,11 @@ function SidebarContent({
       >
         {isAdmin && !isCollapsed && (
           <Link
-            href="/dashboard/mobile-app"
+            href="/dashboard/mobile-app/"
             prefetch={false}
-            onClick={handleLinkClick}
+            onMouseEnter={() => warmPrefetchHref('/dashboard/mobile-app')}
+            onFocus={() => warmPrefetchHref('/dashboard/mobile-app')}
+            onClick={(e) => handleNavLinkClick(e, 'mobile_app_widget', '/dashboard/mobile-app')}
             className="flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50/80 dark:from-emerald-950/50 dark:to-teal-950/40 border border-emerald-200/80 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition group"
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -563,7 +651,8 @@ export default function Sidebar({
 
   useEffect(() => {
     const handleStorage = () => {
-      setSession(teacherAuthService.getSession());
+      const next = teacherAuthService.getSession();
+      setSession((prev) => (areSessionsEqual(prev, next) ? prev : next));
     };
     handleStorage();
     window.addEventListener('storage', handleStorage);

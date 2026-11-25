@@ -55,6 +55,8 @@ const gradeLabelBn = (grade: string) => {
   return m[grade] || grade;
 };
 
+const QR_DATA_URL_CACHE = new Map<string, string>();
+
 export function StudentIdCardPreview({
   student,
   settings,
@@ -64,26 +66,33 @@ export function StudentIdCardPreview({
   sessionYear,
   showCropMarks = true,
 }: StudentIdCardPreviewProps) {
-  const [qrUrl, setQrUrl] = useState<string>('');
+  const payload = `SMS-STU|${student.id}|${student.roll}|${student.grade}`;
+  const [qrUrl, setQrUrl] = useState<string>(() => QR_DATA_URL_CACHE.get(payload) || '');
   const palette = THEME_CLASSES[theme];
   const isPortrait = orientation === 'portrait';
 
   useEffect(() => {
+    if (sideMode === 'front') return;
+    const cached = QR_DATA_URL_CACHE.get(payload);
+    if (cached) {
+      setQrUrl(cached);
+      return;
+    }
     let active = true;
-    const payload = `SMS-STU|${student.id}|${student.roll}|${student.grade}`;
     QRCode.toDataURL(payload, {
       margin: 0,
       width: 140,
       color: { dark: '#0f172a', light: '#ffffff' },
     })
       .then((url) => {
+        QR_DATA_URL_CACHE.set(payload, url);
         if (active) setQrUrl(url);
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [student.id, student.roll, student.grade]);
+  }, [payload, sideMode]);
 
   const cardSizeStyle: React.CSSProperties = {
     width: isPortrait ? '53.98mm' : '85.6mm',

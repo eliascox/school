@@ -5,11 +5,9 @@ import {
   Users,
   Printer,
   CheckCircle2,
-  Award,
   Search,
   Sparkles,
   Check,
-  Languages,
 } from 'lucide-react';
 import { Student } from '@/services/studentService';
 import { SchoolSettings } from '@/services/settingsService';
@@ -25,6 +23,7 @@ import {
   composeCertificateBody,
   getDefaultCertificateTitle,
   mapStudentToCertificateDraft,
+  sortStudentsByRoll,
 } from '@/lib/certificateEngine';
 import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
 import { ALL_CERTIFICATE_TYPES } from './certificateThemes';
@@ -34,8 +33,10 @@ interface BatchCertificateStudioProps {
   initialSelectedIds?: string[];
   initialCertType?: CertificateType;
   schoolSettings: SchoolSettings;
+  padCanvasMode: 'uploaded_pad' | 'preprinted_pad';
   createdByName: string;
   onBatchSaved: (saved: CertificateRecord[]) => void;
+  onOpenPadSettings?: () => void;
   onNotify: (type: 'success' | 'error', text: string) => void;
 }
 
@@ -44,60 +45,72 @@ export default function BatchCertificateStudio({
   initialSelectedIds = [],
   initialCertType = 'current_student',
   schoolSettings,
+  padCanvasMode,
   createdByName,
   onBatchSaved,
+  onOpenPadSettings,
   onNotify,
 }: BatchCertificateStudioProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
   const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [sectionFilter, setSectionFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [certType, setCertType] = useState<CertificateType>(initialCertType);
-  const [language, setLanguage] = useState<CertificateLanguage>(
-    initialCertType === 'ssc_testimonial' ? 'en' : 'bn'
-  );
+  const [language, setLanguage] = useState<CertificateLanguage>('bn');
   const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(
-    initialCertType === 'ssc_testimonial' ? 'landscape' : 'portrait'
-  );
-  const [borderPreset, setBorderPreset] = useState<string>('royal_crest');
-  const [showHeader, setShowHeader] = useState<boolean>(true);
+  const [showQrCode, setShowQrCode] = useState<boolean>(true);
   const [showPhotoBox, setShowPhotoBox] = useState<boolean>(false);
-  const [showOfficeStub, setShowOfficeStub] = useState<boolean>(false);
-  const purposeId = 'general';
   const [generatedRecords, setGeneratedRecords] = useState<CertificateRecord[]>([]);
 
-  const uniqueGrades = useMemo(() => {
-    return Array.from(new Set(students.map((s) => s.grade).filter(Boolean)));
-  }, [students]);
+  const uniqueGrades = useMemo(
+    () => Array.from(new Set(students.map((s) => s.grade).filter(Boolean))),
+    [students],
+  );
+  const uniqueSections = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          students
+            .filter((s) => gradeFilter === 'all' || s.grade === gradeFilter)
+            .map((s) => s.section || s.branch || '')
+            .filter(Boolean),
+        ),
+      ),
+    [students, gradeFilter],
+  );
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return students.filter((s) => {
+    const matched = students.filter((s) => {
       const matchGrade = gradeFilter === 'all' || s.grade === gradeFilter;
+      const studentSection = s.section || s.branch || '';
+      const matchSection = sectionFilter === 'all' || studentSection === sectionFilter;
       const matchQuery =
         !q ||
         s.name.toLowerCase().includes(q) ||
         (s.nameEn || '').toLowerCase().includes(q) ||
         s.roll.toLowerCase().includes(q) ||
         s.id.toLowerCase().includes(q);
-      return matchGrade && matchQuery;
+      return matchGrade && matchSection && matchQuery;
     });
-  }, [students, gradeFilter, searchQuery]);
+    return sortStudentsByRoll(matched);
+  }, [students, gradeFilter, sectionFilter, searchQuery]);
 
   const selectedStudents = useMemo(
-    () => students.filter((s) => selectedIds.includes(s.id)),
-    [students, selectedIds]
+    () => sortStudentsByRoll(students.filter((s) => selectedIds.includes(s.id))),
+    [students, selectedIds],
   );
 
   const toggleStudent = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
   const handleSelectAllFiltered = () => {
     const filteredIds = filteredStudents.map((s) => s.id);
-    const allChecked = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+    const allChecked =
+      filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
     if (allChecked) {
       setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
     } else {
@@ -106,10 +119,12 @@ export default function BatchCertificateStudio({
   };
 
   const previewDrafts: CertificateRecord[] = useMemo(() => {
+    const baseRef = buildDefaultRefNo(schoolSettings);
     return selectedStudents.map((st, idx) => {
       const draft = mapStudentToCertificateDraft(st, schoolSettings);
-      const isTestimonial = certType === 'ssc_testimonial' || certType === 'transfer_certificate';
-      if (isTestimonial) draft.currentlyStudying = false;
+      if (certType === 'ssc_testimonial' || certType === 'transfer_certificate') {
+        draft.currentlyStudying = false;
+      }
 
       const body = composeCertificateBody({
         type: certType,
@@ -117,17 +132,18 @@ export default function BatchCertificateStudio({
         draft,
         schoolSettings,
         selectedTraits: ['meritorious', 'regular', 'disciplined'],
-        purposeId,
+        purposeId: 'general',
       });
 
       return {
         id: `PREVIEW-${st.roll || idx + 1}`,
         type: certType,
         title: getDefaultCertificateTitle(certType, language),
-        refNo: `${buildDefaultRefNo(schoolSettings)}-${idx + 1}`,
+        refNo: `${baseRef}-${idx + 1}`,
         issueDate,
         status: 'valid',
-        layoutStyle: borderPreset === 'no_border_pad' ? 'pad' : 'royal_border',
+        canvasMode: padCanvasMode,
+        layoutStyle: 'pad',
         studentId: st.id,
         studentName: draft.studentName,
         studentNameEn: draft.studentNameEn,
@@ -154,18 +170,17 @@ export default function BatchCertificateStudio({
         isAlumni: !draft.currentlyStudying,
         customBody: body,
         language,
-        orientation,
-        themeColor: '#1e1b4b',
-        titleVariant: 'ribbon',
-        borderPreset,
-        showHeader,
+        orientation: 'portrait',
+        titleVariant: 'boxed',
+        borderPreset: 'no_border_pad',
+        showHeader: false,
         showPhotoBox,
         photoUrl: draft.photoUrl,
-        showOfficeStub,
-        showCornerBands: borderPreset !== 'no_border_pad',
-        showQrCode: true,
+        showOfficeStub: false,
+        showCornerBands: false,
+        showQrCode,
         cursiveNames: true,
-        fontSize: certType === 'ssc_testimonial' && language === 'en' ? 17.5 : orientation === 'landscape' ? 14.5 : 15.5,
+        fontSize: schoolSettings.padFontSize || 14.5,
         createdDate: issueDate,
       };
     });
@@ -175,12 +190,9 @@ export default function BatchCertificateStudio({
     certType,
     language,
     issueDate,
-    orientation,
-    borderPreset,
-    showHeader,
+    padCanvasMode,
     showPhotoBox,
-    showOfficeStub,
-    purposeId,
+    showQrCode,
   ]);
 
   const activePrintList = generatedRecords.length > 0 ? generatedRecords : previewDrafts;
@@ -192,7 +204,14 @@ export default function BatchCertificateStudio({
     }
 
     const inputs: CertificateInput[] = previewDrafts.map((item) => {
-      const { id: _unused, createdDate: _cdate, verificationCode: _vc, status: _st, auditTrail: _at, ...rest } = item;
+      const {
+        id: _unused,
+        createdDate: _cdate,
+        verificationCode: _vc,
+        status: _st,
+        auditTrail: _at,
+        ...rest
+      } = item;
       return {
         ...rest,
         createdBy: createdByName,
@@ -202,62 +221,22 @@ export default function BatchCertificateStudio({
     const saved = certificateService.saveBatchCertificates(inputs);
     setGeneratedRecords(saved);
     onBatchSaved(saved);
-    onNotify('success', `${saved.length}টি সনদ সফলভাবে প্রস্তুত ও রেজিস্টারে সংরক্ষিত হয়েছে!`);
+    onNotify('success', `${saved.length}টি সনদ রেজিস্টারে সংরক্ষিত হয়েছে!`);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Configuration Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-5 print:hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Award className="text-amber-500" size={20} />
-              ব্যাচ সনদ ও প্রশংসাপত্র জেনারেটর (Bulk Certificate Engine)
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              শিক্ষার্থী তালিকা থেকে নির্বাচিত শিক্ষার্থীদের জন্য স্বয়ংক্রিয় লিঙ্গ-সঠিক সর্বনাম ও পরীক্ষার GPA সহ একসাথে সনদ প্রস্তুত করুন।
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleSaveBatch}
-              disabled={selectedStudents.length === 0}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-1.5 cursor-pointer transition"
-            >
-              <CheckCircle2 size={15} />
-              সবগুলো রেজিস্টারে সেভ ({selectedStudents.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={activePrintList.length === 0}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-1.5 cursor-pointer transition"
-            >
-              <Printer size={15} />
-              ব্যাচ প্রিন্ট ({activePrintList.length} পাতা)
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">সনদের ধরন</label>
+    <div className="space-y-5">
+      {/* Compact Batch Bar */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs space-y-4 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <select
               value={certType}
               onChange={(e) => {
-                const nextType = e.target.value as CertificateType;
-                setCertType(nextType);
+                setCertType(e.target.value as CertificateType);
                 setGeneratedRecords([]);
-                if (nextType === 'ssc_testimonial') {
-                  setLanguage('en');
-                  setOrientation('landscape');
-                }
               }}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
             >
               {ALL_CERTIFICATE_TYPES.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -265,86 +244,79 @@ export default function BatchCertificateStudio({
                 </option>
               ))}
             </select>
-          </div>
 
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-              <Languages size={12} /> ভাষা ও অরিয়েন্টেশন
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setLanguage(language === 'bn' ? 'en' : 'bn');
-                  setGeneratedRecords([]);
-                }}
-                className="px-2.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 font-bold text-indigo-700 dark:text-indigo-300 cursor-pointer"
-              >
-                {language === 'bn' ? 'বাংলা' : 'English'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOrientation(orientation === 'portrait' ? 'landscape' : 'portrait');
-                  setGeneratedRecords([]);
-                }}
-                className="px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
-              >
-                {orientation === 'portrait' ? 'Portrait' : 'Landscape'}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">বর্ডার ফ্রেম ও তারিখ</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <select
-                value={borderPreset}
-                onChange={(e) => {
-                  setBorderPreset(e.target.value);
-                  setGeneratedRecords([]);
-                }}
-                className="px-2 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
-              >
-                <option value="royal_crest">রয়্যাল বর্ডার</option>
-                <option value="imperial_double">ডাবল গোল্ড</option>
-                <option value="executive_clean">স্লিম ফ্রেম</option>
-                <option value="no_border_pad">প্যাড মোড</option>
-              </select>
-              <input
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                className="px-2 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">অপশন টগল</label>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-950 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold text-[11px]">
               {[
-                { label: 'হেডার', active: showHeader, toggle: () => setShowHeader((v) => !v) },
-                { label: 'ছবি বক্স', active: showPhotoBox, toggle: () => setShowPhotoBox((v) => !v) },
-                { label: 'অফিস স্টাব', active: showOfficeStub, toggle: () => setShowOfficeStub((v) => !v) },
-              ].map((opt) => (
+                { id: 'bn' as const, label: 'বাংলা' },
+                { id: 'en' as const, label: 'English' },
+              ].map((l) => (
                 <button
-                  key={opt.label}
+                  key={l.id}
                   type="button"
                   onClick={() => {
-                    opt.toggle();
+                    setLanguage(l.id);
                     setGeneratedRecords([]);
                   }}
-                  className={`px-2.5 py-1.5 rounded-xl border font-bold text-[11px] cursor-pointer transition ${
-                    opt.active
-                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500'
+                  className={`px-2.5 py-1 rounded-lg cursor-pointer ${
+                    language === l.id ? 'bg-indigo-600 text-white' : 'text-slate-500'
                   }`}
                 >
-                  {opt.label}
+                  {l.label}
                 </button>
               ))}
             </div>
+
+            <input
+              type="date"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+            />
+
+            <label className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300 cursor-pointer px-2">
+              <input
+                type="checkbox"
+                checked={showQrCode}
+                onChange={(e) => {
+                  setShowQrCode(e.target.checked);
+                  setGeneratedRecords([]);
+                }}
+                className="rounded text-indigo-600 cursor-pointer"
+              />
+              QR
+            </label>
+            <label className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300 cursor-pointer px-1">
+              <input
+                type="checkbox"
+                checked={showPhotoBox}
+                onChange={(e) => {
+                  setShowPhotoBox(e.target.checked);
+                  setGeneratedRecords([]);
+                }}
+                className="rounded text-indigo-600 cursor-pointer"
+              />
+              ছবি
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSaveBatch}
+              disabled={selectedStudents.length === 0}
+              className="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 disabled:opacity-40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition"
+            >
+              <CheckCircle2 size={14} /> সেভ ({selectedStudents.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              disabled={activePrintList.length === 0}
+              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition"
+            >
+              <Printer size={14} /> ব্যাচ প্রিন্ট ({activePrintList.length})
+            </button>
           </div>
         </div>
 
@@ -352,19 +324,22 @@ export default function BatchCertificateStudio({
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative w-56">
+              <div className="relative w-52">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="নাম বা রোল দিয়ে খুঁজুন..."
+                  placeholder="নাম বা রোল..."
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
                 />
               </div>
               <select
                 value={gradeFilter}
-                onChange={(e) => setGradeFilter(e.target.value)}
+                onChange={(e) => {
+                  setGradeFilter(e.target.value);
+                  setSectionFilter('all');
+                }}
                 className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
               >
                 <option value="all">সকল শ্রেণি ({students.length})</option>
@@ -374,12 +349,26 @@ export default function BatchCertificateStudio({
                   </option>
                 ))}
               </select>
+              {uniqueSections.length > 0 && (
+                <select
+                  value={sectionFilter}
+                  onChange={(e) => setSectionFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                >
+                  <option value="all">সকল শাখা</option>
+                  {uniqueSections.map((sec) => (
+                    <option key={sec} value={sec}>
+                      শাখা: {sec}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 onClick={handleSelectAllFiltered}
-                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-xs font-bold rounded-xl cursor-pointer transition"
+                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-xs font-bold rounded-xl cursor-pointer transition"
               >
-                ফিল্টারকৃত সবগুলো নির্বাচন / বাতিল ({filteredStudents.length})
+                সব নির্বাচন / বাতিল ({filteredStudents.length})
               </button>
             </div>
 
@@ -388,7 +377,7 @@ export default function BatchCertificateStudio({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto">
             {filteredStudents.map((s) => {
               const checked = selectedIds.includes(s.id);
               return (
@@ -401,7 +390,7 @@ export default function BatchCertificateStudio({
                   }}
                   className={`p-2 rounded-xl border text-left text-xs transition flex items-center justify-between gap-2 cursor-pointer ${
                     checked
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
                       : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900'
                   }`}
                 >
@@ -421,26 +410,24 @@ export default function BatchCertificateStudio({
 
       {/* Live Preview & Print Stack */}
       {activePrintList.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center space-y-2 print:hidden">
-          <Sparkles className="mx-auto text-indigo-500" size={28} />
-          <p className="text-sm font-black text-slate-800 dark:text-slate-100">ব্যাচ সনদ তৈরির জন্য শিক্ষার্থী নির্বাচন করুন</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            উপর থেকে এক বা একাধিক শিক্ষার্থী বাছাই করলে এখানেই সবার আলাদা প্রিন্টেবল সনদ তৈরি হয়ে যাবে।
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center space-y-1.5 print:hidden">
+          <Sparkles className="mx-auto text-indigo-500" size={24} />
+          <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+            ব্যাচ প্রিন্টের জন্য উপর থেকে শিক্ষার্থী বাছাই করুন
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            নির্বাচিত সবার সনদ আপনার আপলোডকৃত A4 প্যাডে একসাথে প্রস্তুত হয়ে যাবে।
           </p>
         </div>
       ) : (
-        <div className="space-y-8 print:space-y-0">
+        <div className="space-y-6 print:space-y-0">
           {activePrintList.map((cert, index) => (
-            <div
-              key={`${cert.id}-${index}`}
-              className="print:break-after-page print:m-0"
-              style={{ pageBreakAfter: index < activePrintList.length - 1 ? 'always' : 'auto' }}
-            >
+            <div key={`${cert.id}-${index}`} className="certificate-batch-page">
               <OfficialCertificateDoc
                 cert={cert}
                 settings={schoolSettings}
-                overrideStyle={cert.layoutStyle}
-                mode={borderPreset === 'no_border_pad' && !showHeader ? 'preprinted' : 'full_pad'}
+                canvasMode={padCanvasMode}
+                onOpenSettings={onOpenPadSettings}
                 hideHeaderActions={true}
               />
             </div>

@@ -14,6 +14,8 @@ export interface LedgerRecord {
   description: string;
   createdByName?: string;
   updatedAt?: string;
+  sourceModule?: string;
+  sourceId?: string;
 }
 
 export interface LedgerFilterOptions {
@@ -270,6 +272,46 @@ class LedgerService {
     const filtered = records.filter((r) => r.id !== id);
     if (filtered.length === records.length) return false;
 
+    this.saveStorageRecords(filtered);
+    return true;
+  }
+
+  // Upsert record by voucherNo (prevents duplicates during finance <-> ledger synchronization)
+  upsertByVoucherNo(record: Omit<LedgerRecord, 'id'>): LedgerRecord {
+    const records = this.getStorageRecords();
+    const existingIdx = record.voucherNo
+      ? records.findIndex((r) => r.voucherNo === record.voucherNo)
+      : -1;
+
+    if (existingIdx > -1) {
+      const updated: LedgerRecord = {
+        ...records[existingIdx],
+        ...record,
+        updatedAt: new Date().toISOString(),
+      };
+      records[existingIdx] = updated;
+      this.saveStorageRecords(records);
+      return updated;
+    }
+
+    return this.addRecord(record);
+  }
+
+  // Cascade-delete linked ledger rows when a finance expense/payroll/refund is deleted
+  deleteByVoucherNo(voucherNo?: string): boolean {
+    if (!voucherNo) return false;
+    const records = this.getStorageRecords();
+    const filtered = records.filter((r) => r.voucherNo !== voucherNo);
+    if (filtered.length === records.length) return false;
+    this.saveStorageRecords(filtered);
+    return true;
+  }
+
+  deleteBySourceId(sourceId?: string): boolean {
+    if (!sourceId) return false;
+    const records = this.getStorageRecords();
+    const filtered = records.filter((r) => r.sourceId !== sourceId);
+    if (filtered.length === records.length) return false;
     this.saveStorageRecords(filtered);
     return true;
   }

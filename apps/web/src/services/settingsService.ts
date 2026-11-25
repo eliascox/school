@@ -67,6 +67,7 @@ export type SchoolSettings = {
   uploadedPadType?: 'image' | 'pdf';
   uploadedPadFileName?: string;
   uploadedPadFileSize?: number;
+  uploadedPadUpdatedAt?: number;
   activePadMode?: 'uploaded' | 'preprinted';
   padMargins?: PadMargins;
   padHeaderFields?: PadHeaderFieldsConfig;
@@ -157,8 +158,97 @@ const DEFAULT_SETTINGS: SchoolSettings = {
 
 const STORAGE_KEY = 'sms_school_settings';
 const STORAGE_KEY_LOGO = 'sms_school_logo_master';
+const STORAGE_KEY_PAD = 'sms_school_pad_master';
 const IDB_NAME = 'sms_persistent_vault';
 const IDB_STORE = 'app_state';
+
+type PadVaultEntry = {
+  url: string;
+  padType?: 'image' | 'pdf';
+  fileName?: string;
+  fileSize?: number;
+  updatedAt?: number;
+};
+
+let inMemoryPadVault: PadVaultEntry | null = null;
+
+function persistSettingsSafely(next: SchoolSettings): void {
+  if (typeof window === 'undefined') return;
+
+  // Always persist to IndexedDB vault first (survives localStorage quota limits)
+  if (next.uploadedPadTemplateUrl) {
+    inMemoryPadVault = {
+      url: next.uploadedPadTemplateUrl,
+      padType: next.uploadedPadType,
+      fileName: next.uploadedPadFileName,
+      fileSize: next.uploadedPadFileSize,
+      updatedAt: next.uploadedPadUpdatedAt,
+    };
+    idbSet(STORAGE_KEY_PAD, inMemoryPadVault);
+  } else {
+    inMemoryPadVault = null;
+    idbSet(STORAGE_KEY_PAD, null);
+  }
+  if (next.schoolLogo) {
+    idbSet(STORAGE_KEY_LOGO, next.schoolLogo);
+  }
+  idbSet(STORAGE_KEY, next);
+
+  // Save to localStorage; if the large pad base64 hits QuotaExceededError, keep the pad in IDB
+  // and persist all remaining settings + pad metadata cleanly in localStorage.
+  try {
+    const serialized = JSON.stringify(next);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    cachedSettingsRaw = serialized;
+  } catch (quotaErr) {
+    try {
+      const compact: SchoolSettings & { _padStoredInIdb?: boolean } = {
+        ...next,
+        uploadedPadTemplateUrl: '',
+        _padStoredInIdb: Boolean(next.uploadedPadTemplateUrl),
+      };
+      const compactSerialized = JSON.stringify(compact);
+      localStorage.setItem(STORAGE_KEY, compactSerialized);
+      cachedSettingsRaw = compactSerialized;
+    } catch (e) {
+      console.error('Failed to save settings to localStorage (kept in IndexedDB vault)', quotaErr, e);
+    }
+  }
+
+  if (next.schoolLogo) {
+    try {
+      localStorage.setItem(STORAGE_KEY_LOGO, next.schoolLogo);
+      cachedMasterLogoRaw = next.schoolLogo;
+    } catch {}
+  }
+}
+
+export function mergeCloudSettingsPreservingLocalPad(
+  local: SchoolSettings,
+  cloud: Partial<SchoolSettings>,
+): SchoolSettings {
+  const cloudHasPad = Boolean(cloud.uploadedPadTemplateUrl && cloud.uploadedPadTemplateUrl.trim());
+  const localHasPad = Boolean(local.uploadedPadTemplateUrl && local.uploadedPadTemplateUrl.trim());
+  const localPadTs = Number(local.uploadedPadUpdatedAt || 0);
+  const cloudPadTs = Number(cloud.uploadedPadUpdatedAt || 0);
+  const keepLocalPad = localHasPad && (!cloudHasPad || localPadTs > cloudPadTs);
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...local,
+    ...cloud,
+    ...(keepLocalPad
+      ? {
+          uploadedPadTemplateUrl: local.uploadedPadTemplateUrl,
+          uploadedPadType: local.uploadedPadType,
+          uploadedPadFileName: local.uploadedPadFileName,
+          uploadedPadFileSize: local.uploadedPadFileSize,
+          uploadedPadUpdatedAt: local.uploadedPadUpdatedAt,
+          activePadMode: local.activePadMode || 'uploaded',
+        }
+      : {}),
+  };
+}
 
 // ─── INDEXEDDB PERSISTENCE VAULT (SURVIVES BROWSER CACHE CLEAR) ───
 const openIdb = (): Promise<IDBDatabase | null> => {
@@ -223,10 +313,18 @@ const getInitialSettings = (): SchoolSettings => {
           margins.bottom === 1.0 &&
           !parsed.padHeaderFields);
       const effectiveLogo = parsed.schoolLogo || storedMasterLogo || '';
+      const effectivePadUrl =
+        parsed.uploadedPadTemplateUrl ||
+        (parsed._padStoredInIdb && inMemoryPadVault?.url ? inMemoryPadVault.url : '') ||
+        '';
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
         schoolLogo: effectiveLogo,
+        uploadedPadTemplateUrl: effectivePadUrl,
+        uploadedPadType: parsed.uploadedPadType || inMemoryPadVault?.padType || 'image',
+        uploadedPadFileName: parsed.uploadedPadFileName || inMemoryPadVault?.fileName || '',
+        uploadedPadFileSize: parsed.uploadedPadFileSize || inMemoryPadVault?.fileSize || 0,
         committeeMembers: parsed.committeeMembers && parsed.committeeMembers.length > 0
           ? parsed.committeeMembers
           : DEFAULT_COMMITTEE_MEMBERS,
@@ -253,101 +351,145 @@ const getInitialSettings = (): SchoolSettings => {
   return DEFAULT_SETTINGS;
 };
 
+let cachedSettingsRaw: string | null | undefined = undefined;
+let cachedMasterLogoRaw: string | null | undefined = undefined;
 let currentSettings: SchoolSettings = getInitialSettings();
 const listeners: ((settings: SchoolSettings) => void)[] = [];
 
-// Re-hydrate from persistent IndexedDB vault if localStorage was wiped or missing
 if (typeof window !== 'undefined') {
-  Promise.all([idbGet(STORAGE_KEY), idbGet(STORAGE_KEY_LOGO)]).then(([idbSettings, idbLogo]) => {
-    let changed = false;
-    if (idbSettings && (!currentSettings.schoolName || !currentSettings.schoolLogo)) {
-      currentSettings = {
-        ...DEFAULT_SETTINGS,
-        ...currentSettings,
-        ...idbSettings,
-      };
-      changed = true;
-    }
-    if (idbLogo && !currentSettings.schoolLogo) {
-      currentSettings.schoolLogo = idbLogo;
-      changed = true;
-    }
-    if (changed) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
-        if (currentSettings.schoolLogo) {
-          localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-        }
-      } catch {}
-      listeners.forEach((fn) => fn(currentSettings));
-    }
-  }).catch(() => {});
+  try {
+    cachedSettingsRaw = localStorage.getItem(STORAGE_KEY);
+    cachedMasterLogoRaw = localStorage.getItem(STORAGE_KEY_LOGO);
+  } catch {}
+}
 
-  // ☁️ Auto-hydrate and Real-Time Listen from Google Cloud Firestore (Cross-PC Instant Sync)
-  import('./firebaseSyncService').then(({ firebaseSyncService }) => {
-    // 1. Fetch latest settings from Cloud Firestore on startup
-    firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
-      if (cloudData.settings && (cloudData.settings.schoolLogo || cloudData.settings.schoolName)) {
+// Re-hydrate from persistent IndexedDB vault (recovers logo AND large uploaded school pads)
+if (typeof window !== 'undefined') {
+  Promise.all([idbGet(STORAGE_KEY), idbGet(STORAGE_KEY_LOGO), idbGet(STORAGE_KEY_PAD)]).then(
+    ([idbSettings, idbLogo, idbPad]) => {
+      let changed = false;
+      if (idbSettings && (!currentSettings.schoolName || !currentSettings.schoolLogo)) {
         currentSettings = {
           ...DEFAULT_SETTINGS,
           ...currentSettings,
-          ...cloudData.settings,
+          ...idbSettings,
         };
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
-          if (currentSettings.schoolLogo) {
-            localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-            idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-          }
-          idbSet(STORAGE_KEY, currentSettings);
-        } catch {}
-        listeners.forEach((fn) => fn(currentSettings));
-      } else if (currentSettings.schoolLogo) {
-        // 🚀 Local browser has the updated logo but Cloud Firestore doesn't have it yet!
-        // Auto-upload local logo to Cloud Firestore so all other PCs receive it immediately!
-        firebaseSyncService.syncSettingsToCloud(currentSettings).catch((err) => {
-          console.warn('[SettingsService] Cloud logo seed warning:', err);
-        });
+        changed = true;
       }
-    }).catch(() => {});
+      if (idbLogo && !currentSettings.schoolLogo) {
+        currentSettings = { ...currentSettings, schoolLogo: idbLogo };
+        changed = true;
+      }
 
-    // 2. Real-time onSnapshot subscription for live multi-PC syncing
-    firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
-      if (cloudUpdate.settings && (cloudUpdate.settings.schoolLogo || cloudUpdate.settings.schoolName)) {
-        const nextSettings: SchoolSettings = {
-          ...DEFAULT_SETTINGS,
+      const idbPadEntry: PadVaultEntry | null =
+        idbPad && typeof idbPad === 'object' && idbPad.url
+          ? (idbPad as PadVaultEntry)
+          : idbSettings?.uploadedPadTemplateUrl
+          ? {
+              url: idbSettings.uploadedPadTemplateUrl,
+              padType: idbSettings.uploadedPadType,
+              fileName: idbSettings.uploadedPadFileName,
+              fileSize: idbSettings.uploadedPadFileSize,
+            }
+          : null;
+
+      if (idbPadEntry?.url && !currentSettings.uploadedPadTemplateUrl) {
+        inMemoryPadVault = idbPadEntry;
+        currentSettings = {
           ...currentSettings,
-          ...cloudUpdate.settings,
+          uploadedPadTemplateUrl: idbPadEntry.url,
+          uploadedPadType: idbPadEntry.padType || currentSettings.uploadedPadType || 'image',
+          uploadedPadFileName: idbPadEntry.fileName || currentSettings.uploadedPadFileName || '',
+          uploadedPadFileSize: idbPadEntry.fileSize || currentSettings.uploadedPadFileSize || 0,
+          uploadedPadUpdatedAt: idbPadEntry.updatedAt || currentSettings.uploadedPadUpdatedAt,
+          activePadMode: currentSettings.activePadMode || 'uploaded',
         };
-        const prevSerialized = JSON.stringify({ ...currentSettings, updatedAt: undefined });
-        const nextSerialized = JSON.stringify({ ...nextSettings, updatedAt: undefined });
-        if (prevSerialized === nextSerialized) return;
-        currentSettings = nextSettings;
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
-          if (currentSettings.schoolLogo) {
-            localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-            idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-          }
-          idbSet(STORAGE_KEY, currentSettings);
-        } catch {}
+        changed = true;
+      }
+
+      if (changed) {
+        persistSettingsSafely(currentSettings);
         listeners.forEach((fn) => fn(currentSettings));
       }
-    });
-  }).catch(() => {});
+    },
+  ).catch(() => {});
+
+  // ☁️ Deferred Cloud Firestore Sync (never blocks initial route hydration or /login pages)
+  const pathnameNow = typeof window.location !== 'undefined' ? window.location.pathname || '' : '';
+  const isAuthPage = pathnameNow.startsWith('/login') || pathnameNow.startsWith('/teacher-login');
+  if (!isAuthPage) {
+    setTimeout(() => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        // 1. Fetch latest settings from Cloud Firestore (no 403 student count aggregation)
+        firebaseSyncService.fetchLandingPageCloudData({ includeStudentCount: false }).then((cloudData) => {
+          if (cloudData.settings && (cloudData.settings.schoolLogo || cloudData.settings.schoolName)) {
+            const nextMerged = mergeCloudSettingsPreservingLocalPad(currentSettings, cloudData.settings);
+            const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
+            const nextClean = JSON.stringify({ ...(nextMerged as any), updatedAt: undefined });
+            if (prevClean !== nextClean) {
+              currentSettings = nextMerged;
+              persistSettingsSafely(currentSettings);
+              listeners.forEach((fn) => fn(currentSettings));
+            }
+          } else if (currentSettings.schoolLogo) {
+            // Local browser has the logo but Cloud Firestore doesn't yet
+            firebaseSyncService.syncSettingsToCloud(currentSettings).catch((err) => {
+              console.warn('[SettingsService] Cloud logo seed warning:', err);
+            });
+          }
+        }).catch(() => {});
+
+        // 2. Real-time onSnapshot subscription for live multi-PC syncing
+        firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
+          if (cloudUpdate.settings && (cloudUpdate.settings.schoolLogo || cloudUpdate.settings.schoolName)) {
+            const nextSettings = mergeCloudSettingsPreservingLocalPad(currentSettings, cloudUpdate.settings);
+            const prevSerialized = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
+            const nextSerialized = JSON.stringify({ ...(nextSettings as any), updatedAt: undefined });
+            if (prevSerialized === nextSerialized) return;
+            currentSettings = nextSettings;
+            persistSettingsSafely(currentSettings);
+            listeners.forEach((fn) => fn(currentSettings));
+          }
+        });
+      }).catch(() => {});
+    }, 1500);
+  }
 }
 
 export const settingsService = {
   getSettings: (): SchoolSettings => {
     if (typeof window !== 'undefined') {
-      currentSettings = getInitialSettings();
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const rawLogo = localStorage.getItem(STORAGE_KEY_LOGO);
+        if (raw !== cachedSettingsRaw || rawLogo !== cachedMasterLogoRaw) {
+          currentSettings = getInitialSettings();
+          cachedSettingsRaw = raw;
+          cachedMasterLogoRaw = rawLogo;
+        }
+      } catch {
+        currentSettings = getInitialSettings();
+      }
     }
     return currentSettings;
   },
-  updateSettings: (newSettings: Partial<SchoolSettings>) => {
+  updateSettings: (
+    newSettings: Partial<SchoolSettings>,
+    options?: { skipCloudSync?: boolean },
+  ) => {
+    const padChanged =
+      newSettings.uploadedPadTemplateUrl !== undefined &&
+      newSettings.uploadedPadTemplateUrl !== currentSettings.uploadedPadTemplateUrl;
     const nextSettings: SchoolSettings = {
       ...currentSettings,
       ...newSettings,
+      ...(padChanged
+        ? {
+            uploadedPadUpdatedAt:
+              newSettings.uploadedPadUpdatedAt ?? Date.now(),
+          }
+        : {}),
       padMargins: {
         ...DEFAULT_PAD_MARGINS,
         ...(currentSettings.padMargins || {}),
@@ -366,23 +508,16 @@ export const settingsService = {
     }
     currentSettings = nextSettings;
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
-        if (currentSettings.schoolLogo) {
-          localStorage.setItem(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-          idbSet(STORAGE_KEY_LOGO, currentSettings.schoolLogo);
-        }
-        idbSet(STORAGE_KEY, currentSettings);
-      } catch (e) {
-        console.error('Failed to save settings to localStorage/IndexedDB vault', e);
-      }
+      persistSettingsSafely(currentSettings);
 
-      // ⚡ Auto-sync with Google Cloud Firestore
-      try {
-        import('./firebaseSyncService').then(({ firebaseSyncService }) => {
-          firebaseSyncService.syncSettingsToCloud(currentSettings).catch(() => {});
-        }).catch(() => {});
-      } catch (e) {}
+      // ⚡ Auto-sync with Google Cloud Firestore (skipped when hydrating from cloud to prevent echo loops)
+      if (!options?.skipCloudSync) {
+        try {
+          import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+            firebaseSyncService.syncSettingsToCloud(currentSettings).catch(() => {});
+          }).catch(() => {});
+        } catch (e) {}
+      }
     }
     listeners.forEach((fn) => fn(currentSettings));
   },

@@ -615,6 +615,31 @@ const ALLOWED_SMS_PROXY_HOSTS = new Set([
       filePath = filePath + '.txt';
     }
 
+    // 3b. Next.js 16 static export nested RSC segment fallback:
+    // Client router requests `/route/__next.a.b.c.txt`, while Next 16 writes `/route/__next.a/b/c.txt`
+    if (!fs.existsSync(filePath)) {
+      const baseName = path.basename(filePath);
+      if (baseName.startsWith('__next.') && baseName.endsWith('.txt')) {
+        const inner = baseName.slice('__next.'.length, -'.txt'.length);
+        const segs = inner.split('.').filter(Boolean);
+        if (segs.length >= 2) {
+          const nestedCandidate = path.resolve(
+            path.dirname(filePath),
+            `__next.${segs[0]}`,
+            ...segs.slice(1, -1),
+            `${segs[segs.length - 1]}.txt`,
+          );
+          if (
+            nestedCandidate.startsWith(path.resolve(PUBLIC_DIR)) &&
+            fs.existsSync(nestedCandidate) &&
+            !fs.statSync(nestedCandidate).isDirectory()
+          ) {
+            filePath = nestedCandidate;
+          }
+        }
+      }
+    }
+
     // 4. Direct HTML file fallback
     if (!fs.existsSync(filePath) && fs.existsSync(filePath + '.html')) {
       filePath = filePath + '.html';

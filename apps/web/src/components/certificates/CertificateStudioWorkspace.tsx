@@ -3,25 +3,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
-  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Download,
   Edit3,
-  FileText,
   GraduationCap,
-  Languages,
+  Minus,
+  PenTool,
+  Plus,
   Printer,
   RefreshCw,
   RotateCcw,
   Save,
   Search,
-  Sparkles,
-  UserPlus,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { Student, studentService } from '@/services/studentService';
 import { AlumniRecord } from '@/services/alumniService';
 import { SchoolSettings } from '@/services/settingsService';
 import {
+  CertificateCanvasMode,
   CertificateInput,
   CertificateRecord,
   CertificateType,
@@ -30,27 +32,27 @@ import {
 import {
   BOARD_EXAM_TYPES,
   buildDefaultRefNo,
-  CERTIFICATE_PURPOSES,
-  CERTIFICATE_TRAITS,
   CertificateDraft,
   CertificateGender,
   CertificateLanguage,
   composeCertificateBody,
+  CUSTOM_DOCUMENT_PRESETS,
   EDUCATION_BOARDS,
   getDefaultCertificateTitle,
   mapAlumniToCertificateDraft,
   mapStudentToCertificateDraft,
+  sortStudentsByRoll,
   StudentSourceKind,
 } from '@/lib/certificateEngine';
 import { exportElementToPng } from '@/lib/certificatePngExport';
 import OfficialCertificateDoc from '@/components/OfficialCertificateDoc';
-import CertificateDesignControls, { StudioDesignState } from './CertificateDesignControls';
 import { ALL_CERTIFICATE_TYPES } from './certificateThemes';
 
 interface CertificateStudioWorkspaceProps {
   students: Student[];
   alumniList: AlumniRecord[];
   schoolSettings: SchoolSettings;
+  padCanvasMode: 'uploaded_pad' | 'preprinted_pad';
   createdByName: string;
   initialStudentId?: string;
   initialAlumniId?: string;
@@ -61,6 +63,17 @@ interface CertificateStudioWorkspaceProps {
   onStudentUpdated?: () => void;
   onNotify: (type: 'success' | 'error', text: string) => void;
 }
+
+const CORE_CERT_TYPES: CertificateType[] = [
+  'current_student',
+  'character_certificate',
+  'transfer_certificate',
+  'ssc_testimonial',
+];
+
+const EXTRA_CERT_TYPES = ALL_CERTIFICATE_TYPES.filter(
+  (t) => !CORE_CERT_TYPES.includes(t.id),
+);
 
 const EMPTY_DRAFT: CertificateDraft = {
   sourceKind: 'manual',
@@ -73,9 +86,9 @@ const EMPTY_DRAFT: CertificateDraft = {
   motherNameEn: '',
   gender: 'male',
   roll: '',
-  grade: '10th',
-  section: 'A',
-  group: 'সাধারণ',
+  grade: '',
+  section: '',
+  group: '',
   session: String(new Date().getFullYear()),
   dob: '',
   birthRegNo: '',
@@ -100,6 +113,7 @@ export default function CertificateStudioWorkspace({
   students,
   alumniList,
   schoolSettings,
+  padCanvasMode,
   createdByName,
   initialStudentId,
   initialAlumniId,
@@ -111,53 +125,65 @@ export default function CertificateStudioWorkspace({
   onNotify,
 }: CertificateStudioWorkspaceProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const [studioStep, setStudioStep] = useState<'source' | 'details' | 'design'>('source');
 
-  // Step 1: Type, Source & Language
-  const [certType, setCertType] = useState<CertificateType>(initialType || editingCert?.type || 'current_student');
-  const [language, setLanguage] = useState<CertificateLanguage>(
-    editingCert?.language || (initialType === 'ssc_testimonial' ? 'en' : 'bn')
+  // Core Certificate State
+  const [certType, setCertType] = useState<CertificateType>(
+    initialType || editingCert?.type || 'current_student',
   );
-  const [sourceTab, setSourceTab] = useState<StudentSourceKind>('active');
+  const [language, setLanguage] = useState<CertificateLanguage>(
+    editingCert?.language || 'bn',
+  );
+  const [sourceMode, setSourceMode] = useState<'sync' | 'custom'>(
+    editingCert && (editingCert.studentId === 'MANUAL' || editingCert.studentId?.startsWith('CUSTOM-'))
+      ? 'custom'
+      : 'sync',
+  );
+  const [syncListKind, setSyncListKind] = useState<'active' | 'alumni'>('active');
+  const [customSubMode, setCustomSubMode] = useState<'structured' | 'freeform'>(
+    editingCert?.customRecipientMode || 'structured',
+  );
+
+  // Student Picker Filters (compact)
+  const [pickerExpanded, setPickerExpanded] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedAlumni, setSelectedAlumni] = useState<AlumniRecord | null>(null);
 
-  // Step 2: Draft Data & Smart Traits/Purpose
+  // Form Data
   const [draft, setDraft] = useState<CertificateDraft>(EMPTY_DRAFT);
   const [refNo, setRefNo] = useState<string>(() => buildDefaultRefNo(schoolSettings));
   const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [customTitle, setCustomTitle] = useState<string>('');
-  const [selectedTraits, setSelectedTraits] = useState<string[]>(['meritorious', 'regular', 'disciplined']);
-  const [purposeId, setPurposeId] = useState<string>('general');
-  const [customPurposeText, setCustomPurposeText] = useState<string>('');
-  const [achievementTitle, setAchievementTitle] = useState<string>('');
-  const [characterRemarks, setCharacterRemarks] = useState<string>('');
+  const [customTitle, setCustomTitle] = useState<string>(() =>
+    getDefaultCertificateTitle(
+      initialType || editingCert?.type || 'current_student',
+      editingCert?.language || 'bn',
+    ),
+  );
   const [customBody, setCustomBody] = useState<string>('');
   const [isBodyLocked, setIsBodyLocked] = useState<boolean>(false);
   const [isTitleLocked, setIsTitleLocked] = useState<boolean>(false);
+  const [showExtraFields, setShowExtraFields] = useState<boolean>(false);
+  const [achievementTitle, setAchievementTitle] = useState<string>('');
 
-  // Step 3: Visual Design Controls
-  const [design, setDesign] = useState<StudioDesignState>({
-    orientation: editingCert?.orientation || (initialType === 'ssc_testimonial' ? 'landscape' : 'portrait'),
-    themeColor: editingCert?.themeColor || '#1e1b4b',
-    titleVariant: editingCert?.titleVariant || 'ribbon',
-    borderPreset: editingCert?.borderPreset || 'royal_crest',
-    showHeader: editingCert?.showHeader !== undefined ? editingCert.showHeader : true,
-    showPhotoBox: Boolean(editingCert?.showPhotoBox),
-    showOfficeStub: Boolean(editingCert?.showOfficeStub || initialType === 'ssc_testimonial'),
-    showCornerBands: editingCert?.showCornerBands !== undefined ? editingCert.showCornerBands : true,
-    showQrCode: editingCert?.showQrCode !== false,
-    showSecondarySigner: Boolean(editingCert?.showSecondarySigner),
-    secondarySignerTitle: editingCert?.secondarySignerTitle || 'শ্রেণি শিক্ষক / সহকারী প্রধান শিক্ষক',
-    fontSize: editingCert?.fontSize || (initialType === 'ssc_testimonial' ? 17.5 : 15.5),
-    cursiveNames: editingCert?.cursiveNames !== undefined ? editingCert.cursiveNames : true,
-  });
+  // Minimal Pad Display Options (No digital borders/frames!)
+  const [showQrCode, setShowQrCode] = useState<boolean>(editingCert?.showQrCode !== false);
+  const [showPhotoBox, setShowPhotoBox] = useState<boolean>(Boolean(editingCert?.showPhotoBox));
+  const [showSecondarySigner, setShowSecondarySigner] = useState<boolean>(
+    Boolean(editingCert?.showSecondarySigner),
+  );
+  const [secondarySignerTitle, setSecondarySignerTitle] = useState<string>(
+    editingCert?.secondarySignerTitle || 'শ্রেণি শিক্ষক',
+  );
+  const [hideTitle, setHideTitle] = useState<boolean>(Boolean(editingCert?.hideTitle));
+  const [fontSize, setFontSize] = useState<number>(
+    editingCert?.fontSize || schoolSettings.padFontSize || 14.5,
+  );
 
-  // Live Canvas Interactions
+  // Preview Controls
   const [inlineEditable, setInlineEditable] = useState<boolean>(false);
-  const [previewScale, setPreviewScale] = useState<number>(0.68);
+  const [previewScale, setPreviewScale] = useState<number>(0.72);
   const [savedCertId, setSavedCertId] = useState<string | null>(editingCert?.id || null);
   const [exportingPng, setExportingPng] = useState<boolean>(false);
 
@@ -165,67 +191,59 @@ export default function CertificateStudioWorkspace({
     (st: Student) => {
       setSelectedStudent(st);
       setSelectedAlumni(null);
-      setSourceTab('active');
+      setSourceMode('sync');
+      setSyncListKind('active');
       const mapped = mapStudentToCertificateDraft(st, schoolSettings);
       if (certType === 'ssc_testimonial' || certType === 'transfer_certificate') {
         mapped.currentlyStudying = false;
       }
       setDraft(mapped);
+      setPickerExpanded(false);
       setSavedCertId(null);
       setIsBodyLocked(false);
     },
-    [certType, schoolSettings]
+    [certType, schoolSettings],
   );
 
   const selectAlumniRecord = useCallback(
     (alm: AlumniRecord) => {
       setSelectedAlumni(alm);
       setSelectedStudent(null);
-      setSourceTab('alumni');
-      const mapped = mapAlumniToCertificateDraft(alm, schoolSettings);
-      setDraft(mapped);
+      setSourceMode('sync');
+      setSyncListKind('alumni');
+      setDraft(mapAlumniToCertificateDraft(alm, schoolSettings));
+      setPickerExpanded(false);
       setSavedCertId(null);
       setIsBodyLocked(false);
     },
-    [schoolSettings]
+    [schoolSettings],
   );
 
-  // Deep-link sync from Student Directory / Alumni / Register edit
+  // Deep-link hydration
   useEffect(() => {
     if (initialType) {
       setCertType(initialType);
-      const meta = ALL_CERTIFICATE_TYPES.find((t) => t.id === initialType);
-      if (meta) {
-        setLanguage(meta.defaultLang);
-        setDesign((prev) => ({
-          ...prev,
-          orientation: meta.defaultOrientation,
-          showOfficeStub: initialType === 'ssc_testimonial',
-        }));
-      }
+      if (initialType === 'ssc_testimonial') setShowExtraFields(true);
     }
   }, [initialType]);
 
   useEffect(() => {
     if (initialStudentId && students.length > 0) {
       const match = students.find((s) => s.id === initialStudentId);
-      if (match) {
-        selectActiveStudent(match);
-        setStudioStep('details');
-      }
+      if (match) selectActiveStudent(match);
     }
   }, [initialStudentId, students, selectActiveStudent]);
 
   useEffect(() => {
     if (initialAlumniId && alumniList.length > 0) {
-      const match = alumniList.find((a) => a.id === initialAlumniId || a.studentId === initialAlumniId);
-      if (match) {
-        selectAlumniRecord(match);
-        setStudioStep('details');
-      }
+      const match = alumniList.find(
+        (a) => a.id === initialAlumniId || a.studentId === initialAlumniId,
+      );
+      if (match) selectAlumniRecord(match);
     }
   }, [initialAlumniId, alumniList, selectAlumniRecord]);
 
+  // Edit existing certificate from Register
   useEffect(() => {
     if (!editingCert) return;
     setSavedCertId(editingCert.id);
@@ -233,21 +251,17 @@ export default function CertificateStudioWorkspace({
     setLanguage(editingCert.language === 'en' ? 'en' : 'bn');
     setRefNo(editingCert.refNo || buildDefaultRefNo(schoolSettings));
     setIssueDate(editingCert.issueDate || new Date().toISOString().split('T')[0]);
-    setDesign((prev) => ({
-      ...prev,
-      orientation: editingCert.orientation || prev.orientation,
-      themeColor: editingCert.themeColor || prev.themeColor,
-      titleVariant: editingCert.titleVariant || prev.titleVariant,
-      borderPreset: editingCert.borderPreset || prev.borderPreset,
-      showHeader: editingCert.showHeader !== undefined ? editingCert.showHeader : prev.showHeader,
-      showPhotoBox: editingCert.showPhotoBox !== undefined ? editingCert.showPhotoBox : prev.showPhotoBox,
-      showOfficeStub: editingCert.showOfficeStub !== undefined ? editingCert.showOfficeStub : prev.showOfficeStub,
-      showCornerBands: editingCert.showCornerBands !== undefined ? editingCert.showCornerBands : prev.showCornerBands,
-      showQrCode: editingCert.showQrCode !== false,
-      showSecondarySigner: Boolean(editingCert.showSecondarySigner),
-      secondarySignerTitle: editingCert.secondarySignerTitle || prev.secondarySignerTitle,
-      fontSize: editingCert.fontSize || prev.fontSize,
-    }));
+    setShowQrCode(editingCert.showQrCode !== false);
+    setShowPhotoBox(Boolean(editingCert.showPhotoBox));
+    setShowSecondarySigner(Boolean(editingCert.showSecondarySigner));
+    setSecondarySignerTitle(editingCert.secondarySignerTitle || 'শ্রেণি শিক্ষক');
+    setHideTitle(Boolean(editingCert.hideTitle));
+    setFontSize(editingCert.fontSize || schoolSettings.padFontSize || 14.5);
+    const isCustom =
+      editingCert.studentId === 'MANUAL' || editingCert.studentId?.startsWith('CUSTOM-');
+    setSourceMode(isCustom ? 'custom' : 'sync');
+    setCustomSubMode(editingCert.customRecipientMode || 'structured');
+    setPickerExpanded(false);
     if (editingCert.title) {
       setIsTitleLocked(true);
       setCustomTitle(editingCert.title);
@@ -258,6 +272,7 @@ export default function CertificateStudioWorkspace({
     }
     setDraft((prev) => ({
       ...prev,
+      sourceKind: (isCustom ? 'manual' : editingCert.isAlumni ? 'alumni' : 'active') as StudentSourceKind,
       studentId: editingCert.studentId,
       studentName: editingCert.studentName,
       studentNameEn: editingCert.studentNameEn || '',
@@ -265,9 +280,16 @@ export default function CertificateStudioWorkspace({
       fatherNameEn: editingCert.fatherNameEn || '',
       motherName: editingCert.motherName || '',
       motherNameEn: editingCert.motherNameEn || '',
-      gender: editingCert.gender === 'female' || editingCert.gender === 'Female' || editingCert.gender === 'নারী' ? 'female' : editingCert.gender === 'unspecified' ? 'unspecified' : 'male',
+      gender:
+        editingCert.gender === 'female' ||
+        editingCert.gender === 'Female' ||
+        editingCert.gender === 'নারী'
+          ? 'female'
+          : editingCert.gender === 'unspecified'
+          ? 'unspecified'
+          : 'male',
       roll: editingCert.roll || '',
-      grade: editingCert.grade || '10th',
+      grade: editingCert.grade || '',
       section: editingCert.section || 'A',
       group: editingCert.group || 'সাধারণ',
       session: editingCert.session || '',
@@ -281,126 +303,149 @@ export default function CertificateStudioWorkspace({
       passingYear: editingCert.passingYear || '',
       gpa: editingCert.gpa || '',
       photoUrl: editingCert.photoUrl || '',
-      currentlyStudying: editingCert.currentlyStudying !== undefined ? editingCert.currentlyStudying : !editingCert.isAlumni,
+      currentlyStudying:
+        editingCert.currentlyStudying !== undefined
+          ? editingCert.currentlyStudying
+          : !editingCert.isAlumni,
     }));
-    setStudioStep('details');
   }, [editingCert, schoolSettings]);
 
-  // Adjust preview scale cleanly when orientation switches
-  useEffect(() => {
-    setPreviewScale(design.orientation === 'landscape' ? 0.58 : 0.68);
-  }, [design.orientation]);
-
-  // Auto-compose title unless user manually customized it
+  // Auto-update title unless user edited it manually
   useEffect(() => {
     if (!isTitleLocked) {
       setCustomTitle(getDefaultCertificateTitle(certType, language));
     }
   }, [certType, language, isTitleLocked]);
 
-  // Auto-compose prose unless user manually edited / typed inline
+  // Auto-compose body prose unless user locked it or is in freeform mode
   useEffect(() => {
     if (isBodyLocked) return;
+    if (sourceMode === 'custom' && customSubMode === 'freeform') return;
     const composed = composeCertificateBody({
       type: certType,
       language,
       draft,
       schoolSettings,
-      selectedTraits,
-      purposeId,
-      customPurposeText,
+      selectedTraits: ['meritorious', 'regular', 'disciplined'],
+      purposeId: 'general',
       achievementTitle,
-      characterRemarks,
+      omitEmptyFields: sourceMode === 'custom' || certType === 'custom_certificate',
     });
     setCustomBody(composed);
   }, [
     isBodyLocked,
+    sourceMode,
+    customSubMode,
     certType,
     language,
     draft,
     schoolSettings,
-    selectedTraits,
-    purposeId,
-    customPurposeText,
     achievementTitle,
-    characterRemarks,
   ]);
 
-  const handleTypeSelect = (nextType: CertificateType) => {
+  const handleSelectCertType = (nextType: CertificateType) => {
     setCertType(nextType);
-    const meta = ALL_CERTIFICATE_TYPES.find((t) => t.id === nextType);
-    if (meta) {
-      setLanguage(meta.defaultLang);
-      setDesign((prev) => ({
-        ...prev,
-        orientation: meta.defaultOrientation,
-        borderPreset: meta.defaultLayout === 'pad' ? prev.borderPreset : 'royal_crest',
-        showOfficeStub: nextType === 'ssc_testimonial' ? true : prev.showOfficeStub,
-        fontSize: nextType === 'ssc_testimonial' ? 17.5 : prev.fontSize,
-        cursiveNames: true,
-      }));
+    if (nextType === 'ssc_testimonial') {
+      setShowExtraFields(true);
     }
     setDraft((prev) => ({
       ...prev,
-      currentlyStudying: nextType === 'ssc_testimonial' || nextType === 'transfer_certificate' ? false : prev.sourceKind !== 'alumni',
+      currentlyStudying:
+        nextType === 'ssc_testimonial' || nextType === 'transfer_certificate'
+          ? false
+          : prev.sourceKind !== 'alumni',
     }));
     setIsTitleLocked(false);
     setIsBodyLocked(false);
     setSavedCertId(null);
   };
 
-  const handleSwitchManual = () => {
-    setSourceTab('manual');
-    setSelectedStudent(null);
-    setSelectedAlumni(null);
-    setDraft({
-      ...EMPTY_DRAFT,
-      currentlyStudying: certType !== 'ssc_testimonial' && certType !== 'transfer_certificate',
-    });
-    setIsBodyLocked(false);
-    setSavedCertId(null);
-    setStudioStep('details');
+  const handleSwitchSource = (next: 'sync' | 'custom') => {
+    setSourceMode(next);
+    if (next === 'custom') {
+      setSelectedStudent(null);
+      setSelectedAlumni(null);
+      setDraft({
+        ...EMPTY_DRAFT,
+        currentlyStudying:
+          certType !== 'ssc_testimonial' && certType !== 'transfer_certificate',
+      });
+      setIsBodyLocked(false);
+      setSavedCertId(null);
+    } else {
+      setCustomSubMode('structured');
+      setPickerExpanded(true);
+    }
   };
 
+  const applyCustomPreset = (presetId: string) => {
+    const preset = CUSTOM_DOCUMENT_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const rawBody = language === 'en' ? preset.bodyEn : preset.bodyBn;
+    const interpolated = certificateService.interpolateTemplate(rawBody, {
+      student_name:
+        (language === 'en' ? draft.studentNameEn || draft.studentName : draft.studentName) ||
+        (language === 'en' ? 'Recipient Name' : 'প্রাপকের নাম'),
+      father_name: draft.fatherName || '...',
+      mother_name: draft.motherName || '...',
+      class: draft.grade || '১০ম',
+      roll_no: draft.roll || '০১',
+      session: draft.session || String(new Date().getFullYear()),
+      school_name: schoolSettings.schoolName || 'অত্র বিদ্যালয়',
+    });
+    setCustomSubMode('freeform');
+    setCertType('custom_certificate');
+    setIsTitleLocked(true);
+    setCustomTitle(language === 'en' ? preset.titleEn : preset.titleBn);
+    setIsBodyLocked(true);
+    setCustomBody(interpolated);
+  };
+
+  // Filtered & sorted students
   const uniqueGrades = useMemo(
     () => Array.from(new Set(students.map((s) => s.grade).filter(Boolean))),
-    [students]
+    [students],
+  );
+  const uniqueSections = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          students
+            .filter((s) => gradeFilter === 'all' || s.grade === gradeFilter)
+            .map((s) => s.section || s.branch || '')
+            .filter(Boolean),
+        ),
+      ),
+    [students, gradeFilter],
   );
 
   const filteredActiveStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return students.filter((s) => {
+    const matched = students.filter((s) => {
       const matchGrade = gradeFilter === 'all' || s.grade === gradeFilter;
+      const sec = s.section || s.branch || '';
+      const matchSec = sectionFilter === 'all' || sec === sectionFilter;
       const matchQuery =
         !q ||
         s.name.toLowerCase().includes(q) ||
         (s.nameEn || '').toLowerCase().includes(q) ||
         s.roll.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q) ||
-        (s.mobile || '').toLowerCase().includes(q);
-      return matchGrade && matchQuery;
+        s.id.toLowerCase().includes(q);
+      return matchGrade && matchSec && matchQuery;
     });
-  }, [students, gradeFilter, searchQuery]);
+    return sortStudentsByRoll(matched);
+  }, [students, gradeFilter, sectionFilter, searchQuery]);
 
   const filteredAlumni = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return alumniList.filter((a) => {
-      if (!q) return true;
-      return (
+    return alumniList.filter(
+      (a) =>
+        !q ||
         a.name.toLowerCase().includes(q) ||
         (a.sscRoll || '').toLowerCase().includes(q) ||
-        (a.batch || '').toLowerCase().includes(q) ||
-        (a.passingYear || '').toLowerCase().includes(q)
-      );
-    });
-  }, [alumniList, searchQuery]);
-
-  const toggleTrait = (traitId: string) => {
-    setIsBodyLocked(false);
-    setSelectedTraits((prev) =>
-      prev.includes(traitId) ? prev.filter((id) => id !== traitId) : [...prev, traitId]
+        (a.batch || '').toLowerCase().includes(q),
     );
-  };
+  }, [alumniList, searchQuery]);
 
   const handleSaveEnglishProfileBack = () => {
     if (!selectedStudent) return;
@@ -413,7 +458,7 @@ export default function CertificateStudioWorkspace({
     studentService.updateStudent(updated);
     setSelectedStudent(updated);
     onStudentUpdated?.();
-    onNotify('success', `${selectedStudent.name}-এর ইংরেজি নাম প্রোফাইলে স্থায়ীভাবে সেভ হয়েছে!`);
+    onNotify('success', `${selectedStudent.name}-এর ইংরেজি নাম প্রোফাইলে সেভ হয়েছে!`);
   };
 
   const liveCertRecord: CertificateRecord = useMemo(
@@ -425,9 +470,13 @@ export default function CertificateStudioWorkspace({
       refNo: refNo.trim() || buildDefaultRefNo(schoolSettings),
       issueDate,
       status: 'valid',
-      layoutStyle: design.borderPreset === 'no_border_pad' ? 'pad' : 'royal_border',
-      studentId: draft.studentId || 'MANUAL',
-      studentName: draft.studentName || 'শিক্ষার্থীর নাম',
+      canvasMode: padCanvasMode as CertificateCanvasMode,
+      hideTitle,
+      customRecipientMode: sourceMode === 'custom' ? customSubMode : 'structured',
+      layoutStyle: 'pad',
+      studentId: draft.studentId || (sourceMode === 'custom' ? 'CUSTOM' : 'MANUAL'),
+      studentName:
+        draft.studentName || (sourceMode === 'custom' ? 'প্রাপকের নাম' : 'শিক্ষার্থীর নাম'),
       studentNameEn: draft.studentNameEn || undefined,
       fatherName: draft.fatherName || '',
       fatherNameEn: draft.fatherNameEn || undefined,
@@ -445,7 +494,9 @@ export default function CertificateStudioWorkspace({
       postOffice: draft.postOffice,
       upazila: draft.upazila,
       district: draft.district,
-      address: [draft.village, draft.postOffice, draft.upazila, draft.district].filter(Boolean).join(', '),
+      address: [draft.village, draft.postOffice, draft.upazila, draft.district]
+        .filter(Boolean)
+        .join(', '),
       boardRoll: draft.boardRoll || undefined,
       boardReg: draft.boardReg || undefined,
       passingYear: draft.passingYear || undefined,
@@ -454,30 +505,24 @@ export default function CertificateStudioWorkspace({
       gpaScale: draft.gpaScale || '5.00',
       examType: draft.examType,
       boardName: draft.boardName,
-      studyPeriod: draft.studyPeriod || undefined,
       currentlyStudying: draft.currentlyStudying,
       isAlumni: !draft.currentlyStudying,
       achievementTitle: achievementTitle.trim() || undefined,
-      characterRemarks: characterRemarks.trim() || undefined,
       customBody,
       language,
-      traits: selectedTraits,
-      purposeCode: purposeId,
-      purposeText: customPurposeText.trim() || undefined,
-      orientation: design.orientation,
-      themeColor: design.themeColor,
-      titleVariant: design.titleVariant,
-      borderPreset: design.borderPreset,
-      showHeader: design.showHeader,
-      showPhotoBox: design.showPhotoBox,
+      orientation: 'portrait',
+      titleVariant: 'boxed',
+      borderPreset: 'no_border_pad',
+      showHeader: false,
+      showPhotoBox,
       photoUrl: draft.photoUrl || undefined,
-      showOfficeStub: design.showOfficeStub,
-      showCornerBands: design.showCornerBands,
-      fontSize: design.fontSize,
-      showQrCode: design.showQrCode,
-      cursiveNames: design.cursiveNames,
-      showSecondarySigner: design.showSecondarySigner,
-      secondarySignerTitle: design.secondarySignerTitle,
+      showOfficeStub: false,
+      showCornerBands: false,
+      fontSize,
+      showQrCode,
+      cursiveNames: true,
+      showSecondarySigner,
+      secondarySignerTitle,
       createdDate: issueDate,
     }),
     [
@@ -488,43 +533,56 @@ export default function CertificateStudioWorkspace({
       refNo,
       schoolSettings,
       issueDate,
-      design,
+      padCanvasMode,
+      hideTitle,
+      sourceMode,
+      customSubMode,
       draft,
       achievementTitle,
-      characterRemarks,
       customBody,
-      selectedTraits,
-      purposeId,
-      customPurposeText,
-    ]
+      showPhotoBox,
+      fontSize,
+      showQrCode,
+      showSecondarySigner,
+      secondarySignerTitle,
+    ],
   );
 
   const persistCertificate = (quiet = false): CertificateRecord | null => {
-    if (!draft.studentName.trim() && !draft.studentNameEn.trim()) {
-      onNotify('error', 'অনুগ্রহ করে শিক্ষার্থীর নাম প্রদান করুন!');
-      setStudioStep('details');
+    const resolvedName = (draft.studentName || draft.studentNameEn).trim();
+    if (!resolvedName && customSubMode !== 'freeform') {
+      onNotify('error', 'অনুগ্রহ করে শিক্ষার্থী বা প্রাপকের নাম লিখুন!');
       return null;
     }
-
-    const { id: _id, verificationCode: _vc, createdDate: _cd, status: _st, auditTrail: _at, ...rest } = liveCertRecord;
+    const {
+      id: _id,
+      verificationCode: _vc,
+      createdDate: _cd,
+      status: _st,
+      auditTrail: _at,
+      ...rest
+    } = liveCertRecord;
     const payload: CertificateInput = {
       ...rest,
       id: savedCertId || undefined,
-      studentId: draft.studentId || `STU-${Date.now().toString().slice(-5)}`,
-      studentName: (draft.studentName || draft.studentNameEn).trim(),
+      studentId:
+        draft.studentId ||
+        (sourceMode === 'custom'
+          ? `CUSTOM-${Date.now().toString().slice(-5)}`
+          : `STU-${Date.now().toString().slice(-5)}`),
+      studentName: resolvedName || customTitle.trim() || 'কাস্টম সনদ',
       createdBy: createdByName,
     };
-
     const saved = certificateService.saveCertificate(payload);
     setSavedCertId(saved.id);
     onSaved(saved);
     if (!quiet) {
-      onNotify('success', `সনদ (${saved.id}) সফলভাবে রেজিস্টারে সংরক্ষিত হয়েছে!`);
+      onNotify('success', `সনদ (${saved.id}) রেজিস্টারে সংরক্ষিত হয়েছে!`);
     }
     return saved;
   };
 
-  const handlePrintCertificate = () => {
+  const handlePrint = () => {
     const saved = savedCertId
       ? certificateService.getCertificateById(savedCertId)
       : persistCertificate(true);
@@ -532,9 +590,7 @@ export default function CertificateStudioWorkspace({
       certificateService.logPrintAction(saved.id, createdByName);
       onSaved(saved);
     }
-    setTimeout(() => {
-      window.print();
-    }, 120);
+    setTimeout(() => window.print(), 120);
   };
 
   const handleDownloadPng = async () => {
@@ -544,167 +600,181 @@ export default function CertificateStudioWorkspace({
       const saved = savedCertId
         ? certificateService.getCertificateById(savedCertId)
         : persistCertificate(true);
-      const safeName = (draft.studentNameEn || draft.studentName || 'certificate')
+      const safeName = (draft.studentNameEn || draft.studentName || customTitle || 'certificate')
         .replace(/[^a-zA-Z0-9\u0980-\u09FF_-]+/g, '_')
         .slice(0, 32);
-      const result = await exportElementToPng(
+      const res = await exportElementToPng(
         sheetRef.current,
-        `${safeName}_${saved?.id || certType}.png`
+        `${safeName}_${saved?.id || certType}.png`,
       );
-      if (result.ok) {
-        onNotify('success', 'হাই-রেজল্যুশন PNG ছবি সফলভাবে ডাউনলোড হয়েছে!');
-      } else {
-        onNotify('error', `PNG ডাউনলোডে সমস্যা (${result.error}) — অনুগ্রহ করে "প্রিন্ট / PDF" ব্যবহার করুন।`);
-      }
+      if (res.ok) onNotify('success', 'PNG ছবি ডাউনলোড হয়েছে!');
+      else onNotify('error', 'PNG ডাউনলোডে সমস্যা — প্রিন্ট / PDF ব্যবহার করুন।');
     } finally {
       setExportingPng(false);
     }
   };
 
+  const isExtraTypeSelected = EXTRA_CERT_TYPES.some((t) => t.id === certType);
+  const showBoardFields =
+    certType === 'ssc_testimonial' || certType === 'merit_certificate' || !draft.currentlyStudying;
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* LEFT / CONTROL WORKSPACE (5 Cols on XL)                           */}
+      {/* LEFT PANEL: CLEAN, UNCLUTTERED SINGLE-FLOW CERTIFICATE FORM       */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="xl:col-span-5 space-y-4 print:hidden">
-        {/* 3-Step Navigator Pills */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-1.5 grid grid-cols-3 gap-1 shadow-xs">
-          {[
-            { id: 'source' as const, step: '১', label: 'ধরন ও শিক্ষার্থী' },
-            { id: 'details' as const, step: '২', label: 'তথ্য ও ব্যাকরণ' },
-            { id: 'design' as const, step: '৩', label: 'ডিজাইন ও ফ্রেম' },
-          ].map((s) => {
-            const active = studioStep === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setStudioStep(s.id)}
-                className={`py-2 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  active
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center ${
-                    active ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-700'
+      <div className="xl:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-4 space-y-4 text-xs print:hidden">
+        {/* 1. Certificate Type Selector (Clean 4 Pills + Other Dropdown) */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-black text-slate-600 dark:text-slate-300">
+              ১. সনদের ধরন
+            </label>
+            <div className="flex items-center bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-[10.5px] font-bold">
+              {[
+                { id: 'bn' as const, label: 'বাংলা' },
+                { id: 'en' as const, label: 'English' },
+              ].map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => {
+                    setLanguage(l.id);
+                    setIsTitleLocked(false);
+                    if (customSubMode !== 'freeform') setIsBodyLocked(false);
+                  }}
+                  className={`px-2.5 py-0.5 rounded-md cursor-pointer transition ${
+                    language === l.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                   }`}
                 >
-                  {s.step}
-                </span>
-                <span className="truncate">{s.label}</span>
-              </button>
-            );
-          })}
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              { id: 'current_student' as const, label: 'প্রত্যয়ন পত্র' },
+              { id: 'character_certificate' as const, label: 'চারিত্রিক সনদ' },
+              { id: 'transfer_certificate' as const, label: 'ছাড়পত্র (TC)' },
+              { id: 'ssc_testimonial' as const, label: 'প্রশংসাপত্র' },
+            ].map((item) => {
+              const active = certType === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSelectCertType(item.id)}
+                  className={`py-2 px-3 rounded-xl font-black text-xs border transition cursor-pointer flex items-center justify-between ${
+                    active
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300'
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {active && <Check size={13} className="text-amber-400 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <select
+            value={isExtraTypeSelected ? certType : ''}
+            onChange={(e) => {
+              if (e.target.value) handleSelectCertType(e.target.value as CertificateType);
+            }}
+            className={`w-full px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition ${
+              isExtraTypeSelected
+                ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-400 text-indigo-800 dark:text-indigo-200'
+                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <option value="">অন্যান্য সনদ (যাচাইকরণ, মেধা, কৃতিত্ব, অংশগ্রহণ, কাস্টম)...</option>
+            {EXTRA_CERT_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.titleBn}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* STEP 1: Certificate Type + Student Directory / Alumni / Manual Sync */}
-        {studioStep === 'source' && (
-          <div className="space-y-4">
-            {/* Certificate Type Catalog (All 10 types!) */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <span className="font-black text-xs text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-amber-500" />
-                  সনদ বা প্রশংসাপত্রের ধরন বাছাই করুন
-                </span>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md">
-                  {ALL_CERTIFICATE_TYPES.length} ধরন
-                </span>
-              </div>
+        {/* 2. Source Switcher: Student Directory Sync vs Custom */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => handleSwitchSource('sync')}
+              className={`py-1.5 px-2.5 rounded-lg font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                sourceMode === 'sync'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+            >
+              <Users size={13} /> শিক্ষার্থী সিংক
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchSource('custom')}
+              className={`py-1.5 px-2.5 rounded-lg font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                sourceMode === 'custom'
+                  ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+            >
+              <PenTool size={13} /> কাস্টম তৈরি
+            </button>
+          </div>
 
-              <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-60 overflow-y-auto">
-                {ALL_CERTIFICATE_TYPES.map((t) => {
-                  const selected = certType === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => handleTypeSelect(t.id)}
-                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start justify-between gap-2 ${
-                        selected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                          : 'bg-slate-50/60 dark:bg-slate-950/60 border-slate-200/70 dark:border-slate-800 hover:border-indigo-300 text-slate-800 dark:text-slate-100'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: selected ? '#fbbf24' : t.badgeHex }}
-                          />
-                          <p className="text-xs font-black truncate">{t.titleBn}</p>
-                        </div>
-                        <p className={`text-[10px] truncate mt-0.5 ${selected ? 'text-slate-300' : 'text-slate-400'}`}>
-                          {t.descBn}
-                        </p>
-                      </div>
-                      {selected && <CheckCircle2 size={14} className="text-amber-400 shrink-0 mt-0.5" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Source Picker: Student Directory | Alumni Archive | Manual */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                <span className="font-black text-xs text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                  <Users size={14} className="text-indigo-600" />
-                  শিক্ষার্থী তালিকা সিঙ্ক ({students.length + alumniList.length})
-                </span>
-                <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-xl text-[10px] font-bold">
+          {/* Sync Picker (collapses cleanly to a 1-line badge once a student is picked) */}
+          {sourceMode === 'sync' && (
+            <div>
+              {(selectedStudent || selectedAlumni) && !pickerExpanded ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserCheck size={14} className="text-indigo-600 shrink-0" />
+                    <span className="font-bold text-indigo-950 dark:text-indigo-200 truncate">
+                      {selectedStudent
+                        ? `${selectedStudent.name} (রোল ${selectedStudent.roll}, ${selectedStudent.grade})`
+                        : `${selectedAlumni?.name} (${selectedAlumni?.batch})`}
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setSourceTab('active')}
-                    className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-                      sourceTab === 'active' ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'text-slate-600 dark:text-slate-400'
-                    }`}
+                    onClick={() => setPickerExpanded(true)}
+                    className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer shrink-0"
                   >
-                    শিক্ষার্থী ({students.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSourceTab('alumni')}
-                    className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-                      sourceTab === 'alumni' ? 'bg-white dark:bg-slate-900 text-violet-700 dark:text-violet-300 shadow-xs' : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    অ্যালুমনাই ({alumniList.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSwitchManual}
-                    className={`px-2.5 py-1 rounded-lg cursor-pointer transition flex items-center gap-1 ${
-                      sourceTab === 'manual' ? 'bg-amber-400 text-slate-950 shadow-xs' : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    <UserPlus size={11} /> হাতে লিখে
+                    বদলান
                   </button>
                 </div>
-              </div>
-
-              {sourceTab !== 'manual' ? (
-                <div className="p-3 space-y-2.5">
-                  <div className="flex gap-2">
+              ) : (
+                <div className="space-y-2 p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800">
+                  <div className="flex items-center gap-1.5">
                     <div className="relative flex-1">
-                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Search
+                        size={12}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="নাম, রোল, আইডি বা মোবাইল..."
-                        className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
+                        placeholder="নাম বা রোল খুঁজুন..."
+                        className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold"
                       />
                     </div>
-                    {sourceTab === 'active' && (
+                    {syncListKind === 'active' && (
                       <select
                         value={gradeFilter}
-                        onChange={(e) => setGradeFilter(e.target.value)}
-                        className="px-2.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                        onChange={(e) => {
+                          setGradeFilter(e.target.value);
+                          setSectionFilter('all');
+                        }}
+                        className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold"
                       >
-                        <option value="all">সকল শ্রেণি</option>
+                        <option value="all">সব শ্রেণি</option>
                         {uniqueGrades.map((g) => (
                           <option key={g} value={g}>
                             {g}
@@ -712,207 +782,251 @@ export default function CertificateStudioWorkspace({
                         ))}
                       </select>
                     )}
+                    {syncListKind === 'active' && uniqueSections.length > 1 && (
+                      <select
+                        value={sectionFilter}
+                        onChange={(e) => setSectionFilter(e.target.value)}
+                        className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold"
+                      >
+                        <option value="all">শাখা</option>
+                        {uniqueSections.map((sec) => (
+                          <option key={sec} value={sec}>
+                            {sec}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {alumniList.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSyncListKind((k) => (k === 'active' ? 'alumni' : 'active'))
+                        }
+                        className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold border cursor-pointer shrink-0 ${
+                          syncListKind === 'alumni'
+                            ? 'bg-violet-600 text-white border-violet-600'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600'
+                        }`}
+                        title="অ্যালুমনাই তালিকা"
+                      >
+                        <GraduationCap size={13} />
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                    {sourceTab === 'active' ? (
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {syncListKind === 'active' ? (
                       filteredActiveStudents.length === 0 ? (
-                        <p className="text-center py-6 text-xs text-slate-400 font-bold">কোনো শিক্ষার্থী পাওয়া যায়নি</p>
+                        <p className="text-center py-3 text-[11px] text-slate-400">
+                          কোনো শিক্ষার্থী নেই — &quot;কাস্টম তৈরি&quot; ব্যবহার করুন
+                        </p>
                       ) : (
-                        filteredActiveStudents.map((s) => {
-                          const isSelected = selectedStudent?.id === s.id;
-                          return (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => {
-                                selectActiveStudent(s);
-                                setStudioStep('details');
-                              }}
-                              className={`w-full p-2.5 rounded-xl border text-left text-xs transition flex items-center justify-between gap-2 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                                  : 'bg-slate-50/70 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 hover:bg-indigo-50/50 dark:hover:bg-slate-800'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <p className="font-bold truncate">{s.name}</p>
-                                <p className={`text-[10px] truncate ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
-                                  রোল: {s.roll} | শ্রেণি: {s.grade} ({s.section || s.branch || 'A'}) | {s.group}
-                                </p>
-                              </div>
-                              {isSelected ? (
-                                <Check size={15} className="shrink-0" />
-                              ) : (
-                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                                  সিঙ্ক করুন →
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })
-                      )
-                    ) : filteredAlumni.length === 0 ? (
-                      <p className="text-center py-6 text-xs text-slate-400 font-bold">অ্যালুমনাই আর্কাইভে শিক্ষার্থী নেই</p>
-                    ) : (
-                      filteredAlumni.map((a) => {
-                        const isSelected = selectedAlumni?.id === a.id;
-                        return (
+                        filteredActiveStudents.map((s) => (
                           <button
-                            key={a.id}
+                            key={s.id}
                             type="button"
-                            onClick={() => {
-                              selectAlumniRecord(a);
-                              setStudioStep('details');
-                            }}
-                            className={`w-full p-2.5 rounded-xl border text-left text-xs transition flex items-center justify-between gap-2 cursor-pointer ${
-                              isSelected
-                                ? 'bg-violet-600 text-white border-violet-600'
-                                : 'bg-slate-50/70 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 hover:bg-violet-50/40'
-                            }`}
+                            onClick={() => selectActiveStudent(s)}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-800 text-left flex items-center justify-between gap-2 cursor-pointer transition"
                           >
-                            <div className="min-w-0">
-                              <p className="font-bold truncate flex items-center gap-1.5">
-                                <GraduationCap size={13} className="shrink-0" /> {a.name}
-                              </p>
-                              <p className={`text-[10px] truncate ${isSelected ? 'text-violet-100' : 'text-slate-400'}`}>
-                                {a.batch} | SSC রোল: {a.sscRoll || '—'} | GPA: {a.gpa || '—'}
-                              </p>
-                            </div>
-                            <span className="text-[10px] font-bold shrink-0">লোড →</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                              {s.name}
+                            </span>
+                            <span className="text-[10.5px] text-slate-500 font-mono shrink-0">
+                              রোল {s.roll} • {s.grade}
+                            </span>
                           </button>
-                        );
-                      })
+                        ))
+                      )
+                    ) : (
+                      filteredAlumni.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => selectAlumniRecord(a)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-violet-50 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-800 text-left flex items-center justify-between gap-2 cursor-pointer transition"
+                        >
+                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                            {a.name}
+                          </span>
+                          <span className="text-[10.5px] text-slate-500 font-mono shrink-0">
+                            {a.batch} • GPA {a.gpa || '—'}
+                          </span>
+                        </button>
+                      ))
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="p-4 text-xs text-slate-600 dark:text-slate-300 space-y-2">
-                  <p className="font-bold text-slate-800 dark:text-slate-100">
-                    ম্যানুয়াল / বহিরাগত শিক্ষার্থী মোড চালু আছে
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    ডাটাবেসে না থাকা যেকোনো শিক্ষার্থীর তথ্য ধাপ ২-এ লিখে সরাসরি প্রিন্ট ও রেজিস্টারে সংরক্ষণ করতে পারবেন।
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setStudioStep('details')}
-                    className="px-3.5 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs cursor-pointer"
-                  >
-                    ধাপ ২: শিক্ষার্থীর তথ্য লিখুন →
-                  </button>
-                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* STEP 2: Bilingual Data, Gender Grammar, Traits, Purpose & Body Editor */}
-        {studioStep === 'details' && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs p-4 space-y-3.5 text-xs">
-            {/* Quick Language + Tense Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                <Languages size={13} className="ml-1.5 text-indigo-600" />
-                {[
-                  { id: 'bn' as const, label: 'বাংলা সনদ' },
-                  { id: 'en' as const, label: 'English' },
-                ].map((l) => (
-                  <button
-                    key={l.id}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(l.id);
-                      setIsTitleLocked(false);
-                      setIsBodyLocked(false);
-                    }}
-                    className={`px-3 py-1 rounded-lg font-bold text-[11px] cursor-pointer transition ${
-                      language === l.id
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
+          {/* Custom Quick Presets */}
+          {sourceMode === 'custom' && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomSubMode('structured');
+                  setIsBodyLocked(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition ${
+                  customSubMode === 'structured'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                ফর্ম পূরণ
+              </button>
+              {CUSTOM_DOCUMENT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyCustomPreset(preset.id)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-500 hover:text-slate-950 text-amber-900 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/60 cursor-pointer transition"
+                >
+                  {preset.labelBn}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-              <label className="flex items-center gap-2 font-bold text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
+        {/* 3. Core Details Form (Clean & Minimal) */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+          {/* Title + Ref + Date */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10.5px] font-bold text-slate-500">সনদের শিরোনাম</label>
+              <label className="flex items-center gap-1 text-[10.5px] text-slate-500 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={draft.currentlyStudying}
-                  onChange={(e) => {
-                    setIsBodyLocked(false);
-                    setDraft((p) => ({ ...p, currentlyStudying: e.target.checked }));
-                  }}
+                  checked={hideTitle}
+                  onChange={(e) => setHideTitle(e.target.checked)}
                   className="rounded text-indigo-600 cursor-pointer"
                 />
-                এখনো অধ্যয়নরত
+                লুকান
               </label>
             </div>
+            <input
+              type="text"
+              disabled={hideTitle}
+              value={customTitle}
+              onChange={(e) => {
+                setIsTitleLocked(true);
+                setCustomTitle(e.target.value);
+              }}
+              className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-black text-slate-900 dark:text-white disabled:opacity-40"
+            />
+          </div>
 
-            {/* Ref & Date */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">স্মারক নম্বর</label>
-                <input
-                  type="text"
-                  value={refNo}
-                  onChange={(e) => setRefNo(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">ইস্যুর তারিখ</label>
-                <input
-                  type="date"
-                  value={issueDate}
-                  onChange={(e) => setIssueDate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10.5px] font-bold text-slate-500 mb-1">
+                স্মারক / সূত্র নং
+              </label>
+              <input
+                type="text"
+                value={refNo}
+                onChange={(e) => setRefNo(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+              />
             </div>
+            <div>
+              <label className="block text-[10.5px] font-bold text-slate-500 mb-1">তারিখ</label>
+              <input
+                type="date"
+                value={issueDate}
+                onChange={(e) => setIssueDate(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+              />
+            </div>
+          </div>
 
-            {/* Student Name BN & EN + Profile Save-back */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">শিক্ষার্থীর নাম (বাংলা) *</label>
-                <input
-                  type="text"
-                  value={draft.studentName}
-                  onChange={(e) => setDraft((p) => ({ ...p, studentName: e.target.value }))}
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-bold text-slate-500">Student Name (English)</label>
-                  {selectedStudent && draft.studentNameEn && draft.studentNameEn !== selectedStudent.nameEn && (
-                    <button
-                      type="button"
-                      onClick={handleSaveEnglishProfileBack}
-                      className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                    >
-                      প্রোফাইলে সেভ
-                    </button>
-                  )}
+          {/* Recipient Name + Gender */}
+          {sourceMode === 'custom' && customSubMode === 'freeform' ? (
+            <div>
+              <label className="block text-[10.5px] font-bold text-slate-500 mb-1">
+                প্রাপকের নাম
+              </label>
+              <input
+                type="text"
+                value={draft.studentName}
+                onChange={(e) => {
+                  const prevName = draft.studentName.trim();
+                  const nextName = e.target.value;
+                  setDraft((p) => ({ ...p, studentName: nextName }));
+                  const target =
+                    nextName.trim() || (language === 'en' ? 'Recipient Name' : 'প্রাপকের নাম');
+                  setCustomBody((prevBody) => {
+                    if (prevName && prevBody.includes(`**${prevName}**`)) {
+                      return prevBody.split(`**${prevName}**`).join(`**${target}**`);
+                    }
+                    if (prevBody.includes('**প্রাপকের নাম**')) {
+                      return prevBody.split('**প্রাপকের নাম**').join(`**${target}**`);
+                    }
+                    if (prevBody.includes('**Recipient Name**')) {
+                      return prevBody.split('**Recipient Name**').join(`**${target}**`);
+                    }
+                    return prevBody;
+                  });
+                }}
+                placeholder="যার নামে সনদ দেওয়া হচ্ছে..."
+                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-8">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10.5px] font-bold text-slate-500">
+                      {language === 'en' ? 'Student Name (EN)' : 'শিক্ষার্থীর নাম'} *
+                    </label>
+                    {language === 'en' &&
+                      selectedStudent &&
+                      draft.studentNameEn &&
+                      draft.studentNameEn !== selectedStudent.nameEn && (
+                        <button
+                          type="button"
+                          onClick={handleSaveEnglishProfileBack}
+                          className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          প্রোফাইলে সেভ
+                        </button>
+                      )}
+                  </div>
+                  <input
+                    type="text"
+                    value={language === 'en' ? draft.studentNameEn || draft.studentName : draft.studentName}
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        language === 'en'
+                          ? { ...p, studentNameEn: e.target.value }
+                          : { ...p, studentName: e.target.value },
+                      )
+                    }
+                    placeholder="পূর্ণ নাম লিখুন"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={draft.studentNameEn}
-                  onChange={(e) => setDraft((p) => ({ ...p, studentNameEn: e.target.value }))}
-                  placeholder="English name"
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
-                />
+                <div className="col-span-4">
+                  <label className="block text-[10.5px] font-bold text-slate-500 mb-1">লিঙ্গ</label>
+                  <select
+                    value={draft.gender}
+                    onChange={(e) => {
+                      setIsBodyLocked(false);
+                      setDraft((p) => ({ ...p, gender: e.target.value as CertificateGender }));
+                    }}
+                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  >
+                    <option value="male">ছাত্র</option>
+                    <option value="female">ছাত্রী</option>
+                    <option value="unspecified">সাধারণ</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {/* Father, Mother + Gender Pills */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  {language === 'en' ? 'Father Name' : 'পিতার নাম'}
-                </label>
+              <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
                   value={language === 'en' ? draft.fatherNameEn || draft.fatherName : draft.fatherName}
@@ -920,16 +1034,12 @@ export default function CertificateStudioWorkspace({
                     setDraft((p) =>
                       language === 'en'
                         ? { ...p, fatherNameEn: e.target.value }
-                        : { ...p, fatherName: e.target.value }
+                        : { ...p, fatherName: e.target.value },
                     )
                   }
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
+                  placeholder={language === 'en' ? "Father's Name" : 'পিতার নাম'}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  {language === 'en' ? 'Mother Name' : 'মাতার নাম'}
-                </label>
                 <input
                   type="text"
                   value={language === 'en' ? draft.motherNameEn || draft.motherName : draft.motherName}
@@ -937,402 +1047,367 @@ export default function CertificateStudioWorkspace({
                     setDraft((p) =>
                       language === 'en'
                         ? { ...p, motherNameEn: e.target.value }
-                        : { ...p, motherName: e.target.value }
+                        : { ...p, motherName: e.target.value },
                     )
                   }
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
+                  placeholder={language === 'en' ? "Mother's Name" : 'মাতার নাম'}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
                 />
               </div>
-            </div>
 
-            {/* Smart Gender Switch */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">লিঙ্গ (সর্বনাম অটো-ঠিক হবে)</label>
-                <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                  {[
-                    { id: 'male' as CertificateGender, label: 'ছেলে' },
-                    { id: 'female' as CertificateGender, label: 'মেয়ে' },
-                    { id: 'unspecified' as CertificateGender, label: 'সাধারণ' },
-                  ].map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => {
-                        setIsBodyLocked(false);
-                        setDraft((p) => ({ ...p, gender: g.id }));
-                      }}
-                      className={`py-1 rounded-lg font-bold text-[11px] cursor-pointer transition ${
-                        draft.gender === g.id
-                          ? 'bg-slate-900 text-white'
-                          : 'text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">জন্ম তারিখ</label>
-                <input
-                  type="date"
-                  value={draft.dob}
-                  onChange={(e) => setDraft((p) => ({ ...p, dob: e.target.value }))}
-                  className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Academic & Board Grid */}
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">শ্রেণি</label>
+              <div className="grid grid-cols-4 gap-1.5">
                 <input
                   type="text"
                   value={draft.grade}
                   onChange={(e) => setDraft((p) => ({ ...p, grade: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  placeholder="শ্রেণি"
+                  className="px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">রোল</label>
                 <input
                   type="text"
                   value={draft.roll}
                   onChange={(e) => setDraft((p) => ({ ...p, roll: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+                  placeholder="রোল"
+                  className="px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">বিভাগ</label>
                 <input
                   type="text"
                   value={draft.group}
                   onChange={(e) => setDraft((p) => ({ ...p, group: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  placeholder="বিভাগ"
+                  className="px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">সেশন</label>
                 <input
                   type="text"
                   value={draft.session}
                   onChange={(e) => setDraft((p) => ({ ...p, session: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+                  placeholder="সেশন"
+                  className="px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
                 />
               </div>
-            </div>
 
-            {(!draft.currentlyStudying || certType === 'ssc_testimonial' || certType === 'merit_certificate') && (
-              <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900 rounded-xl space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-indigo-800 dark:text-indigo-200 mb-1">পরীক্ষা</label>
-                    <select
-                      value={draft.examType}
-                      onChange={(e) => setDraft((p) => ({ ...p, examType: e.target.value }))}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-bold"
-                    >
-                      {BOARD_EXAM_TYPES.map((ex) => (
-                        <option key={ex.id} value={ex.id}>
-                          {ex.labelBn}
-                        </option>
-                      ))}
-                    </select>
+              {/* Collapsible Address, DOB & Board Details */}
+              <button
+                type="button"
+                onClick={() => setShowExtraFields((v) => !v)}
+                className="w-full py-1.5 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <span>ঠিকানা, জন্ম তারিখ ও বোর্ড পরীক্ষার তথ্য</span>
+                {showExtraFields ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showExtraFields && (
+                <div className="space-y-2 p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                        জন্ম তারিখ
+                      </label>
+                      <input
+                        type="date"
+                        value={draft.dob}
+                        onChange={(e) => setDraft((p) => ({ ...p, dob: e.target.value }))}
+                        className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
+                      />
+                    </div>
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={draft.currentlyStudying}
+                          onChange={(e) => {
+                            setIsBodyLocked(false);
+                            setDraft((p) => ({ ...p, currentlyStudying: e.target.checked }));
+                          }}
+                          className="rounded text-indigo-600 cursor-pointer"
+                        />
+                        বর্তমানে অধ্যয়নরত
+                      </label>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-indigo-800 dark:text-indigo-200 mb-1">শিক্ষা বোর্ড</label>
-                    <select
-                      value={draft.boardName}
-                      onChange={(e) => setDraft((p) => ({ ...p, boardName: e.target.value }))}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-bold"
-                    >
-                      {EDUCATION_BOARDS.map((b) => (
-                        <option key={b.bn} value={b.bn}>
-                          {b.bn}
-                        </option>
-                      ))}
-                    </select>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <input
+                      type="text"
+                      value={draft.village}
+                      onChange={(e) => setDraft((p) => ({ ...p, village: e.target.value }))}
+                      placeholder="গ্রাম"
+                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={draft.postOffice}
+                      onChange={(e) => setDraft((p) => ({ ...p, postOffice: e.target.value }))}
+                      placeholder="ডাকঘর"
+                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={draft.upazila}
+                      onChange={(e) => setDraft((p) => ({ ...p, upazila: e.target.value }))}
+                      placeholder="উপজেলা"
+                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={draft.district}
+                      onChange={(e) => setDraft((p) => ({ ...p, district: e.target.value }))}
+                      placeholder="জেলা"
+                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                    />
                   </div>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <input
-                    type="text"
-                    value={draft.boardRoll}
-                    onChange={(e) => setDraft((p) => ({ ...p, boardRoll: e.target.value }))}
-                    placeholder="বোর্ড রোল"
-                    className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-bold"
-                  />
-                  <input
-                    type="text"
-                    value={draft.boardReg}
-                    onChange={(e) => setDraft((p) => ({ ...p, boardReg: e.target.value }))}
-                    placeholder="রেজি. নং"
-                    className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-bold"
-                  />
-                  <input
-                    type="text"
-                    value={draft.passingYear}
-                    onChange={(e) => setDraft((p) => ({ ...p, passingYear: e.target.value }))}
-                    placeholder="পাসের সন"
-                    className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-bold"
-                  />
-                  <input
-                    type="text"
-                    value={draft.gpa}
-                    onChange={(e) => setDraft((p) => ({ ...p, gpa: e.target.value }))}
-                    placeholder="GPA"
-                    className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-bold text-emerald-700 dark:text-emerald-300"
-                  />
-                </div>
-              </div>
-            )}
 
-            {/* Address Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <input
-                type="text"
-                value={draft.village}
-                onChange={(e) => setDraft((p) => ({ ...p, village: e.target.value }))}
-                placeholder="গ্রাম"
-                className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
-              />
-              <input
-                type="text"
-                value={draft.postOffice}
-                onChange={(e) => setDraft((p) => ({ ...p, postOffice: e.target.value }))}
-                placeholder="ডাকঘর"
-                className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
-              />
-              <input
-                type="text"
-                value={draft.upazila}
-                onChange={(e) => setDraft((p) => ({ ...p, upazila: e.target.value }))}
-                placeholder="উপজেলা"
-                className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
-              />
-              <input
-                type="text"
-                value={draft.district}
-                onChange={(e) => setDraft((p) => ({ ...p, district: e.target.value }))}
-                placeholder="জেলা"
-                className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
-              />
-            </div>
+                  {showBoardFields && (
+                    <div className="space-y-1.5 pt-1 border-t border-slate-200/70 dark:border-slate-800">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <select
+                          value={draft.examType}
+                          onChange={(e) => setDraft((p) => ({ ...p, examType: e.target.value }))}
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-bold"
+                        >
+                          {BOARD_EXAM_TYPES.map((ex) => (
+                            <option key={ex.id} value={ex.id}>
+                              {ex.labelBn}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={draft.boardName}
+                          onChange={(e) => setDraft((p) => ({ ...p, boardName: e.target.value }))}
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-bold"
+                        >
+                          {EDUCATION_BOARDS.map((b) => (
+                            <option key={b.bn} value={b.bn}>
+                              {b.bn}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <input
+                          type="text"
+                          value={draft.boardRoll}
+                          onChange={(e) => setDraft((p) => ({ ...p, boardRoll: e.target.value }))}
+                          placeholder="বোর্ড রোল"
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono"
+                        />
+                        <input
+                          type="text"
+                          value={draft.boardReg}
+                          onChange={(e) => setDraft((p) => ({ ...p, boardReg: e.target.value }))}
+                          placeholder="রেজি. নং"
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono"
+                        />
+                        <input
+                          type="text"
+                          value={draft.passingYear}
+                          onChange={(e) => setDraft((p) => ({ ...p, passingYear: e.target.value }))}
+                          placeholder="পাসের সন"
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono"
+                        />
+                        <input
+                          type="text"
+                          value={draft.gpa}
+                          onChange={(e) => setDraft((p) => ({ ...p, gpa: e.target.value }))}
+                          placeholder="GPA"
+                          className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-mono font-bold text-emerald-700"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-            {/* 8 Quick Trait Pills */}
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold text-slate-500">গুণাবলি ও আচরণ পিল (১ ক্লিকে যুক্ত)</label>
-              <div className="flex flex-wrap gap-1.5">
-                {CERTIFICATE_TRAITS.map((tr) => {
-                  const active = selectedTraits.includes(tr.id);
-                  return (
-                    <button
-                      key={tr.id}
-                      type="button"
-                      onClick={() => toggleTrait(tr.id)}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer ${
-                        active
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      {active ? '✓ ' : '+ '}
-                      {language === 'en' ? tr.labelEn : tr.labelBn}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Purpose Presets + Achievement */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">প্রদানের উদ্দেশ্য</label>
-                <select
-                  value={purposeId}
-                  onChange={(e) => {
-                    setIsBodyLocked(false);
-                    setPurposeId(e.target.value);
-                  }}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
-                >
-                  {CERTIFICATE_PURPOSES.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {language === 'en' ? p.labelEn : p.labelBn}
-                    </option>
-                  ))}
-                  <option value="custom">কাস্টম উদ্দেশ্য লিখুন...</option>
-                </select>
-              </div>
-
-              {(certType === 'merit_certificate' ||
-                certType === 'appreciation' ||
-                certType === 'participation' ||
-                certType === 'activity_certificate') && (
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">অর্জন / কৃতিত্ব</label>
-                  <input
-                    type="text"
-                    value={achievementTitle}
-                    onChange={(e) => {
-                      setIsBodyLocked(false);
-                      setAchievementTitle(e.target.value);
-                    }}
-                    placeholder="যেমন: বার্ষিক ক্রীড়া / ১ম স্থান"
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
-                  />
+                  {(certType === 'merit_certificate' ||
+                    certType === 'appreciation' ||
+                    certType === 'participation' ||
+                    certType === 'activity_certificate') && (
+                    <input
+                      type="text"
+                      value={achievementTitle}
+                      onChange={(e) => {
+                        setIsBodyLocked(false);
+                        setAchievementTitle(e.target.value);
+                      }}
+                      placeholder="অর্জন / কৃতিত্ব (যেমন: বার্ষিক ক্রীড়া ১ম স্থান)"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg font-bold"
+                    />
+                  )}
                 </div>
               )}
             </div>
+          )}
+        </div>
 
-            {purposeId === 'custom' && (
-              <input
-                type="text"
-                value={customPurposeText}
-                onChange={(e) => {
-                  setIsBodyLocked(false);
-                  setCustomPurposeText(e.target.value);
-                }}
-                placeholder="সনদ প্রদানের বিশেষ উদ্দেশ্য লিখুন..."
-                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold"
-              />
+        {/* 4. Body Text Editor */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-black text-slate-600 dark:text-slate-300">
+              মূল বয়ান
+            </label>
+            {isBodyLocked && customSubMode !== 'freeform' && (
+              <button
+                type="button"
+                onClick={() => setIsBodyLocked(false)}
+                className="text-[10.5px] font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw size={11} /> অটো-বয়ান রিসেট
+              </button>
             )}
+          </div>
+          <textarea
+            rows={5}
+            value={customBody}
+            onChange={(e) => {
+              setIsBodyLocked(true);
+              setCustomBody(e.target.value);
+            }}
+            placeholder="প্রত্যয়নের মূল লেখা এখানে থাকবে..."
+            className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs leading-relaxed font-serif"
+          />
+        </div>
 
-            {/* Body Editor with Lock Protection */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
-                  <FileText size={12} /> মূল বিবরণী ({isBodyLocked ? 'ম্যানুয়াল লকড' : 'অটো-সিঙ্ক চালু'})
-                </label>
-                {isBodyLocked && (
-                  <button
-                    type="button"
-                    onClick={() => setIsBodyLocked(false)}
-                    className="text-[10px] font-bold text-amber-600 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <RotateCcw size={11} /> অটো-বয়ান পুনঃতৈরি
-                  </button>
-                )}
-              </div>
-              <textarea
-                rows={5}
-                value={customBody}
-                onChange={(e) => {
-                  setIsBodyLocked(true);
-                  setCustomBody(e.target.value);
-                }}
-                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs leading-relaxed font-serif"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">বিশেষ মন্তব্য (ঐচ্ছিক)</label>
+        {/* 5. Compact 1-Row Essential Footer Toggles */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <div className="flex items-center gap-3 flex-wrap font-bold text-slate-600 dark:text-slate-300">
+            <label className="flex items-center gap-1 cursor-pointer">
               <input
-                type="text"
-                value={characterRemarks}
-                onChange={(e) => {
-                  setIsBodyLocked(false);
-                  setCharacterRemarks(e.target.value);
-                }}
-                placeholder="অতিরিক্ত চরিত্র বা সুপারিশ সংক্রান্ত মন্তব্য..."
-                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                type="checkbox"
+                checked={showQrCode}
+                onChange={(e) => setShowQrCode(e.target.checked)}
+                className="rounded text-indigo-600 cursor-pointer"
               />
-            </div>
+              QR কোড
+            </label>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showPhotoBox}
+                onChange={(e) => setShowPhotoBox(e.target.checked)}
+                className="rounded text-indigo-600 cursor-pointer"
+              />
+              ছবি
+            </label>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showSecondarySigner}
+                onChange={(e) => setShowSecondarySigner(e.target.checked)}
+                className="rounded text-indigo-600 cursor-pointer"
+              />
+              ২য় স্বাক্ষর
+            </label>
           </div>
-        )}
 
-        {/* STEP 3: Visual Design Controls */}
-        {studioStep === 'design' && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs p-4 space-y-3">
-            <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-2">
-              ডিজাইন, রঙ, বর্ডার ও অফিস কপি স্টুডিও
-            </h3>
-            <CertificateDesignControls
-              design={design}
-              setDesign={setDesign}
-              onOpenPadSettings={onOpenPadSettings}
-            />
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 pr-1">ফন্ট</span>
+            <button
+              type="button"
+              onClick={() => setFontSize((f) => Math.max(12, +(f - 0.5).toFixed(1)))}
+              className="p-0.5 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer"
+              title="ফন্ট ছোট"
+            >
+              <Minus size={12} />
+            </button>
+            <span className="font-mono font-bold text-[11px] w-7 text-center">{fontSize}</span>
+            <button
+              type="button"
+              onClick={() => setFontSize((f) => Math.min(20, +(f + 0.5).toFixed(1)))}
+              className="p-0.5 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer"
+              title="ফন্ট বড়"
+            >
+              <Plus size={12} />
+            </button>
           </div>
+        </div>
+
+        {showSecondarySigner && (
+          <input
+            type="text"
+            value={secondarySignerTitle}
+            onChange={(e) => setSecondarySignerTitle(e.target.value)}
+            placeholder="২য় স্বাক্ষরকারীর পদবি (যেমন: শ্রেণি শিক্ষক)"
+            className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
+          />
         )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* RIGHT / LIVE STICKY PREVIEW & EXPORT CANVAS (7 Cols on XL)        */}
+      {/* RIGHT PANEL: CLEAN STICKY A4 UPLOADED-PAD LIVE PREVIEW            */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="xl:col-span-7 space-y-3 xl:sticky xl:top-4 print:static print:col-span-12">
-        {/* Live Preview Action Bar */}
-        <div className="bg-slate-900 text-white rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 shadow-md print:hidden">
-          <div className="flex items-center gap-2 flex-wrap">
+      <div className="xl:col-span-7 space-y-2.5 xl:sticky xl:top-4 print:static print:col-span-12">
+        {/* Slim Preview Action Strip */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs print:hidden">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setInlineEditable((v) => !v)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition ${
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition border ${
                 inlineEditable
-                  ? 'bg-amber-400 text-slate-950 shadow-sm'
-                  : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-400 text-amber-900 dark:text-amber-200'
+                  : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
               }`}
-              title="শিটের শিরোনাম বা লেখায় সরাসরি ক্লিক করে এডিট করুন"
+              title="প্যাডের লেখায় সরাসরি ক্লিক করে এডিট করুন"
             >
               <Edit3 size={13} />
-              {inlineEditable ? 'সরাসরি এডিট চালু ✓' : 'সরাসরি লেখা এডিট'}
+              {inlineEditable ? 'সরাসরি এডিট চালু' : 'প্যাডে এডিট'}
             </button>
 
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-[10px] font-bold">
-              {[0.58, 0.68, 0.85, 1].map((z) => (
-                <button
-                  key={z}
-                  type="button"
-                  onClick={() => setPreviewScale(z)}
-                  className={`px-2 py-1 rounded-lg cursor-pointer transition ${
-                    Math.abs(previewScale - z) < 0.02
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {Math.round(z * 100)}%
-                </button>
-              ))}
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300">
+              <button
+                type="button"
+                onClick={() => setPreviewScale((s) => Math.max(0.5, +(s - 0.08).toFixed(2)))}
+                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer"
+                title="জুম আউট"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="w-9 text-center">{Math.round(previewScale * 100)}%</span>
+              <button
+                type="button"
+                onClick={() => setPreviewScale((s) => Math.min(1, +(s + 0.08).toFixed(2)))}
+                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer"
+                title="জুম ইন"
+              >
+                <Plus size={12} />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => persistCertificate(false)}
-              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+              className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition"
             >
-              <Save size={13} /> {savedCertId ? 'হালনাগাদ করুন' : 'রেজিস্টারে সেভ'}
+              <Save size={13} /> {savedCertId ? 'আপডেট' : 'সেভ'}
             </button>
 
             <button
               type="button"
               onClick={handleDownloadPng}
               disabled={exportingPng}
-              className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
             >
               {exportingPng ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
-              PNG ছবি
+              PNG
             </button>
 
             <button
               type="button"
-              onClick={handlePrintCertificate}
-              className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+              onClick={handlePrint}
+              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
             >
               <Printer size={13} /> প্রিন্ট / PDF
             </button>
           </div>
         </div>
 
-        {/* Scaled Interactive Sheet Wrapper (Print resets transform to 100%) */}
-        <div className="bg-slate-100 dark:bg-slate-950/70 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 sm:p-5 overflow-x-auto flex justify-center print:bg-white print:border-0 print:p-0 print:overflow-visible print:block">
+        {/* Scaled A4 Uploaded Pad Canvas */}
+        <div className="bg-slate-100/90 dark:bg-slate-950/70 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 overflow-x-auto flex justify-center print:bg-white print:border-0 print:p-0 print:overflow-visible print:block">
           <div
             className="print:!w-auto print:!h-auto"
             style={{
-              width: `${Math.round((design.orientation === 'landscape' ? 1122 : 794) * previewScale)}px`,
-              height: `${Math.round((design.orientation === 'landscape' ? 794 : 1122) * previewScale)}px`,
+              width: `${Math.round(794 * previewScale)}px`,
+              height: `${Math.round(1122 * previewScale)}px`,
             }}
           >
             <div
@@ -1340,15 +1415,15 @@ export default function CertificateStudioWorkspace({
               style={{
                 transform: previewScale < 1 ? `scale(${previewScale})` : undefined,
                 transformOrigin: 'top left',
-                width: design.orientation === 'landscape' ? '297mm' : '210mm',
+                width: '210mm',
               }}
             >
               <OfficialCertificateDoc
                 sheetRef={sheetRef}
                 cert={liveCertRecord}
                 settings={schoolSettings}
-                overrideStyle={liveCertRecord.layoutStyle}
-                mode={design.showHeader ? 'full_pad' : 'preprinted'}
+                canvasMode={padCanvasMode}
+                onOpenSettings={onOpenPadSettings}
                 hideHeaderActions={true}
                 inlineEditable={inlineEditable}
                 onInlineTitleChange={(next) => {

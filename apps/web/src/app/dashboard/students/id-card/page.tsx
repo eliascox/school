@@ -32,6 +32,8 @@ export default function StudentIdCardPrintPage() {
   const [showCropMarks, setShowCropMarks] = useState<boolean>(true);
   const [theme, setTheme] = useState<IdCardTheme>('indigo');
   const [sessionYear, setSessionYear] = useState<string>('2026');
+  const [previewLimit, setPreviewLimit] = useState<number>(24);
+  const [isPrintingAll, setIsPrintingAll] = useState<boolean>(false);
 
   const loadData = useCallback(() => {
     const all = studentService.getAllStudents();
@@ -42,7 +44,12 @@ export default function StudentIdCardPrintPage() {
   useEffect(() => {
     loadData();
     const unsub = settingsService.subscribe((s) => setSettings({ ...s }));
-    return () => unsub();
+    const handleAfterPrint = () => setIsPrintingAll(false);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      unsub();
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
   }, [loadData]);
 
   const filteredStudents = useMemo(() => {
@@ -69,6 +76,23 @@ export default function StudentIdCardPrintPage() {
     if (selectedIds.size === 0) return filteredStudents;
     return filteredStudents.filter((s) => selectedIds.has(s.id));
   }, [filteredStudents, selectedIds]);
+
+  const visibleStudents = useMemo(() => {
+    if (isPrintingAll || targetStudents.length <= previewLimit) return targetStudents;
+    return targetStudents.slice(0, previewLimit);
+  }, [targetStudents, previewLimit, isPrintingAll]);
+
+  const handlePrintCards = () => {
+    if (targetStudents.length > previewLimit && !isPrintingAll) {
+      setIsPrintingAll(true);
+      // Let React commit all cards & QR codes cleanly before opening print dialog
+      setTimeout(() => {
+        window.print();
+      }, 220);
+      return;
+    }
+    window.print();
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -148,7 +172,7 @@ export default function StudentIdCardPrintPage() {
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={handlePrintCards}
               disabled={targetStudents.length === 0}
               className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
@@ -313,7 +337,7 @@ export default function StudentIdCardPrintPage() {
               : 'flex flex-wrap items-start justify-center bg-slate-100/70 dark:bg-slate-950/60 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 print:bg-transparent print:border-0 print:p-0 print:justify-start'
           }
         >
-          {targetStudents.map((st) => {
+          {visibleStudents.map((st) => {
             const isPicked = selectedIds.has(st.id);
             return (
               <div
@@ -336,6 +360,24 @@ export default function StudentIdCardPrintPage() {
               </div>
             );
           })}
+          {!isPrintingAll && targetStudents.length > visibleStudents.length && (
+            <div className="w-full flex items-center justify-center gap-3 pt-4 print:hidden">
+              <button
+                type="button"
+                onClick={() => setPreviewLimit((n) => n + 24)}
+                className="px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
+              >
+                আরও ২৪টি দেখুন ({visibleStudents.length}/{targetStudents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewLimit(targetStudents.length)}
+                className="px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 cursor-pointer"
+              >
+                সব {targetStudents.length}টি কার্ড দেখান
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

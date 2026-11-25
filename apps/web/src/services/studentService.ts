@@ -41,6 +41,7 @@ export interface Student {
   isStipend?: boolean;          // উপবৃত্তি প্রাপ্ত কিনা (Stipend Beneficiary Flag)
   stipendCategory?: string;     // উপবৃত্তি ক্যাটাগরি ('সাধারণ উপবৃত্তি', 'মেধাভিত্তিক')
   stipendStatus?: 'Active' | 'Suspended' | 'Revoked'; // উপবৃত্তি স্থিতি
+  stipendStartMonth?: string;   // উপবৃত্তি কার্যকর হওয়ার মাস ('জানুয়ারি', ...)
   examMarkAvg?: number;         // ৬ মাসিক/বার্ষিক অর্জিত নম্বর (%)
   prevRoll?: string;            // পূর্ববর্তী বা ফাইলে প্রাপ্ত রোল নম্বর (Uploaded original / previous roll)
 }
@@ -94,13 +95,39 @@ const deduplicateStudentList = (list: Student[]): Student[] => {
 
 const listeners: (() => void)[] = [];
 
+// ⚡ Raw-string fingerprint in-memory cache:
+// Eliminates repeated multi-MB JSON.parse + sortStudentsGroupAndRoll on main thread
+// while instantly invalidating whenever sms_students changes (even from external localStorage writes).
+let cachedStudentsRaw: string | null | undefined = undefined;
+let cachedStudentsList: Student[] | null = null;
+
+function invalidateStudentCache(): void {
+  cachedStudentsRaw = undefined;
+  cachedStudentsList = null;
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (e) => {
+    if (!e || !('key' in e) || !(e as StorageEvent).key || (e as StorageEvent).key === 'sms_students' || (e as StorageEvent).key === 'sms_uploaded_students') {
+      invalidateStudentCache();
+    }
+  });
+}
+
 export const studentService = {
-  // Get all active students from Central Storage
+  // Explicitly invalidate in-memory cache (useful for tests/external mutations)
+  invalidateCache: invalidateStudentCache,
+
+  // Get all active students from Central Storage (cached by raw localStorage string fingerprint)
   getAllStudents: (): Student[] => {
     if (typeof window === 'undefined') return [];
 
     const storedStudents = localStorage.getItem('sms_students');
     const storedUploaded = localStorage.getItem('sms_uploaded_students');
+
+    if (!storedUploaded && cachedStudentsList !== null && storedStudents === cachedStudentsRaw) {
+      return cachedStudentsList.slice();
+    }
 
     let combined: Student[] = [];
     let hadUploaded = false;
@@ -122,11 +149,17 @@ export const studentService = {
     if (hadUploaded) {
       // Only write to localStorage when newly uploaded batch was merged
       const deduped = sortStudentsGroupAndRoll(deduplicateStudentList(combined), 'roll_asc');
-      localStorage.setItem('sms_students', JSON.stringify(deduped));
-      return deduped;
+      const serialized = JSON.stringify(deduped);
+      localStorage.setItem('sms_students', serialized);
+      cachedStudentsRaw = serialized;
+      cachedStudentsList = deduped;
+      return deduped.slice();
     }
 
-    return sortStudentsGroupAndRoll(combined, 'roll_asc');
+    const sorted = sortStudentsGroupAndRoll(combined, 'roll_asc');
+    cachedStudentsRaw = storedStudents;
+    cachedStudentsList = sorted;
+    return sorted.slice();
   },
 
   // Get filtered students for specific Grade, Section & Group
@@ -587,7 +620,12 @@ export const studentService = {
   },
 
   // Toggle stipend beneficiary status for a student
-  toggleStipendStatus: (studentId: string, isStipend: boolean, category?: string): { success: boolean; message: string } => {
+  toggleStipendStatus: (
+    studentId: string,
+    isStipend: boolean,
+    category?: string,
+    stipendStartMonth?: string
+  ): { success: boolean; message: string } => {
     if (typeof window === 'undefined') return { success: false, message: 'Browser window unavailable' };
 
     const all = studentService.getAllStudents();
@@ -596,11 +634,21 @@ export const studentService = {
     const updated = all.map(st => {
       if (st.id === studentId) {
         found = true;
+        if (!isStipend) {
+          return {
+            ...st,
+            isStipend: false,
+            stipendCategory: undefined,
+            stipendStartMonth: undefined,
+            stipendStatus: 'Revoked' as const
+          };
+        }
         return {
           ...st,
-          isStipend,
+          isStipend: true,
           stipendCategory: category || st.stipendCategory || 'সাধারণ উপবৃত্তি',
-          stipendStatus: isStipend ? 'Active' : 'Revoked'
+          stipendStartMonth: stipendStartMonth || st.stipendStartMonth || 'জানুয়ারি',
+          stipendStatus: 'Active' as const
         };
       }
       return st;
@@ -611,12 +659,13 @@ export const studentService = {
     }
 
     localStorage.setItem('sms_students', JSON.stringify(updated));
+    invalidateStudentCache();
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
 
-    return { 
-      success: true, 
-      message: isStipend ? 'শিক্ষার্থীকে উপবৃত্তি প্রাপ্ত হিসেবে চিহ্নিত করা হয়েছে' : 'উপবৃত্তি সুবিধা বাতিল করা হয়েছে' 
+    return {
+      success: true,
+      message: isStipend ? 'শিক্ষার্থীকে উপবৃত্তি প্রাপ্ত হিসেবে চিহ্নিত করা হয়েছে' : 'উপবৃত্তি সুবিধা বাতিল করা হয়েছে'
     };
   },
 

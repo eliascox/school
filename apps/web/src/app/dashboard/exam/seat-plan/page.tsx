@@ -600,12 +600,12 @@ export default function ExamSeatPlanPage() {
     loadData();
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!activeExam || examSeats.length === 0) {
       showToast('এক্সপোর্ট করার জন্য আগে সিট প্ল্যান তৈরি করুন।', 'warning');
       return;
     }
-    exportSeatPlanToExcel({
+    await exportSeatPlanToExcel({
       examTitle: activeExam.title,
       schoolName: settings?.schoolName || 'স্মার্ট স্কুল',
       entries: examSeats,

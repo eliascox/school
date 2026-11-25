@@ -3,10 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Wallet, Users, Receipt, Building2, Landmark,
-  TrendingUp, TrendingDown, Calculator, Plus, Printer, Settings,
-  BookOpen, CreditCard, Smartphone,
-  AlertCircle, FileText, History, BarChart3, ShieldCheck
+  Wallet, Users, Receipt, Printer, Settings,
+  AlertCircle, FileText, History, BarChart3, ShieldCheck, Smartphone, CreditCard
 } from 'lucide-react';
 import {
   financeService,
@@ -27,15 +25,17 @@ import {
 import { studentService, Student } from '@/services/studentService';
 import { settingsService } from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
+import { leaveService } from '@/services/leaveService';
 import { teacherRBACService, TeacherRecord } from '@/services/teacherRBACService';
 import { teacherAuthService } from '@/services/teacherAuthService';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import {
   FinanceTab,
   FeeSubTab,
   PaymentRecord,
   SchoolInfoState,
   AuditLogEntry,
-  getFinanceMainModules
+  FinanceSlimHeader
 } from '@/components/finance/financeShared';
 import { StudentFeesCollectionTab } from '@/components/finance/StudentFeesCollectionTab';
 import { StudentFeesInvoicesTab } from '@/components/finance/StudentFeesInvoicesTab';
@@ -58,11 +58,11 @@ const VALID_TABS: FinanceTab[] = [
 
 const FEE_SUB_TABS: { id: FeeSubTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'collection', label: 'ফি আদায়', icon: Wallet },
-  { id: 'invoices', label: 'মাসিক ইনভয়েস ও বিল', icon: FileText },
+  { id: 'invoices', label: 'মাসিক ইনভয়েস', icon: FileText },
   { id: 'fee_setup', label: 'ফি সেটআপ ও খাত', icon: Settings },
-  { id: 'opening_due', label: 'পূর্বের বকেয়া (Opening Due)', icon: AlertCircle },
+  { id: 'opening_due', label: 'পূর্বের বকেয়া', icon: AlertCircle },
   { id: 'due_report', label: 'বকেয়া রিপোর্ট', icon: Users },
-  { id: 'history', label: 'রিসিপ্ট ও হিস্টোরি', icon: History },
+  { id: 'history', label: 'রিসিপ্ট হিস্টোরি', icon: History },
   { id: 'monthly_analysis', label: 'মাসভিত্তিক বিশ্লেষণ', icon: BarChart3 },
   { id: 'audit_log', label: 'অডিট লগ', icon: ShieldCheck }
 ];
@@ -88,7 +88,7 @@ function FinanceContent() {
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
 
   const [students, setStudents] = useState<Student[]>([]);
-  const [teachersList, setTeachersList] = useState<{ id: string; name: string; designation?: string }[]>([]);
+  const [teachersList, setTeachersList] = useState<TeacherRecord[]>([]);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfoState>(DEFAULT_SCHOOL_INFO);
   const [classFees, setClassFees] = useState<{ [grade: string]: { [secId: string]: number } }>({});
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
@@ -117,9 +117,25 @@ function FinanceContent() {
   const [printVoucherData, setPrintVoucherData] = useState<VoucherRecord | null>(null);
 
   useEffect(() => {
-    if (tabParam && VALID_TABS.includes(tabParam)) {
-      setActiveTab(tabParam);
-    }
+    const syncTabFromUrl = () => {
+      const liveTab = (
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('tab')
+          : tabParam
+      ) as FinanceTab | null;
+      if (liveTab && VALID_TABS.includes(liveTab)) {
+        setActiveTab(liveTab);
+      } else if (!liveTab) {
+        setActiveTab('student_fees');
+      }
+    };
+    syncTabFromUrl();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncTabFromUrl);
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncTabFromUrl);
+      window.removeEventListener('popstate', syncTabFromUrl);
+    };
   }, [tabParam]);
 
   useEffect(() => {
@@ -136,24 +152,17 @@ function FinanceContent() {
       setStudents(loadedStudents);
 
       const loadedTeachers: TeacherRecord[] = teacherRBACService.getTeachers();
-      setTeachersList(
-        loadedTeachers.map((t) => ({ id: t.id, name: t.name, designation: t.designation }))
-      );
+      setTeachersList(loadedTeachers);
 
       const settings = settingsService.getSettings();
-      let storedSchool: Partial<SchoolInfoState> = {};
-      try {
-        const rawSettings = localStorage.getItem('sms_school_settings');
-        if (rawSettings) storedSchool = JSON.parse(rawSettings);
-      } catch {
-        // Ignore malformed local settings JSON
-      }
+      const storedSession = localStorage.getItem('sms_academic_session');
       setSchoolInfo({
-        nameBn: settings.schoolName || storedSchool.nameBn || DEFAULT_SCHOOL_INFO.nameBn,
-        eiin: settings.eiin || storedSchool.eiin || DEFAULT_SCHOOL_INFO.eiin,
-        address: settings.address || storedSchool.address || DEFAULT_SCHOOL_INFO.address,
-        established: settings.estdYear || storedSchool.established || DEFAULT_SCHOOL_INFO.established,
-        session: storedSchool.session || DEFAULT_SCHOOL_INFO.session
+        nameBn: settings.schoolName || DEFAULT_SCHOOL_INFO.nameBn,
+        eiin: settings.eiin || DEFAULT_SCHOOL_INFO.eiin,
+        address: settings.address || DEFAULT_SCHOOL_INFO.address,
+        established: settings.estdYear || DEFAULT_SCHOOL_INFO.established,
+        session: storedSession || DEFAULT_SCHOOL_INFO.session,
+        phone: settings.phone
       });
 
       setClassFees(financeService.getClassFeesConfig());
@@ -200,27 +209,35 @@ function FinanceContent() {
     loadAllData();
 
     const unsubFinance = financeService.subscribe(() => loadAllData());
+    const unsubStudents = studentService.subscribe(() => loadAllData());
+    const unsubLeaves = leaveService.subscribe(() => loadAllData());
+    const unsubSettings = settingsService.subscribe(() => loadAllData());
     const unsubLang = languageService.subscribe((lang: AppLanguage) => setCurrentLang(lang));
     const handleStorage = (e: StorageEvent) => {
-      if (!e.key || e.key.startsWith('sms_')) loadAllData();
+      if (!e.key || e.key.startsWith('sms_') || e.key === 'school_ledger_records') loadAllData();
     };
     window.addEventListener('storage', handleStorage);
 
     return () => {
       unsubFinance();
+      unsubStudents();
+      unsubLeaves();
+      unsubSettings();
       unsubLang();
       window.removeEventListener('storage', handleStorage);
     };
   }, [loadAllData]);
 
-  const handleTabChange = (tab: FinanceTab) => {
-    setActiveTab(tab);
-    router.replace(`/dashboard/finance?tab=${tab}`, { scroll: false });
-  };
-
   const handleSelectStudent = (st: Student) => {
     setSelectedStudent(st);
     setSelectionNonce((n) => n + 1);
+  };
+
+  const handleCollectDueFromReport = (st: Student) => {
+    handleSelectStudent(st);
+    setActiveTab('student_fees');
+    setFeeSubTab('collection');
+    syncUrlQueryParams('/dashboard/finance', { tab: 'student_fees' }, { push: true });
   };
 
   const feeStats: FeeCollectionStats = useMemo(() => {
@@ -228,46 +245,22 @@ function FinanceContent() {
     return financeService.getFeeCollectionStats(paymentHistory);
   }, [paymentHistory, allStudentLedgers]);
 
-  const incomeStatement = useMemo(() => {
+  const reconciledTreasury = useMemo(() => {
     void vouchers;
     void chartOfAccounts;
-    return financeService.getIncomeStatement();
-  }, [vouchers, chartOfAccounts]);
-
-  const cashBook = useMemo(() => {
-    void vouchers;
-    void chartOfAccounts;
-    return financeService.getCashBook();
-  }, [vouchers, chartOfAccounts]);
-
-  const cashInHand = cashBook.closingBalance;
-  const totalBankBalance = useMemo(
-    () => bankAccounts.reduce((s, b) => s + (b.balance || 0), 0),
-    [bankAccounts]
-  );
-
-  const modules = useMemo(
-    () =>
-      getFinanceMainModules({
-        totalDueAll: feeStats.totalDueAll,
-        payrollCount: payrolls.length,
-        expenseCount: expenses.length,
-        bankCount: bankAccounts.length,
-        waiverCount: waivers.length + refunds.length
-      }),
-    [feeStats.totalDueAll, payrolls.length, expenses.length, bankAccounts.length, waivers.length, refunds.length]
-  );
+    void bankAccounts;
+    return financeService.getReconciledTreasurySummary();
+  }, [vouchers, chartOfAccounts, bankAccounts]);
 
   if (!mounted) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+        <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-emerald-600" />
       </div>
     );
   }
 
   const isPrintModalOpen = Boolean(printReceiptData || printSalarySlip || printExpenseSlip || printVoucherData);
-  const netSurplus = incomeStatement.totalIncome - incomeStatement.totalExpense;
 
   return (
     <>
@@ -307,205 +300,83 @@ function FinanceContent() {
         }
       `}</style>
 
-      <div className={`max-w-7xl mx-auto space-y-4 ${isPrintModalOpen ? 'print:hidden' : ''}`}>
-        {/* Executive Header & Actions */}
-        <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-emerald-800/40 print:hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold uppercase tracking-wider">
-                <Landmark className="w-4 h-4" />
-                <span>ডাবল-এন্ট্রি ফাইন্যান্সিয়াল অ্যাকাউন্টিং স্যুট</span>
-              </div>
-              <h1 className="text-xl md:text-2xl font-bold mt-1">{schoolInfo.nameBn} — অর্থ ও হিসাব ব্যবস্থাপনা</h1>
-              <p className="text-xs text-slate-300 mt-0.5">
-                স্বয়ংক্রিয় লেজার, ইনভয়েস, বেতন, ব্যয়, ব্যাংক সমন্বয় ও আর্থিক বিবরণী (EIIN: {schoolInfo.eiin})
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/ledger')}
-                className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold border border-white/15 transition-colors"
-              >
-                <BookOpen className="w-4 h-4 text-emerald-300" />
-                <span>শ্রেণিভিত্তিক আয়-ব্যয় খতিয়ান</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setVoucherDefaultType('Journal');
-                  setShowVoucherModal(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>নতুন ভাউচার এন্ট্রি</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 5 Top Executive KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5">
-            <div className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
-              <div className="flex items-center justify-between text-xs text-emerald-200">
-                <span>মোট রাজস্ব আয়</span>
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <div className="text-lg font-bold mt-1">৳{incomeStatement.totalIncome.toLocaleString('bn-BD')}</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
-              <div className="flex items-center justify-between text-xs text-rose-200">
-                <span>মোট পরিচালন ব্যয়</span>
-                <TrendingDown className="w-4 h-4" />
-              </div>
-              <div className="text-lg font-bold mt-1">৳{incomeStatement.totalExpense.toLocaleString('bn-BD')}</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
-              <div className="flex items-center justify-between text-xs text-sky-200">
-                <span>নিট উদ্বৃত্ত</span>
-                <Calculator className="w-4 h-4" />
-              </div>
-              <div className={`text-lg font-bold mt-1 ${netSurplus < 0 ? 'text-rose-300' : 'text-white'}`}>
-                ৳{netSurplus.toLocaleString('bn-BD')}
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
-              <div className="flex items-center justify-between text-xs text-amber-200">
-                <span>হাতে নগদ ও ব্যাংক</span>
-                <Building2 className="w-4 h-4" />
-              </div>
-              <div className="text-lg font-bold mt-1">৳{(cashInHand + totalBankBalance).toLocaleString('bn-BD')}</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10 col-span-2 md:col-span-1">
-              <div className="flex items-center justify-between text-xs text-orange-200">
-                <span>শিক্ষার্থী মোট বকেয়া</span>
-                <AlertCircle className="w-4 h-4" />
-              </div>
-              <div className="text-lg font-bold mt-1 text-amber-300">৳{feeStats.totalDueAll.toLocaleString('bn-BD')}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* 6 Main Module Navigation Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 print:hidden">
-          {modules.map((mod) => {
-            const isActive = activeTab === mod.id;
-            const ModIcon = mod.icon;
-            return (
-              <button
-                key={mod.id}
-                type="button"
-                onClick={() => handleTabChange(mod.id)}
-                className={`text-left p-3 rounded-xl border transition-all ${
-                  isActive
-                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-400/40'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-bold text-xs flex items-center gap-1.5">
-                    <ModIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{mod.label}</span>
-                  </span>
-                  {mod.badge && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
-                      }`}
-                    >
-                      {mod.badge}
-                    </span>
-                  )}
-                </div>
-                <p className={`text-[11px] mt-1 line-clamp-1 ${isActive ? 'text-emerald-100' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {mod.sub}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Tab 1: Student Fees */}
+      <div className={`w-full space-y-4 ${isPrintModalOpen ? 'print:hidden' : ''}`}>
+        {/* ─── INDEPENDENT MENU 1: FEE COLLECTION (?tab=student_fees) ─── */}
         {activeTab === 'student_fees' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 print:hidden">
-              <div>
-                <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-emerald-600" />
-                  <span>শিক্ষার্থী বেতন, সেশন ও পরীক্ষার ফি কালেকশন</span>
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  মোট {students.length} জন শিক্ষার্থী | রিসিপ্ট ইস্যু: {paymentHistory.length} টি
-                </p>
+            <FinanceSlimHeader
+              title="ফি ও বেতন আদায়"
+              subtitle={`মোট ${students.length} জন শিক্ষার্থী · রিসিপ্ট ইস্যু: ${paymentHistory.length} টি · উপবৃত্তি ও ফি মওকুফ স্বয়ংক্রিয়ভাবে সিংকড`}
+              icon={<Wallet className="w-5 h-5" />}
+              iconBg="bg-teal-600"
+              actions={
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setFeeSubTab('fee_setup')}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>ফি সেটআপ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-teal-600 text-white hover:bg-teal-700 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>প্রিন্ট</span>
+                  </button>
+                </>
+              }
+            />
+
+            {/* 4 Clean Contextual KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">সর্বমোট বকেয়া</span>
+                <div className="text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5">
+                  ৳ {feeStats.totalDueAll.toLocaleString('bn-BD')}
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  পূর্বের বকেয়া: ৳{(feeStats.totalOpeningDueRemaining || 0).toLocaleString('bn-BD')}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFeeSubTab('fee_setup')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>ফি সেটআপ ও খাত হাব</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>প্রিন্ট</span>
-                </button>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">আজকের আদায়</span>
+                <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  ৳ {feeStats.todayCollected.toLocaleString('bn-BD')}
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  মোট আদায়: ৳{feeStats.totalCollectedAll.toLocaleString('bn-BD')}
+                </span>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <Receipt className="w-3 h-3 text-emerald-600" /> ক্যাশ ও ব্যাংক আদায়
+                </span>
+                <div className="text-lg font-black font-mono text-slate-900 dark:text-white mt-0.5">
+                  ৳ {(feeStats.cashCollected + feeStats.bankCollected).toLocaleString('bn-BD')}
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  ক্যাশ ৳{feeStats.cashCollected.toLocaleString('bn-BD')} · ব্যাংক ৳{feeStats.bankCollected.toLocaleString('bn-BD')}
+                </span>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <Smartphone className="w-3 h-3 text-pink-600" /> <CreditCard className="w-3 h-3 text-orange-500" /> বিকাশ ও নগদ
+                </span>
+                <div className="text-lg font-black font-mono text-pink-600 dark:text-pink-400 mt-0.5">
+                  ৳ {(feeStats.bkashCollected + feeStats.nagadCollected).toLocaleString('bn-BD')}
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  বিকাশ ৳{feeStats.bkashCollected.toLocaleString('bn-BD')} · নগদ ৳{feeStats.nagadCollected.toLocaleString('bn-BD')}
+                </span>
               </div>
             </div>
 
-            {/* 6 Fee Collection KPI Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">সর্বমোট বকেয়া</span>
-                <div className="text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                  ৳{feeStats.totalDueAll.toLocaleString('bn-BD')}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">পূর্বের বকেয়া</span>
-                <div className="text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5">
-                  ৳{(feeStats.totalOpeningDueAll || 0).toLocaleString('bn-BD')}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">আজকের আদায়</span>
-                <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  ৳{feeStats.todayCollected.toLocaleString('bn-BD')}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Receipt className="w-3 h-3 text-emerald-600" /> ক্যাশ আদায়
-                </span>
-                <div className="text-base font-bold text-slate-800 dark:text-slate-100 mt-0.5">
-                  ৳{feeStats.cashCollected.toLocaleString('bn-BD')}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Smartphone className="w-3 h-3 text-pink-600" /> বিকাশ (bKash)
-                </span>
-                <div className="text-base font-bold text-pink-600 dark:text-pink-400 mt-0.5">
-                  ৳{feeStats.bkashCollected.toLocaleString('bn-BD')}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <CreditCard className="w-3 h-3 text-orange-600" /> নগদ (Nagad)
-                </span>
-                <div className="text-base font-bold text-orange-600 dark:text-orange-400 mt-0.5">
-                  ৳{feeStats.nagadCollected.toLocaleString('bn-BD')}
-                </div>
-              </div>
-            </div>
-
-            {/* 8 Sub-Tabs */}
-            <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 print:hidden">
+            {/* Clean Sub-Tabs inside Fee Collection */}
+            <div className="flex flex-wrap gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs print:hidden">
               {FEE_SUB_TABS.map((sub) => {
                 const Icon = sub.icon;
                 const active = feeSubTab === sub.id;
@@ -514,10 +385,10 @@ function FinanceContent() {
                     key={sub.id}
                     type="button"
                     onClick={() => setFeeSubTab(sub.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                       active
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                        ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -533,6 +404,7 @@ function FinanceContent() {
                 classFees={classFees}
                 allStudentLedgers={allStudentLedgers}
                 feeSectors={feeSectors}
+                bankAccounts={bankAccounts}
                 paymentHistory={paymentHistory}
                 schoolInfo={schoolInfo}
                 selectedStudent={selectedStudent}
@@ -595,13 +467,14 @@ function FinanceContent() {
           </div>
         )}
 
-        {/* Tab 2 & 3: Payroll & Expenses */}
+        {/* ─── INDEPENDENT MENUS 2 & 3: PAYROLL (?tab=payroll) & EXPENSES (?tab=expenses) ─── */}
         {(activeTab === 'payroll' || activeTab === 'expenses') && (
           <PayrollAndExpensesTabs
             activeTab={activeTab}
             payrolls={payrolls}
             expenses={expenses}
             teachersList={teachersList}
+            bankAccounts={bankAccounts}
             schoolInfo={schoolInfo}
             currentLang={currentLang}
             onRefreshAll={loadAllData}
@@ -610,7 +483,7 @@ function FinanceContent() {
           />
         )}
 
-        {/* Tab 4 & 5: Cash/Bank & Waivers/Refunds */}
+        {/* ─── INDEPENDENT MENUS 4 & 5: CASH & BANK (?tab=cash_bank) & WAIVERS/REFUNDS (?tab=waivers_refunds) ─── */}
         {(activeTab === 'cash_bank' || activeTab === 'waivers_refunds') && (
           <CashBankAndWaiversTabs
             activeTab={activeTab}
@@ -619,20 +492,22 @@ function FinanceContent() {
             waivers={waivers}
             refunds={refunds}
             students={students}
+            paymentHistory={paymentHistory}
             feeStats={feeStats}
-            cashInHand={cashInHand}
-            totalBankBalance={totalBankBalance}
+            reconciledTreasury={reconciledTreasury}
             schoolInfo={schoolInfo}
             onRefreshAll={loadAllData}
           />
         )}
 
-        {/* Tab 6: Financial Reports */}
+        {/* ─── INDEPENDENT MENU 6: FINANCIAL REPORTS & DUES (?tab=reports) ─── */}
         {activeTab === 'reports' && (
           <FinanceReportsTab
             vouchers={vouchers}
             chartOfAccounts={chartOfAccounts}
             bankAccounts={bankAccounts}
+            students={students}
+            allStudentLedgers={allStudentLedgers}
             schoolInfo={schoolInfo}
             onRefreshAll={loadAllData}
             onOpenVoucherModal={(t?: VoucherType) => {
@@ -640,6 +515,7 @@ function FinanceContent() {
               setShowVoucherModal(true);
             }}
             onPrintVoucher={(v: VoucherRecord) => setPrintVoucherData(v)}
+            onCollectStudentDue={handleCollectDueFromReport}
           />
         )}
       </div>

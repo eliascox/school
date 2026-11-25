@@ -69,17 +69,22 @@ export interface PayrollRecord {
   teacherId: string;
   teacherName: string;
   designation: string;
+  staffCategory?: 'teacher' | 'staff';
   month: string;
   year: number;
   baseSalary: number;
   allowances: number;
   bonus: number;
   deductions: number;
+  pfDeduction?: number;
+  otherDeduction?: number;
+  approvedLeaveDays?: number;
   netPayable: number;
   paidAmount: number;
   status: 'Paid' | 'Pending';
   paymentDate: string;
   paymentMethod: 'Cash' | 'Bank Transfer' | 'bKash' | 'Nagad';
+  bankAccountId?: string;
   trxId?: string;
   note?: string;
 }
@@ -93,6 +98,7 @@ export interface ExpenseRecord {
   date: string;
   paidTo: string;
   paymentMethod: 'Cash' | 'Bank Check' | 'bKash' | 'Nagad';
+  bankAccountId?: string;
   note: string;
   recordedBy: string;
 }
@@ -140,6 +146,9 @@ export interface RefundRecord {
   reason: string;
   date: string;
   processedBy: string;
+  paymentMethod?: 'Cash' | 'bKash' | 'Nagad' | 'Bank Transfer';
+  bankAccountId?: string;
+  voucherNo?: string;
 }
 
 export interface StudentPaymentRecord {
@@ -277,9 +286,12 @@ export interface StudentFeeLedger {
   // ─── 🚩 Software Go-Live & Opening Arrears ───
   openingDue?: number;              // পূর্ববর্তী শিক্ষাবর্ষ বা সফটওয়্যার শুরুর পূর্বের বকেয়া
   openingDuePaid?: number;          // পূর্বের বকেয়া থেকে পরিশোধিত
+  openingDueDiscount?: number;      // পূর্বের বকেয়াতে প্রদত্ত ছাড়
   openingDueRemaining?: number;     // অবশিষ্ট পূর্বের বকেয়া
   openingDueNote?: string;          // বকেয়া নির্ধারণের নোট
   openingDueSetDate?: string;       // তারিখ
+  appliedWaiverId?: string;         // স্বয়ংক্রিয়ভাবে যুক্ত ফি মওকুফ আইডি
+  appliedWaiverLabel?: string;      // মওকুফ বিবরণ
   // ─────────────────────────────────────────────
   months: MonthDue[];
   otherFees: { [sectorId: string]: OtherFeeDue };
@@ -469,8 +481,57 @@ const getInitialConfig = (): { [grade: string]: { [secId: string]: number } } =>
 let currentConfig = getInitialConfig();
 const listeners: ((cfg: { [grade: string]: { [secId: string]: number } }) => void)[] = [];
 
-// Helper to determine asset account code from payment method
-export const getPaymentAssetCode = (method: string): { code: string; name: string } => {
+// ⚡ Multi-key raw-string fingerprint cache for getAllStudentLedgers()
+// Prevents re-parsing sms_students + recalculating every student's 12-month ledger + calling
+// localStorage.setItem() on every dashboard/finance mount and every storage event.
+let cachedLedgerStudentsRaw: string | null | undefined = undefined;
+let cachedLedgerRaw: string | null | undefined = undefined;
+let cachedLedgerClassFeesRaw: string | null | undefined = undefined;
+let cachedLedgerFeeSectorsRaw: string | null | undefined = undefined;
+let cachedLedgerWaiversRaw: string | null | undefined = undefined;
+let cachedSyncedLedgers: Record<string, StudentFeeLedger> | null = null;
+
+function invalidateStudentLedgerCache(): void {
+  cachedLedgerStudentsRaw = undefined;
+  cachedLedgerRaw = undefined;
+  cachedLedgerClassFeesRaw = undefined;
+  cachedLedgerFeeSectorsRaw = undefined;
+  cachedLedgerWaiversRaw = undefined;
+  cachedSyncedLedgers = null;
+}
+
+function notifyFinanceListeners(): void {
+  listeners.forEach(fn => {
+    try {
+      fn(currentConfig);
+    } catch {
+      // Ignore subscriber errors
+    }
+  });
+}
+
+function resolveActiveStipendFlag(studentData: any, fallbackFlag?: boolean): boolean {
+  if (!studentData) return Boolean(fallbackFlag);
+  if (studentData.stipendStatus === 'Revoked' || studentData.stipendStatus === 'Suspended') {
+    return false;
+  }
+  if (studentData.isStipend === true) return true;
+  if (studentData.isStipend === undefined && studentData.stipendStatus === 'Active') return true;
+  return false;
+}
+
+// Helper to determine asset account code from payment method (with optional specific bank account)
+export const getPaymentAssetCode = (
+  method: string,
+  bankAccountId?: string
+): { code: string; name: string } => {
+  if (bankAccountId && (method === 'Bank Transfer' || method === 'Bank Check' || method === 'SSLCommerz')) {
+    const banks = financeService.getBankAccounts();
+    const matched = banks.find(b => b.id === bankAccountId || b.accountCode === bankAccountId);
+    if (matched) {
+      return { code: matched.accountCode || '1020', name: matched.bankName };
+    }
+  }
   switch (method) {
     case 'bKash': return { code: '1050', name: 'bKash Merchant Account (বিকাশ)' };
     case 'Nagad': return { code: '1060', name: 'Nagad Merchant Account (নগদ)' };
@@ -684,25 +745,70 @@ export const financeService = {
     const studentsMap = new Map<string, any>();
     allStudentsList.forEach(s => studentsMap.set(s.id, s));
 
+    // Auto-initialize ledgers for newly admitted active students so dues stay 100% synced
+    allStudentsList.forEach(st => {
+      if (st?.id && !allLedgers[st.id]) {
+        const isStipendNew = resolveActiveStipendFlag(st, false);
+        const startMonth = st.stipendStartMonth || 'জানুয়ারি';
+        const created = financeService.createDefaultStudentLedger(st.id, st.grade || '6th', isStipendNew, startMonth);
+        created.studentName = st.name;
+        created.roll = String(st.roll || '');
+        created.section = st.section || st.branch || 'A';
+        allLedgers[st.id] = created;
+      }
+    });
+
+    const waivers = financeService.getWaivers();
+    const waiverByStudent = new Map<string, WaiverRecord>();
+    waivers.forEach(w => {
+      if (w.studentId && !waiverByStudent.has(w.studentId)) {
+        waiverByStudent.set(w.studentId, w);
+      }
+    });
+
     Object.keys(allLedgers).forEach(studentId => {
       const ledger = allLedgers[studentId];
       if (!ledger) return;
 
       const studentData = studentsMap.get(studentId);
-      const isStipend = studentData ? Boolean(studentData.isStipend || studentData.stipendCategory || studentData.stipendStatus === 'Active') : Boolean(ledger.isStipend);
+      const isStipend = resolveActiveStipendFlag(studentData, ledger.isStipend);
       const stipendStartMonth = studentData?.stipendStartMonth || (ledger as any).stipendStartMonth || 'জানুয়ারি';
       const stipendStartIdx = BANGLA_MONTHS.indexOf(stipendStartMonth);
       const effectiveStipendIdx = stipendStartIdx >= 0 ? stipendStartIdx : 0;
 
       ledger.isStipend = isStipend;
       (ledger as any).stipendStartMonth = stipendStartMonth;
+      if (studentData) {
+        ledger.studentName = studentData.name || ledger.studentName;
+        ledger.roll = String(studentData.roll || ledger.roll || '');
+        ledger.section = studentData.section || studentData.branch || ledger.section;
+      }
 
       const gradeKey = normalizeGradeKey(studentData?.grade || ledger.grade);
       ledger.grade = gradeKey;
       const gradeFees = config[gradeKey] || DEFAULT_CLASS_FEES_CONFIG[gradeKey] || {};
       const standardTuitionRate = gradeFees.tuition !== undefined ? gradeFees.tuition : (DEFAULT_CLASS_FEES_CONFIG[gradeKey]?.tuition || 400);
 
-      // 1. Sync Months (Pre-stipend months have tuition; post-stipend months are waived 0)
+      const studentWaiver = waiverByStudent.get(studentId);
+      const hadWaiverBefore = Boolean(ledger.appliedWaiverId);
+      const monthlyWaiverDiscount = studentWaiver
+        ? studentWaiver.type === 'percent'
+          ? Math.round((standardTuitionRate * Math.min(100, Math.max(0, Number(studentWaiver.value) || 0))) / 100)
+          : Math.min(standardTuitionRate, Math.max(0, Number(studentWaiver.value) || 0))
+        : 0;
+
+      if (studentWaiver && !isStipend) {
+        ledger.appliedWaiverId = studentWaiver.id;
+        ledger.appliedWaiverLabel =
+          studentWaiver.type === 'percent'
+            ? `${studentWaiver.reason || 'বিশেষ ছাড়'} (${studentWaiver.value}%)`
+            : `${studentWaiver.reason || 'বিশেষ ছাড়'} (৳${studentWaiver.value})`;
+      } else {
+        ledger.appliedWaiverId = undefined;
+        ledger.appliedWaiverLabel = undefined;
+      }
+
+      // 1. Sync Months (Pre-stipend months have tuition; post-stipend months are waived 0; approved waivers auto-applied)
       if (ledger.months && Array.isArray(ledger.months)) {
         ledger.months.forEach((m, idx) => {
           const isMonthWaivedByStipend = isStipend && idx >= effectiveStipendIdx;
@@ -712,13 +818,22 @@ export const financeService = {
             m.dueAmount = 0;
             m.status = 'waived';
           } else {
-            // Month before stipend or regular student: regular tuition applies
             const monthTuition = standardTuitionRate;
             m.tuitionAmount = monthTuition;
-            if (m.paidAmount === 0 && (m.discount || 0) === 0) {
-              m.dueAmount = monthTuition;
-              m.status = 'due';
-            } else if (m.paidAmount > 0 || (m.discount || 0) > 0) {
+            if (m.paidAmount === 0) {
+              if (studentWaiver && monthlyWaiverDiscount > 0) {
+                m.discount = monthlyWaiverDiscount;
+                m.dueAmount = Math.max(0, monthTuition - monthlyWaiverDiscount);
+                m.status = m.dueAmount === 0 ? 'waived' : 'partial';
+              } else {
+                if (hadWaiverBefore) {
+                  m.discount = 0;
+                }
+                const disc = m.discount || 0;
+                m.dueAmount = Math.max(0, monthTuition - disc);
+                m.status = m.dueAmount === 0 ? 'waived' : disc > 0 ? 'partial' : 'due';
+              }
+            } else {
               m.dueAmount = Math.max(0, monthTuition - m.paidAmount - (m.discount || 0));
               m.status = m.dueAmount === 0 ? 'paid' : 'partial';
             }
@@ -776,20 +891,37 @@ export const financeService = {
       const totalMonthsPaid = (ledger.months || []).reduce((s, m) => s + m.paidAmount, 0);
       const totalOtherPaid = Object.values(ledger.otherFees || {}).reduce((s, o) => s + o.paidAmount, 0);
 
+      const totalMonthsDiscount = (ledger.months || []).reduce((s, m) => s + (m.discount || 0), 0);
+      const totalOtherDiscount = Object.values(ledger.otherFees || {}).reduce((s, o) => s + (o.discount || 0), 0);
+
       const openDueBilled = Number(ledger.openingDue) || 0;
       const openDuePaid = Number(ledger.openingDuePaid) || 0;
-      const openDueRemaining = Math.max(0, openDueBilled - openDuePaid);
+      const openDueDiscount = Number(ledger.openingDueDiscount) || 0;
+      const openDueRemaining = Math.max(0, openDueBilled - openDuePaid - openDueDiscount);
       ledger.openingDue = openDueBilled;
       ledger.openingDuePaid = openDuePaid;
+      ledger.openingDueDiscount = openDueDiscount;
       ledger.openingDueRemaining = openDueRemaining;
 
       ledger.totalBilled = totalMonthsBilled + totalOtherBilled + openDueBilled;
       ledger.totalPaid = totalMonthsPaid + totalOtherPaid + openDuePaid;
+      ledger.totalDiscount = totalMonthsDiscount + totalOtherDiscount + openDueDiscount;
       ledger.totalDue = totalMonthsDue + totalOtherDue + openDueRemaining;
     });
 
+    let previousRaw: string | null = null;
     try {
-      localStorage.setItem(STUDENT_LEDGER_STORAGE_KEY, JSON.stringify(allLedgers));
+      previousRaw = localStorage.getItem(STUDENT_LEDGER_STORAGE_KEY);
+      const nextSerialized = JSON.stringify(allLedgers);
+      if (nextSerialized !== previousRaw) {
+        localStorage.setItem(STUDENT_LEDGER_STORAGE_KEY, nextSerialized);
+      }
+      cachedLedgerStudentsRaw = localStorage.getItem('sms_students');
+      cachedLedgerRaw = nextSerialized;
+      cachedLedgerClassFeesRaw = localStorage.getItem(STORAGE_KEY);
+      cachedLedgerFeeSectorsRaw = localStorage.getItem(FEE_SECTORS_STORAGE_KEY);
+      cachedLedgerWaiversRaw = localStorage.getItem(WAIVERS_STORAGE_KEY);
+      cachedSyncedLedgers = allLedgers;
     } catch (e) {}
     return allLedgers;
   },
@@ -1057,7 +1189,7 @@ export const financeService = {
       const gradeFees = config[gradeKey] || DEFAULT_CLASS_FEES_CONFIG[gradeKey] || {};
       const baseTuition = gradeFees.tuition !== undefined ? gradeFees.tuition : (DEFAULT_CLASS_FEES_CONFIG[gradeKey]?.tuition || 400);
 
-      const isStipend = Boolean(st.isStipend || st.stipendCategory || st.stipendStatus === 'Active');
+      const isStipend = resolveActiveStipendFlag(st, false);
       const studentWaiver = waivers.find(w => w.studentId === st.id);
 
       let tuitionDiscount = 0;
@@ -1157,12 +1289,17 @@ export const financeService = {
 
     const receiptId = `REC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    invoice.totalPaid = (invoice.totalPaid || 0) + payAmount;
+    const paidAmountBefore = invoice.totalPaid || 0;
+    invoice.totalPaid = paidAmountBefore + payAmount;
+    invoice.paidAmount = invoice.totalPaid;
     invoice.dueAmount = Math.max(0, invoice.totalPayable - invoice.totalPaid);
     invoice.status = invoice.dueAmount === 0 ? 'paid' : 'partial';
 
     const paymentDate = payment.date || new Date().toISOString().split('T')[0];
 
+    if (!Array.isArray(invoice.payments)) {
+      invoice.payments = [];
+    }
     invoice.payments.push({
       receiptId,
       trxId: payment.trxId,
@@ -1176,13 +1313,13 @@ export const financeService = {
     financeService.saveInvoices(allInvoices);
 
     // Sync to StudentFeeLedger
-    financeService.applyPaymentToStudentLedger({
+    const { updatedLedger } = financeService.applyPaymentToStudentLedger({
       studentId: invoice.studentId,
       studentName: invoice.studentName,
       roll: invoice.roll,
       grade: invoice.grade,
       section: invoice.section,
-      mobile: '',
+      mobile: invoice.mobile || '',
       selectedMonths: [invoice.month],
       selectedOtherFeeIds: [],
       paymentAmount: payAmount,
@@ -1194,7 +1331,43 @@ export const financeService = {
       date: paymentDate
     });
 
-    // Auto-post double entry voucher
+    // Allocate paid amount proportionally across invoice items so Total Credit === payAmount strictly
+    const totalItemNet = invoice.items.reduce((s, i) => s + Math.max(0, i.netAmount || i.amount || 0), 0);
+    let allocatedSoFar = 0;
+    const allocatedFeeItems = invoice.items.length > 0
+      ? invoice.items.map((item, idx) => {
+          const isLast = idx === invoice.items.length - 1;
+          const share = isLast
+            ? Math.max(0, payAmount - allocatedSoFar)
+            : totalItemNet > 0
+              ? Math.round((payAmount * Math.max(0, item.netAmount || item.amount || 0)) / totalItemNet)
+              : 0;
+          allocatedSoFar += share;
+          return { name: item.name, amount: share };
+        }).filter(i => i.amount > 0)
+      : [{ name: `মাসিক বেতন (${invoice.month})`, amount: payAmount }];
+
+    // Record in sms_payment_history so Invoice payments appear in Receipt History & Today's Collection KPIs
+    financeService.addPaymentRecord({
+      receiptId,
+      studentId: invoice.studentId,
+      studentName: invoice.studentName,
+      roll: invoice.roll,
+      grade: invoice.grade,
+      section: invoice.section,
+      mobile: invoice.mobile || 'N/A',
+      feeItems: allocatedFeeItems,
+      subtotal: payAmount,
+      discount: 0,
+      paidAmount: payAmount,
+      dueRemaining: updatedLedger.totalDue,
+      paymentMethod: payment.paymentMethod,
+      trxId: payment.trxId,
+      date: paymentDate,
+      collectedBy: payment.collectedBy || 'ক্যাশিয়ার'
+    });
+
+    // Auto-post balanced double-entry voucher
     financeService.postFeeReceiptJournal({
       receiptId,
       studentName: invoice.studentName,
@@ -1204,10 +1377,12 @@ export const financeService = {
       subtotal: payAmount,
       discount: 0,
       paymentMethod: payment.paymentMethod,
-      feeItems: invoice.items.map(i => ({ name: i.name, amount: payAmount })),
+      feeItems: allocatedFeeItems,
       date: paymentDate,
       collectedBy: payment.collectedBy
     });
+
+    notifyFinanceListeners();
 
     auditTrailService.addLog({
       action: 'PAY_FEE_INVOICE',
@@ -1388,13 +1563,21 @@ export const financeService = {
     const list = financeService.getVouchers();
     list.unshift(voucher);
     financeService.saveVouchers(list);
+    notifyFinanceListeners();
     return list;
   },
 
   deleteVoucher: (id: string) => {
-    let list = financeService.getVouchers();
-    list = list.filter(v => v.id !== id);
+    const existing = financeService.getVouchers();
+    const target = existing.find(v => v.id === id);
+    const list = existing.filter(v => v.id !== id);
     financeService.saveVouchers(list);
+    if (target?.voucherNo) {
+      try {
+        ledgerService.deleteByVoucherNo(target.voucherNo);
+      } catch {}
+    }
+    notifyFinanceListeners();
     return list;
   },
 
@@ -1410,152 +1593,199 @@ export const financeService = {
     subtotal: number;
     discount: number;
     paymentMethod: string;
+    bankAccountId?: string;
     feeItems: { name: string; amount: number }[];
     date: string;
     collectedBy: string;
   }) => {
-    const asset = getPaymentAssetCode(payment.paymentMethod);
+    const asset = getPaymentAssetCode(payment.paymentMethod, payment.bankAccountId);
     const now = new Date();
     const vNo = `RV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+
+    const safePaid = Math.max(0, Number(payment.paidAmount) || 0);
+    const safeDiscount = Math.max(0, Number(payment.discount) || 0);
+    const totalDebit = safePaid + safeDiscount;
 
     const entries: JournalLine[] = [];
 
     // Debit Asset (Cash/Bank/bKash/Nagad)
-    entries.push({
-      accountCode: asset.code,
-      accountName: asset.name,
-      debit: payment.paidAmount,
-      credit: 0,
-      narration: `ফি আদায় (${payment.paymentMethod})`
-    });
+    if (safePaid > 0) {
+      entries.push({
+        accountCode: asset.code,
+        accountName: asset.name,
+        debit: safePaid,
+        credit: 0,
+        narration: `ফি আদায় (${payment.paymentMethod})`
+      });
+    }
 
     // Debit Discount Expense (if special waiver applied)
-    if (payment.discount > 0) {
+    if (safeDiscount > 0) {
       entries.push({
         accountCode: '5100',
         accountName: 'Scholarships & Fee Discounts (বৃত্তি ও মওকুফ)',
-        debit: payment.discount,
+        debit: safeDiscount,
         credit: 0,
         narration: 'বিশেষ মওকুফ / বৃত্তি ছাড়'
       });
     }
 
-    // Credit Fee Revenues according to sectors
+    // Credit Fee Revenues according to sectors (guarding exact Debit === Credit invariant)
+    let creditedSoFar = 0;
     payment.feeItems.forEach(item => {
+      const itemAmt = Math.max(0, Number(item.amount) || 0);
+      if (itemAmt <= 0) return;
       let code = '4010';
       let name = 'Monthly Tuition Fee Revenue';
       if (item.name.includes('পরীক্ষা')) { code = '4020'; name = 'Examination Fee Revenue'; }
       else if (item.name.includes('ভর্তি')) { code = '4030'; name = 'Admission Fee Revenue'; }
       else if (item.name.includes('রেজিস্ট্রেশন')) { code = '4040'; name = 'Board Registration Fee'; }
       else if (item.name.includes('বিদায়')) { code = '4050'; name = 'Farewell Event Fee'; }
-      else if (item.name.includes('আইডিকার্ড') || item.name.includes('বিদ্যুত') || item.name.includes('সফটওয়্যার')) {
+      else if (item.name.includes('আইডিকার্ড') || item.name.includes('বিদ্যুত') || item.name.includes('সফটওয়্যার') || item.name.includes('লাইব্রেরী') || item.name.includes('ক্রীড়া') || item.name.includes('ছাড়পত্র') || item.name.includes('প্রশংসাপত্র')) {
         code = '4060'; name = 'Session & Utility Charges';
       }
 
-      entries.push({
-        accountCode: code,
-        accountName: name,
-        debit: 0,
-        credit: item.amount,
-        narration: item.name
-      });
+      const creditPortion = Math.min(itemAmt, Math.max(0, totalDebit - creditedSoFar));
+      if (creditPortion > 0) {
+        creditedSoFar += creditPortion;
+        entries.push({
+          accountCode: code,
+          accountName: name,
+          debit: 0,
+          credit: creditPortion,
+          narration: item.name
+        });
+      }
     });
 
+    // If paid amount exceeds allocated items (advance fee / rounding remainder), credit Student Advance Deposit (2030)
+    const unallocatedCredit = Number((totalDebit - creditedSoFar).toFixed(2));
+    if (unallocatedCredit > 0.01) {
+      entries.push({
+        accountCode: payment.feeItems.length === 0 ? '4010' : '2030',
+        accountName: payment.feeItems.length === 0 ? 'Monthly Tuition Fee Revenue' : 'Student Advance Fee Deposits',
+        debit: 0,
+        credit: unallocatedCredit,
+        narration: payment.feeItems.length === 0 ? 'শিক্ষার্থী ফি আদায়' : 'অগ্রিম ফি জমা / সমন্বয়'
+      });
+    }
+
     const voucher: VoucherRecord = {
-      id: `VOUCH-${Date.now()}`,
+      id: `VOUCH-${Date.now()}-${Math.floor(10 + Math.random() * 89)}`,
       voucherNo: vNo,
       voucherType: 'Receipt',
-      date: now.toISOString().split('T')[0],
+      date: payment.date || now.toISOString().split('T')[0],
       reference: `শিক্ষার্থী: ${payment.studentName} (রোল: #${payment.roll}, শ্রেণি: ${payment.grade}) | রসিদ: ${payment.receiptId}`,
-      narration: `শিক্ষার্থী ফি আদায় — ${payment.feeItems.map(f => f.name).join(', ')}`,
+      narration: `শিক্ষার্থী ফি আদায় — ${payment.feeItems.map(f => f.name).join(', ') || 'মাসিক বেতন'}`,
       sourceModule: 'student_fees',
       sourceId: payment.receiptId,
-      totalAmount: payment.subtotal,
+      totalAmount: totalDebit,
       createdBy: payment.collectedBy || 'ক্যাশিয়ার',
       entries
     };
 
     financeService.addVoucher(voucher);
     try {
-      ledgerService.addRecord({
+      ledgerService.upsertByVoucherNo({
         type: 'Income',
         category: payment.feeItems.length > 0 ? payment.feeItems[0].name.split(' (')[0] : 'মাসিক বেতন',
         grade: normalizeGradeKey(payment.grade),
         studentName: payment.studentName,
         studentRoll: String(payment.roll),
-        amount: payment.paidAmount,
+        amount: safePaid,
         voucherNo: payment.receiptId,
         date: payment.date || now.toISOString().split('T')[0],
         paymentMethod: (['Cash', 'bKash', 'Nagad', 'Bank Transfer'].includes(payment.paymentMethod) ? payment.paymentMethod : 'Cash') as any,
-        description: `শিক্ষার্থী ফি আদায় — ${payment.feeItems.map(f => f.name).join(', ')}`,
-        createdByName: payment.collectedBy || 'ক্যাশিয়ার'
+        description: `শিক্ষার্থী ফি আদায় — ${payment.feeItems.map(f => f.name).join(', ') || 'মাসিক বেতন'}`,
+        createdByName: payment.collectedBy || 'ক্যাশিয়ার',
+        sourceModule: 'student_fees',
+        sourceId: payment.receiptId,
       });
     } catch (e) {}
     return voucher;
   },
 
-  // 2. Hook: Auto-post Payroll Disbursement to Ledger
+  // 2. Hook: Auto-post Payroll Disbursement to Ledger (Teacher 5010 / Office Staff 5020 + PF 2020)
   postPayrollJournal: (payroll: PayrollRecord) => {
-    const asset = getPaymentAssetCode(payroll.paymentMethod);
-    const now = new Date();
-    const grossSalary = payroll.baseSalary + payroll.allowances + payroll.bonus;
+    const existingVouchers = financeService.getVouchers();
+    const alreadyPosted = existingVouchers.find(
+      v => v.sourceModule === 'payroll' && (v.sourceId === payroll.id || v.voucherNo === payroll.voucherNo)
+    );
+    if (alreadyPosted) return alreadyPosted;
+
+    const asset = getPaymentAssetCode(payroll.paymentMethod, payroll.bankAccountId);
+    const grossSalary = (Number(payroll.baseSalary) || 0) + (Number(payroll.allowances) || 0) + (Number(payroll.bonus) || 0);
+    const totalDeductions = Math.max(0, Number(payroll.deductions) || 0);
+    const pfAmount = Math.min(
+      totalDeductions,
+      Math.max(0, payroll.pfDeduction !== undefined ? Number(payroll.pfDeduction) : totalDeductions)
+    );
+    const otherDeduction = Math.max(0, totalDeductions - pfAmount);
+    const netSalaryExpense = Math.max(0, grossSalary - otherDeduction);
+    const netPayable = Math.max(0, netSalaryExpense - pfAmount);
+
+    const isOfficeStaff = payroll.staffCategory === 'staff';
+    const expenseCode = isOfficeStaff ? '5020' : '5010';
+    const expenseName = isOfficeStaff ? 'Staff Wages & Overtime' : 'Teacher Salary Expense (Payroll)';
 
     const entries: JournalLine[] = [
-      // Debit Salary Expense
+      // Debit Salary Expense (net of unpaid-leave/advance salary reduction)
       {
-        accountCode: '5010',
-        accountName: 'Teacher Salary Expense (Payroll)',
-        debit: grossSalary,
+        accountCode: expenseCode,
+        accountName: expenseName,
+        debit: netSalaryExpense,
         credit: 0,
         narration: `${payroll.teacherName} - ${payroll.month} ${payroll.year} বেতন`
       },
-      // Credit Cash/Bank
+      // Credit Cash / Selected Bank / MFS Asset
       {
         accountCode: asset.code,
         accountName: asset.name,
         debit: 0,
-        credit: payroll.netPayable,
+        credit: netPayable,
         narration: `নিট বেতন প্রদান (${payroll.paymentMethod})`
       }
     ];
 
-    // Credit PF Liability if any deduction
-    if (payroll.deductions > 0) {
+    // Credit PF Liability (2020) for provident fund deduction
+    if (pfAmount > 0) {
       entries.push({
         accountCode: '2020',
         accountName: 'Teachers Provident Fund (PF Liability)',
         debit: 0,
-        credit: payroll.deductions,
-        narration: 'ভবিষ্যত তহবিল কর্তন'
+        credit: pfAmount,
+        narration: 'ভবিষ্যৎ তহবিল (PF) কর্তন'
       });
     }
 
     const voucher: VoucherRecord = {
-      id: `VOUCH-${Date.now()}`,
+      id: `VOUCH-${Date.now()}-${Math.floor(10 + Math.random() * 89)}`,
       voucherNo: payroll.voucherNo,
       voucherType: 'Payment',
-      date: payroll.paymentDate,
-      reference: `শিক্ষক/স্টাফ: ${payroll.teacherName} (${payroll.designation}) | ID: ${payroll.teacherId}`,
+      date: payroll.paymentDate || new Date().toISOString().split('T')[0],
+      reference: `শিক্ষক/স্টাফ: ${payroll.teacherName} (${payroll.designation}) | ID: ${payroll.teacherId || 'N/A'}`,
       narration: `${payroll.month} ${payroll.year} মাসের বেতন ও ভাতা প্রদান`,
       sourceModule: 'payroll',
       sourceId: payroll.id,
-      totalAmount: grossSalary,
+      totalAmount: netSalaryExpense,
       createdBy: 'হিসাবরক্ষক',
       entries
     };
 
     financeService.addVoucher(voucher);
     try {
-      ledgerService.addRecord({
+      ledgerService.upsertByVoucherNo({
         type: 'Expense',
-        category: 'শিক্ষক বেতন',
+        category: isOfficeStaff ? 'কর্মচারী বেতন' : 'শিক্ষক বেতন',
         grade: 'all',
-        amount: payroll.netPayable,
+        amount: netPayable,
         voucherNo: payroll.voucherNo,
-        date: payroll.paymentDate,
+        date: payroll.paymentDate || new Date().toISOString().split('T')[0],
         paymentMethod: payroll.paymentMethod,
         description: `${payroll.teacherName} (${payroll.designation}) - ${payroll.month} ${payroll.year} মাসের বেতন`,
-        createdByName: 'হিসাবরক্ষক'
+        createdByName: 'হিসাবরক্ষক',
+        sourceModule: 'payroll',
+        sourceId: payroll.id,
       });
     } catch (e) {}
     return voucher;
@@ -1563,11 +1793,11 @@ export const financeService = {
 
   // 3. Hook: Auto-post Expense Voucher to Ledger
   postExpenseJournal: (expense: ExpenseRecord) => {
-    const asset = getPaymentAssetCode(expense.paymentMethod);
+    const asset = getPaymentAssetCode(expense.paymentMethod, expense.bankAccountId);
     const expAcc = getExpenseAccountCode(expense.category);
 
     const voucher: VoucherRecord = {
-      id: `VOUCH-${Date.now()}`,
+      id: `VOUCH-${Date.now()}-${Math.floor(10 + Math.random() * 89)}`,
       voucherNo: expense.voucherNo,
       voucherType: 'Payment',
       date: expense.date,
@@ -1578,14 +1808,14 @@ export const financeService = {
       totalAmount: expense.amount,
       createdBy: expense.recordedBy || 'হিসাবরক্ষক',
       entries: [
-        { accountCode: expAcc.code, accountName: expAcc.name, debit: expense.amount, credit: 0, narration: expense.note },
+        { accountCode: expAcc.code, accountName: expAcc.name, debit: expense.amount, credit: 0, narration: expense.note || expense.category },
         { accountCode: asset.code, accountName: asset.name, debit: 0, credit: expense.amount, narration: `পরিশোধ (${expense.paymentMethod})` }
       ]
     };
 
     financeService.addVoucher(voucher);
     try {
-      ledgerService.addRecord({
+      ledgerService.upsertByVoucherNo({
         type: 'Expense',
         category: expense.category,
         grade: 'all',
@@ -1594,53 +1824,272 @@ export const financeService = {
         date: expense.date,
         paymentMethod: (expense.paymentMethod === 'Bank Check' ? 'Bank Transfer' : expense.paymentMethod) as any,
         description: `${expense.paidTo} — ${expense.note || expense.category}`,
-        createdByName: expense.recordedBy || 'হিসাবরক্ষক'
+        createdByName: expense.recordedBy || 'হিসাবরক্ষক',
+        sourceModule: 'expenses',
+        sourceId: expense.id,
       });
     } catch (e) {}
     return voucher;
   },
 
-  // 4. Hook: Auto-post Contra Voucher (Bank Deposit / Fund Transfer)
-  postContraJournal: (transfer: { from: string; to: string; amount: number; date: string; refNo: string; note: string }) => {
-    const isFromCash = transfer.from.includes('Cash') || transfer.from.includes('হাতে নগদ');
-    const sourceCode = isFromCash ? '1010' : '1020';
-    const sourceName = isFromCash ? 'Cash in Hand (হাতে নগদ)' : 'Source Bank Account';
+  // 4. Hook: Auto-post Bidirectional Contra Voucher (Cash <-> Bank <-> MFS Fund Transfer)
+  postContraJournal: (transfer: {
+    from: string;
+    to: string;
+    fromAccountCode?: string;
+    toAccountCode?: string;
+    amount: number;
+    date: string;
+    refNo: string;
+    note: string;
+  }) => {
+    const amount = Number(transfer.amount) || 0;
+    if (amount <= 0) {
+      throw new Error('ট্রান্সফারের পরিমাণ ০ টাকার বেশি হতে হবে।');
+    }
 
     const banks = financeService.getBankAccounts();
-    const targetBank = banks.find(b => b.id === transfer.to);
-    let targetCode = targetBank?.accountCode || '1020';
-    let targetName = targetBank?.bankName || 'Sonali Bank PLC (সোনালী ব্যাংক)';
+    const resolveTransferAccount = (ref: string, explicitCode?: string): { code: string; name: string; bank?: BankAccount } => {
+      if (explicitCode) {
+        if (explicitCode === '1010') return { code: '1010', name: 'Cash in Hand (হাতে নগদ)' };
+        if (explicitCode === '1050') return { code: '1050', name: 'bKash Merchant Account (বিকাশ)' };
+        if (explicitCode === '1060') return { code: '1060', name: 'Nagad Merchant Account (নগদ)' };
+        const bankByCode = banks.find(b => b.accountCode === explicitCode);
+        if (bankByCode) return { code: bankByCode.accountCode, name: bankByCode.bankName, bank: bankByCode };
+      }
 
-    if (!targetBank) {
-      if (transfer.to === 'bank-2') { targetCode = '1030'; targetName = 'Islami Bank Bangladesh PLC (IBBL)'; }
-      else if (transfer.to === 'bank-3') { targetCode = '1040'; targetName = 'Dutch-Bangla Bank PLC (DBBL)'; }
-    } else {
-      // Update target bank balance
-      targetBank.balance = (Number(targetBank.balance) || 0) + Number(transfer.amount);
-      financeService.saveBankAccounts(banks);
+      if (ref === '1010' || ref.includes('Cash') || ref.includes('হাতে নগদ')) {
+        return { code: '1010', name: 'Cash in Hand (হাতে নগদ)' };
+      }
+      if (ref === '1050' || ref.toLowerCase().includes('bkash') || ref.includes('বিকাশ')) {
+        return { code: '1050', name: 'bKash Merchant Account (বিকাশ)' };
+      }
+      if (ref === '1060' || ref.toLowerCase().includes('nagad') || ref.includes('নগদ')) {
+        return { code: '1060', name: 'Nagad Merchant Account (নগদ)' };
+      }
+
+      const matchedBank = banks.find(b => b.id === ref || b.accountCode === ref || b.bankName === ref);
+      if (matchedBank) {
+        return { code: matchedBank.accountCode || '1020', name: matchedBank.bankName, bank: matchedBank };
+      }
+      if (ref === 'bank-2') return { code: '1030', name: 'Islami Bank Bangladesh PLC (IBBL)' };
+      if (ref === 'bank-3') return { code: '1040', name: 'Dutch-Bangla Bank PLC (DBBL)' };
+      return { code: '1020', name: 'Sonali Bank PLC (সোনালী ব্যাংক)' };
+    };
+
+    const source = resolveTransferAccount(transfer.from, transfer.fromAccountCode);
+    const target = resolveTransferAccount(transfer.to, transfer.toAccountCode);
+
+    if (source.code === target.code) {
+      throw new Error('উৎস এবং গন্তব্য হিসাব একই হতে পারবে না।');
     }
 
     const now = new Date();
     const vNo = `CV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
 
     const voucher: VoucherRecord = {
-      id: `VOUCH-${Date.now()}`,
+      id: `VOUCH-${Date.now()}-${Math.floor(10 + Math.random() * 89)}`,
       voucherNo: vNo,
       voucherType: 'Contra',
       date: transfer.date || now.toISOString().split('T')[0],
-      reference: `ফান্ড ট্রান্সফার: ${transfer.from} ➔ ${targetName} | Ref: ${transfer.refNo || 'N/A'}`,
+      reference: `ফান্ড ট্রান্সফার: ${source.name} ➔ ${target.name} | Ref: ${transfer.refNo || 'N/A'}`,
       narration: transfer.note || 'অভ্যন্তরীণ তহবিল ডিপোজিট ও ট্রান্সফার',
       sourceModule: 'cash_bank',
-      totalAmount: transfer.amount,
+      totalAmount: amount,
       createdBy: 'ক্যাশিয়ার',
       entries: [
-        { accountCode: targetCode, accountName: targetName, debit: transfer.amount, credit: 0, narration: 'ব্যাংকে জমা' },
-        { accountCode: sourceCode, accountName: sourceName, debit: 0, credit: transfer.amount, narration: 'ক্যাশ উত্তোলন / ট্রান্সফার' }
+        { accountCode: target.code, accountName: target.name, debit: amount, credit: 0, narration: `${target.name}-এ জমা` },
+        { accountCode: source.code, accountName: source.name, debit: 0, credit: amount, narration: `${source.name} হতে ট্রান্সফার` }
       ]
     };
 
     financeService.addVoucher(voucher);
     return voucher;
+  },
+
+  // 5. Reconciled Treasury Summary (Single Source of Truth from Double-Entry Ledger)
+  getReconciledTreasurySummary: () => {
+    const cashBook = financeService.getCashBook();
+    const banks = financeService.getBankAccounts();
+    const bankBalances: Record<string, number> = {};
+    let totalBankBalance = 0;
+
+    banks.forEach((b) => {
+      const code = b.accountCode || '1020';
+      const bb = financeService.getBankBook(code);
+      bankBalances[b.id] = bb.closingBalance;
+      totalBankBalance += bb.closingBalance;
+    });
+
+    const bkashBalance = financeService.getGeneralLedger('1050').closingBalance;
+    const nagadBalance = financeService.getGeneralLedger('1060').closingBalance;
+    const totalMfsBalance = bkashBalance + nagadBalance;
+
+    return {
+      cashInHand: cashBook.closingBalance,
+      bankBalances,
+      totalBankBalance,
+      bkashBalance,
+      nagadBalance,
+      totalMfsBalance,
+      totalLiquidFunds: cashBook.closingBalance + totalBankBalance + totalMfsBalance,
+    };
+  },
+
+  // 6. Two-way Ledger Reconciliation: Backfill finance vouchers into General Ledger (/dashboard/ledger) without duplicates
+  syncFinanceVouchersToLedger: (): { syncedCount: number } => {
+    const vouchers = financeService.getVouchers();
+    const existingLedger = ledgerService.getAllRecords();
+    const existingVouchers = new Set(existingLedger.map((r) => r.voucherNo));
+    let syncedCount = 0;
+
+    vouchers.forEach((v) => {
+      if (v.voucherType === 'Contra') return; // Internal transfer is neither Income nor Expense
+      const refVoucherNo = v.sourceModule === 'student_fees' && v.sourceId ? v.sourceId : v.voucherNo;
+      if (existingVouchers.has(refVoucherNo) || existingVouchers.has(v.voucherNo)) return;
+
+      const assetEntry = v.entries.find((e) => ['1010', '1020', '1030', '1040', '1050', '1060'].includes(e.accountCode));
+      const method: 'Cash' | 'bKash' | 'Nagad' | 'Bank Transfer' =
+        assetEntry?.accountCode === '1050'
+          ? 'bKash'
+          : assetEntry?.accountCode === '1060'
+            ? 'Nagad'
+            : assetEntry?.accountCode && ['1020', '1030', '1040'].includes(assetEntry.accountCode)
+              ? 'Bank Transfer'
+              : 'Cash';
+
+      const incomeEntry = v.entries.find((e) => e.accountCode.startsWith('4') && e.credit > 0);
+      const expenseEntry = v.entries.find((e) => e.accountCode.startsWith('5') && e.debit > 0);
+
+      if (incomeEntry && (v.voucherType === 'Receipt' || v.sourceModule === 'student_fees')) {
+        const cashReceived = assetEntry?.debit || v.totalAmount;
+        ledgerService.upsertByVoucherNo({
+          type: 'Income',
+          category: v.sourceModule === 'student_fees' ? 'মাসিক বেতন' : (incomeEntry.accountName || 'অন্যান্য আয়'),
+          grade: 'all',
+          amount: cashReceived,
+          voucherNo: refVoucherNo,
+          date: v.date,
+          paymentMethod: method,
+          description: v.narration || v.reference,
+          createdByName: v.createdBy || 'সিস্টেম সিংক',
+          sourceModule: v.sourceModule,
+          sourceId: v.sourceId || v.id,
+        });
+        existingVouchers.add(refVoucherNo);
+        syncedCount++;
+      } else if (expenseEntry && (v.voucherType === 'Payment' || v.sourceModule === 'expenses' || v.sourceModule === 'payroll' || v.sourceModule === 'waivers_refunds')) {
+        const cashPaid = assetEntry?.credit || v.totalAmount;
+        ledgerService.upsertByVoucherNo({
+          type: 'Expense',
+          category:
+            v.sourceModule === 'payroll'
+              ? 'শিক্ষক বেতন'
+              : v.sourceModule === 'waivers_refunds'
+                ? 'ফি রিফান্ড'
+                : (expenseEntry.accountName || 'পরিচালন ব্যয়'),
+          grade: 'all',
+          amount: cashPaid,
+          voucherNo: refVoucherNo,
+          date: v.date,
+          paymentMethod: method,
+          description: v.narration || v.reference,
+          createdByName: v.createdBy || 'সিস্টেম সিংক',
+          sourceModule: v.sourceModule,
+          sourceId: v.sourceId || v.id,
+        });
+        existingVouchers.add(refVoucherNo);
+        syncedCount++;
+      }
+    });
+
+    return { syncedCount };
+  },
+
+  // 7. Post a balanced Double-Entry Voucher when a manual Income/Expense is added directly in /dashboard/ledger
+  postManualLedgerEntryJournal: (entry: {
+    id: string;
+    type: 'Income' | 'Expense';
+    category: string;
+    amount: number;
+    voucherNo: string;
+    date: string;
+    paymentMethod: string;
+    description: string;
+    createdByName?: string;
+  }) => {
+    const amount = Math.max(0, Number(entry.amount) || 0);
+    if (amount <= 0) return null;
+
+    // Remove previous voucher with same sourceId if updating
+    const existing = financeService.getVouchers();
+    const cleaned = existing.filter(v => !(v.sourceModule === 'manual_voucher' && v.sourceId === entry.id));
+    if (cleaned.length !== existing.length) {
+      financeService.saveVouchers(cleaned);
+    }
+
+    const asset = getPaymentAssetCode(entry.paymentMethod);
+    if (entry.type === 'Income') {
+      let revCode = '4080';
+      let revName = 'Donations & Miscellaneous Income';
+      if (entry.category.includes('বেতন')) { revCode = '4010'; revName = 'Monthly Tuition Fee Revenue'; }
+      else if (entry.category.includes('পরীক্ষা')) { revCode = '4020'; revName = 'Examination Fee Revenue'; }
+      else if (entry.category.includes('ভর্তি')) { revCode = '4030'; revName = 'Admission & Re-admission Fees'; }
+      else if (entry.category.includes('অনুদান')) { revCode = '4070'; revName = 'Government Subsidies & MPO Grants'; }
+
+      const voucher: VoucherRecord = {
+        id: `VOUCH-GL-${entry.id}`,
+        voucherNo: entry.voucherNo,
+        voucherType: 'Receipt',
+        date: entry.date,
+        reference: `খতিয়ান আয় (${entry.category})`,
+        narration: entry.description || entry.category,
+        sourceModule: 'manual_voucher',
+        sourceId: entry.id,
+        totalAmount: amount,
+        createdBy: entry.createdByName || 'হিসাবরক্ষক',
+        entries: [
+          { accountCode: asset.code, accountName: asset.name, debit: amount, credit: 0, narration: entry.category },
+          { accountCode: revCode, accountName: revName, debit: 0, credit: amount, narration: entry.description || entry.category }
+        ]
+      };
+      financeService.addVoucher(voucher);
+      return voucher;
+    } else {
+      const expAcc = entry.category.includes('বেতন')
+        ? { code: '5010', name: 'Teacher Salary Expense (Payroll)' }
+        : getExpenseAccountCode(entry.category);
+
+      const voucher: VoucherRecord = {
+        id: `VOUCH-GL-${entry.id}`,
+        voucherNo: entry.voucherNo,
+        voucherType: 'Payment',
+        date: entry.date,
+        reference: `খতিয়ান ব্যয় (${entry.category})`,
+        narration: entry.description || entry.category,
+        sourceModule: 'manual_voucher',
+        sourceId: entry.id,
+        totalAmount: amount,
+        createdBy: entry.createdByName || 'হিসাবরক্ষক',
+        entries: [
+          { accountCode: expAcc.code, accountName: expAcc.name, debit: amount, credit: 0, narration: entry.description || entry.category },
+          { accountCode: asset.code, accountName: asset.name, debit: 0, credit: amount, narration: entry.paymentMethod }
+        ]
+      };
+      financeService.addVoucher(voucher);
+      return voucher;
+    }
+  },
+
+  deleteManualLedgerVoucher: (entryId: string, voucherNo?: string) => {
+    const existing = financeService.getVouchers();
+    const cleaned = existing.filter(
+      v => !(v.sourceModule === 'manual_voucher' && (v.sourceId === entryId || (voucherNo && v.voucherNo === voucherNo)))
+    );
+    if (cleaned.length !== existing.length) {
+      financeService.saveVouchers(cleaned);
+      notifyFinanceListeners();
+    }
   },
 
   // ─── 📖 BOOKS OF ACCOUNTS COMPUTATION ENGINE ─────────────────────────
@@ -2020,32 +2469,93 @@ export const financeService = {
   savePayrollRecord: (record: PayrollRecord) => {
     const list = financeService.getPayrollRecords();
     const index = list.findIndex(r => r.id === record.id);
+    const prevRecord = index > -1 ? list[index] : null;
+
     if (index > -1) {
       list[index] = record;
     } else {
       list.unshift(record);
-      // Auto-post double-entry journal voucher only when salary is actually paid
-      if (record.status === 'Paid') {
-        financeService.postPayrollJournal(record);
-      }
     }
+
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify(list));
       } catch (e) {}
     }
+
+    // Handle Pending -> Paid transition OR editing an already Paid record cleanly
+    if (record.status === 'Paid') {
+      if (prevRecord && prevRecord.status === 'Paid') {
+        const cleanedVouchers = financeService.getVouchers().filter(v => v.sourceId !== record.id);
+        financeService.saveVouchers(cleanedVouchers);
+        try {
+          ledgerService.deleteBySourceId(record.id);
+          if (prevRecord.voucherNo) ledgerService.deleteByVoucherNo(prevRecord.voucherNo);
+        } catch {}
+      }
+      financeService.postPayrollJournal(record);
+    } else if (prevRecord && prevRecord.status === 'Paid') {
+      // Paid reverted back to Pending: roll back voucher & ledger entry
+      const cleanedVouchers = financeService.getVouchers().filter(v => v.sourceId !== record.id);
+      financeService.saveVouchers(cleanedVouchers);
+      try {
+        ledgerService.deleteBySourceId(record.id);
+        if (prevRecord.voucherNo) ledgerService.deleteByVoucherNo(prevRecord.voucherNo);
+      } catch {}
+    }
+
+    notifyFinanceListeners();
     return list;
   },
 
+  disbursePayrollRecord: (
+    id: string,
+    opts?: {
+      paymentMethod?: PayrollRecord['paymentMethod'];
+      bankAccountId?: string;
+      trxId?: string;
+      paymentDate?: string;
+    }
+  ): PayrollRecord | null => {
+    const list = financeService.getPayrollRecords();
+    const target = list.find(r => r.id === id);
+    if (!target) return null;
+
+    const updated: PayrollRecord = {
+      ...target,
+      status: 'Paid',
+      paidAmount: target.netPayable,
+      paymentDate: opts?.paymentDate || new Date().toISOString().split('T')[0],
+      paymentMethod: opts?.paymentMethod || target.paymentMethod || 'Bank Transfer',
+      bankAccountId: opts?.bankAccountId !== undefined ? opts.bankAccountId : target.bankAccountId,
+      trxId: opts?.trxId || target.trxId || `PAY-TRX-${Date.now().toString().slice(-5)}`,
+    };
+
+    financeService.savePayrollRecord(updated);
+    auditTrailService.addLog({
+      action: 'DISBURSE_PAYROLL',
+      category: 'Finance',
+      details: `${updated.teacherName} (${updated.month} ${updated.year}) নিট বেতন ৳${updated.netPayable} পরিশোধ করা হয়েছে (${updated.paymentMethod}, ভাউচার: ${updated.voucherNo})`,
+      performedBy: 'হিসাবরক্ষক',
+      status: 'Success'
+    });
+    return updated;
+  },
+
   deletePayrollRecord: (id: string) => {
-    const list = financeService.getPayrollRecords().filter(r => r.id !== id);
+    const existing = financeService.getPayrollRecords();
+    const target = existing.find(r => r.id === id);
+    const list = existing.filter(r => r.id !== id);
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify(list));
         const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
         financeService.saveVouchers(vouchers);
+        ledgerService.deleteBySourceId(id);
+        if (target?.voucherNo) ledgerService.deleteByVoucherNo(target.voucherNo);
       } catch (e) {}
     }
+    notifyFinanceListeners();
     return list;
   },
 
@@ -2075,30 +2585,44 @@ export const financeService = {
   saveExpense: (record: ExpenseRecord) => {
     const list = financeService.getExpenses();
     const index = list.findIndex(r => r.id === record.id);
+    const prevRecord = index > -1 ? list[index] : null;
+
     if (index > -1) {
       list[index] = record;
     } else {
       list.unshift(record);
-      // Auto-post double-entry expense voucher!
-      financeService.postExpenseJournal(record);
     }
+
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(list));
       } catch (e) {}
     }
+
+    if (prevRecord) {
+      // Remove stale voucher & re-post fresh double-entry journal for edited expense
+      const cleanedVouchers = financeService.getVouchers().filter(v => v.sourceId !== record.id);
+      financeService.saveVouchers(cleanedVouchers);
+    }
+    financeService.postExpenseJournal(record);
+    notifyFinanceListeners();
     return list;
   },
 
   deleteExpense: (id: string) => {
-    const list = financeService.getExpenses().filter(r => r.id !== id);
+    const existing = financeService.getExpenses();
+    const target = existing.find(r => r.id === id);
+    const list = existing.filter(r => r.id !== id);
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(list));
         const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
         financeService.saveVouchers(vouchers);
+        ledgerService.deleteBySourceId(id);
+        if (target?.voucherNo) ledgerService.deleteByVoucherNo(target.voucherNo);
       } catch (e) {}
     }
+    notifyFinanceListeners();
     return list;
   },
 
@@ -2155,7 +2679,7 @@ export const financeService = {
     }
     financeService.saveBankAccounts(updated);
 
-    // Also sync with Chart of Accounts opening balance
+    // Also sync with Chart of Accounts opening balance (creating COA account for custom banks too)
     try {
       const coa = financeService.getChartOfAccounts();
       const coaIdx = coa.findIndex(a => a.code === account.accountCode);
@@ -2164,9 +2688,22 @@ export const financeService = {
         coa[coaIdx].name = account.bankName;
         coa[coaIdx].nameBn = account.bankName;
         financeService.saveChartOfAccounts(coa);
+      } else if (account.accountCode) {
+        coa.push({
+          code: account.accountCode,
+          name: account.bankName,
+          nameBn: account.bankName,
+          category: 'Asset',
+          subCategory: 'Bank Accounts',
+          openingBalance: Number(account.balance) || 0,
+          isSystem: false,
+          description: account.accountName || account.bankName,
+        });
+        financeService.saveChartOfAccounts(coa);
       }
     } catch (e) {}
 
+    notifyFinanceListeners();
     return updated;
   },
 
@@ -2226,6 +2763,9 @@ export const financeService = {
         localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify(list));
       } catch (e) {}
     }
+    invalidateStudentLedgerCache();
+    financeService.syncStudentLedgersWithClassFees();
+    notifyFinanceListeners();
     return list;
   },
 
@@ -2236,6 +2776,9 @@ export const financeService = {
         localStorage.setItem(WAIVERS_STORAGE_KEY, JSON.stringify(list));
       } catch (e) {}
     }
+    invalidateStudentLedgerCache();
+    financeService.syncStudentLedgersWithClassFees();
+    notifyFinanceListeners();
     return list;
   },
 
@@ -2262,47 +2805,76 @@ export const financeService = {
   },
 
   saveRefund: (refund: RefundRecord) => {
+    const now = new Date();
+    const vNo = refund.voucherNo || `PV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
+    const savedRefund: RefundRecord = {
+      ...refund,
+      paymentMethod: refund.paymentMethod || 'Cash',
+      voucherNo: vNo,
+    };
+
     const list = financeService.getRefunds();
-    list.unshift(refund);
+    list.unshift(savedRefund);
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(list));
       } catch (e) {}
     }
-    // Auto-post double-entry voucher for fee refund
-    if (refund.amount > 0) {
-      const now = new Date();
-      const vNo = `PV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
+    // Auto-post double-entry voucher & sync to General Ledger for fee refund
+    if (savedRefund.amount > 0) {
+      const asset = getPaymentAssetCode(savedRefund.paymentMethod || 'Cash', savedRefund.bankAccountId);
       const voucher: VoucherRecord = {
-        id: `VOUCH-${Date.now()}`,
+        id: `VOUCH-${Date.now()}-${Math.floor(10 + Math.random() * 89)}`,
         voucherNo: vNo,
         voucherType: 'Payment',
-        date: refund.date || now.toISOString().split('T')[0],
-        reference: `ফি রিফান্ড: ${refund.studentName} | রসিদ: ${refund.receiptId}`,
-        narration: refund.reason || 'অতিরিক্ত আদায়কৃত ফি ফেরত',
+        date: savedRefund.date || now.toISOString().split('T')[0],
+        reference: `ফি রিফান্ড: ${savedRefund.studentName} | রসিদ: ${savedRefund.receiptId}`,
+        narration: savedRefund.reason || 'অতিরিক্ত আদায়কৃত ফি ফেরত',
         sourceModule: 'waivers_refunds',
-        sourceId: refund.id,
-        totalAmount: refund.amount,
-        createdBy: refund.processedBy || 'হিসাবরক্ষক',
+        sourceId: savedRefund.id,
+        totalAmount: savedRefund.amount,
+        createdBy: savedRefund.processedBy || 'হিসাবরক্ষক',
         entries: [
-          { accountCode: '5110', accountName: 'Fee Refunds & Adjustment Expense', debit: refund.amount, credit: 0, narration: refund.reason },
-          { accountCode: '1010', accountName: 'Cash in Hand (হাতে নগদ)', debit: 0, credit: refund.amount, narration: 'নগদ ফেরত প্রদান' }
+          { accountCode: '5110', accountName: 'Fee Refunds & Adjustment Expense', debit: savedRefund.amount, credit: 0, narration: savedRefund.reason },
+          { accountCode: asset.code, accountName: asset.name, debit: 0, credit: savedRefund.amount, narration: `ফেরত প্রদান (${savedRefund.paymentMethod})` }
         ]
       };
       financeService.addVoucher(voucher);
+      try {
+        ledgerService.upsertByVoucherNo({
+          type: 'Expense',
+          category: 'ফি রিফান্ড',
+          grade: 'all',
+          studentName: savedRefund.studentName,
+          amount: savedRefund.amount,
+          voucherNo: vNo,
+          date: savedRefund.date || now.toISOString().split('T')[0],
+          paymentMethod: (savedRefund.paymentMethod || 'Cash') as any,
+          description: `ফি রিফান্ড (${savedRefund.receiptId}) — ${savedRefund.reason || 'অতিরিক্ত ফি ফেরত'}`,
+          createdByName: savedRefund.processedBy || 'হিসাবরক্ষক',
+          sourceModule: 'waivers_refunds',
+          sourceId: savedRefund.id,
+        });
+      } catch {}
     }
+    notifyFinanceListeners();
     return list;
   },
 
   deleteRefund: (id: string) => {
-    const list = financeService.getRefunds().filter(r => r.id !== id);
+    const existing = financeService.getRefunds();
+    const target = existing.find(r => r.id === id);
+    const list = existing.filter(r => r.id !== id);
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(list));
         const vouchers = financeService.getVouchers().filter(v => v.sourceId !== id);
         financeService.saveVouchers(vouchers);
+        ledgerService.deleteBySourceId(id);
+        if (target?.voucherNo) ledgerService.deleteByVoucherNo(target.voucherNo);
       } catch (e) {}
     }
+    notifyFinanceListeners();
     return list;
   },
 
@@ -2403,29 +2975,51 @@ export const financeService = {
 
   getAllStudentLedgers: (): Record<string, StudentFeeLedger> => {
     if (typeof window === 'undefined') return {};
+
+    const rawStudents = localStorage.getItem('sms_students');
+    const rawLedgers = localStorage.getItem(STUDENT_LEDGER_STORAGE_KEY);
+    const rawClassFees = localStorage.getItem(STORAGE_KEY);
+    const rawFeeSectors = localStorage.getItem(FEE_SECTORS_STORAGE_KEY);
+    const rawWaivers = localStorage.getItem(WAIVERS_STORAGE_KEY);
+
+    if (
+      cachedSyncedLedgers !== null &&
+      rawStudents === cachedLedgerStudentsRaw &&
+      rawLedgers === cachedLedgerRaw &&
+      rawClassFees === cachedLedgerClassFeesRaw &&
+      rawFeeSectors === cachedLedgerFeeSectorsRaw &&
+      rawWaivers === cachedLedgerWaiversRaw
+    ) {
+      return cachedSyncedLedgers;
+    }
+
     let allStudentsList: any[] = [];
     try {
-      const storedStudents = localStorage.getItem('sms_students');
-      if (storedStudents) allStudentsList = JSON.parse(storedStudents);
+      if (rawStudents) allStudentsList = JSON.parse(rawStudents);
     } catch (e) {}
 
     // If no students exist (e.g. demo data cleared), immediately return empty
     if (allStudentsList.length === 0) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STUDENT_LEDGER_STORAGE_KEY, JSON.stringify({}));
+      if (rawLedgers && rawLedgers !== '{}') {
+        try {
+          localStorage.setItem(STUDENT_LEDGER_STORAGE_KEY, '{}');
+        } catch {}
       }
+      cachedLedgerStudentsRaw = rawStudents;
+      cachedLedgerRaw = rawLedgers && rawLedgers !== '{}' ? '{}' : rawLedgers;
+      cachedLedgerClassFeesRaw = rawClassFees;
+      cachedLedgerFeeSectorsRaw = rawFeeSectors;
+      cachedLedgerWaiversRaw = rawWaivers;
+      cachedSyncedLedgers = {};
       return {};
     }
 
     try {
-      const stored = localStorage.getItem(STUDENT_LEDGER_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') {
-          return financeService.syncStudentLedgersWithClassFees();
-        }
-      }
+      // Auto-sync and auto-initialize ledgers for all active students (including newly added ones)
+      return financeService.syncStudentLedgersWithClassFees();
     } catch (e) {}
+
+    invalidateStudentLedgerCache();
     return {};
   },
 
@@ -2528,10 +3122,12 @@ export const financeService = {
           const totalMonthsPaid = (ledger.months || []).reduce((s: number, m: MonthDue) => s + m.paidAmount, 0);
           const totalOtherPaid = Object.values(ledger.otherFees || {}).reduce((s: number, o: any) => s + o.paidAmount, 0);
 
-          // ✅ Bug 7 Fix: include openingDue in totals for consistency
+          // ✅ Bug 7 Fix: include openingDue & openingDueDiscount in totals for consistency
           const openBilled = Number(ledger.openingDue) || 0;
           const openPaid = Number(ledger.openingDuePaid) || 0;
-          const openRemaining = Math.max(0, openBilled - openPaid);
+          const openDisc = Number(ledger.openingDueDiscount) || 0;
+          const openRemaining = Math.max(0, openBilled - openPaid - openDisc);
+          ledger.openingDueRemaining = openRemaining;
           ledger.totalBilled = totalMonthsBilled + totalOtherBilled + openBilled;
           ledger.totalPaid = totalMonthsPaid + totalOtherPaid + openPaid;
           ledger.totalDue = totalMonthsDue + totalOtherDue + openRemaining;
@@ -2683,7 +3279,11 @@ export const financeService = {
         const payableAfterDisc = openRemaining - discToApply;
         const payToApply = Math.min(remainingPaid, payableAfterDisc);
         ledger.openingDuePaid = (ledger.openingDuePaid || 0) + payToApply;
-        ledger.openingDueRemaining = Math.max(0, (ledger.openingDue || 0) - ledger.openingDuePaid - discToApply);
+        ledger.openingDueDiscount = (ledger.openingDueDiscount || 0) + discToApply;
+        ledger.openingDueRemaining = Math.max(
+          0,
+          (ledger.openingDue || 0) - ledger.openingDuePaid - ledger.openingDueDiscount
+        );
         remainingPaid -= payToApply;
 
         paidFeeItems.push({
@@ -2704,14 +3304,16 @@ export const financeService = {
 
     const openBilled = Number(ledger.openingDue) || 0;
     const openPaid = Number(ledger.openingDuePaid) || 0;
-    const openRemaining = Math.max(0, openBilled - openPaid);
+    const openDisc = Number(ledger.openingDueDiscount) || 0;
+    const openRemaining = Math.max(0, openBilled - openPaid - openDisc);
     ledger.openingDue = openBilled;
     ledger.openingDuePaid = openPaid;
+    ledger.openingDueDiscount = openDisc;
     ledger.openingDueRemaining = openRemaining;
 
     const totalBilled = totalMonthsBilled + totalOtherBilled + openBilled;
     const totalPaid = totalMonthsPaid + totalOtherPaid + openPaid;
-    const totalDiscount = totalMonthsDiscount + totalOtherDiscount;
+    const totalDiscount = totalMonthsDiscount + totalOtherDiscount + openDisc;
     const totalDue = Math.max(0, totalBilled - totalPaid - totalDiscount);
 
     ledger.studentName = params.studentName;

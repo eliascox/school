@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Printer, BookOpen, Search, Filter, CheckCircle2, XCircle, Award, UserX, Upload, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
@@ -80,25 +80,15 @@ export default function DynamicTabulationSheetPage() {
     return cleaned;
   };
 
-  const configuredSubjects = getNormalizedSubjects(selectedGrade, selectedGroup);
+  const configuredSubjects = useMemo(
+    () => (mounted ? getNormalizedSubjects(selectedGrade, selectedGroup) : []),
+    [mounted, selectedGrade, selectedGroup],
+  );
 
-  // 2. Compute Tabulation Data for each student dynamically via centralized resultService
-  const getTabulationStudents = (): StudentInfo[] => {
-    let combinedRaw: any[] = [];
-    if (typeof window !== 'undefined') {
-      try {
-        const storedUploaded = localStorage.getItem('sms_uploaded_students');
-        const storedStudents = localStorage.getItem('sms_students');
-        if (storedUploaded) combinedRaw = [...combinedRaw, ...JSON.parse(storedUploaded)];
-        if (storedStudents) combinedRaw = [...combinedRaw, ...JSON.parse(storedStudents)];
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    if (combinedRaw.length === 0) {
-      combinedRaw = studentService.getAllStudents();
-    }
+  // 2. Compute Tabulation Data for each student via cached studentService + memoized resultService
+  const currentTabulationStudents: StudentInfo[] = useMemo(() => {
+    if (!mounted) return [];
+    const combinedRaw: any[] = studentService.getAllStudents();
 
     const gradeBnMap: Record<string, string> = {
       '6th': '৬ষ্ঠ শ্রেণি', '7th': '৭ম শ্রেণি', '8th': '৮ম শ্রেণি', '9th': '৯ম শ্রেণি', '10th': '১০ম শ্রেণি'
@@ -139,59 +129,65 @@ export default function DynamicTabulationSheetPage() {
     });
 
     return Array.from(uniqueMap.values());
-  };
+  }, [mounted, selectedGrade, selectedBranch, selectedGroup, isClass9or10]);
 
-  const currentTabulationStudents = getTabulationStudents();
+  const evaluatedStudents = useMemo(() => {
+    if (!mounted) return [];
+    return currentTabulationStudents.map(student => {
+      const evaluated = resultService.calculateStudentResult({
+        examId: selectedExam,
+        student,
+        grade: selectedGrade,
+        branch: selectedBranch,
+        group: isClass9or10 ? student.group : 'সাধারণ',
+      });
 
-  const processedStudents = currentTabulationStudents.filter(st => {
-    if (searchQuery && !st.name.toLowerCase().includes(searchQuery.toLowerCase()) && !st.roll.includes(searchQuery)) return false;
-    return true;
-  }).map(student => {
-    const evaluated = resultService.calculateStudentResult({
-      examId: selectedExam,
-      student,
-      grade: selectedGrade,
-      branch: selectedBranch,
-      group: isClass9or10 ? student.group : 'সাধারণ',
+      const subjectMarksMap: Record<string, { total: number; grade: string; point: number }> = {};
+      if (evaluated) {
+        for (const [code, entry] of Object.entries(evaluated.subjectMarks)) {
+          subjectMarksMap[code] = {
+            total: entry.totalMarks,
+            grade: entry.letterGrade,
+            point: entry.gradePoint,
+          };
+        }
+        if (evaluated.optionalSubjectMark) {
+          const opt = evaluated.optionalSubjectMark;
+          const matchedCfg = configuredSubjects.find(
+            (s: any) =>
+              s.code === opt.subjectCode ||
+              s.name.includes(opt.subjectName) ||
+              opt.subjectName.includes(s.name),
+          );
+          const targetKey = matchedCfg ? matchedCfg.code : opt.subjectCode;
+          subjectMarksMap[targetKey] = {
+            total: opt.totalMarks,
+            grade: opt.letterGrade,
+            point: opt.gradePoint,
+          };
+        }
+      }
+
+      return {
+        ...student,
+        subjectMarksMap,
+        totalObtained: evaluated?.totalObtainedMarks ?? 0,
+        totalFull: evaluated?.totalFullMarks ?? 0,
+        gpaWithout4th: evaluated?.gpaWithout4th ?? 0,
+        finalGPA: evaluated?.gpa ?? 0,
+        overallGrade: evaluated?.letterGrade ?? 'F',
+        hasFailed: evaluated ? !evaluated.isPassed : true,
+      };
     });
+  }, [mounted, currentTabulationStudents, selectedExam, selectedGrade, selectedBranch, isClass9or10, configuredSubjects]);
 
-    const subjectMarksMap: Record<string, { total: number; grade: string; point: number }> = {};
-    if (evaluated) {
-      for (const [code, entry] of Object.entries(evaluated.subjectMarks)) {
-        subjectMarksMap[code] = {
-          total: entry.totalMarks,
-          grade: entry.letterGrade,
-          point: entry.gradePoint,
-        };
-      }
-      if (evaluated.optionalSubjectMark) {
-        const opt = evaluated.optionalSubjectMark;
-        const matchedCfg = configuredSubjects.find(
-          (s: any) =>
-            s.code === opt.subjectCode ||
-            s.name.includes(opt.subjectName) ||
-            opt.subjectName.includes(s.name),
-        );
-        const targetKey = matchedCfg ? matchedCfg.code : opt.subjectCode;
-        subjectMarksMap[targetKey] = {
-          total: opt.totalMarks,
-          grade: opt.letterGrade,
-          point: opt.gradePoint,
-        };
-      }
-    }
-
-    return {
-      ...student,
-      subjectMarksMap,
-      totalObtained: evaluated?.totalObtainedMarks ?? 0,
-      totalFull: evaluated?.totalFullMarks ?? 0,
-      gpaWithout4th: evaluated?.gpaWithout4th ?? 0,
-      finalGPA: evaluated?.gpa ?? 0,
-      overallGrade: evaluated?.letterGrade ?? 'F',
-      hasFailed: evaluated ? !evaluated.isPassed : true,
-    };
-  });
+  const processedStudents = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return evaluatedStudents;
+    return evaluatedStudents.filter(
+      (st) => st.name.toLowerCase().includes(q) || st.roll.includes(q),
+    );
+  }, [evaluatedStudents, searchQuery]);
 
   if (!mounted) {
     return (

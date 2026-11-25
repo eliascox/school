@@ -38,6 +38,12 @@ import {
   X,
 } from 'lucide-react';
 import { canAccessDashboardRoute } from '@/lib/routeAccess';
+import {
+  areSessionsEqual,
+  notifyNavigationPending,
+  toCanonicalRouteHref,
+  trySameRouteQueryNavigation,
+} from '@/lib/urlTabSync';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { languageService, AppLanguage } from '@/services/languageService';
 import { themeService, AppTheme } from '@/services/themeService';
@@ -82,9 +88,16 @@ export default function CommandPalette() {
   // Sync live user session, theme & language
   useEffect(() => {
     const refreshContext = () => {
-      setSession(teacherAuthService.getSession());
-      setLang(languageService.getLanguage());
-      setTheme(themeService.getTheme());
+      const nextSession = teacherAuthService.getSession();
+      setSession((prev) => (areSessionsEqual(prev, nextSession) ? prev : nextSession));
+      setLang((prev) => {
+        const next = languageService.getLanguage();
+        return prev === next ? prev : next;
+      });
+      setTheme((prev) => {
+        const next = themeService.getTheme();
+        return prev === next ? prev : next;
+      });
     };
     refreshContext();
 
@@ -737,7 +750,12 @@ export default function CommandPalette() {
       return;
     }
     if (item.href) {
-      router.push(item.href);
+      if (trySameRouteQueryNavigation(item.href, typeof window !== 'undefined' ? window.location.pathname : null)) {
+        return;
+      }
+      const canonical = toCanonicalRouteHref(item.href);
+      notifyNavigationPending(canonical);
+      router.push(canonical);
     }
   };
 

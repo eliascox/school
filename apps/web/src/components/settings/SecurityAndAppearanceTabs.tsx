@@ -76,14 +76,14 @@ export function SecuritySettingsTab({
   };
 
   return (
-    <>
+    <div className="space-y-5">
       <SettingsCard
+        id="section-admin-password"
         title="অ্যাডমিন লগইন সিকিউরিটি"
         subtitle="প্রধান শিক্ষক / অ্যাডমিন লগইনের জন্য ইউজার আইডি ও পাসওয়ার্ড সেট করুন"
-        icon={<Shield className="w-5 h-5" />}
-        iconBg="bg-rose-50"
-        iconColor="text-rose-600"
-        borderColor="border-rose-200"
+        icon={<Shield className="w-4.5 h-4.5" />}
+        iconBg="bg-rose-50 dark:bg-rose-950/60"
+        iconColor="text-rose-600 dark:text-rose-400"
       >
         <div className="p-3.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-3 text-xs">
           <AlertTriangle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -187,12 +187,12 @@ export function SecuritySettingsTab({
 
       {/* Teacher Passwords & User ID Management */}
       <SettingsCard
+        id="section-teacher-passwords"
         title="শিক্ষকদের ইউজার আইডি ও পাসওয়ার্ড ব্যবস্থাপনা"
-        subtitle="শিক্ষকের ইউজার আইডি হবে তার ফোন নম্বর এবং এডমিন এখান থেকে পাসওয়ার্ড সেট ও নিয়ন্ত্রণ করবেন"
-        icon={<Key className="w-5 h-5" />}
-        iconBg="bg-indigo-50"
-        iconColor="text-indigo-600"
-        borderColor="border-indigo-200"
+        subtitle="শিক্ষকের ইউজার আইডি হবে তার ফোন নম্বর এবং অ্যাডমিন এখান থেকে পাসওয়ার্ড সেট ও নিয়ন্ত্রণ করবেন"
+        icon={<Key className="w-4.5 h-4.5" />}
+        iconBg="bg-indigo-50 dark:bg-indigo-950/60"
+        iconColor="text-indigo-600 dark:text-indigo-400"
       >
         <div className="p-4 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl flex items-start gap-3 text-xs">
           <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
@@ -311,16 +311,21 @@ export function SecuritySettingsTab({
           </table>
         </div>
       </SettingsCard>
-    </>
+    </div>
   );
 }
 
 interface AppearanceSettingsTabProps {
   formData: SchoolSettings;
   handleChange: <K extends keyof SchoolSettings>(field: K, value: SchoolSettings[K]) => void;
+  onImmediateSynced?: (partial: Partial<SchoolSettings>) => void;
 }
 
-export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSettingsTabProps) {
+export function AppearanceSettingsTab({
+  formData,
+  handleChange,
+  onImmediateSynced,
+}: AppearanceSettingsTabProps) {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -334,6 +339,8 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
       if (result.valid && result.sanitizedDataUrl) {
         handleChange('schoolLogo', result.sanitizedDataUrl);
         settingsService.updateSettings({ schoolLogo: result.sanitizedDataUrl });
+        onImmediateSynced?.({ schoolLogo: result.sanitizedDataUrl });
+        showToast('প্রতিষ্ঠানের লোগো সফলভাবে আপলোড ও সংরক্ষিত হয়েছে।', 'success');
         try {
           const { firebaseSyncService } = await import('@/services/firebaseSyncService');
           await firebaseSyncService.syncSettingsToCloud({ schoolLogo: result.sanitizedDataUrl });
@@ -347,37 +354,40 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
   };
 
   return (
-    <>
+    <div className="space-y-5">
       <SettingsCard
+        id="section-theme"
         title="ওয়েবসাইট থিম মোড (Light & Night Mode)"
         subtitle="সম্পূর্ণ ওয়েব অ্যাপ্লিকেশন লাইট বা নাইট মোডে পরিবর্তন করুন"
-        icon={<Sun className="w-5 h-5" />}
-        iconBg="bg-indigo-50"
-        iconColor="text-indigo-600"
+        icon={<Sun className="w-4.5 h-4.5" />}
+        iconBg="bg-indigo-50 dark:bg-indigo-950/60"
+        iconColor="text-indigo-600 dark:text-indigo-400"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div
             onClick={() => {
               themeService.setTheme('light');
               handleChange('theme', 'light');
+              settingsService.updateSettings({ theme: 'light' });
+              onImmediateSynced?.({ theme: 'light' });
             }}
             className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
               formData.theme === 'light' || (!formData.theme && themeService.getTheme() === 'light')
-                ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50 shadow-md ring-2 ring-indigo-500/20'
+                ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50 shadow-sm ring-2 ring-indigo-500/20'
                 : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center text-amber-500">
-                <Sun className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-center text-amber-500">
+                <Sun className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-900 dark:text-white">☀️ লাইট মোড</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white">লাইট মোড</h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">উজ্জ্বল ও পরিষ্কার অফিস কালার থিম</p>
               </div>
             </div>
             {(formData.theme === 'light' || (!formData.theme && themeService.getTheme() === 'light')) && (
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
                 ✓
               </span>
             )}
@@ -387,26 +397,28 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
             onClick={() => {
               themeService.setTheme('dark');
               handleChange('theme', 'dark');
+              settingsService.updateSettings({ theme: 'dark' });
+              onImmediateSynced?.({ theme: 'dark' });
             }}
             className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
               formData.theme === 'dark' || themeService.getTheme() === 'dark'
-                ? 'border-indigo-600 bg-slate-900 text-white shadow-md ring-2 ring-indigo-500/20'
+                ? 'border-indigo-600 bg-slate-900 text-white shadow-sm ring-2 ring-indigo-500/20'
                 : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 shadow-sm flex items-center justify-center text-indigo-400">
-                <Moon className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 shadow-xs flex items-center justify-center text-indigo-400">
+                <Moon className="w-5 h-5" />
               </div>
               <div>
                 <h4 className={`text-sm font-black ${formData.theme === 'dark' || themeService.getTheme() === 'dark' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                  🌙 নাইট মোড
+                  নাইট মোড
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">চোখের আরামদায়ক আধুনিক ডার্ক মোড</p>
               </div>
             </div>
             {(formData.theme === 'dark' || themeService.getTheme() === 'dark') && (
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
                 ✓
               </span>
             )}
@@ -415,11 +427,12 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
       </SettingsCard>
 
       <SettingsCard
-        title="লোগো আপলোড"
-        subtitle="মার্কশিটের লোগো ও ব্র্যান্ড আইডেন্টিটি সেট করুন"
-        icon={<ImageIcon className="w-5 h-5" />}
-        iconBg="bg-amber-50"
-        iconColor="text-amber-600"
+        id="section-logo"
+        title="প্রতিষ্ঠানের লোগো আপলোড"
+        subtitle="মার্কশিট, সনদপত্র ও ওয়েবসাইটের ব্র্যান্ড লোগো সেট করুন"
+        icon={<ImageIcon className="w-4.5 h-4.5" />}
+        iconBg="bg-amber-50 dark:bg-amber-950/60"
+        iconColor="text-amber-600 dark:text-amber-400"
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
           <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-950 dark:text-white shrink-0 overflow-hidden shadow-inner">
@@ -473,11 +486,12 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
       </SettingsCard>
 
       <SettingsCard
+        id="section-watermark"
         title="জলছাপ / ওয়াটারমার্ক সেটিং"
         subtitle="মার্কশিটের পেছনে হালকা ওয়াটারমার্ক কাস্টমাইজ করুন"
-        icon={<Palette className="w-5 h-5" />}
-        iconBg="bg-amber-50"
-        iconColor="text-amber-600"
+        icon={<Palette className="w-4.5 h-4.5" />}
+        iconBg="bg-amber-50 dark:bg-amber-950/60"
+        iconColor="text-amber-600 dark:text-amber-400"
       >
         <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
           <div>
@@ -541,6 +555,6 @@ export function AppearanceSettingsTab({ formData, handleChange }: AppearanceSett
           </div>
         </div>
       </SettingsCard>
-    </>
+    </div>
   );
 }

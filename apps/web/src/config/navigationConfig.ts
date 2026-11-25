@@ -40,6 +40,7 @@ export type NavIconKey =
   | 'bus'
   | 'globe'
   | 'sliders'
+  | 'settings'
   | 'externalLink'
   | 'fileText'
   | 'scanLine';
@@ -650,29 +651,11 @@ export const ADMIN_NAV_SECTIONS: NavSectionConfig[] = [
         id: 'settings',
         title: 'Settings',
         titleBn: 'প্রতিষ্ঠান সেটিংস',
-        icon: 'sliders',
-        iconColor: 'text-slate-600 dark:text-slate-400',
-        keywords: 'settings school config backup cloud committee security সেটিংস কমিটি ব্যাকআপ',
-        subItems: [
-          {
-            id: 'settings_general',
-            label: 'School Settings',
-            labelBn: 'সাধারণ ও ক্লাউড সেটিংস',
-            href: '/dashboard/settings',
-            icon: 'sliders',
-            iconColor: 'text-pink-600 dark:text-pink-400',
-            keywords: 'school settings logo eiin backup cloud সেটিংস লোগো',
-          },
-          {
-            id: 'settings_committee',
-            label: 'Managing Committee',
-            labelBn: 'ম্যানেজিং কমিটি',
-            href: '/dashboard/settings?tab=committee',
-            icon: 'users',
-            iconColor: 'text-purple-600 dark:text-purple-400',
-            keywords: 'managing committee governing body members ম্যানেজিং কমিটি',
-          },
-        ],
+        href: '/dashboard/settings',
+        icon: 'settings',
+        iconColor: 'text-indigo-600 dark:text-indigo-400',
+        keywords:
+          'settings school config logo eiin pad backup cloud committee managing governing body security sms language সেটিংস প্রতিষ্ঠান লোগো প্যাড কমিটি ম্যানেজিং কমিটি ব্যাকআপ নিরাপত্তা',
       },
     ],
   },
@@ -860,7 +843,7 @@ export function isNavHrefActive(
     return normalizedCurrent === normalizedHref && (!currentTab || currentTab === 'teachers');
   }
   if (normalizedHref === '/dashboard/settings') {
-    return normalizedCurrent === normalizedHref && (!currentTab || currentTab === 'general');
+    return normalizedCurrent === normalizedHref;
   }
   return normalizedCurrent === normalizedHref && !currentView && !currentTab;
 }

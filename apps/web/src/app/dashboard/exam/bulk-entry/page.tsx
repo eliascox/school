@@ -35,7 +35,7 @@ import {
   isReligionSubject,
   ReligionType
 } from '@/lib/religionUtils';
-import { getAllSubjectAliases } from '@/lib/markStorageUtils';
+import { getAllSubjectAliases, getUniversalStudentMark } from '@/lib/markStorageUtils';
 import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
 
 interface SubjectConfig {
@@ -202,54 +202,33 @@ export default function BulkMarkEntryPage() {
       let failed = false;
 
       subjects.forEach((sub) => {
-        let val = 0;
-        let cq = 0;
-        let mcq = 0;
-        let practical = 0;
         const subFull = sub.fullMarks || 100;
+        const isRelSub =
+          sub.code === 'REL-111' ||
+          ['111', '112', '113', '114'].includes(String(sub.code)) ||
+          sub.name.includes('ধর্ম') ||
+          sub.name.toLowerCase().includes('islam') ||
+          sub.name.toLowerCase().includes('hindu');
 
-        // Determine correct storage key for religion and optional subjects
-        let targetCodes = [sub.code];
-        let targetNames = [sub.name];
+        const relTarget = isRelSub ? getReligionSubjectKeys(rel) : null;
+        const subjectQuery = relTarget?.names?.[0] || sub.name || sub.code;
 
-        if (sub.code === 'REL-111' || ['111', '112', '113', '114'].includes(String(sub.code)) || sub.name.includes('ধর্ম') || sub.name.toLowerCase().includes('islam') || sub.name.toLowerCase().includes('hindu')) {
-          const relKeys = getReligionSubjectKeys(rel);
-          targetCodes = relKeys.codes;
-          targetNames = relKeys.names;
-        }
+        // Uses cached markStorageUtils index (O(1) lookup instead of nested JSON.parse storm)
+        const resolved = getUniversalStudentMark({
+          exam: selectedExam,
+          grade: selectedGrade,
+          branch: selectedBranch,
+          group: targetGroupBn,
+          subjectCodeOrName: subjectQuery,
+          studentRoll: st.roll,
+          studentId: st.id,
+          studentName: st.name,
+        });
 
-        // Search localStorage for existing saved mark & component breakdowns
-        for (const code of targetCodes) {
-          for (const name of targetNames) {
-            const possibleKeys = [
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${targetGroupBn}_${code}`,
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${targetGroupBn}_${name}`,
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_${code}`,
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_${selectedGroup}_${name}`,
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_${code}`,
-              `sms_marks_${selectedExam}_${selectedGrade}_${selectedBranch}_সাধারণ_${name}`
-            ];
-
-            for (const k of possibleKeys) {
-              const savedJson = localStorage.getItem(k);
-              if (savedJson) {
-                try {
-                  const arr = JSON.parse(savedJson);
-                  const found = Array.isArray(arr) ? arr.find((s: any) => s.roll === st.roll || s.id === st.id) : null;
-                  if (found) {
-                    cq = Number(found.written || 0);
-                    mcq = Number(found.mcq || 0);
-                    practical = Number(found.practical || 0);
-                    val = Number(found.total !== undefined ? found.total : cq + mcq + practical);
-                    break;
-                  }
-                } catch (e) {}
-              }
-            }
-            if (val > 0 || cq > 0 || mcq > 0 || practical > 0) break;
-          }
-          if (val > 0 || cq > 0 || mcq > 0 || practical > 0) break;
-        }
+        const cq = resolved.hasMarks ? Number(resolved.cq || 0) : 0;
+        const mcq = resolved.hasMarks ? Number(resolved.mcq || 0) : 0;
+        const practical = resolved.hasMarks ? Number(resolved.practical || resolved.ca || 0) : 0;
+        const val = resolved.hasMarks ? Number(resolved.total || cq + mcq + practical) : 0;
 
         marksMap[sub.code] = val;
         breakdownMap[sub.code] = { cq, mcq, practical, total: val };

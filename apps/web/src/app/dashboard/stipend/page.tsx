@@ -1,55 +1,34 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Award, 
-  Users, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle, 
-  TrendingUp, 
-  Printer, 
-  Download, 
-  Plus, 
-  GraduationCap, 
-  Building2, 
-  ShieldAlert, 
-  Info, 
-  DollarSign, 
-  Check, 
-  Pencil, 
-  Trash2, 
-  FileText, 
-  ArrowLeft, 
-  Calendar,
-  Layers,
-  Sparkles,
-  SlidersHorizontal,
-  RefreshCw
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
+import {
+  Award,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  TrendingUp,
+  Printer,
+  Download,
+  Plus,
+  ShieldAlert,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { languageService, AppLanguage } from '@/services/languageService';
-import { downloadStipendBoardWorkbook } from '@/lib/boardExcelExport';
+import { BANGLA_MONTHS, financeService } from '@/services/financeService';
+import {
+  STIPEND_CATEGORIES,
+  SyncedStipendStudent,
+  buildSyncedStipendList,
+} from '@/lib/stipendSyncUtils';
+import { FinanceSlimHeader } from '@/components/finance/financeShared';
 import { showToast } from '@/components/ui/ToastProvider';
-
-export interface StipendStudentItem extends Student {
-  attRate: number;            // Attendance percentage (0-100)
-  examScore: number;          // Exam score percentage (0-100)
-  monthlyAmount: number;      // Monthly stipend allowance in BDT
-  isEligible: boolean;        // Compliance flag (attRate >= 75% && examScore >= 45%)
-  disqualifyReasons: string[];
-}
-
-const STIPEND_CATEGORIES = [
-  { name: 'সাধারণ উপবৃত্তি', amount: 500, desc: 'সরকারি সাধারণ উপবৃত্তি সুবিধা' },
-  { name: 'মেধাভিত্তিক উপবৃত্তি', amount: 1000, desc: 'পরীক্ষায় শীর্ষ ফলাফলের জন্য বিশেষ মেধা অনুদান' },
-  { name: 'বিশেষ সহায়তা', amount: 1200, desc: 'আর্থিক অসচ্ছল ও প্রান্তিক শিক্ষার্থীদের বিশেষ সহায়তা' },
-  { name: 'প্রতিবন্ধী উপবৃত্তি', amount: 1500, desc: 'বিশেষ চাহিদাসম্পন্ন শিক্ষার্থীদের উপবৃত্তি' },
-  { name: 'অনগ্রসর/উপজাতি উপবৃত্তি', amount: 800, desc: 'অনগ্রসর ও নৃগোষ্ঠী শিক্ষার্থীদের শিক্ষা সহায়তা' },
-];
 
 const toBnDigit = (num: number | string | undefined | null): string => {
   if (num === undefined || num === null || num === '') return '';
@@ -95,11 +74,13 @@ export default function StipendPage() {
   // Modals
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [editingStudent, setEditingStudent] = useState<StipendStudentItem | null>(null);
+  const [editingStudent, setEditingStudent] = useState<SyncedStipendStudent | null>(null);
+  const [syncTick, setSyncTick] = useState<number>(0);
 
   // C-06: Bulk selection state
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState<string>('সাধারণ উপবৃত্তি');
+  const [bulkStartMonth, setBulkStartMonth] = useState<string>('জানুয়ারি');
   const [bulkAssignLoading, setBulkAssignLoading] = useState<boolean>(false);
   const [addModalMode, setAddModalMode] = useState<'single' | 'bulk'>('single');
   const [bulkCandidateSearch, setBulkCandidateSearch] = useState<string>('');
@@ -107,82 +88,49 @@ export default function StipendPage() {
   // Form states for Add Candidate
   const [candidateStudentId, setCandidateStudentId] = useState<string>('');
   const [candidateCategory, setCandidateCategory] = useState<string>('সাধারণ উপবৃত্তি');
+  const [candidateStartMonth, setCandidateStartMonth] = useState<string>('জানুয়ারি');
 
   // Alert
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     const data = studentService.getAllStudents();
     setAllStudents(data);
     const settings = settingsService.getSettings();
     setSchoolSettings(settings);
-  };
+    setSyncTick((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
     setCurrentLang(languageService.getLanguage());
-    const unsubLang = languageService.subscribe(l => setCurrentLang(l));
+    const unsubLang = languageService.subscribe((l) => setCurrentLang(l));
+    const unsubStudents = studentService.subscribe(() => loadData());
+    const unsubFinance = financeService.subscribe(() => setSyncTick((t) => t + 1));
     loadData();
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', loadData);
-      return () => window.removeEventListener('storage', loadData);
     }
-  }, []);
-
-  // Process and compute compliance status for all students
-  const processStipendStudent = (s: Student, idx: number): StipendStudentItem => {
-    const attRate = s.attendance !== undefined ? s.attendance : (92 - (idx % 6) * 3);
-
-    let examScore = 65;
-    if (s.gpa) {
-      const gpaNum = parseFloat(s.gpa);
-      if (!isNaN(gpaNum)) {
-        examScore = Math.min(100, Math.round(gpaNum * 20));
+    return () => {
+      unsubLang();
+      unsubStudents();
+      unsubFinance();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', loadData);
       }
-    } else {
-      examScore = 75 - (idx % 5) * 7;
-    }
-    if (s.examMarkAvg !== undefined) {
-      examScore = s.examMarkAvg;
-    }
-
-    const category = s.stipendCategory || 'সাধারণ উপবৃত্তি';
-    const catConfig = STIPEND_CATEGORIES.find(c => c.name === category);
-    const monthlyAmount = catConfig ? catConfig.amount : 500;
-
-    // Government Compliance Rules:
-    // 1. Attendance >= 75%
-    // 2. Exam marks >= 45%
-    const disqualifyReasons: string[] = [];
-    if (attRate < 75) {
-      disqualifyReasons.push(`উপস্থিতি ${attRate}% (< ৭৫%)`);
-    }
-    if (examScore < 45) {
-      disqualifyReasons.push(`প্রাপ্ত নম্বর ${examScore}% (< ৪৫%)`);
-    }
-
-    const isEligible = disqualifyReasons.length === 0;
-
-    return {
-      ...s,
-      isStipend: s.isStipend ?? (idx % 3 === 0 || idx % 4 === 1),
-      stipendCategory: category,
-      attRate,
-      examScore,
-      monthlyAmount,
-      isEligible,
-      disqualifyReasons,
     };
-  };
+  }, [loadData]);
 
-  const processedList: StipendStudentItem[] = useMemo(() => {
-    return allStudents.map((s, idx) => processStipendStudent(s, idx));
-  }, [allStudents]);
+  // Real data-synced stipend evaluation (Student DB + Attendance logs + GPA/Exam + Live Tuition Waiver)
+  const processedList: SyncedStipendStudent[] = useMemo(() => {
+    void syncTick;
+    return buildSyncedStipendList(allStudents);
+  }, [allStudents, syncTick]);
 
-  // Filter only stipend beneficiaries
+  // Filter only true stipend beneficiaries (no fabricated modulo assignments)
   const stipendBeneficiaries = useMemo(() => {
-    return processedList.filter(s => s.isStipend);
+    return processedList.filter((s) => s.isStipend);
   }, [processedList]);
 
   // Filtered beneficiaries based on user selections
@@ -205,22 +153,26 @@ export default function StipendPage() {
     });
   }, [stipendBeneficiaries, selectedGrade, selectedSection, selectedCategory, selectedStatus, searchQuery]);
 
-  // Statistics
+  // Statistics (Strictly from genuine records)
   const totalCount = stipendBeneficiaries.length;
-  const eligibleCount = stipendBeneficiaries.filter(s => s.isEligible).length;
-  const suspendedCount = stipendBeneficiaries.filter(s => !s.isEligible).length;
+  const eligibleCount = stipendBeneficiaries.filter((s) => s.isEligible).length;
+  const suspendedCount = stipendBeneficiaries.filter((s) => !s.isEligible).length;
   const totalMonthlyBudget = stipendBeneficiaries
-    .filter(s => s.isEligible)
+    .filter((s) => s.isEligible)
     .reduce((sum, s) => sum + s.monthlyAmount, 0);
+  const totalTuitionWaivedAll = stipendBeneficiaries.reduce((sum, s) => sum + s.totalTuitionWaivedAmount, 0);
 
-  const avgAttendance = totalCount > 0 
-    ? (stipendBeneficiaries.reduce((sum, s) => sum + s.attRate, 0) / totalCount).toFixed(1)
-    : '0';
+  const studentsWithAtt = stipendBeneficiaries.filter((s) => s.attRate !== null);
+  const avgAttendance =
+    studentsWithAtt.length > 0
+      ? (studentsWithAtt.reduce((sum, s) => sum + (s.attRate ?? 0), 0) / studentsWithAtt.length).toFixed(1)
+      : null;
 
-  // Toggle Stipend Status
+  // Toggle Stipend Status & sync fee ledgers immediately
   const handleToggleStipend = (studentId: string, currentStatus: boolean) => {
     const res = studentService.toggleStipendStatus(studentId, !currentStatus);
     if (res.success) {
+      financeService.syncStudentLedgersWithClassFees();
       setAlertMsg({ type: 'success', text: res.message });
       loadData();
     } else {
@@ -250,17 +202,21 @@ export default function StipendPage() {
     if (bulkSelectedIds.size === 0) return;
     setBulkAssignLoading(true);
     let successCount = 0;
-    bulkSelectedIds.forEach(id => {
+    bulkSelectedIds.forEach((id) => {
       try {
-        studentService.toggleStipendStatus(id, true, bulkCategory);
+        studentService.toggleStipendStatus(id, true, bulkCategory, bulkStartMonth);
         successCount++;
-      } catch (e) {}
+      } catch {}
     });
+    financeService.syncStudentLedgersWithClassFees();
     setBulkSelectedIds(new Set());
     setBulkAssignLoading(false);
     setShowAddModal(false);
     loadData();
-    setAlertMsg({ type: 'success', text: `${successCount} জন শিক্ষার্থীকে "${bulkCategory}" উপবৃত্তি প্রদান করা হয়েছে!` });
+    setAlertMsg({
+      type: 'success',
+      text: `${successCount} জন শিক্ষার্থীকে "${bulkCategory}" (${bulkStartMonth} থেকে) উপবৃত্তি প্রদান ও ফি-লেজারে সিংক করা হয়েছে!`,
+    });
     setTimeout(() => setAlertMsg(null), 5000);
   };
 
@@ -270,9 +226,10 @@ export default function StipendPage() {
       setAlertMsg({ type: 'error', text: 'অনুগ্রহ করে একজন শিক্ষার্থী নির্বাচন করুন!' });
       return;
     }
-    const res = studentService.toggleStipendStatus(candidateStudentId, true, candidateCategory);
+    const res = studentService.toggleStipendStatus(candidateStudentId, true, candidateCategory, candidateStartMonth);
     if (res.success) {
-      setAlertMsg({ type: 'success', text: 'শিক্ষার্থীকে সফলভাবে উপবৃত্তি তালিকায় যুক্ত করা হয়েছে!' });
+      financeService.syncStudentLedgersWithClassFees();
+      setAlertMsg({ type: 'success', text: 'শিক্ষার্থীকে উপবৃত্তি তালিকায় যুক্ত এবং ফি-লেজারে সিংক করা হয়েছে!' });
       setShowAddModal(false);
       setCandidateStudentId('');
       loadData();
@@ -282,12 +239,18 @@ export default function StipendPage() {
     setTimeout(() => setAlertMsg(null), 4000);
   };
 
-  // Update candidate category and save
+  // Update candidate category / start month and save
   const handleSaveEdit = () => {
     if (!editingStudent) return;
-    const res = studentService.toggleStipendStatus(editingStudent.id, true, editingStudent.stipendCategory);
+    const res = studentService.toggleStipendStatus(
+      editingStudent.id,
+      true,
+      editingStudent.stipendCategory,
+      editingStudent.stipendStartMonth || 'জানুয়ারি'
+    );
     if (res.success) {
-      setAlertMsg({ type: 'success', text: 'উপবৃত্তি তথ্য সফলভাবে আপডেট করা হয়েছে!' });
+      financeService.syncStudentLedgersWithClassFees();
+      setAlertMsg({ type: 'success', text: 'উপবৃত্তি তথ্য আপডেট এবং ফি-লেজারে সিংক করা হয়েছে!' });
       setShowEditModal(false);
       setEditingStudent(null);
       loadData();
@@ -299,12 +262,12 @@ export default function StipendPage() {
 
   // Non-stipend candidates list for add modal
   const nonStipendCandidates = useMemo(() => {
-    return processedList.filter(s => !s.isStipend);
+    return processedList.filter((s) => !s.isStipend);
   }, [processedList]);
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ['ক্রমিক', 'রোল', 'শিক্ষার্থী আইডি', 'শিক্ষার্থীর নাম', 'শ্রেণি ও শাখা', 'পিতা/অভিভাবক', 'মোবাইল', 'উপবৃত্তি ক্যাটাগরি', 'উপস্থিতি (%)', 'পরীক্ষার নম্বর (%)', 'মাসিক অনুদান (৳)', 'স্থিতি', 'মন্তব্য'];
+    const headers = ['ক্রমিক', 'রোল', 'শিক্ষার্থী আইডি', 'শিক্ষার্থীর নাম', 'শ্রেণি ও শাখা', 'পিতা/অভিভাবক', 'মোবাইল', 'উপবৃত্তি ক্যাটাগরি', 'শুরুর মাস', 'উপস্থিতি (%)', 'পরীক্ষার নম্বর (%)', 'মাসিক অনুদান (৳)', 'টিউশন মওকুফ (৳)', 'স্থিতি', 'মন্তব্য'];
     const rows = filteredBeneficiaries.map((st, idx) => [
       idx + 1,
       st.roll || '',
@@ -314,10 +277,16 @@ export default function StipendPage() {
       st.guardian || st.fatherName || '',
       st.mobile || '',
       st.stipendCategory || 'সাধারণ উপবৃত্তি',
-      `${st.attRate}%`,
-      `${st.examScore}%`,
+      st.stipendStartMonth || 'জানুয়ারি',
+      st.attRate !== null ? `${st.attRate}%` : 'রেকর্ড নেই',
+      st.examScore !== null ? `${st.examScore}%` : 'ফলাফল নেই',
       st.monthlyAmount,
-      st.isEligible ? 'যোগ্য (সক্রিয়)' : `স্থগিত (${st.disqualifyReasons.join('; ')})`,
+      st.totalTuitionWaivedAmount,
+      st.complianceState === 'no_data'
+        ? 'সক্রিয় (মূল্যায়ন বাকি)'
+        : st.isEligible
+          ? 'যোগ্য (সক্রিয়)'
+          : `স্থগিত (${st.disqualifyReasons.join('; ')})`,
       ''
     ]);
 
@@ -427,7 +396,8 @@ export default function StipendPage() {
             </button>
 
             <button
-              onClick={() => {
+              onClick={async () => {
+                const { downloadStipendBoardWorkbook } = await import('@/lib/boardExcelExport');
                 const count = downloadStipendBoardWorkbook(
                   filteredBeneficiaries,
                   schoolSettings || settingsService.getSettings()
@@ -477,7 +447,7 @@ export default function StipendPage() {
                   {schoolSettings?.estdYear && <span className="ml-2">| স্থাপিত: {toBnDigit(schoolSettings.estdYear)} খ্রি.</span>}
                 </p>
                 <div className="inline-block mt-1 px-4 py-0.5 bg-slate-900 text-white rounded-md text-xs font-black uppercase tracking-wide print:bg-black print:text-white">
-                  উপবৃত্তি প্রাপ্ত শিক্ষার্থীদের তালিকা — ২০২৬
+                  উপবৃত্তি প্রাপ্ত শিক্ষার্থীদের তালিকা — {toBnDigit(financeService.getFinanceSettings().systemStartYear || new Date().getFullYear())}
                 </div>
               </div>
             </div>
@@ -488,7 +458,7 @@ export default function StipendPage() {
                 <span>শ্রেণি: <strong>{gradeName}</strong></span>
                 {selectedSection !== 'all' && <span className="ml-3">শাখা: <strong>{selectedSection}</strong></span>}
                 {selectedCategory !== 'all' && <span className="ml-3">ক্যাটাগরি: <strong>{selectedCategory}</strong></span>}
-                <span className="ml-3">সেশন: <strong>২০২৬</strong></span>
+                <span className="ml-3">সেশন: <strong>{toBnDigit(financeService.getFinanceSettings().systemStartYear || new Date().getFullYear())}</strong></span>
               </div>
               <div>
                 <span>মোট উপবৃত্তিভোগী: <strong>{toBnDigit(filteredBeneficiaries.length)}</strong> জন</span>
@@ -575,12 +545,12 @@ export default function StipendPage() {
                       )}
                       {showPrintColumns.attendance && (
                         <td className="p-1.5 text-center font-mono font-bold border border-slate-900">
-                          {toBnDigit(st.attRate)}%
+                          {st.attRate !== null ? `${toBnDigit(st.attRate)}%` : '—'}
                         </td>
                       )}
                       {showPrintColumns.exam && (
                         <td className="p-1.5 text-center font-mono font-bold border border-slate-900">
-                          {toBnDigit(st.examScore)}%
+                          {st.examScore !== null ? `${toBnDigit(st.examScore)}%` : '—'}
                         </td>
                       )}
                       {showPrintColumns.amount && (
@@ -693,68 +663,73 @@ export default function StipendPage() {
         </div>
       )}
 
-      {/* ─── TOP TOOLBAR & QUICK ACTIONS ────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        
-        {/* Left: Quick overview badge */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 dark:text-white flex items-center justify-center font-black shadow-xs">
-            <Award size={18} />
+      {/* ─── SLIM INDEPENDENT WORKSPACE HEADER ─────────────────────────────── */}
+      <FinanceSlimHeader
+        title="উপবৃত্তি ব্যবস্থাপনা ও মূল্যায়ন"
+        subtitle="শিক্ষার্থী তালিকা, বাস্তব উপস্থিতি, পরীক্ষার নম্বর ও ফি-লেজারের সাথে সরাসরি সিংক"
+        icon={<Award size={20} />}
+        iconBg="bg-amber-500"
+        iconColor="text-slate-950"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/dashboard/finance/?tab=student_fees"
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition flex items-center gap-1"
+            >
+              ফি কালেকশন <ArrowUpRight size={13} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setActiveView('print_list')}
+              className="px-3 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="উপবৃত্তি তালিকা প্রিন্ট প্রিভিউ"
+            >
+              <Printer size={14} className="text-amber-400" />
+              প্রিন্ট ও রিপোর্ট
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download size={13} />
+              CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                const { downloadStipendBoardWorkbook } = await import('@/lib/boardExcelExport');
+                const count = downloadStipendBoardWorkbook(
+                  filteredBeneficiaries,
+                  schoolSettings || settingsService.getSettings()
+                );
+                showToast(`${count} জন উপবৃত্তি শিক্ষার্থীর বোর্ড এক্সেল (.xlsx) ডাউনলোড হয়েছে।`, 'success');
+              }}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download size={13} />
+              বোর্ড এক্সেল
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus size={15} />
+              উপবৃত্তি যোগ
+            </button>
           </div>
-          <div>
-            <h2 className="text-sm font-black text-slate-900 dark:text-white">উপবৃত্তি ব্যবস্থাপনা ও মূল্যায়ন</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">৪৫% প্রাপ্ত নম্বর ও ৭৫% উপস্থিতি নীতিমালা অনুযায়ী</p>
-          </div>
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
-          <button
-            onClick={() => setActiveView('print_list')}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-            title="উপবৃত্তি তালিকা প্রিন্ট প্রিভিউ"
-          >
-            <Printer size={14} className="text-amber-400" />
-            তালিকা প্রিন্ট ও রিপোর্ট
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download size={13} />
-            CSV এক্সপোর্ট
-          </button>
-
-          <button
-            onClick={() => {
-              const count = downloadStipendBoardWorkbook(
-                filteredBeneficiaries,
-                schoolSettings || settingsService.getSettings()
-              );
-              showToast(`${count} জন উপবৃত্তি শিক্ষার্থীর বোর্ড এক্সেল (.xlsx) ডাউনলোড হয়েছে।`, 'success');
-            }}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download size={13} />
-            বোর্ড এক্সেল (.xlsx)
-          </button>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus size={15} />
-            উপবৃত্তি শিক্ষার্থী যোগ
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ─── KPI METRIC CARDS ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Stipend Beneficiaries */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">মোট উপবৃত্তিভোগী</span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
@@ -766,15 +741,15 @@ export default function StipendPage() {
             <span className="text-xs text-slate-500 dark:text-slate-400 font-bold ml-1">জন</span>
           </div>
           <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>৬ষ্ঠ - ১০ম শ্রেণি</span>
-            <span className="text-amber-700 dark:text-amber-300 font-mono">মাসিক {toBnDigit(totalMonthlyBudget)}৳</span>
+            <span>মাসিক অনুদান</span>
+            <span className="text-amber-700 dark:text-amber-300 font-mono">৳{toBnDigit(totalMonthlyBudget)}</span>
           </div>
         </div>
 
         {/* Active Eligible */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">যোগ্য (উপবৃত্তি সক্রিয়)</span>
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">সক্রিয় উপবৃত্তি</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black">
               <CheckCircle2 size={16} />
             </div>
@@ -783,13 +758,14 @@ export default function StipendPage() {
             <span className="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">{toBnDigit(eligibleCount)}</span>
             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold ml-1">জন</span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-            উপস্থিতি ≥৭৫% ও নম্বর ≥৪৫%
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+            <span>মোট টিউশন মওকুফ</span>
+            <span className="font-mono">৳{toBnDigit(totalTuitionWaivedAll)}</span>
           </div>
         </div>
 
         {/* Suspended / Unmet Criteria */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">স্থগিত (শর্ত অসম্পূর্ণ)</span>
             <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-black">
@@ -806,18 +782,22 @@ export default function StipendPage() {
         </div>
 
         {/* Avg Attendance */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">গড় উপস্থিতি হার</span>
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">বাস্তব গড় উপস্থিতি</span>
             <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
               <TrendingUp size={16} />
             </div>
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200 font-mono">{toBnDigit(avgAttendance)}%</span>
+            <span className="text-2xl font-black text-indigo-900 dark:text-indigo-200 font-mono">
+              {avgAttendance !== null ? `${toBnDigit(avgAttendance)}%` : '—'}
+            </span>
           </div>
           <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-            উপবৃত্তিভোগীদের ক্লাসে গড় উপস্থিতি
+            {studentsWithAtt.length > 0
+              ? `${toBnDigit(studentsWithAtt.length)} জনের হাজিরা লগ থেকে`
+              : 'এখনো হাজিরা রেকর্ড নেই'}
           </div>
         </div>
 
@@ -974,33 +954,53 @@ export default function StipendPage() {
 
                     {/* Category */}
                     <td className="p-3 font-bold text-slate-800 dark:text-slate-100">
-                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-md text-[11px] border border-slate-200 dark:border-slate-800">
+                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-md text-[11px] border border-slate-200 dark:border-slate-700 inline-block">
                         {st.stipendCategory || 'সাধারণ উপবৃত্তি'}
                       </span>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                        শুরু: {st.stipendStartMonth || 'জানুয়ারি'}
+                        {st.waivedTuitionMonths > 0 && (
+                          <span className="ml-1.5 text-purple-600 dark:text-purple-400 font-bold">
+                            • টিউশন মওকুফ {toBnDigit(st.waivedTuitionMonths)} মাস
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Attendance % */}
                     <td className="p-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
-                        st.attRate >= 75
-                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
-                          : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
-                      }`}>
-                        {st.attRate >= 75 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
-                        {st.attRate}%
-                      </span>
+                      {st.attRate !== null ? (
+                        <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
+                          st.attRate >= 75
+                            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                            : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
+                        }`}>
+                          {st.attRate >= 75 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
+                          {toBnDigit(st.attRate)}%
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          রেকর্ড নেই
+                        </span>
+                      )}
                     </td>
 
                     {/* Exam Score % */}
                     <td className="p-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
-                        st.examScore >= 45
-                          ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
-                          : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
-                      }`}>
-                        {st.examScore >= 45 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
-                        {st.examScore}%
-                      </span>
+                      {st.examScore !== null ? (
+                        <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black inline-flex items-center gap-1 ${
+                          st.examScore >= 45
+                            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                            : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
+                        }`}>
+                          {st.examScore >= 45 ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
+                          {toBnDigit(st.examScore)}%
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          ফলাফল নেই
+                        </span>
+                      )}
                     </td>
 
                     {/* Monthly Amount */}
@@ -1010,10 +1010,15 @@ export default function StipendPage() {
 
                     {/* Eligibility Status */}
                     <td className="p-3 text-center">
-                      {st.isEligible ? (
+                      {st.complianceState === 'no_data' ? (
+                        <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                          <CheckCircle2 size={11} />
+                          সক্রিয় (মূল্যায়ন বাকি)
+                        </span>
+                      ) : st.isEligible ? (
                         <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-lg font-black text-[11px] inline-flex items-center gap-1">
                           <CheckCircle2 size={12} />
-                          সক্রিয় (Active)
+                          সক্রিয় (যোগ্য)
                         </span>
                       ) : (
                         <div className="space-y-0.5">
@@ -1120,21 +1125,39 @@ export default function StipendPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    উপবৃত্তি ক্যাটাগরি
-                  </label>
-                  <select
-                    value={candidateCategory}
-                    onChange={(e) => setCandidateCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
-                  >
-                    {STIPEND_CATEGORIES.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name} — মাসিক {toBnDigit(c.amount)}৳
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
+                      উপবৃত্তি ক্যাটাগরি
+                    </label>
+                    <select
+                      value={candidateCategory}
+                      onChange={(e) => setCandidateCategory(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                    >
+                      {STIPEND_CATEGORIES.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name} — মাসিক {toBnDigit(c.amount)}৳
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
+                      টিউশন মওকুফ শুরুর মাস
+                    </label>
+                    <select
+                      value={candidateStartMonth}
+                      onChange={(e) => setCandidateStartMonth(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                    >
+                      {BANGLA_MONTHS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1161,21 +1184,39 @@ export default function StipendPage() {
                   </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    উপবৃত্তি ক্যাটাগরি
-                  </label>
-                  <select
-                    value={bulkCategory}
-                    onChange={(e) => setBulkCategory(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
-                  >
-                    {STIPEND_CATEGORIES.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name} — মাসিক {toBnDigit(c.amount)}৳
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
+                      উপবৃত্তি ক্যাটাগরি
+                    </label>
+                    <select
+                      value={bulkCategory}
+                      onChange={(e) => setBulkCategory(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                    >
+                      {STIPEND_CATEGORIES.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name} — মাসিক {toBnDigit(c.amount)}৳
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
+                      মওকুফ শুরুর মাস
+                    </label>
+                    <select
+                      value={bulkStartMonth}
+                      onChange={(e) => setBulkStartMonth(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                    >
+                      {BANGLA_MONTHS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="max-h-52 overflow-y-auto space-y-1 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50 dark:bg-slate-950">
@@ -1269,6 +1310,26 @@ export default function StipendPage() {
                   {STIPEND_CATEGORIES.map((c) => (
                     <option key={c.name} value={c.name}>
                       {c.name} ({toBnDigit(c.amount)}৳)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-1">
+                  টিউশন মওকুফ শুরুর মাস
+                </label>
+                <select
+                  value={editingStudent.stipendStartMonth || 'জানুয়ারি'}
+                  onChange={(e) => setEditingStudent({
+                    ...editingStudent,
+                    stipendStartMonth: e.target.value
+                  })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                >
+                  {BANGLA_MONTHS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
                     </option>
                   ))}
                 </select>

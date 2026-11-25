@@ -1,112 +1,122 @@
-// SchoolPro Service Worker v5 — Teacher & Campus Mobile-First PWA
-const CACHE_NAME = 'schoolpro-v5';
-const STATIC_CACHE = 'schoolpro-static-v5';
-const DYNAMIC_CACHE = 'schoolpro-dynamic-v5';
+// SchoolPro Service Worker v6 — Safe Next.js App Router & Vercel Deploy PWA
+// Never intercepts /_next/static, /_next/data, ?_rsc= flight requests, or cross-origin traffic
+// so new Vercel deploys never trigger ChunkLoadError or frozen sidebar navigation.
+const STATIC_CACHE = 'schoolpro-static-v6';
+const DYNAMIC_CACHE = 'schoolpro-dynamic-v6';
 
-// Pre-cache critical app shell routes (trailing slashes match next.config.ts trailingSlash: true)
+// Lightweight static shell assets only (avoid flooding 17 HTML routes on install)
 const PRECACHE_URLS = [
-  '/',
-  '/mobile-app/',
-  '/result/',
-  '/admission/',
-  '/verify-certificate/',
-  '/login/',
-  '/teacher-login/',
-  '/dashboard/',
-  '/dashboard/teacher-portal/',
-  '/dashboard/exam/mark-entry/',
-  '/dashboard/exam/bulk-entry/',
-  '/dashboard/academic/attendance/',
-  '/dashboard/teacher/',
   '/manifest.json',
   '/logo.png',
   '/icons/icon-192x192.svg',
-  '/icons/icon-512x512.svg'
+  '/icons/icon-512x512.svg',
 ];
 
-// Install — pre-cache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(PRECACHE_URLS).catch((err) => {
-        console.warn('[SW] Pre-cache partial failure (ok for dev):', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) =>
+        cache.addAll(PRECACHE_URLS).catch((err) => {
+          console.warn('[SW v6] Pre-cache partial skip:', err);
+        })
+      )
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate — clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== STATIC_CACHE && k !== DYNAMIC_CACHE)
-          .map((k) => caches.delete(k))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== STATIC_CACHE && k !== DYNAMIC_CACHE)
+            .map((k) => caches.delete(k))
+        )
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch Strategy:
-// - Static assets → Cache First
-// - Navigation (HTML) → Network First with cache fallback
-// - API calls → Network Only
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
+  if (request.method !== 'GET') return;
 
-  // Skip non-GET and chrome-extension
-  if (request.method !== 'GET' || url.protocol === 'chrome-extension:') return;
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
 
-  // Static assets (JS, CSS, images, fonts) → Cache First
+  // Only handle same-origin requests (never interfere with Firestore, Google Fonts, CDNs, or extensions)
+  if (url.origin !== self.location.origin) return;
+
+  // NEVER intercept Next.js hashed chunks, RSC flight payloads, or API endpoints
   if (
-    request.destination === 'script' ||
-    request.destination === 'style' ||
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/api/') ||
+    url.searchParams.has('_rsc') ||
+    request.headers.get('RSC') === '1'
+  ) {
+    return;
+  }
+
+  // Same-origin static media/icons/manifest → Stale-While-Revalidate with safe catch
+  if (
     request.destination === 'image' ||
-    request.destination === 'font'
+    request.destination === 'font' ||
+    url.pathname === '/manifest.json'
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then((c) => c.put(request, clone));
-          }
-          return response;
-        });
+        const networkPromise = fetch(request)
+          .then((response) => {
+            if (response && response.ok && response.type === 'basic') {
+              const clone = response.clone();
+              caches.open(STATIC_CACHE).then((c) => c.put(request, clone)).catch(() => {});
+            }
+            return response;
+          })
+          .catch(() => cached || new Response('', { status: 504 }));
+        return cached || networkPromise;
       })
     );
     return;
   }
 
-  // HTML navigation → Network First, cache fallback
+  // Document navigation → Network First with offline cache fallback (never serve stale HTML when online)
   if (request.destination === 'document' || request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response && response.status === 200) {
+          if (response && response.ok && response.type === 'basic') {
             const clone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((c) => c.put(request, clone));
+            caches.open(DYNAMIC_CACHE).then((c) => c.put(request, clone)).catch(() => {});
           }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/login/')))
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match('/dashboard/') || caches.match('/'))
+            .then(
+              (fallback) =>
+                fallback ||
+                new Response('Offline - অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।', {
+                  status: 503,
+                  headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                })
+            )
+        )
     );
-    return;
   }
 });
 
-// Background Sync for offline mark entry
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-marks') {
-    event.waitUntil(syncPendingMarks());
+    event.waitUntil(Promise.resolve());
   }
 });
-
-async function syncPendingMarks() {
-  // In a real server scenario, this would POST to server
-  // For localStorage-based app, sync is handled client-side
-  console.log('[SW] Background sync triggered for marks');
-}

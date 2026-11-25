@@ -49,7 +49,8 @@ import {
   saveTieBreakerRules,
   TieBreakerRule,
 } from '@/lib/resultAnalyticsEngine';
-import { downloadResultWorkbook, ResultReportViewKey } from '@/lib/resultExcelExport';
+import type { ResultReportViewKey } from '@/lib/resultExcelExport';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import { examService, ExamItem } from '@/services/examService';
 import { AppLanguage, languageService } from '@/services/languageService';
 import { PassEvaluationMode } from '@/services/resultService';
@@ -254,10 +255,23 @@ function ResultStudioContent() {
   }, [settingsMenuOpen]);
 
   useEffect(() => {
-    const paramView = searchParams?.get('view') as ResultReportViewKey | null;
-    if (paramView && ALL_VIEWS.some((v) => v.id === paramView)) {
-      setActiveView(paramView);
-    }
+    const syncViewFromUrl = () => {
+      const paramView = (
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('view')
+          : searchParams?.get('view')
+      ) as ResultReportViewKey | null;
+      if (paramView && ALL_VIEWS.some((v) => v.id === paramView)) {
+        setActiveView(paramView);
+      }
+    };
+    syncViewFromUrl();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncViewFromUrl);
+    window.addEventListener('popstate', syncViewFromUrl);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncViewFromUrl);
+      window.removeEventListener('popstate', syncViewFromUrl);
+    };
   }, [searchParams]);
 
   const effectiveGroup =
@@ -355,7 +369,7 @@ function ResultStudioContent() {
 
   const switchView = (nextView: ResultReportViewKey) => {
     setActiveView(nextView);
-    router.replace(`/dashboard/exam/results?view=${nextView}`, { scroll: false });
+    syncUrlQueryParams('/dashboard/exam/results', { view: nextView });
   };
 
   const activeWorkspace: WorkspaceKey =
@@ -382,7 +396,8 @@ function ResultStudioContent() {
     return Array.from(titles);
   }, [exams]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const { downloadResultWorkbook } = await import('@/lib/resultExcelExport');
     downloadResultWorkbook({
       view: activeView,
       examTitle: selectedExam,

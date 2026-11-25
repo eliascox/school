@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, Suspense } from 'react';
 import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { confirmDialog } from '@/components/ui/ToastProvider';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import { studentService } from '@/services/studentService';
 import { classSectionService } from '@/services/classSectionService';
 import { sortStudentsGroupAndRoll } from '@/services/studentBulkImportEngine';
@@ -59,7 +59,7 @@ const studentMatchesSearch = (st: Partial<StudentItem>, rawQuery: string): boole
     (digitsOnlyQ.length >= 4 && normalizeSearchText(st.mobile).replace(/[^0-9]/g, '').includes(digitsOnlyQ));
 };
 
-export default function StudentListPage() {
+function StudentListPageContent() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [currentLang, setCurrentLang] = useState<AppLanguage>('bn');
@@ -464,32 +464,33 @@ export default function StudentListPage() {
     loadStudentsFromStorage();
     loadSchoolSettings();
 
-    // ☁️ Bidirectional Auto-sync with Google Firebase Cloud
+    // ☁️ Fresh-PC empty-database restore ONLY (never upload entire DB on page visit!)
     if (typeof window !== 'undefined' && navigator.onLine) {
-      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
-        const localCount = studentService.getAllStudents().length;
-        if (localCount === 0) {
+      const localCount = studentService.getAllStudents().length;
+      if (localCount === 0 && sessionStorage.getItem('sms_students_cloud_pull_done') !== '1') {
+        sessionStorage.setItem('sms_students_cloud_pull_done', '1');
+        import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
           firebaseSyncService.pullAllFromCloud().then((res) => {
             if (res.studentCount > 0) {
               loadStudentsFromStorage();
             }
           }).catch(() => {});
-        } else {
-          // Auto-sync local students to Cloud Firestore
-          firebaseSyncService.uploadAllToCloud().catch((err) => {
-            console.warn('[AutoSync] Cloud sync deferred:', err);
-          });
-        }
-      }).catch(() => {});
+        }).catch(() => {});
+      }
     }
 
     if (typeof window !== 'undefined') {
+      let storageTimer: ReturnType<typeof setTimeout> | null = null;
       const handleStorage = () => {
-        loadStudentsFromStorage();
-        loadSchoolSettings();
+        if (storageTimer) clearTimeout(storageTimer);
+        storageTimer = setTimeout(() => {
+          loadStudentsFromStorage();
+          loadSchoolSettings();
+        }, 120);
       };
       window.addEventListener('storage', handleStorage);
       return () => {
+        if (storageTimer) clearTimeout(storageTimer);
         unsubLang();
         window.removeEventListener('storage', handleStorage);
       };
@@ -499,11 +500,17 @@ export default function StudentListPage() {
 
   // Reactively respond to URL query params (e.g. ?view=print, ?tab=summary, ?search=...)
   useEffect(() => {
-    if (searchParams) {
-      const view = searchParams.get('view');
-      const tab = searchParams.get('tab');
-      const print = searchParams.get('print');
-      const search = searchParams.get('search') || searchParams.get('q');
+    const applyQueryFromUrl = () => {
+      const params =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search)
+          : searchParams;
+      if (!params) return;
+
+      const view = params.get('view');
+      const tab = params.get('tab');
+      const print = params.get('print');
+      const search = params.get('search') || params.get('q');
 
       if (search !== null) {
         setSearchQuery(search);
@@ -515,10 +522,18 @@ export default function StudentListPage() {
       } else if (view === 'summary' || tab === 'summary') {
         setActiveView('print_list');
         setPrintReportTab('summary');
-      } else if (view === 'list') {
-        setActiveView('list');
+      } else if (view === 'list' || (!view && !tab && !print)) {
+        setActiveView((prev) => (prev === 'print_list' ? 'list' : prev));
       }
-    }
+    };
+
+    applyQueryFromUrl();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, applyQueryFromUrl);
+    window.addEventListener('popstate', applyQueryFromUrl);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, applyQueryFromUrl);
+      window.removeEventListener('popstate', applyQueryFromUrl);
+    };
   }, [searchParams]);
 
   // Generate QR code whenever selected student changes for view or print
@@ -531,28 +546,24 @@ export default function StudentListPage() {
   }, [selectedStudent]);
 
   const switchView = (targetView: ViewState, student: StudentItem | null = null) => {
-    setIsLoadingView(true);
     setSelectedStudent(student);
     if (student && targetView === 'edit') {
       setEditFormData({ ...student });
     }
-    
+
     if (typeof window !== 'undefined') {
       if (targetView === 'print_list') {
-        window.history.replaceState(null, '', '/dashboard/students?view=print');
+        syncUrlQueryParams('/dashboard/students', { view: 'print' });
       } else if (targetView === 'list') {
-        window.history.replaceState(null, '', '/dashboard/students');
+        syncUrlQueryParams('/dashboard/students', { view: null, print: null, tab: null });
       }
     }
 
-    // Smooth in-page loading transition
-    setTimeout(() => {
-      setActiveView(targetView);
-      setIsLoadingView(false);
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 100);
+    setActiveView(targetView);
+    setIsLoadingView(false);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -704,7 +715,7 @@ export default function StudentListPage() {
   const paginatedStudents = filteredStudents;
   const totalStudents = students.length;
 
-  const handleExportFilteredExcel = (onlySelected = false) => {
+  const handleExportFilteredExcel = async (onlySelected = false) => {
     const rowsSource =
       onlySelected && selectedStudentIds.length > 0
         ? filteredStudents.filter((s) => selectedStudentIds.includes(s.id))
@@ -715,6 +726,7 @@ export default function StudentListPage() {
       return;
     }
 
+    const XLSX = await import('xlsx');
     const sheetRows = rowsSource.map((st, idx) => ({
       'ক্র.নং': idx + 1,
       রোল: st.roll || '',
@@ -748,7 +760,7 @@ export default function StudentListPage() {
 
   useEffect(() => {
     setPrintPreviewPage(1);
-  }, [printGradeFilter, printBranchFilter, printGroupFilter, printReligionFilter, printGenderFilter, printSearchQuery, printOrientation, printRowsPerPage, printReportTab]);
+  }, [printGradeFilter, printBranchFilter, printGroupFilter, printReligionFilter, printGenderFilter, printStipendFilter, printSearchQuery, printOrientation, printRowsPerPage, printReportTab]);
 
   return (
     <div
@@ -848,6 +860,7 @@ export default function StudentListPage() {
               schoolSettings={schoolSettings}
               currentLang={currentLang}
               sortStrategy={sortStrategy}
+              availableSections={availableSections}
               studentMatchesSearch={studentMatchesSearch}
               printReportTab={printReportTab}
               setPrintReportTab={setPrintReportTab}
@@ -873,6 +886,7 @@ export default function StudentListPage() {
               printGenderFilter={printGenderFilter}
               setPrintGenderFilter={setPrintGenderFilter}
               printStipendFilter={printStipendFilter}
+              setPrintStipendFilter={setPrintStipendFilter}
               printSearchQuery={printSearchQuery}
               setPrintSearchQuery={setPrintSearchQuery}
               printPreviewPage={printPreviewPage}
@@ -994,5 +1008,17 @@ export default function StudentListPage() {
       )}
 
     </div>
+  );
+}
+
+export default function StudentListPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-slate-400 font-bold">শিক্ষার্থী তালিকা লোড হচ্ছে...</div>
+      }
+    >
+      <StudentListPageContent />
+    </Suspense>
   );
 }

@@ -40,6 +40,7 @@ import {
   Bus,
   Globe,
   Sliders,
+  Settings,
   ExternalLink,
   FileText,
   ScanLine,
@@ -132,6 +133,8 @@ export function NavIcon({
       return <Globe className={className} />;
     case 'sliders':
       return <Sliders className={className} />;
+    case 'settings':
+      return <Settings className={className} />;
     case 'externalLink':
       return <ExternalLink className={className} />;
     case 'fileText':

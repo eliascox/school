@@ -26,7 +26,11 @@ const mockStorage = {
 import { teacherAuthService } from '@/services/teacherAuthService';
 import { teacherRBACService } from '@/services/teacherRBACService';
 import { attendanceService } from '@/services/attendanceService';
+import { homeworkService } from '@/services/homeworkService';
+import { leaveService } from '@/services/leaveService';
 import {
+  getAvailableExamNames,
+  getNextMarkInputKey,
   loadMobileMarkRows,
   parseClassTeacherClassId,
   saveClassTeacherDailyAttendance,
@@ -263,5 +267,126 @@ describe('Mobile App Teacher Login, Assigned Subject Mark Entry & Class Teacher 
     teacherRBACService.assignClassTeacher('TCH-NORM', '9th - বিজ্ঞান', 2026);
     expect(teacherRBACService.canTakeClassAttendance('TCH-NORM', '9th-Science')).toBe(true);
     expect(teacherRBACService.canTakeClassAttendance('TCH-NORM', '9th-Humanities')).toBe(false);
+  });
+
+  it('syncs custom exams from sms_exam_setup and computes rapid keyboard auto-advance keys accurately', () => {
+    localStorage.setItem(
+      'sms_exam_setup',
+      JSON.stringify({
+        activeExam: 'মডেল টেস্ট ২০২৬',
+        exams: [{ name: 'মডেল টেস্ট ২০২৬' }, { name: 'প্রি-টেস্ট ২০২৬' }],
+      }),
+    );
+
+    const exams = getAvailableExamNames();
+    expect(exams[0]).toBe('মডেল টেস্ট ২০২৬');
+    expect(exams).toContain('প্রি-টেস্ট ২০২৬');
+    expect(exams).toContain(STANDARD_EXAMS[0]);
+
+    const rowIds = ['ST-8A-1', 'ST-8A-2'];
+    // Written + MCQ + Practical subject
+    expect(getNextMarkInputKey(rowIds, 'ST-8A-1', 'written', { hasMcq: true, hasPractical: true })).toBe('ST-8A-1:mcq');
+    expect(getNextMarkInputKey(rowIds, 'ST-8A-1', 'mcq', { hasMcq: true, hasPractical: true })).toBe('ST-8A-1:practical');
+    expect(getNextMarkInputKey(rowIds, 'ST-8A-1', 'practical', { hasMcq: true, hasPractical: true })).toBe('ST-8A-2:written');
+    expect(getNextMarkInputKey(rowIds, 'ST-8A-2', 'practical', { hasMcq: true, hasPractical: true })).toBeNull();
+
+    // Written-only subject skips straight to next student
+    expect(getNextMarkInputKey(rowIds, 'ST-8A-1', 'written', { hasMcq: false, hasPractical: false })).toBe('ST-8A-2:written');
+  });
+
+  it('persists auto-saved marks, auto-saved attendance, and in-app homework/leave submissions seamlessly', async () => {
+    const created = await teacherRBACService.createTeacher({
+      name: 'জনাব রফিকুল ইসলাম',
+      phone: '01788112233',
+      designation: 'সহকারী শিক্ষক',
+      dob: '1991-04-12',
+      status: 'active',
+      passwordHash: 'AutoSave@2026',
+    });
+    const tid = created.teacher!.id;
+    teacherRBACService.assignSubject(tid, '8th', 'সাধারণ গণিত', 2026);
+    teacherRBACService.assignClassTeacher(tid, '8th-A', 2026);
+
+    await teacherAuthService.unifiedLogin('01788112233', 'AutoSave@2026');
+    const session = teacherAuthService.getSession();
+
+    // Auto-save marks
+    const { rows, limits } = loadMobileMarkRows({
+      exam: STANDARD_EXAMS[0],
+      grade: '8th',
+      branch: 'A',
+      group: 'science',
+      subject: 'সাধারণ গণিত',
+    });
+    const expectedMcq = limits.hasMcq ? Math.min(limits.mcqMax, 24) : 0;
+    const autoMarksRes = saveTeacherSubjectMarks({
+      session,
+      exam: STANDARD_EXAMS[0],
+      grade: '8th',
+      branch: 'A',
+      group: 'science',
+      subject: 'সাধারণ গণিত',
+      rows: rows.map((r, i) => (i === 0 ? { ...r, written: 58, mcq: expectedMcq, total: 58 + expectedMcq } : r)),
+      mode: 'auto',
+      skipCloudSync: true,
+    });
+    expect(autoMarksRes.success).toBe(true);
+    expect(autoMarksRes.savedTimeBn).toBeTruthy();
+
+    const reloadedMarks = loadMobileMarkRows({
+      exam: STANDARD_EXAMS[0],
+      grade: '8th',
+      branch: 'A',
+      group: 'science',
+      subject: 'সাধারণ গণিত',
+    });
+    expect(reloadedMarks.rows[0].total).toBe(58 + expectedMcq);
+
+    // Auto-save attendance (instant local persist)
+    const attRows = attendanceService.getAttendance('2026-11-25', '8th', 'A');
+    attRows[0].status = 'Present';
+    attRows[1].status = 'Leave';
+    attRows[1].reason = 'অসুস্থতা';
+
+    const autoAttRes = saveClassTeacherDailyAttendance({
+      session,
+      date: '2026-11-25',
+      grade: '8th',
+      branch: 'A',
+      records: attRows,
+      mode: 'auto',
+      skipCloudSync: true,
+    });
+    expect(autoAttRes.success).toBe(true);
+    expect(autoAttRes.presentCount).toBe(1);
+    expect(autoAttRes.leaveCount).toBe(1);
+    expect(attendanceService.getAttendance('2026-11-25', '8th', 'A').find((s) => s.id === 'ST-8A-2')?.status).toBe('Leave');
+
+    // In-app homework & leave tools
+    const hwRes = homeworkService.createHomework({
+      title: 'পদ্য মুখস্থ ও প্রশ্নোত্তর',
+      description: 'পৃষ্ঠা ১২ এর ১-৫ নং প্রশ্ন',
+      grade: '8th',
+      section: 'A',
+      subject: 'বাংলা ১ম পত্র',
+      teacherId: tid,
+      teacherName: 'জনাব রফিকুল ইসলাম',
+      dueDate: '2026-11-28',
+    });
+    expect(hwRes.success).toBe(true);
+    expect(homeworkService.getHomeworks({ grade: '8th' }).length).toBe(1);
+
+    const lvRes = leaveService.submitLeave({
+      teacherId: tid,
+      teacherName: 'জনাব রফিকুল ইসলাম',
+      designation: 'সহকারী শিক্ষক',
+      leaveType: 'casual',
+      startDate: '2026-11-26',
+      endDate: '2026-11-27',
+      totalDays: 2,
+      reason: 'পারিবারিক জরুরি কাজ',
+    });
+    expect(lvRes.success).toBe(true);
+    expect(leaveService.getTeacherLeaves(tid).length).toBe(1);
   });
 });

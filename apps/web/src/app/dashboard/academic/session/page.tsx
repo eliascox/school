@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import {
   Calendar,
   Plus,
@@ -414,12 +413,13 @@ export default function SessionManagementPage() {
     triggerProfessionalPrint([schoolName, 'শিক্ষাবর্ষ ও সেশন তালিকা', String(activeSession.year)]);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     setShowExportMenu(false);
     if (filteredSessions.length === 0) {
       showToast('এক্সপোর্ট করার মতো কোনো সেশন পাওয়া যায়নি।', 'warning');
       return;
     }
+    const XLSX = await import('xlsx');
     const rows = filteredSessions.map((session, idx) => {
       const range = formatSessionDateRangeBn(session.startDate, session.endDate);
       const studentCount = sessionStudentCounts.get(session.id) ?? 0;

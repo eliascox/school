@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Edit3, 
   Save, 
@@ -168,8 +168,15 @@ export default function ProfessionalMarkEntryPage() {
     }
   }, [selectedGrade]);
 
-  const configuredSubjectsList = getDynamicConfiguredSubjects(selectedGrade, selectedGroup);
-  const allSubjectNames = configuredSubjectsList.map(s => s.name);
+  const configuredSubjectsList = useMemo(
+    () => getDynamicConfiguredSubjects(selectedGrade, selectedGroup),
+    [selectedGrade, selectedGroup],
+  );
+  const cloudSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const allSubjectNames = useMemo(
+    () => configuredSubjectsList.map(s => s.name),
+    [configuredSubjectsList],
+  );
 
   // ─── RBAC: শিক্ষক লগইন হলে শুধু assigned বিষয় দেখাবে ───
   const isAdminRole = session?.role === 'admin';
@@ -408,34 +415,41 @@ export default function ProfessionalMarkEntryPage() {
       }
     }
 
-    // ☁️ Auto-sync saved marks to Cloud Firestore so /result works on all devices
-    import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
-      firebaseSyncService.syncMarksKeysToCloud(savedKeys).catch(() => {});
-    }).catch(() => {});
+    // ☁️ Debounced Cloud Firestore & SyncQueue push (600ms) so fast mark typing never freezes UI
+    if (cloudSyncTimerRef.current) clearTimeout(cloudSyncTimerRef.current);
+    const markEntityId = `${selectedExam}-${selectedGrade}-${selectedBranch}-${selectedSubject}`;
+    const snapUpdated = updated;
+    const snapSavedKeys = savedKeys;
+    const snapPerformer = session?.teacherName || (session?.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক');
+    const snapDetails = `শ্রেণি ${selectedGrade} (${selectedBranch}) এর বিষয় '${selectedSubject}' এর নম্বর আপডেট করা হয়েছে`;
+    cloudSyncTimerRef.current = setTimeout(() => {
+      import('@/services/firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncMarksKeysToCloud(snapSavedKeys).catch(() => {});
+      }).catch(() => {});
+
+      auditTrailService.addLog({
+        action: 'UPDATE_EXAM_MARKS',
+        category: 'MARKS',
+        details: snapDetails,
+        performedBy: snapPerformer,
+        status: 'SUCCESS'
+      });
+
+      syncQueueService.enqueue('exam_mark', markEntityId, 'UPDATE', {
+        examId: selectedExam,
+        grade: selectedGrade,
+        branch: selectedBranch,
+        group: selectedGroup,
+        subject: selectedSubject,
+        marksCount: snapUpdated.length,
+        marks: snapUpdated
+      }).catch(() => {});
+    }, 600);
 
     // Track last save time for Teacher Portal display
     const _now = new Date();
     const _timeStr = `${_now.toLocaleDateString('bn-BD')} ${_now.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}`;
     localStorage.setItem('sms_last_mark_save', _timeStr);
-
-    auditTrailService.addLog({
-      action: 'UPDATE_EXAM_MARKS',
-      category: 'MARKS',
-      details: `শ্রেণি ${selectedGrade} (${selectedBranch}) এর বিষয় '${selectedSubject}' এর নম্বর আপডেট করা হয়েছে`,
-      performedBy: session?.teacherName || (session?.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'),
-      status: 'SUCCESS'
-    });
-
-    const markEntityId = `${selectedExam}-${selectedGrade}-${selectedBranch}-${selectedSubject}`;
-    syncQueueService.enqueue('exam_mark', markEntityId, 'UPDATE', {
-      examId: selectedExam,
-      grade: selectedGrade,
-      branch: selectedBranch,
-      group: selectedGroup,
-      subject: selectedSubject,
-      marksCount: updated.length,
-      marks: updated
-    }).catch(() => {});
 
     setSaveSuccessMsg(true);
     setTimeout(() => setSaveSuccessMsg(false), 2000);

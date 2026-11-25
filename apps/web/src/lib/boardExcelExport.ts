@@ -41,7 +41,7 @@ export function buildBANBEISData(students: Student[], settings: SchoolSettings) 
     const sci = list.filter((s) => (s.group || '').includes('বিজ্ঞান') || (s.group || '').toLowerCase() === 'science').length;
     const hum = list.filter((s) => (s.group || '').includes('মানবিক') || (s.group || '').toLowerCase() === 'humanities').length;
     const com = list.filter((s) => (s.group || '').includes('ব্যবসায়') || (s.group || '').includes('ব্যবসায়') || (s.group || '').toLowerCase().includes('com')).length;
-    const stipend = list.filter((s) => s.isStipend || s.stipendCategory || s.stipendStatus === 'Active').length;
+    const stipend = list.filter((s) => s.stipendStatus !== 'Revoked' && (s.isStipend === true || (s.isStipend === undefined && s.stipendStatus === 'Active'))).length;
     const muslim = list.filter((s) => !s.religion || s.religion.includes('ইসলাম') || s.religion.toLowerCase().includes('islam')).length;
 
     return {
@@ -137,8 +137,8 @@ export function downloadEMISWorkbook(students: Student[], settings: SchoolSettin
 }
 
 export interface StipendExportRow extends Student {
-  attRate?: number;
-  examScore?: number;
+  attRate?: number | null;
+  examScore?: number | null;
   monthlyAmount?: number;
   isEligible?: boolean;
 }

@@ -198,9 +198,11 @@ function isOfflineOrUnavailableError(err: any): boolean {
   return (
     (typeof navigator !== 'undefined' && !navigator.onLine) ||
     code === 'unavailable' ||
+    code === 'permission-denied' ||
     msg.includes('offline') ||
     msg.includes('timed out') ||
-    msg.includes('network')
+    msg.includes('network') ||
+    msg.includes('missing or insufficient permissions')
   );
 }
 
@@ -597,7 +599,7 @@ class FirebaseSyncService {
       const settingsSnap = await getDoc(settingsRef);
       if (settingsSnap.exists()) {
         const cloudSettings = settingsSnap.data() as SchoolSettings;
-        settingsService.updateSettings(cloudSettings);
+        settingsService.updateSettings(cloudSettings, { skipCloudSync: true });
       }
 
       // 2. Pull Landing Page Published Config
@@ -947,31 +949,38 @@ class FirebaseSyncService {
    * 🌐 Fetch complete public landing page data directly from Google Cloud Firestore
    * Enables anonymous visitors on any browser or mobile device to load real school data
    */
-  public async fetchLandingPageCloudData(): Promise<LandingPageCloudData> {
+  public async fetchLandingPageCloudData(options?: {
+    includeStudentCount?: boolean;
+  }): Promise<LandingPageCloudData> {
     if (!db || !isFirebaseConfigured()) return {};
     if (typeof navigator !== 'undefined' && !navigator.onLine) return {};
     try {
       const firestore = db as Firestore;
       const result: LandingPageCloudData = {};
 
-      const [settingsRes, landingRes, noticesRes, countRes] = await Promise.allSettled([
+      const tasks: Promise<any>[] = [
         withTimeout(getDoc(doc(firestore, 'settings', 'general'))),
         withTimeout(getDoc(doc(firestore, 'landing_page', 'published'))),
         withTimeout(getDocs(collection(firestore, 'notices'))),
-        withTimeout(getCountFromServer(collection(firestore, 'students'))),
-      ]);
+      ];
+      if (options?.includeStudentCount) {
+        tasks.push(withTimeout(getCountFromServer(collection(firestore, 'students'))));
+      }
 
-      if (settingsRes.status === 'fulfilled' && settingsRes.value.exists()) {
+      const settled = await Promise.allSettled(tasks);
+      const [settingsRes, landingRes, noticesRes, countRes] = settled;
+
+      if (settingsRes?.status === 'fulfilled' && settingsRes.value.exists()) {
         result.settings = settingsRes.value.data() as SchoolSettings;
       }
 
-      if (landingRes.status === 'fulfilled' && landingRes.value.exists()) {
+      if (landingRes?.status === 'fulfilled' && landingRes.value.exists()) {
         result.landingConfig = landingRes.value.data() as LandingPageConfig;
       }
 
-      if (noticesRes.status === 'fulfilled') {
+      if (noticesRes?.status === 'fulfilled') {
         const noticesList: Notice[] = [];
-        noticesRes.value.forEach((docSnap) => {
+        noticesRes.value.forEach((docSnap: any) => {
           noticesList.push({ ...docSnap.data(), id: docSnap.id } as Notice);
         });
         if (noticesList.length > 0) {
@@ -984,7 +993,7 @@ class FirebaseSyncService {
         }
       }
 
-      if (countRes.status === 'fulfilled') {
+      if (countRes?.status === 'fulfilled') {
         result.totalStudents = countRes.value.data().count;
       }
 
@@ -1269,7 +1278,7 @@ class FirebaseSyncService {
       try {
         const settingsSnap = await getDoc(doc(firestore, 'settings', 'general'));
         if (settingsSnap.exists()) {
-          settingsService.updateSettings(settingsSnap.data() as SchoolSettings);
+          settingsService.updateSettings(settingsSnap.data() as SchoolSettings, { skipCloudSync: true });
         }
       } catch (e) {}
 

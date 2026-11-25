@@ -32,6 +32,7 @@ export type FeeSubTab =
 
 export type ReportSubTab =
   | 'income_statement'
+  | 'student_dues'
   | 'balance_sheet'
   | 'trial_balance'
   | 'cash_book'
@@ -96,10 +97,54 @@ export interface AuditLogEntry {
 
 export const MONTHS_LIST = BANGLA_MONTHS;
 
-/** Checks whether a student currently qualifies as a stipend beneficiary. */
+/** Checks whether a student currently qualifies as an active stipend beneficiary. */
 export function isStipendStudent(st: Student | null): boolean {
   if (!st) return false;
-  return Boolean(st.isStipend || st.stipendCategory || st.stipendStatus === 'Active');
+  if (st.stipendStatus === 'Revoked' || st.stipendStatus === 'Suspended') return false;
+  if (st.isStipend === true) return true;
+  if (st.isStipend === undefined && st.stipendStatus === 'Active') return true;
+  return false;
+}
+
+/** Clean executive slim header bar shared across all independent Finance & Accounts workspaces. */
+export function FinanceSlimHeader({
+  title,
+  subtitle,
+  icon,
+  iconBg = 'bg-slate-900 dark:bg-indigo-600',
+  iconColor = 'text-white',
+  badge,
+  actions,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  iconBg?: string;
+  iconColor?: string;
+  badge?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="print:hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 px-4 sm:px-5 py-3.5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`w-10 h-10 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight truncate">
+              {title}
+            </h1>
+            {badge}
+          </div>
+          <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+            {subtitle}
+          </p>
+        </div>
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+    </div>
+  );
 }
 
 /** Returns the starting month for stipend fee waiver calculation. */

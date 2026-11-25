@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRightLeft,
+  Award,
   BadgePercent,
   DollarSign,
   Edit,
@@ -28,7 +30,23 @@ import {
 } from '@/services/financeService';
 import { Student } from '@/services/studentService';
 import { confirmDialog, promptDialog, showToast } from '@/components/ui/ToastProvider';
-import { FinancePrintHeader, SchoolInfoState, isStipendStudent } from './financeShared';
+import {
+  FinancePrintHeader,
+  FinanceSlimHeader,
+  PaymentRecord,
+  SchoolInfoState,
+  isStipendStudent,
+} from './financeShared';
+
+interface ReconciledTreasury {
+  cashInHand: number;
+  bankBalances: Record<string, number>;
+  totalBankBalance: number;
+  bkashBalance: number;
+  nagadBalance: number;
+  totalMfsBalance: number;
+  totalLiquidFunds: number;
+}
 
 interface CashBankAndWaiversTabsProps {
   activeTab: 'cash_bank' | 'waivers_refunds';
@@ -37,14 +55,14 @@ interface CashBankAndWaiversTabsProps {
   waivers: WaiverRecord[];
   refunds: RefundRecord[];
   students: Student[];
+  paymentHistory: PaymentRecord[];
   feeStats: FeeCollectionStats;
-  cashInHand: number;
-  totalBankBalance: number;
+  reconciledTreasury: ReconciledTreasury;
   schoolInfo: SchoolInfoState;
   onRefreshAll: () => void;
 }
 
-/** Renders the Cash & Bank Treasury and Waivers & Refunds tabs along with their interactive modals. */
+/** Renders the independent Cash & Bank Treasury and Waivers & Refunds workspaces with true ledger reconciliation. */
 export function CashBankAndWaiversTabs({
   activeTab,
   bankAccounts,
@@ -52,16 +70,15 @@ export function CashBankAndWaiversTabs({
   waivers,
   refunds,
   students,
-  feeStats,
-  cashInHand,
-  totalBankBalance,
+  paymentHistory,
+  reconciledTreasury,
   schoolInfo,
   onRefreshAll,
 }: CashBankAndWaiversTabsProps) {
   const [showBankTransferModal, setShowBankTransferModal] = useState(false);
   const [bankTransferForm, setBankTransferForm] = useState({
-    from: 'Cash in Hand (হাতে নগদ)',
-    to: 'bank-1',
+    fromAccountCode: '1010',
+    toAccountCode: bankAccounts[0]?.accountCode || '1020',
     amount: 0,
     refNo: '',
     note: '',
@@ -99,14 +116,43 @@ export function CashBankAndWaiversTabs({
     reason: '',
     approvedBy: 'প্রধান শিক্ষক',
   });
-  const [refundForm, setRefundForm] = useState({
+  const [refundForm, setRefundForm] = useState<{
+    receiptId: string;
+    studentId: string;
+    studentName: string;
+    amount: number;
+    reason: string;
+    processedBy: string;
+    paymentMethod: 'Cash' | 'bKash' | 'Nagad' | 'Bank Transfer';
+    bankAccountId: string;
+  }>({
     receiptId: '',
     studentId: '',
     studentName: '',
     amount: 0,
     reason: '',
     processedBy: 'ক্যাশিয়ার',
+    paymentMethod: 'Cash',
+    bankAccountId: bankAccounts[0]?.id || 'bank-1',
   });
+
+  const transferAccountOptions = useMemo(
+    () => [
+      { code: '1010', label: `হাতে নগদ (1010) — ৳${reconciledTreasury.cashInHand.toLocaleString('bn-BD')}` },
+      ...bankAccounts.map((b) => ({
+        code: b.accountCode || '1020',
+        label: `${b.bankName} (${b.accountCode}) — ৳${(reconciledTreasury.bankBalances[b.id] ?? b.balance).toLocaleString('bn-BD')}`,
+      })),
+      { code: '1050', label: `বিকাশ মার্চেন্ট ওয়ালেট (1050) — ৳${reconciledTreasury.bkashBalance.toLocaleString('bn-BD')}` },
+      { code: '1060', label: `নগদ মার্চেন্ট ওয়ালেট (1060) — ৳${reconciledTreasury.nagadBalance.toLocaleString('bn-BD')}` },
+    ],
+    [bankAccounts, reconciledTreasury]
+  );
+
+  const selectedStudentReceipts = useMemo(
+    () => paymentHistory.filter((p) => !refundForm.studentId || p.studentId === refundForm.studentId),
+    [paymentHistory, refundForm.studentId]
+  );
 
   const handleOpenBankModal = (b: BankAccount | null) => {
     if (b) {
@@ -189,16 +235,33 @@ export function CashBankAndWaiversTabs({
 
   const handleSaveBankTransfer = (e: React.FormEvent) => {
     e.preventDefault();
-    financeService.postContraJournal({
-      from: bankTransferForm.from,
-      to: bankTransferForm.to,
-      amount: Number(bankTransferForm.amount),
-      date: new Date().toISOString().split('T')[0],
-      refNo: bankTransferForm.refNo,
-      note: bankTransferForm.note,
-    });
-    onRefreshAll();
-    setShowBankTransferModal(false);
+    const amt = Number(bankTransferForm.amount) || 0;
+    if (amt <= 0) {
+      showToast('ট্রান্সফারের পরিমাণ ০ টাকার বেশি হতে হবে।', 'warning');
+      return;
+    }
+    if (bankTransferForm.fromAccountCode === bankTransferForm.toAccountCode) {
+      showToast('উৎস এবং গন্তব্য হিসাব একই হতে পারবে না।', 'warning');
+      return;
+    }
+    try {
+      financeService.postContraJournal({
+        from: bankTransferForm.fromAccountCode,
+        to: bankTransferForm.toAccountCode,
+        fromAccountCode: bankTransferForm.fromAccountCode,
+        toAccountCode: bankTransferForm.toAccountCode,
+        amount: amt,
+        date: new Date().toISOString().split('T')[0],
+        refNo: bankTransferForm.refNo,
+        note: bankTransferForm.note,
+      });
+      onRefreshAll();
+      setShowBankTransferModal(false);
+      setBankTransferForm((prev) => ({ ...prev, amount: 0, refNo: '', note: '' }));
+      showToast('অভ্যন্তরীণ ফান্ড ট্রান্সফার ও কন্ট্রা ভাউচার সম্পন্ন হয়েছে!', 'success');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'ট্রান্সফার ব্যর্থ হয়েছে।', 'error');
+    }
   };
 
   const openWaiverModal = () => {
@@ -237,202 +300,212 @@ export function CashBankAndWaiversTabs({
     });
     onRefreshAll();
     setShowWaiverModal(false);
+    showToast(`${waiverForm.studentName}-এর ফি মওকুফ অনুমোদিত ও বকেয়া লেজার অটো-আপডেট হয়েছে!`, 'success');
   };
 
   const handleSaveRefund = (e: React.FormEvent) => {
     e.preventDefault();
+    const amt = Number(refundForm.amount) || 0;
+    if (amt <= 0) {
+      showToast('রিফান্ডের পরিমাণ ০ টাকার বেশি হতে হবে।', 'warning');
+      return;
+    }
     financeService.saveRefund({
       id: `RFD-${Date.now()}`,
-      ...refundForm,
-      amount: Number(refundForm.amount),
+      receiptId: refundForm.receiptId.trim(),
+      studentId: refundForm.studentId,
+      studentName: refundForm.studentName,
+      amount: amt,
+      reason: refundForm.reason,
+      processedBy: refundForm.processedBy,
+      paymentMethod: refundForm.paymentMethod,
+      bankAccountId: refundForm.paymentMethod === 'Bank Transfer' ? refundForm.bankAccountId : undefined,
       date: new Date().toISOString().split('T')[0],
     });
     onRefreshAll();
     setShowRefundModal(false);
+    showToast('ফি রিফান্ড ভাউচার ও জেনারেল লেজার সিংক সম্পন্ন হয়েছে!', 'success');
   };
 
   const renderCashBankTab = () => {
     const contraVouchers = vouchers.filter((v) => v.voucherType === 'Contra');
-    const mfsBalance = feeStats.bkashCollected + feeStats.nagadCollected;
-    const totalTreasury = cashInHand + totalBankBalance + mfsBalance;
+    const {
+      cashInHand,
+      bankBalances,
+      totalBankBalance,
+      bkashBalance,
+      nagadBalance,
+      totalMfsBalance,
+      totalLiquidFunds,
+    } = reconciledTreasury;
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <FinancePrintHeader
           schoolInfo={schoolInfo}
           title="ক্যাশ ও ব্যাংক হিসাব স্থিতি বিবরণী এবং কন্ট্রা ট্রান্সফার খতিয়ান"
         />
 
-        <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-500/30">
-              <Landmark className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-white">
-                ক্যাশ, ব্যাংক ও ট্রেজারি ব্যবস্থাপনা (Cash, Bank &amp; MFS Treasury)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                হাতে নগদ ড্রয়ার, ব্যাংক হিসাবসমূহ, মোবাইল ওয়ালেট এবং অভ্যন্তরীণ ফান্ড ট্রান্সফার
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleResetAllBankBalances}
-              title="সকল ব্যাংকের ডেমো ব্যালেন্স ০ করতে ক্লিক করুন"
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-              <span>ব্যালেন্স রিসেট (৳০)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenBankModal(null)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-800/60 transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-              <span>নতুন ব্যাংক হিসাব</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>স্থিতি প্রিন্ট</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (bankAccounts.length > 0 && !bankAccounts.some((b) => b.id === bankTransferForm.to)) {
-                  setBankTransferForm((prev) => ({ ...prev, to: bankAccounts[0].id }));
-                }
-                setShowBankTransferModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 transition-all cursor-pointer active:scale-95"
-            >
-              <ArrowRightLeft className="w-4 h-4" />
-              <span>ব্যাংকে অর্থ জমা ও ফান্ড ট্রান্সফার</span>
-            </button>
-          </div>
-        </div>
+        <FinanceSlimHeader
+          title="ক্যাশ ও ব্যাংক হিসাব"
+          subtitle="ডাবল-এন্ট্রি লেজার থেকে রিকনসাইলড ক্যাশ, ব্যাংক ও বিকাশ/নগদ ওয়ালেট স্থিতি এবং অভ্যন্তরীণ ফান্ড ট্রান্সফার"
+          icon={<Landmark className="w-5 h-5" />}
+          iconBg="bg-indigo-600"
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleResetAllBankBalances}
+                title="সকল ব্যাংকের প্রারম্ভিক ব্যালেন্স ০ করতে ক্লিক করুন"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800/60 transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>রিসেট (৳০)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenBankModal(null)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-800/60 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>নতুন ব্যাংক</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>প্রিন্ট</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBankTransferModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs transition cursor-pointer"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <span>ফান্ড ট্রান্সফার (Contra)</span>
+              </button>
+            </>
+          }
+        />
 
         <div className="print:hidden grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">হাতে নগদ (Cash in Hand)</p>
-              <h4 className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">হাতে নগদ (Cash in Hand)</p>
+              <h4 className={`text-lg font-black font-mono mt-0.5 ${cashInHand < 0 ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 ৳ {cashInHand.toLocaleString('bn-BD')}
               </h4>
-              <p className="text-[10px] text-slate-400">ক্যাশবুক সমাপনী জের (1010)</p>
+              <p className="text-[10px] text-slate-400">ক্যাশবুক নিট জের (1010)</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/20">
-              <Wallet className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Wallet className="w-4.5 h-4.5" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">ব্যাংক হিসাব স্থিতি</p>
-              <h4 className="text-lg font-black font-mono text-sky-600 dark:text-sky-400 mt-1">
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ব্যাংক হিসাব স্থিতি</p>
+              <h4 className="text-lg font-black font-mono text-sky-600 dark:text-sky-400 mt-0.5">
                 ৳ {totalBankBalance.toLocaleString('bn-BD')}
               </h4>
-              <p className="text-[10px] text-slate-400">{bankAccounts.length} টি সক্রিয় ব্যাংক হিসাব</p>
+              <p className="text-[10px] text-slate-400">{bankAccounts.length} টি রিকনসাইলড ব্যাংক</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20">
-              <Landmark className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+              <Landmark className="w-4.5 h-4.5" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোবাইল ব্যাংকিং (bKash/Nagad)</p>
-              <h4 className="text-lg font-black font-mono text-pink-600 dark:text-pink-400 mt-1">
-                ৳ {mfsBalance.toLocaleString('bn-BD')}
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">মোবাইল ব্যাংকিং (নিট)</p>
+              <h4 className="text-lg font-black font-mono text-pink-600 dark:text-pink-400 mt-0.5">
+                ৳ {totalMfsBalance.toLocaleString('bn-BD')}
               </h4>
               <p className="text-[10px] text-slate-400">
-                বিকাশ: ৳{feeStats.bkashCollected} • নগদ: ৳{feeStats.nagadCollected}
+                বিকাশ: ৳{bkashBalance.toLocaleString('bn-BD')} · নগদ: ৳{nagadBalance.toLocaleString('bn-BD')}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center border border-pink-100 dark:border-pink-500/20">
-              <Smartphone className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-pink-50 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 flex items-center justify-center">
+              <Smartphone className="w-4.5 h-4.5" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">মোট তরল তহবিল (Total Liquid)</p>
-              <h4 className="text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-1">
-                ৳ {totalTreasury.toLocaleString('bn-BD')}
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">মোট তরল তহবিল</p>
+              <h4 className="text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-0.5">
+                ৳ {totalLiquidFunds.toLocaleString('bn-BD')}
               </h4>
-              <p className="text-[10px] text-slate-400">ক্যাশ + ব্যাংক + এমএফএস</p>
+              <p className="text-[10px] text-slate-400">ক্যাশ + ব্যাংক + MFS</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20">
-              <DollarSign className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <DollarSign className="w-4.5 h-4.5" />
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {bankAccounts.map((b, idx) => (
-            <div
-              key={b.id || idx}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-3 print:bg-white print:border-black relative group transition-all hover:border-sky-300 dark:hover:border-sky-700"
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-500/20 font-bold">
-                  <Landmark className="w-5 h-5" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
-                    কোড: {b.accountCode}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenBankModal(b)}
-                    className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="ব্যাংক হিসাব ও ব্যালেন্স এডিট করুন"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  {bankAccounts.length > 1 && (
+          {bankAccounts.map((b, idx) => {
+            const liveBalance = bankBalances[b.id] ?? b.balance;
+            return (
+              <div
+                key={b.id || idx}
+                className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs rounded-2xl p-5 space-y-3 print:bg-white print:border-black relative group transition-all hover:border-sky-300 dark:hover:border-sky-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                    <Landmark className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono font-bold">
+                      কোড: {b.accountCode}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => handleDeleteBank(b.id, b.bankName)}
-                      className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="হিসাব মুছে ফেলুন"
+                      onClick={() => handleOpenBankModal(b)}
+                      className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="ব্যাংক হিসাব ও প্রারম্ভিক জের এডিট করুন"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Edit className="w-4 h-4" />
                     </button>
-                  )}
+                    {bankAccounts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBank(b.id, b.bankName)}
+                        className="print:hidden p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="হিসাব মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white print:text-black">{b.bankName}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{b.accountName}</p>
+                  {b.branch && <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{b.branch}</p>}
+                  <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">হিসাব নং: {b.accountNumber}</p>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">রিকনসাইলড স্থিতি:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenBankModal(b)}
+                      className="print:hidden text-[11px] text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer"
+                    >
+                      (এডিট)
+                    </button>
+                  </div>
+                  <span className="text-lg font-black font-mono text-sky-700 dark:text-sky-400 print:text-black">
+                    ৳ {liveBalance.toLocaleString('bn-BD')}
+                  </span>
                 </div>
               </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900 dark:text-white print:text-black">{b.bankName}</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{b.accountName}</p>
-                {b.branch && <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{b.branch}</p>}
-                <p className="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">হিসাব নং: {b.accountNumber}</p>
-              </div>
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">বর্তমান স্থিতি:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenBankModal(b)}
-                    className="print:hidden text-[11px] text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer"
-                    title="ব্যালেন্স এডিট করতে ক্লিক করুন"
-                  >
-                    (এডিট)
-                  </button>
-                </div>
-                <span className="text-lg font-black font-mono text-sky-700 dark:text-sky-400 print:text-black">
-                  ৳ {b.balance.toLocaleString('bn-BD')}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 space-y-4 print:border-none print:p-0">
@@ -493,7 +566,41 @@ export function CashBankAndWaiversTabs({
     const stipendStudentsCount = students.filter((s) => isStipendStudent(s)).length;
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
+        <FinanceSlimHeader
+          title="ফি মওকুফ ও রিফান্ড"
+          subtitle="দরিদ্র ও মেধাবী শিক্ষার্থীদের ফি মওকুফ (সরাসরি বকেয়া লেজারে সিংকড) এবং অতিরিক্ত ফি ফেরতের ডাবল-এন্ট্রি ভাউচার"
+          icon={<BadgePercent className="w-5 h-5" />}
+          iconBg="bg-amber-600"
+          actions={
+            <>
+              <Link
+                href="/dashboard/stipend/"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition"
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>উপবৃত্তি ম্যানেজমেন্ট</span>
+              </Link>
+              <button
+                type="button"
+                onClick={openWaiverModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>মওকুফ অনুমোদন</span>
+              </button>
+              <button
+                type="button"
+                onClick={openRefundModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>রিফান্ড ভাউচার</span>
+              </button>
+            </>
+          }
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
             <div>
@@ -711,50 +818,73 @@ export function CashBankAndWaiversTabs({
 
             <form onSubmit={handleSaveBankTransfer} className="space-y-3">
               <div>
-                <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">উৎস হিসাব (From Account)</label>
-                <input
-                  type="text"
-                  value={bankTransferForm.from}
-                  disabled
-                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">গন্তব্য ব্যাংক হিসাব (To Bank)</label>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  উৎস হিসাব (From Account)
+                </label>
                 <select
-                  value={bankTransferForm.to}
-                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, to: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={bankTransferForm.fromAccountCode}
+                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, fromAccountCode: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
                 >
-                  {bankAccounts.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.bankName} ({b.accountNumber || b.accountCode})
+                  {transferAccountOptions.map((opt) => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">টাকার পরিমাণ</label>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  গন্তব্য হিসাব (To Account)
+                </label>
+                <select
+                  value={bankTransferForm.toAccountCode}
+                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, toAccountCode: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                >
+                  {transferAccountOptions.map((opt) => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">টাকার পরিমাণ *</label>
                 <input
                   type="number"
-                  value={bankTransferForm.amount}
-                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, amount: Number(e.target.value) })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  min="1"
+                  value={bankTransferForm.amount || ''}
+                  placeholder="0"
+                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, amount: Number(e.target.value) || 0 })}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
                   required
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-slate-600 dark:text-slate-400 block mb-1">ডিপোজিট স্লিপ / রেফারেন্স নং</label>
-                <input
-                  type="text"
-                  placeholder="যেমন: SLIP-88210"
-                  value={bankTransferForm.refNo}
-                  onChange={(e) => setBankTransferForm({ ...bankTransferForm, refNo: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">ডিপোজিট স্লিপ / রেফ</label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: SLIP-88210"
+                    value={bankTransferForm.refNo}
+                    onChange={(e) => setBankTransferForm({ ...bankTransferForm, refNo: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">মন্তব্য</label>
+                  <input
+                    type="text"
+                    placeholder="উদ্দেশ্য..."
+                    value={bankTransferForm.note}
+                    onChange={(e) => setBankTransferForm({ ...bankTransferForm, note: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3">
@@ -1060,35 +1190,6 @@ export function CashBankAndWaiversTabs({
             </div>
 
             <form onSubmit={handleSaveRefund} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
-                    রসিদ নম্বর (Receipt ID)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="যেমন: REC-2026-001"
-                    value={refundForm.receiptId}
-                    onChange={(e) => setRefundForm({ ...refundForm, receiptId: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 font-mono"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
-                    রিফান্ড পরিমাণ (৳)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={refundForm.amount}
-                    onChange={(e) => setRefundForm({ ...refundForm, amount: Number(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 font-mono font-bold"
-                    required
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
                   শিক্ষার্থী নির্বাচন করুন
@@ -1123,6 +1224,106 @@ export function CashBankAndWaiversTabs({
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500"
                     required
                   />
+                )}
+              </div>
+
+              {selectedStudentReceipts.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-indigo-700 dark:text-indigo-400 block mb-1">
+                    আদায়কৃত রসিদ থেকে বাছাই করুন (ঐচ্ছিক অটো-ফিল)
+                  </label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const rec = selectedStudentReceipts.find((r) => r.receiptId === e.target.value);
+                      if (rec) {
+                        setRefundForm((prev) => ({
+                          ...prev,
+                          receiptId: rec.receiptId,
+                          amount: rec.paidAmount,
+                          studentId: rec.studentId,
+                          studentName: rec.studentName,
+                        }));
+                      }
+                    }}
+                    className="w-full bg-indigo-50/50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="">-- রসিদ নির্বাচন করুন ({selectedStudentReceipts.length} টি) --</option>
+                    {selectedStudentReceipts.slice(0, 25).map((r) => (
+                      <option key={r.receiptId} value={r.receiptId}>
+                        {r.receiptId} · ৳{r.paidAmount} · {r.date} ({r.paymentMethod})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    রসিদ নম্বর (Receipt ID)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: REC-2026-001"
+                    value={refundForm.receiptId}
+                    onChange={(e) => setRefundForm({ ...refundForm, receiptId: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    রিফান্ড পরিমাণ (৳)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={refundForm.amount || ''}
+                    placeholder="0"
+                    onChange={(e) => setRefundForm({ ...refundForm, amount: Number(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 font-mono font-bold"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    ফেরত মাধ্যম
+                  </label>
+                  <select
+                    value={refundForm.paymentMethod}
+                    onChange={(e) =>
+                      setRefundForm({
+                        ...refundForm,
+                        paymentMethod: e.target.value as 'Cash' | 'bKash' | 'Nagad' | 'Bank Transfer',
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="Cash">নগদ ক্যাশ</option>
+                    <option value="bKash">বিকাশ</option>
+                    <option value="Nagad">নগদ</option>
+                    <option value="Bank Transfer">ব্যাংক ট্রান্সফার</option>
+                  </select>
+                </div>
+                {refundForm.paymentMethod === 'Bank Transfer' && bankAccounts.length > 0 && (
+                  <div>
+                    <label className="text-xs text-slate-700 dark:text-slate-300 font-semibold block mb-1">ব্যাংক হিসাব</label>
+                    <select
+                      value={refundForm.bankAccountId}
+                      onChange={(e) => setRefundForm({ ...refundForm, bankAccountId: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-900 dark:text-white"
+                    >
+                      {bankAccounts.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.bankName} ({b.accountCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
 

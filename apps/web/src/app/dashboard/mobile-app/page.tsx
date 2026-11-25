@@ -7,7 +7,6 @@ import {
   CheckCircle2, Users, Bell, CalendarCheck2, ShieldCheck,
   Copy, Check, Wifi, Globe, Sparkles, ArrowRight
 } from 'lucide-react';
-import { firebaseSyncService } from '@/services/firebaseSyncService';
 import { studentService } from '@/services/studentService';
 import { noticeService } from '@/services/noticeService';
 import { teacherRBACService } from '@/services/teacherRBACService';
@@ -85,6 +84,7 @@ export default function DashboardMobileAppHub() {
     setSyncing(true);
     setSyncSuccess(false);
     try {
+      const { firebaseSyncService } = await import('@/services/firebaseSyncService');
       await firebaseSyncService.uploadAllToCloud();
       await firebaseSyncService.pullAllFromCloud();
       loadStats();

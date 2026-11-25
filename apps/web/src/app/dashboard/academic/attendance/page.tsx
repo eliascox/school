@@ -194,10 +194,13 @@ export default function AttendancePage() {
     }
   }, []);
 
-  // ─── CENTRAL ABSENTEE PANEL GATHERING ──────────────────────────────
+  // ─── CENTRAL ABSENTEE PANEL GATHERING (lazy: skip scanning 36+ keys while on register/scanner tabs) ──
   const centralAbsenteeList = useMemo(() => {
+    if (activeTab !== 'absentee_panel' && !(activeTab === 'reports' && printScope === 'all')) {
+      return [];
+    }
     return attendanceService.getAllAbsenteesForDate(selectedDate);
-  }, [selectedDate, students]);
+  }, [activeTab, printScope, selectedDate, students]);
 
   // Main marked list search filter
   const filteredStudents = useMemo(() => {

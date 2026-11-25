@@ -411,7 +411,7 @@ export default function SchoolPadWrapper({
         </div>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         @media print {
           @page {
             size: A4 portrait;

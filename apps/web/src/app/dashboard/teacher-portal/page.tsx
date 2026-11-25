@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import {
   AlertTriangle,
   Bell,
@@ -163,17 +164,30 @@ function TeacherPortalContent() {
 
   const [mounted, setMounted] = useState(false);
   const urlTabParam = searchParams?.get('tab') ?? null;
-  const [optimisticTab, setOptimisticTab] = useState<{
-    forUrl: string | null;
-    tab: TeacherPortalTab;
-  } | null>(null);
+  const [activeTab, setActiveTab] = useState<TeacherPortalTab>(() =>
+    isValidPortalTab(urlTabParam) ? urlTabParam : 'home'
+  );
 
-  const activeTab: TeacherPortalTab =
-    optimisticTab && optimisticTab.forUrl === urlTabParam
-      ? optimisticTab.tab
-      : isValidPortalTab(urlTabParam)
-      ? urlTabParam
-      : 'home';
+  useEffect(() => {
+    const syncPortalTab = () => {
+      const param =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('tab')
+          : urlTabParam;
+      if (isValidPortalTab(param)) {
+        setActiveTab(param);
+      } else if (!param) {
+        setActiveTab('home');
+      }
+    };
+    syncPortalTab();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncPortalTab);
+    window.addEventListener('popstate', syncPortalTab);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncPortalTab);
+      window.removeEventListener('popstate', syncPortalTab);
+    };
+  }, [urlTabParam]);
 
   // Session & RBAC scoped data
   const [session, setSession] = useState<UserSession | null>(null);
@@ -216,10 +230,8 @@ function TeacherPortalContent() {
   }, []);
 
   const handleSwitchTab = (nextTab: TeacherPortalTab) => {
-    setOptimisticTab({ forUrl: urlTabParam, tab: nextTab });
-    router.replace(`/dashboard/teacher-portal?tab=${nextTab}`, {
-      scroll: false,
-    });
+    setActiveTab(nextTab);
+    syncUrlQueryParams('/dashboard/teacher-portal', { tab: nextTab });
   };
 
   // ─── Data Loader (Strict RBAC Scoping Preserved) ──────────────────────────

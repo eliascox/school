@@ -15,7 +15,6 @@ import {
   Search,
   Check,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import {
   OmrExamSession,
   OmrScanRecord,
@@ -136,7 +135,8 @@ export default function OmrResultsSyncTab({
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
     const rows = roster.map(({ student, scan }) => ({
       রোল: student.roll,
       'শিক্ষার্থীর নাম': student.name,

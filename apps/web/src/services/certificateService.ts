@@ -15,6 +15,7 @@ export type CertificateType =
 
 export type CertificateStatus = 'valid' | 'cancelled';
 export type CertificateLayoutStyle = 'pad' | 'royal_border' | 'modern_clean';
+export type CertificateCanvasMode = 'uploaded_pad' | 'preprinted_pad' | 'digital_frame';
 
 export interface CertificateAuditEntry {
   action: 'CREATED' | 'EDITED' | 'PRINTED' | 'REGENERATED' | 'CANCELLED';
@@ -85,9 +86,12 @@ export interface CertificateRecord {
   purposeText?: string;
 
   // Studio Visual & Print Controls
+  canvasMode?: CertificateCanvasMode;
+  hideTitle?: boolean;
+  customRecipientMode?: 'structured' | 'freeform';
   orientation?: 'portrait' | 'landscape';
   themeColor?: string;
-  titleVariant?: 'ribbon' | 'underline' | 'minimal';
+  titleVariant?: 'ribbon' | 'underline' | 'minimal' | 'boxed';
   borderPreset?: string;
   customBorderUrl?: string;
   showHeader?: boolean;
@@ -535,6 +539,17 @@ class CertificateService {
       localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(DEFAULT_CERTIFICATE_TEMPLATES));
     }
     return DEFAULT_CERTIFICATE_TEMPLATES;
+  }
+
+  deleteTemplate(id: string): CertificateTemplate[] {
+    const current = this.getTemplates();
+    const target = current.find((t) => t.id === id);
+    if (!target || target.isDefault) return current;
+    const updated = current.filter((t) => t.id !== id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(updated));
+    }
+    return updated;
   }
 
   getTemplateForType(type: CertificateType): CertificateTemplate {

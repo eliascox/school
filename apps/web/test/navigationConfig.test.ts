@@ -178,9 +178,16 @@ describe('navigationConfig', () => {
       isNavHrefActive('/dashboard/teacher', '/dashboard/leaves/', query()),
     ).toBe(false);
 
+    // Unified Settings item stays active across all internal ?tab= views
+    expect(
+      isNavHrefActive('/dashboard/settings', '/dashboard/settings/', query()),
+    ).toBe(true);
     expect(
       isNavHrefActive('/dashboard/settings', '/dashboard/settings/', query('tab=committee')),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      isNavHrefActive('/dashboard/settings', '/dashboard/settings/', query('tab=pad')),
+    ).toBe(true);
     expect(
       isNavHrefActive(
         '/dashboard/settings?tab=committee',

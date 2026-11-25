@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import type { Student } from '@/services/studentService';
 import type { ExamHallRoom, SeatPlanEntry } from '@/services/examSeatPlanService';
 
@@ -831,13 +830,14 @@ export function buildRoomDoorSummaries(
   return summaries;
 }
 
-export function exportSeatPlanToExcel(params: {
+export async function exportSeatPlanToExcel(params: {
   examTitle: string;
   schoolName: string;
   entries: SeatPlanEntry[];
   summaries: RoomDoorSummary[];
   studentGenderById?: Map<string, NormalizedGender>;
-}): void {
+}): Promise<void> {
+  const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
 
   // Sheet 1: Room Door Summary

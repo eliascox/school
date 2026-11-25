@@ -165,9 +165,11 @@ export const attendanceService = {
     branch: string;
     records: StudentAttendanceRecord[];
     performedBy?: string;
+    silentAudit?: boolean;
+    skipCloudSync?: boolean;
   }): boolean => {
     if (typeof window === 'undefined') return false;
-    const { date, grade, branch, records, performedBy } = params;
+    const { date, grade, branch, records, performedBy, silentAudit, skipCloudSync } = params;
 
     // Deduplicate records by student id / roll to prevent duplicate attendance lines
     const uniqueMap = new Map<string, StudentAttendanceRecord>();
@@ -189,32 +191,36 @@ export const attendanceService = {
     const absentCnt = validatedRecords.filter(s => s.status === 'Absent').length;
     const leaveCnt = validatedRecords.filter(s => s.status === 'Leave').length;
 
-    auditTrailService.addLog({
-      action: 'MARK_ATTENDANCE',
-      category: 'ATTENDANCE',
-      details: `শ্রেণি ${grade} (${branch}) এর তারিখ ${date} এর উপস্থিতি সেভ করা হয়েছে (উপস্থিত: ${presentCnt}, অনুপস্থিত: ${absentCnt}, ছুটি: ${leaveCnt})`,
-      performedBy: performedBy || 'শিক্ষক',
-      status: 'SUCCESS'
-    });
+    if (!silentAudit) {
+      auditTrailService.addLog({
+        action: 'MARK_ATTENDANCE',
+        category: 'ATTENDANCE',
+        details: `শ্রেণি ${grade} (${branch}) এর তারিখ ${date} এর উপস্থিতি সেভ করা হয়েছে (উপস্থিত: ${presentCnt}, অনুপস্থিত: ${absentCnt}, ছুটি: ${leaveCnt})`,
+        performedBy: performedBy || 'শিক্ষক',
+        status: 'SUCCESS'
+      });
+    }
 
-    // Enqueue mutation for sync
-    const syncEntityId = `${date}-${grade}-${branch}`;
-    syncQueueService.enqueue('attendance', syncEntityId, 'UPDATE', {
-      date,
-      grade,
-      branch,
-      presentCnt,
-      absentCnt,
-      leaveCnt,
-      recordsCount: validatedRecords.length
-    }).catch(() => {});
+    if (!skipCloudSync) {
+      // Enqueue mutation for sync
+      const syncEntityId = `${date}-${grade}-${branch}`;
+      syncQueueService.enqueue('attendance', syncEntityId, 'UPDATE', {
+        date,
+        grade,
+        branch,
+        presentCnt,
+        absentCnt,
+        leaveCnt,
+        recordsCount: validatedRecords.length
+      }).catch(() => {});
 
-    // ☁️ Auto-sync saved attendance key to Cloud Firestore for multi-device/mobile live view
-    import('./firebaseSyncService')
-      .then(({ firebaseSyncService }) => {
-        firebaseSyncService.syncAttendanceKeysToCloud([key]).catch(() => {});
-      })
-      .catch(() => {});
+      // ☁️ Auto-sync saved attendance key to Cloud Firestore for multi-device/mobile live view
+      import('./firebaseSyncService')
+        .then(({ firebaseSyncService }) => {
+          firebaseSyncService.syncAttendanceKeysToCloud([key]).catch(() => {});
+        })
+        .catch(() => {});
+    }
 
     window.dispatchEvent(new Event('storage'));
     listeners.forEach(fn => fn());

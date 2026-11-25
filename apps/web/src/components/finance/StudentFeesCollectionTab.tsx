@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import {
   BANGLA_MONTHS,
+  BankAccount,
   DEFAULT_CLASS_FEES_CONFIG,
   DEFAULT_FEE_SECTORS,
   FeeSector,
@@ -40,6 +41,7 @@ interface StudentFeesCollectionTabProps {
   classFees: { [grade: string]: { [secId: string]: number } };
   allStudentLedgers: Record<string, StudentFeeLedger>;
   feeSectors: FeeSector[];
+  bankAccounts?: BankAccount[];
   paymentHistory: PaymentRecord[];
   schoolInfo: SchoolInfoState;
   selectedStudent: Student | null;
@@ -56,6 +58,7 @@ export function StudentFeesCollectionTab({
   classFees,
   allStudentLedgers,
   feeSectors,
+  bankAccounts = [],
   paymentHistory,
   schoolInfo,
   selectedStudent,
@@ -77,6 +80,7 @@ export function StudentFeesCollectionTab({
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [paymentAmountInput, setPaymentAmountInput] = useState<number | string>('');
   const [paymentMethod, setPaymentMethod] = useState<FeePaymentMethod>('Cash');
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>('');
   const [trxIdInput, setTrxIdInput] = useState<string>('');
   const [collectedBy] = useState<string>('ক্যাশিয়ার');
 
@@ -258,7 +262,10 @@ export function StudentFeesCollectionTab({
     const selectedOtherIds = Object.keys(extraFeeSelections).filter((secId) => extraFeeSelections[secId]);
 
     const studentStipendStartMonth =
-      extStudent.stipendStartMonth || (selectedStudent.isStipend && extStudent.stipendMonth) || 'জানুয়ারি';
+      stipendStartMonthOverride || getStudentStipendStartMonth(selectedStudent);
+
+    const effectiveBankId =
+      paymentMethod === 'Bank Transfer' ? selectedBankAccountId || bankAccounts[0]?.id : undefined;
 
     const finalTrxId =
       paymentMethod === 'Cash'
@@ -304,11 +311,8 @@ export function StudentFeesCollectionTab({
       collectedBy,
     };
 
-    const updated = [newRecord, ...paymentHistory];
-    onPaymentHistoryUpdate(updated);
-    try {
-      localStorage.setItem('sms_payment_history', JSON.stringify(updated));
-    } catch {}
+    const updatedHistory = financeService.addPaymentRecord(newRecord);
+    onPaymentHistoryUpdate(updatedHistory as PaymentRecord[]);
 
     financeService.postFeeReceiptJournal({
       receiptId: receiptNum,
@@ -319,6 +323,7 @@ export function StudentFeesCollectionTab({
       subtotal: actualPaidAmount + discountAmount,
       discount: discountAmount,
       paymentMethod,
+      bankAccountId: effectiveBankId,
       feeItems: paidFeeItems.map((f) => ({ name: f.name, amount: f.amount })),
       date: now.toISOString().split('T')[0],
       collectedBy,
@@ -600,6 +605,13 @@ export function StudentFeesCollectionTab({
                   </span>
                 </p>
 
+                {selectedStudentLedger.appliedWaiverLabel && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>অনুমোদিত মওকুফ সক্রিয়: {selectedStudentLedger.appliedWaiverLabel}</span>
+                  </div>
+                )}
+
                 {isStipendStudent(selectedStudent) && (
                   <div className="mt-2.5 p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-1.5 text-purple-900 dark:text-purple-200">
@@ -852,8 +864,21 @@ export function StudentFeesCollectionTab({
                   <option value="Cash">💵 নগদ ক্যাশ</option>
                   <option value="bKash">📱 বিকাশ (bKash)</option>
                   <option value="Nagad">📲 নগদ (Nagad)</option>
-                  <option value="Bank Transfer">🏛️ সোনালী ব্যাংক ডিপোজিট</option>
+                  <option value="Bank Transfer">🏛️ ব্যাংক ডিপোজিট / ট্রান্সফার</option>
                 </select>
+                {paymentMethod === 'Bank Transfer' && bankAccounts.length > 0 && (
+                  <select
+                    value={selectedBankAccountId || bankAccounts[0]?.id || ''}
+                    onChange={(e) => setSelectedBankAccountId(e.target.value)}
+                    className="mt-1.5 w-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-indigo-900 dark:text-indigo-200 outline-none cursor-pointer"
+                  >
+                    {bankAccounts.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.bankName} ({b.accountCode})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">

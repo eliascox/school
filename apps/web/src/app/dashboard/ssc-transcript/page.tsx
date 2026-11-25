@@ -25,7 +25,7 @@ import {
   Upload,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import * as XLSX from 'xlsx';
+import { URL_QUERY_CHANGED_EVENT, syncUrlQueryParams } from '@/lib/urlTabSync';
 import { certificateService, CertificateRecord } from '@/services/certificateService';
 import { studentService, Student } from '@/services/studentService';
 import { alumniService } from '@/services/alumniService';
@@ -69,17 +69,30 @@ function SSCTestimonialsContent() {
   const [activeTab, setActiveTab] = useState<MainTab>('single_generator');
 
   useEffect(() => {
-    if (!tabParam) return;
-    if (tabParam === 'settings' || tabParam === 'border_manager') {
-      setActiveTab('settings');
-    } else if (['single_generator', 'bulk_generator', 'batch_print', 'register'].includes(tabParam)) {
-      setActiveTab(tabParam as MainTab);
-    }
+    const syncSscTab = () => {
+      const liveTab =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('tab')
+          : tabParam;
+      if (!liveTab) return;
+      if (liveTab === 'settings' || liveTab === 'border_manager') {
+        setActiveTab('settings');
+      } else if (['single_generator', 'bulk_generator', 'batch_print', 'register'].includes(liveTab)) {
+        setActiveTab(liveTab as MainTab);
+      }
+    };
+    syncSscTab();
+    window.addEventListener(URL_QUERY_CHANGED_EVENT, syncSscTab);
+    window.addEventListener('popstate', syncSscTab);
+    return () => {
+      window.removeEventListener(URL_QUERY_CHANGED_EVENT, syncSscTab);
+      window.removeEventListener('popstate', syncSscTab);
+    };
   }, [tabParam]);
 
   const handleTabChange = (newTab: MainTab) => {
     setActiveTab(newTab);
-    router.push(`/dashboard/ssc-transcript?tab=${newTab}`, { scroll: false });
+    syncUrlQueryParams('/dashboard/ssc-transcript', { tab: newTab });
   };
 
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(settingsService.getSettings());
@@ -476,8 +489,9 @@ function SSCTestimonialsContent() {
     }
   }, [searchParams, students, mounted, populateSingleFromStudent]);
 
-  const handleDownloadExcelTemplate = () => {
+  const handleDownloadExcelTemplate = async () => {
     try {
+      const XLSX = await import('xlsx');
       const excelData = sscCandidates.map((s, idx) => {
         const pseudoBoardRoll = (102900 + parseInt(s.roll || `${idx + 1}`, 10)).toString();
         const pseudoRegNo = `1810293${(s.roll || `${idx + 1}`).toString().padStart(3, '0')}`;
@@ -586,6 +600,7 @@ function SSCTestimonialsContent() {
       let dataRows: unknown[][] = [];
 
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];

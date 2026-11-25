@@ -69,6 +69,7 @@ function PrintPageContent() {
     group: 'all',
     gender: 'all',
     religion: 'all',
+    stipend: 'all',
     q: '',
   });
   const [year, setYear] = useState('২০২৬');
@@ -129,10 +130,11 @@ function PrintPageContent() {
     const group = searchParams?.get('group') || 'all';
     const gender = searchParams?.get('gender') || 'all';
     const religion = searchParams?.get('religion') || 'all';
+    const stipend = searchParams?.get('stipend') || 'all';
     const q = (searchParams?.get('q') || '').trim();
     const yr = searchParams?.get('year') || '২০২৬';
 
-    setFilters({ grade, branch, group, gender, religion, q });
+    setFilters({ grade, branch, group, gender, religion, stipend, q });
     setYear(yr);
 
     // 4. Filter students
@@ -170,6 +172,9 @@ function PrintPageContent() {
         religion === 'all' ||
         (st.religion && st.religion.includes(religion));
 
+      const matchStipend =
+        stipend === 'all' || (stipend === 'stipend_only' && Boolean(st.isStipend));
+
       const norm = (v: unknown) =>
         String(v ?? '')
           .toLowerCase()
@@ -191,6 +196,7 @@ function PrintPageContent() {
         matchGroup &&
         matchGender &&
         matchReligion &&
+        matchStipend &&
         matchSearch
       );
     });
@@ -228,7 +234,18 @@ function PrintPageContent() {
       { gradeKey: '10_bs', gradeKeyNum: '10', gradeBn: '১০ম', group: 'ব্যবসায় শিক্ষা' },
     ];
 
-    const baseList = allStudentsList;
+    const baseList = allStudentsList.filter((st: any) => {
+      const matchBranch =
+        filters.branch === 'all' ||
+        ((st.branch || st.section || '').toLowerCase() === filters.branch.toLowerCase());
+      const matchReligion =
+        filters.religion === 'all' ||
+        (st.religion && st.religion.includes(filters.religion));
+      const matchStipend =
+        filters.stipend === 'all' ||
+        (filters.stipend === 'stipend_only' && Boolean(st.isStipend));
+      return Boolean(matchBranch && matchReligion && matchStipend);
+    });
 
     return standardSpecs.map((spec) => {
       const matched = baseList.filter((st) => {
@@ -288,7 +305,7 @@ function PrintPageContent() {
         total,
       };
     });
-  }, [allStudentsList]);
+  }, [allStudentsList, filters.branch, filters.religion, filters.stipend]);
 
   const summaryTotalBoys = classSummaryData.reduce((sum, r) => sum + r.boys, 0);
   const summaryTotalGirls = classSummaryData.reduce((sum, r) => sum + r.girls, 0);
@@ -575,12 +592,13 @@ function PrintPageContent() {
         }
       `}</style>
 
-      {/* ── NO-PRINT TOP CONTROL TOOLBAR (SINGLE LINE) ── */}
-      <div className="no-print sticky top-0 z-50 bg-slate-900 text-white px-4 sm:px-6 py-2.5 shadow-xl border-b border-slate-800 space-y-2">
+      {/* ── NO-PRINT SINGLE-ROW COMPACT CONTROL TOOLBAR ── */}
+      <div className="no-print sticky top-0 z-50 bg-slate-900 text-white px-4 sm:px-5 py-2 shadow-lg border-b border-slate-800">
         <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           {/* Left: Back & Report Mode Switcher */}
           <div className="flex items-center gap-2 shrink-0">
             <button
+              type="button"
               onClick={() => {
                 if (window.history.length > 1) {
                   window.history.back();
@@ -588,46 +606,87 @@ function PrintPageContent() {
                   window.location.href = '/dashboard/students?view=print';
                 }
               }}
-              className="h-9 flex items-center gap-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition cursor-pointer border border-slate-700 whitespace-nowrap"
+              className="h-8.5 flex items-center gap-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition cursor-pointer border border-slate-700 whitespace-nowrap"
             >
               <ArrowLeft size={14} /> ফিরে যান
             </button>
 
-            {/* Report Mode Switcher Tabs */}
-            <div className="h-9 flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <div className="h-8.5 flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
               <button
-                onClick={() => {
-                  setReportType('summary');
-                  setOrientation('portrait');
-                }}
-                className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                  reportType === 'summary'
-                    ? 'bg-emerald-600 text-white shadow-xs font-black'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                <BarChart3 size={13} />
-                সামারি রিপোর্ট
-              </button>
-              <button
+                type="button"
                 onClick={() => setReportType('detailed')}
-                className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                className={`h-7 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   reportType === 'detailed'
                     ? 'bg-indigo-600 text-white shadow-xs font-black'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
                 <FileText size={13} />
-                বিস্তারিত তালিকা ({toBn(filteredStudents.length)} জন)
+                বিস্তারিত ({toBn(filteredStudents.length)})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReportType('summary');
+                  setOrientation('portrait');
+                }}
+                className={`h-7 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                  reportType === 'summary'
+                    ? 'bg-emerald-600 text-white shadow-xs font-black'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <BarChart3 size={13} />
+                সারসংক্ষেপ
               </button>
             </div>
           </div>
 
-          {/* Right: Orientation, Margin, Rows/Page & Print Action */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right: Inline Pager (if multi-page), Orientation, Margin, Rows/Page & Print Action */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {reportType === 'detailed' && totalDetailedPages > 1 && (
+              <div className="h-8.5 flex items-center gap-0.5 bg-slate-800 px-1 rounded-xl border border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => scrollToSheet(Math.max(1, currentSheetPage - 1))}
+                  disabled={currentSheetPage <= 1}
+                  className="w-6.5 h-6.5 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-35 text-white inline-flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed"
+                  title="পূর্ববর্তী পৃষ্ঠা"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <span className="px-1.5 font-mono font-bold text-[11px] text-amber-300 whitespace-nowrap">
+                  {toBn(currentSheetPage)} / {toBn(totalDetailedPages)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => scrollToSheet(Math.min(totalDetailedPages, currentSheetPage + 1))}
+                  disabled={currentSheetPage >= totalDetailedPages}
+                  className="w-6.5 h-6.5 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-35 text-white inline-flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed"
+                  title="পরবর্তী পৃষ্ঠা"
+                >
+                  <ChevronRight size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewAllSheets(!viewAllSheets)}
+                  className={`h-6.5 px-2 ml-0.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1 transition cursor-pointer ${
+                    !viewAllSheets
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                  }`}
+                  title={viewAllSheets ? 'এক পৃষ্ঠা করে দেখুন' : 'সব পৃষ্ঠা দেখুন'}
+                >
+                  <Layers size={12} />
+                  <span>{viewAllSheets ? 'সব' : '১ পাতা'}</span>
+                </button>
+              </div>
+            )}
+
             {/* Portrait / Landscape Toggle */}
-            <div className="h-9 flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <div className="h-8.5 flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
               <button
+                type="button"
                 onClick={() => setOrientation('portrait')}
                 className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   orientation === 'portrait'
@@ -635,9 +694,10 @@ function PrintPageContent() {
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                📄 পোর্ট্রেট
+                পোর্ট্রেট
               </button>
               <button
+                type="button"
                 onClick={() => setOrientation('landscape')}
                 className={`h-7 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                   orientation === 'landscape'
@@ -645,117 +705,52 @@ function PrintPageContent() {
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
-                📜 ল্যান্ডস্কেপ
+                ল্যান্ডস্কেপ
               </button>
             </div>
 
             {/* Page Margin Selector */}
-            <div className="h-9 flex items-center gap-1.5 bg-slate-800 px-2.5 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
-              <Maximize2 size={13} className="text-emerald-400 shrink-0" />
-              <span className="text-slate-400 font-bold">মার্জিন:</span>
+            <div className="h-8.5 flex items-center gap-1 bg-slate-800 px-2 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
+              <Maximize2 size={12} className="text-emerald-400 shrink-0" />
               <select
                 value={marginPreset}
                 onChange={(e) => setMarginPreset(e.target.value as MarginPreset)}
-                className="bg-slate-900 text-white font-bold text-xs px-2 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
+                className="bg-transparent text-white font-bold text-xs outline-none cursor-pointer"
+                aria-label="পৃষ্ঠার মার্জিন"
               >
-                <option value="normal">১২ মিমি (স্ট্যান্ডার্ড)</option>
-                <option value="wide">১৮ মিমি (প্রশস্ত)</option>
-                <option value="compact">৮ মিমি (কমপ্যাক্ট)</option>
+                <option value="normal" className="bg-slate-900">১২ মিমি</option>
+                <option value="wide" className="bg-slate-900">১৮ মিমি</option>
+                <option value="compact" className="bg-slate-900">৮ মিমি</option>
               </select>
             </div>
 
             {/* Students Per Page Selector (For Detailed Report) */}
             {reportType === 'detailed' && (
-              <div className="h-9 flex items-center gap-1.5 bg-slate-800 px-2.5 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
+              <div className="h-8.5 flex items-center gap-1 bg-slate-800 px-2 rounded-xl border border-slate-700 text-xs whitespace-nowrap">
                 <span className="text-slate-400 font-bold">পৃষ্ঠায়:</span>
                 <select
                   value={rowsPerPage}
                   onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  className="bg-slate-900 text-white font-bold text-xs px-2 py-1 rounded-lg border border-slate-700 outline-none cursor-pointer"
+                  className="bg-transparent text-white font-bold text-xs outline-none cursor-pointer"
                 >
-                  <option value={0}>অটো ({orientation === 'portrait' ? '২৪–২৮' : '১৫–১৮'} জন)</option>
-                  <option value={15}>১৫ জন</option>
-                  <option value={20}>২০ জন</option>
-                  <option value={25}>২৫ জন</option>
-                  <option value={30}>৩০ জন</option>
+                  <option value={0} className="bg-slate-900">অটো</option>
+                  <option value={15} className="bg-slate-900">১৫</option>
+                  <option value={20} className="bg-slate-900">২০</option>
+                  <option value={25} className="bg-slate-900">২৫</option>
+                  <option value={30} className="bg-slate-900">৩০</option>
                 </select>
               </div>
             )}
 
             <button
+              type="button"
               onClick={() => window.print()}
-              className="h-9 flex items-center gap-1.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap"
+              className="h-8.5 flex items-center gap-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap"
             >
-              <Printer size={14} /> প্রিন্ট / PDF সংরক্ষণ
+              <Printer size={14} /> প্রিন্ট / PDF
             </button>
           </div>
         </div>
-
-        {/* ── MULTI-PAGE NAVIGATION BAR (Shown when Detailed Report has pages) ── */}
-        {reportType === 'detailed' && (
-          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-800/80 text-xs">
-            <div className="flex items-center gap-2 text-slate-300 font-semibold">
-              <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-amber-300 font-bold border border-slate-700">
-                A4 {orientation === 'landscape' ? 'ল্যান্ডস্কেপ' : 'পোর্ট্রেট'} | মোট পৃষ্ঠা: {toBn(totalDetailedPages)} টি
-              </span>
-              <span className="hidden md:inline text-slate-400">
-                • প্রতিটি পৃষ্ঠায় স্বয়ংক্রিয় মার্জিন ও টেবিল হেডার যুক্ত রয়েছে
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Toggle All Sheets vs Single Page Step */}
-              {totalDetailedPages > 1 && (
-                <button
-                  onClick={() => setViewAllSheets(!viewAllSheets)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold border transition cursor-pointer ${
-                    !viewAllSheets
-                      ? 'bg-indigo-600 text-white border-indigo-500'
-                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  <Layers size={13} />
-                  {viewAllSheets ? 'এক পৃষ্ঠা করে দেখুন' : 'সব পৃষ্ঠা একসাথে দেখুন'}
-                </button>
-              )}
-
-              {/* Page Stepper Buttons */}
-              <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
-                <button
-                  onClick={() => scrollToSheet(Math.max(1, currentSheetPage - 1))}
-                  disabled={currentSheetPage <= 1}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft size={13} /> পূর্ববর্তী পৃষ্ঠা
-                </button>
-
-                <div className="flex items-center gap-1 px-1">
-                  {Array.from({ length: totalDetailedPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => scrollToSheet(p)}
-                      className={`w-7 h-7 rounded-lg font-extrabold text-xs transition cursor-pointer ${
-                        currentSheetPage === p
-                          ? 'bg-amber-400 text-slate-950 shadow-xs'
-                          : 'bg-slate-900/60 text-slate-300 hover:bg-slate-700 hover:text-white'
-                      }`}
-                    >
-                      {toBn(p)}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => scrollToSheet(Math.min(totalDetailedPages, currentSheetPage + 1))}
-                  disabled={currentSheetPage >= totalDetailedPages}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition cursor-pointer disabled:cursor-not-allowed"
-                >
-                  পরবর্তী পৃষ্ঠা <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ══════════════════════════════════════════════
@@ -921,16 +916,6 @@ function PrintPageContent() {
               >
                 {/* TOP SECTION OF PAGE */}
                 <div>
-                  {/* Screen-Only Page Badge in Top-Right Corner */}
-                  <div className="no-print flex items-center justify-between mb-2 pb-1.5 border-b border-dashed border-slate-200 text-[11px] font-bold text-slate-400">
-                    <span>
-                      📄 পৃষ্ঠা {toBn(sheet.pageNumber)} / {toBn(totalDetailedPages)} ({orientation === 'landscape' ? 'ল্যান্ডস্কেপ' : 'পোর্ট্রেট'})
-                    </span>
-                    <span>
-                      ক্রম: {sheet.rows.length > 0 ? `${toBn(sheet.rows[0].globalIndex)} – ${toBn(sheet.rows[sheet.rows.length - 1].globalIndex)}` : '০'} (মোট {toBn(filteredStudents.length)} জন)
-                    </span>
-                  </div>
-
                   {isFirstPage ? (
                     /* ── PAGE 1: FULL OFFICIAL INSTITUTION HEADER ── */
                     <>

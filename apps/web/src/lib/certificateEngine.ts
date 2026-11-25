@@ -7,7 +7,11 @@
 import type { Student } from '@/services/studentService';
 import type { AlumniRecord } from '@/services/alumniService';
 import type { SchoolSettings } from '@/services/settingsService';
-import type { CertificateRecord, CertificateType } from '@/services/certificateService';
+import type {
+  CertificateCanvasMode,
+  CertificateRecord,
+  CertificateType,
+} from '@/services/certificateService';
 import { getEnglishSchoolName, getEnglishAddress, getSchoolInitials } from '@/services/settingsService';
 import { examService } from '@/services/examService';
 import { resultService } from '@/services/resultService';
@@ -371,7 +375,10 @@ export function buildDefaultRefNo(schoolSettings?: Partial<SchoolSettings>): str
   const year = new Date().getFullYear();
   const serial = Math.floor(100 + Math.random() * 900);
   if (prefix) {
-    const normalized = prefix.replace(/স্মারক\s*নং\s*[:ঃ]?\s*/gi, '').trim();
+    const normalized = prefix
+      .replace(/স্মারক\s*নং\s*[:ঃ]?\s*/gi, '')
+      .replace(/\/+$/, '')
+      .trim();
     if (normalized) return `${normalized}/${year}/${serial}`;
   }
   const initials = getSchoolInitials(schoolSettings, 'SMS');
@@ -588,18 +595,130 @@ export interface ComposeBodyInput {
   customPurposeText?: string;
   achievementTitle?: string;
   characterRemarks?: string;
+  omitEmptyFields?: boolean;
+}
+
+export interface CustomDocumentPreset {
+  id: string;
+  labelBn: string;
+  titleBn: string;
+  titleEn: string;
+  bodyBn: string;
+  bodyEn: string;
+}
+
+export const CUSTOM_DOCUMENT_PRESETS: CustomDocumentPreset[] = [
+  {
+    id: 'general_attestation',
+    labelBn: 'সাধারণ প্রত্যয়ন',
+    titleBn: 'প্রত্যয়ন পত্র',
+    titleEn: 'TO WHOM IT MAY CONCERN',
+    bodyBn:
+      'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, **{{student_name}}** অত্র প্রতিষ্ঠানের সাথে পরিচিত ও সংশ্লিষ্ট। আমার জানামতে তার নৈতিক চরিত্র, আচরণ ও সুনাম অত্যন্ত সন্তোষজনক।\n\nআমি তার সার্বিক মঙ্গল ও উত্তরোত্তর সাফল্য কামনা করি।',
+    bodyEn:
+      'This is to certify that **{{student_name}}** is well known to this institution. To the best of my knowledge, they bear a good moral character and commendable conduct.\n\nWe wish them every success in all future endeavors.',
+  },
+  {
+    id: 'noc',
+    labelBn: 'অনাপত্তিপত্র (NOC)',
+    titleBn: 'অনাপত্তিপত্র (NOC)',
+    titleEn: 'NO OBJECTION CERTIFICATE (NOC)',
+    bodyBn:
+      'এই মর্মে জানানো যাচ্ছে যে, **{{student_name}}** (পিতা: **{{father_name}}**)-এর পাসপোর্ট / উচ্চশিক্ষা / দাপ্তরিক আবেদনের ক্ষেত্রে অত্র প্রতিষ্ঠানের পক্ষ থেকে কোনো প্রকার আপত্তি নেই।\n\nসংশ্লিষ্ট কর্তৃপক্ষের সদয় অবগতি ও প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য এই অনাপত্তিপত্র প্রদান করা হলো।',
+    bodyEn:
+      'This is to certify that this institution has no objection regarding the official application / passport / higher study formalities of **{{student_name}}**.\n\nThis No Objection Certificate is issued upon request for necessary official processing.',
+  },
+  {
+    id: 'dues_clearance',
+    labelBn: 'বকেয়া মুক্ত প্রত্যয়ন',
+    titleBn: 'বকেয়া মুক্ত প্রত্যয়ন পত্র',
+    titleEn: 'DUES CLEARANCE CERTIFICATE',
+    bodyBn:
+      'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, **{{student_name}}**, শ্রেণি: **{{class}}**, রোল নম্বর: **{{roll_no}}**, অত্র বিদ্যালয়ের যাবতীয় বেতন, পরীক্ষার ফি ও প্রাতিষ্ঠানিক পাওনাদি সম্পূর্ণভাবে পরিশোধ করেছে। তার নিকট বিদ্যালয়ের কোনো বকেয়া পাওনা নেই।\n\nদাপ্তরিক ও পরবর্তী কার্যক্রম সম্পাদনের জন্য এই প্রত্যয়ন পত্র প্রদান করা হলো।',
+    bodyEn:
+      'This is to certify that **{{student_name}}**, Class **{{class}}**, Roll No. **{{roll_no}}**, has cleared all tuition fees and institutional dues in full. Nothing remains outstanding against the student.\n\nThis clearance certificate is issued for official reference.',
+  },
+  {
+    id: 'staff_experience',
+    labelBn: 'শিক্ষক/অভিজ্ঞতা সনদ',
+    titleBn: 'অভিজ্ঞতা ও কর্মকালীন সনদ',
+    titleEn: 'EXPERIENCE CERTIFICATE',
+    bodyBn:
+      'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, **{{student_name}}** অত্র প্রতিষ্ঠানে অত্যন্ত নিষ্ঠা, দক্ষতা ও দায়িত্বশীলতার সাথে পাঠদান ও প্রাতিষ্ঠানিক দায়িত্ব পালন করেছেন। কর্মকালীন সময়ে তার শৃঙ্খলাবোধ, আন্তরিকতা ও পেশাগত আচরণ অত্যন্ত প্রশংসনীয় ছিল।\n\nআমরা তার পেশাগত জীবনের উত্তরোত্তর উন্নতি ও সর্বাঙ্গীন সাফল্য কামনা করি।',
+    bodyEn:
+      'This is to certify that **{{student_name}}** served at this institution with dedication, sincerity, and professional competence. During their tenure, their conduct, punctuality, and academic contribution were highly commendable.\n\nWe wish them continued success in their future career.',
+  },
+  {
+    id: 'blank_letter',
+    labelBn: 'মুক্ত প্যাড লেখা',
+    titleBn: 'বিশেষ প্রত্যয়ন পত্র',
+    titleEn: 'OFFICIAL CERTIFICATE',
+    bodyBn:
+      'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, \n\n(এখানে আপনার প্রয়োজনীয় সম্পূর্ণ বিবরণ লিখুন — **বোল্ড** করতে শব্দের দুই পাশে ** ব্যবহার করুন।)',
+    bodyEn:
+      'This is to certify that \n\n(Write your custom official statement directly here — wrap words in **double asterisks** for bold emphasis.)',
+  },
+];
+
+/** Sort student records numerically by roll (supports Bangla & English digits), falling back to name. */
+export function sortStudentsByRoll<T extends { roll?: string; name?: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    const rollA = parseInt(toEnglishDigits(a.roll || '').replace(/\D/g, ''), 10);
+    const rollB = parseInt(toEnglishDigits(b.roll || '').replace(/\D/g, ''), 10);
+    const aHas = !Number.isNaN(rollA);
+    const bHas = !Number.isNaN(rollB);
+    if (aHas && bHas && rollA !== rollB) return rollA - rollB;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '', 'bn');
+  });
+}
+
+/** Resolve unified canvas mode cleanly across Studio, Batch, Print Modal, and OfficialCertificateDoc. */
+export function resolveCertificateCanvasMode(
+  cert: Partial<CertificateRecord>,
+  overrideStyle?: string,
+  legacyMode?: 'full_pad' | 'preprinted' | 'blank_pad',
+): CertificateCanvasMode {
+  if (cert.canvasMode) return cert.canvasMode;
+  if (legacyMode === 'preprinted') return 'preprinted_pad';
+  const effectiveStyle = overrideStyle || cert.layoutStyle || 'pad';
+  if (effectiveStyle === 'pad' || cert.borderPreset === 'no_border_pad') {
+    return 'uploaded_pad';
+  }
+  return 'digital_frame';
 }
 
 /** Build safe parent/guardian text avoiding dangling commas when father or mother is empty. */
-function formatAddressClause(draft: CertificateDraft, lang: CertificateLanguage): string {
-  const vill = cleanEntityText(draft.village) || DOTTED_BLANK;
-  const po = cleanEntityText(draft.postOffice) || DOTTED_BLANK;
-  const upz = cleanEntityText(draft.upazila) || DOTTED_BLANK;
-  const dist = cleanEntityText(draft.district) || DOTTED_BLANK;
-  if (lang === 'bn') {
-    return `গ্রাম: ${vill}, ডাকঘর: ${po}, উপজেলা: ${upz}, জেলা: ${dist}`;
+function formatAddressClause(
+  draft: CertificateDraft,
+  lang: CertificateLanguage,
+  omitEmpty: boolean = false,
+): string {
+  const vill = cleanEntityText(draft.village);
+  const po = cleanEntityText(draft.postOffice);
+  const upz = cleanEntityText(draft.upazila);
+  const dist = cleanEntityText(draft.district);
+  if (omitEmpty) {
+    const pieces =
+      lang === 'bn'
+        ? [
+            vill ? `গ্রাম: ${vill}` : '',
+            po ? `ডাকঘর: ${po}` : '',
+            upz ? `উপজেলা: ${upz}` : '',
+            dist ? `জেলা: ${dist}` : '',
+          ].filter(Boolean)
+        : [
+            vill ? `Village: ${vill}` : '',
+            po ? `Post Office: ${po}` : '',
+            upz ? `Upazila: ${upz}` : '',
+            dist ? `District: ${dist}` : '',
+          ].filter(Boolean);
+    return pieces.join(', ');
   }
-  return `Village: ${vill}, Post Office: ${po}, Upazila: ${upz}, District: ${dist}`;
+  if (lang === 'bn') {
+    return `গ্রাম: ${vill || DOTTED_BLANK}, ডাকঘর: ${po || DOTTED_BLANK}, উপজেলা: ${upz || DOTTED_BLANK}, জেলা: ${dist || DOTTED_BLANK}`;
+  }
+  return `Village: ${vill || DOTTED_BLANK}, Post Office: ${po || DOTTED_BLANK}, Upazila: ${upz || DOTTED_BLANK}, District: ${dist || DOTTED_BLANK}`;
 }
 
 /** Resolve default formal title for a certificate type and language. */
@@ -634,28 +753,32 @@ export function composeCertificateBody(input: ComposeBodyInput): string {
     customPurposeText,
     achievementTitle,
     characterRemarks,
+    omitEmptyFields = false,
   } = input;
 
   const grammar = resolveGenderGrammar(
     draft.gender,
     lang === 'en' ? draft.studentNameEn || draft.studentName : draft.studentName
   );
-  const studentDisplayName =
-    cleanEntityText(lang === 'en' ? draft.studentNameEn || draft.studentName : draft.studentName) ||
-    DOTTED_BLANK;
-  const fatherDisplay =
-    cleanEntityText(lang === 'en' ? draft.fatherNameEn || draft.fatherName : draft.fatherName) ||
-    DOTTED_BLANK;
-  const motherDisplay =
-    cleanEntityText(lang === 'en' ? draft.motherNameEn || draft.motherName : draft.motherName) ||
-    DOTTED_BLANK;
+  const rawStudentName = cleanEntityText(
+    lang === 'en' ? draft.studentNameEn || draft.studentName : draft.studentName
+  );
+  const rawFatherName = cleanEntityText(
+    lang === 'en' ? draft.fatherNameEn || draft.fatherName : draft.fatherName
+  );
+  const rawMotherName = cleanEntityText(
+    lang === 'en' ? draft.motherNameEn || draft.motherName : draft.motherName
+  );
+  const studentDisplayName = rawStudentName || DOTTED_BLANK;
+  const fatherDisplay = rawFatherName || DOTTED_BLANK;
+  const motherDisplay = rawMotherName || DOTTED_BLANK;
 
   const schoolNameDisplay =
     lang === 'en'
       ? cleanEntityText(getEnglishSchoolName(schoolSettings, 'This Institution'))
       : cleanEntityText(schoolSettings?.schoolName || 'অত্র বিদ্যালয়');
 
-  const addrClause = formatAddressClause(draft, lang);
+  const addrClause = formatAddressClause(draft, lang, omitEmptyFields);
   const classLabel = formatClassLabel(draft.grade, lang);
   const groupLabel = formatGroupLabel(draft.group, lang);
   const rollLabel = localizeNumericText(draft.roll || DOTTED_BLANK, lang);
@@ -666,6 +789,28 @@ export function composeCertificateBody(input: ComposeBodyInput): string {
   const passYear = localizeNumericText(draft.passingYear || String(new Date().getFullYear()), lang);
   const gpaVal = localizeNumericText(draft.gpa || DOTTED_BLANK, lang);
   const gpaScale = localizeNumericText(draft.gpaScale || '5.00', lang);
+
+  // Clean custom identity fragment when omitEmptyFields is enabled (no ugly dotted blanks)
+  const buildCleanIdentityLine = (): string => {
+    if (lang === 'en') {
+      const parentParts: string[] = [];
+      if (rawFatherName && rawMotherName) {
+        parentParts.push(`${grammar.sonDaughterEn} **${rawFatherName}** and **${rawMotherName}**`);
+      } else if (rawFatherName) {
+        parentParts.push(`${grammar.sonDaughterEn} **${rawFatherName}**`);
+      } else if (rawMotherName) {
+        parentParts.push(`${grammar.sonDaughterEn} **${rawMotherName}**`);
+      }
+      const segments = [`**${studentDisplayName}**`, ...parentParts];
+      if (addrClause) segments.push(addrClause);
+      return segments.join(', ');
+    }
+    const segments = [`**${studentDisplayName}**`];
+    if (rawFatherName) segments.push(`পিতা: **${rawFatherName}**`);
+    if (rawMotherName) segments.push(`মাতা: **${rawMotherName}**`);
+    if (addrClause) segments.push(addrClause);
+    return segments.join(', ');
+  };
 
   const selectedTraitObjs = CERTIFICATE_TRAITS.filter((t) => selectedTraits.includes(t.id));
   const traitsClauseBn =
@@ -765,6 +910,44 @@ export function composeCertificateBody(input: ComposeBodyInput): string {
   }
 
   // ── 4. CURRENT STUDENT / CHARACTER / VERIFICATION / CUSTOM ─────────────────
+  if (omitEmptyFields) {
+    const identityLine = buildCleanIdentityLine();
+    if (lang === 'en') {
+      const academicParts: string[] = [];
+      if (draft.grade?.trim()) academicParts.push(`Class **${classLabel}**${draft.group?.trim() ? ` (${groupLabel} Group)` : ''}`);
+      if (draft.roll?.trim()) academicParts.push(`Roll No. **${rollLabel}**`);
+      if (draft.session?.trim()) academicParts.push(`Session **${sessionLabel}**`);
+      const academicNote =
+        academicParts.length > 0
+          ? ` ${draft.currentlyStudying ? 'is' : 'was'} a bona fide student of ${academicParts.join(', ')} at **${schoolNameDisplay}**.`
+          : ` is associated with **${schoolNameDisplay}**.`;
+      const dobNote = draft.dob ? ` ${grammar.HisHer} date of birth is **${dobLabel}**.` : '';
+      const p1 = `This is to certify that ${identityLine},${academicNote}${dobNote}`;
+      const p2 = characterRemarks?.trim()
+        ? characterRemarks.trim()
+        : `During ${grammar.hisHer} association with this institution, ${grammar.heSheLower} has been ${traitsClauseEn}. To the best of my knowledge, ${grammar.hisHer} moral character and conduct are commendable.`;
+      const p3 = [purposeLine, `I wish ${grammar.himHer} every success in life.`].filter(Boolean).join(' ');
+      return [p1, p2, p3].join('\n\n');
+    }
+
+    const metaParts: string[] = [];
+    if (draft.roll?.trim()) metaParts.push(`রোল নম্বর: **${rollLabel}**`);
+    if (draft.session?.trim()) metaParts.push(`সেশন: **${sessionLabel}**`);
+    const metaSuffix = metaParts.length > 0 ? ` (${metaParts.join(', ')})` : '';
+    const enrollmentClean = draft.grade?.trim()
+      ? draft.currentlyStudying
+        ? ` ${grammar.pronounBn} বর্তমানে অত্র বিদ্যালয়ের **${classLabel}** শ্রেণির${draft.group?.trim() ? ` **${groupLabel}** বিভাগের` : ''} একজন নিয়মিত ${grammar.studentNounBn} হিসেবে অধ্যয়নরত আছে${metaSuffix}।`
+        : ` ${grammar.pronounBn} অত্র বিদ্যালয়ের **${classLabel}** শ্রেণির${draft.group?.trim() ? ` **${groupLabel}** বিভাগের` : ''} একজন নিয়মিত ${grammar.studentNounBn} ছিল${metaSuffix}।`
+      : ` ${grammar.pronounBn} অত্র প্রতিষ্ঠানের একজন পরিচিত ও সংশ্লিষ্ট ব্যক্তি।`;
+    const dobNoteBn = draft.dob ? ` ভর্তিবহি অনুযায়ী ${grammar.possessiveBn} জন্ম তারিখ **${dobLabel}** খ্রি.।` : '';
+    const p1 = `এই মর্মে **${getDefaultCertificateTitle(type, 'bn')}** প্রদান করা যাচ্ছে যে, ${identityLine}।${enrollmentClean}${dobNoteBn}`;
+    const p2 = characterRemarks?.trim()
+      ? characterRemarks.trim()
+      : `অত্র প্রতিষ্ঠানে অবস্থানকালে ${grammar.possessiveBn} নৈতিক চরিত্র, শৃঙ্খলাবোধ ও আচার-ব্যবহার ${traitsClauseBn} ছিল। আমার জানামতে ${grammar.pronounBn} কোনো প্রকার রাষ্ট্রবিরোধী বা শৃঙ্খলাপরিপন্থী কর্মকাণ্ডে জড়িত নয়।`;
+    const p3 = [purposeLine, `আমি ${grammar.possessiveBn} জীবনের সর্বাঙ্গীন মঙ্গল ও উত্তরোত্তর সমৃদ্ধি কামনা করি।`].filter(Boolean).join(' ');
+    return [p1, p2, p3].join('\n\n');
+  }
+
   if (lang === 'en') {
     const enrollmentPhrase = draft.currentlyStudying
       ? `is a bona fide regular student currently studying in Class **${classLabel}** (${groupLabel} Group), Roll No. **${rollLabel}**, Session **${sessionLabel}** at **${schoolNameDisplay}**.`

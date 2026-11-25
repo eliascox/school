@@ -4,19 +4,25 @@ import {
   buildDefaultRefNo,
   cleanEntityText,
   composeCertificateBody,
+  CUSTOM_DOCUMENT_PRESETS,
   DOTTED_BLANK,
   formatCertificateDate,
   mapAlumniToCertificateDraft,
   mapStudentToCertificateDraft,
   parseAddressParts,
+  resolveCertificateCanvasMode,
   resolveGenderGrammar,
+  sortStudentsByRoll,
   toBanglaDigits,
 } from '../src/lib/certificateEngine';
 import { certificateService } from '../src/services/certificateService';
 import { buildRecordFromCertificate } from '../src/components/ssc-transcript/sscTranscriptUtils';
 import type { Student } from '../src/services/studentService';
 import type { AlumniRecord } from '../src/services/alumniService';
-import type { SchoolSettings } from '../src/services/settingsService';
+import {
+  mergeCloudSettingsPreservingLocalPad,
+  type SchoolSettings,
+} from '../src/services/settingsService';
 
 function setupMockStorage(): Record<string, string> {
   const store: Record<string, string> = {};
@@ -298,6 +304,9 @@ describe('certificateEngine', () => {
   it('builds verification URL and dynamic refNo from school settings initials', () => {
     const ref = buildDefaultRefNo(SAMPLE_SETTINGS);
     expect(ref.startsWith('GMHS/CERT/')).toBe(true);
+    const prefixedRef = buildDefaultRefNo({ padRefPrefix: 'স্মারক নং: ব.উ.বি/' });
+    expect(prefixedRef).not.toContain('//');
+    expect(prefixedRef.startsWith('ব.উ.বি/')).toBe(true);
 
     const url = buildCertificateVerifyUrl(
       {
@@ -313,5 +322,124 @@ describe('certificateEngine', () => {
     expect(url).toContain('id=CERT-2026-88412');
     expect(url).toContain('r=145820');
     expect(url).toContain('g=5.00');
+  });
+
+  it('omits empty optional fields cleanly in custom certificate mode without dotted blanks', () => {
+    const customDraft = mapStudentToCertificateDraft(
+      {
+        id: 'CUSTOM-1',
+        name: 'মোহাম্মদ আরিফ হোসেন',
+        roll: '',
+        grade: '',
+        section: '',
+        group: '',
+      },
+      {},
+    );
+    customDraft.grade = '';
+    customDraft.roll = '';
+    customDraft.group = '';
+    customDraft.session = '';
+
+    const cleanBn = composeCertificateBody({
+      type: 'custom_certificate',
+      language: 'bn',
+      draft: customDraft,
+      schoolSettings: SAMPLE_SETTINGS,
+      selectedTraits: ['honest'],
+      purposeId: 'general',
+      omitEmptyFields: true,
+    });
+    expect(cleanBn).toContain('**মোহাম্মদ আরিফ হোসেন**');
+    expect(cleanBn).not.toContain(DOTTED_BLANK);
+    expect(CUSTOM_DOCUMENT_PRESETS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('sorts student rolls numerically across Bangla and English digits and resolves pad canvas mode', () => {
+    const sorted = sortStudentsByRoll([
+      { roll: '10', name: 'Ten' },
+      { roll: '২', name: 'Two' },
+      { roll: '1', name: 'One' },
+      { roll: '০৯', name: 'Nine' },
+    ]);
+    expect(sorted.map((s) => s.name)).toEqual(['One', 'Two', 'Nine', 'Ten']);
+
+    expect(resolveCertificateCanvasMode({ layoutStyle: 'pad' })).toBe('uploaded_pad');
+    expect(resolveCertificateCanvasMode({ canvasMode: 'preprinted_pad' })).toBe('preprinted_pad');
+    expect(resolveCertificateCanvasMode({ borderPreset: 'royal_crest', layoutStyle: 'royal_border' })).toBe(
+      'digital_frame',
+    );
+  });
+
+  it('saves and deletes custom templates while protecting default templates and preserving local uploaded pad during cloud merge', () => {
+    const beforeCount = certificateService.getTemplates().length;
+    certificateService.saveTemplate({
+      id: 'tmpl_custom_noc',
+      type: 'custom_certificate',
+      name: 'কাস্টম NOC',
+      title: 'অনাপত্তিপত্র (NOC)',
+      layoutStyle: 'pad',
+      bodyTemplate: 'অনাপত্তিপত্র {{student_name}}',
+      isDefault: false,
+      language: 'bn',
+    });
+    expect(certificateService.getTemplates().length).toBe(beforeCount + 1);
+    // Default template must not be deleted
+    certificateService.deleteTemplate('tmpl_current_student');
+    expect(certificateService.getTemplates().length).toBe(beforeCount + 1);
+    // Custom template deletes cleanly
+    certificateService.deleteTemplate('tmpl_custom_noc');
+    expect(certificateService.getTemplates().length).toBe(beforeCount);
+
+    const merged = mergeCloudSettingsPreservingLocalPad(
+      {
+        schoolName: 'Local School',
+        schoolLogo: '',
+        address: '',
+        eiin: '',
+        estdYear: '1970',
+        principalName: '',
+        principalTitle: 'প্রধান শিক্ষক',
+        classTeacherTitle: '',
+        guardianTitle: '',
+        showWatermark: true,
+        watermarkText: '',
+        watermarkOpacity: 0.03,
+        phone: '',
+        email: '',
+        website: '',
+        showClassSelection: true,
+        showSectionSelection: true,
+        showRollInput: true,
+        uploadedPadTemplateUrl: 'data:image/jpeg;base64,LOCAL_PAD_DATA',
+        uploadedPadFileName: 'my-pad.png',
+        activePadMode: 'uploaded',
+      },
+      {
+        schoolName: 'Cloud School',
+        uploadedPadTemplateUrl: '',
+      },
+    );
+    expect(merged.schoolName).toBe('Cloud School');
+    expect(merged.uploadedPadTemplateUrl).toBe('data:image/jpeg;base64,LOCAL_PAD_DATA');
+    expect(merged.uploadedPadFileName).toBe('my-pad.png');
+
+    // Newer local upload must NOT be reverted by an older cloud snapshot carrying an old Pad.pdf
+    const mergedNewerLocal = mergeCloudSettingsPreservingLocalPad(
+      {
+        ...(merged as SchoolSettings),
+        uploadedPadTemplateUrl: 'data:image/jpeg;base64,NEW_LOCAL_PAD',
+        uploadedPadFileName: 'new-pad.png',
+        uploadedPadUpdatedAt: 2000,
+      },
+      {
+        schoolName: 'Cloud School',
+        uploadedPadTemplateUrl: 'data:image/jpeg;base64,OLD_CLOUD_PAD',
+        uploadedPadFileName: 'Pad.pdf',
+        uploadedPadUpdatedAt: 1000,
+      },
+    );
+    expect(mergedNewerLocal.uploadedPadTemplateUrl).toBe('data:image/jpeg;base64,NEW_LOCAL_PAD');
+    expect(mergedNewerLocal.uploadedPadFileName).toBe('new-pad.png');
   });
 });

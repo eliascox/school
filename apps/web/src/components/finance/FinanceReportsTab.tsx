@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
+  AlertCircle,
   BookOpen,
   Building2,
+  Calendar,
+  CheckCircle2,
+  FileBarChart,
   FileText,
   Landmark,
   Layers,
@@ -13,20 +18,24 @@ import {
   Receipt,
   Scale,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import {
   AccountCategory,
   AccountHead,
   BankAccount,
+  StudentFeeLedger,
   VoucherRecord,
   VoucherType,
   financeService,
 } from '@/services/financeService';
+import { Student } from '@/services/studentService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import {
   FinancePrintHeader,
   FinancePrintSignatureBlock,
+  FinanceSlimHeader,
   ReportSubTab,
   SchoolInfoState,
 } from './financeShared';
@@ -35,34 +44,44 @@ interface FinanceReportsTabProps {
   vouchers: VoucherRecord[];
   chartOfAccounts: AccountHead[];
   bankAccounts: BankAccount[];
+  students: Student[];
+  allStudentLedgers: Record<string, StudentFeeLedger>;
   schoolInfo: SchoolInfoState;
   onRefreshAll: () => void;
   onOpenVoucherModal: (defaultType?: VoucherType) => void;
   onPrintVoucher: (v: VoucherRecord) => void;
+  onCollectStudentDue?: (st: Student) => void;
 }
 
 const REPORT_SUB_TABS: { id: ReportSubTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'income_statement', label: 'আয়-ব্যয় বিবরণী (Income Statement)', icon: PieChart },
-  { id: 'balance_sheet', label: 'উদ্বৃত্তপত্র (Balance Sheet)', icon: Scale },
-  { id: 'trial_balance', label: 'রেওয়ামিল (Trial Balance)', icon: Layers },
-  { id: 'cash_book', label: 'ক্যাশবুক (Cash Book)', icon: BookOpen },
-  { id: 'bank_book', label: 'ব্যাংকবুক (Bank Book)', icon: Landmark },
-  { id: 'general_ledger', label: 'খতিয়ান (General Ledger)', icon: FileText },
-  { id: 'vouchers', label: 'ভাউচার রেজিস্টার (Vouchers)', icon: Receipt },
-  { id: 'chart_of_accounts', label: 'চার্ট অব একাউন্টস (COA)', icon: Building2 },
+  { id: 'income_statement', label: 'আয়-ব্যয় বিবরণী', icon: PieChart },
+  { id: 'student_dues', label: 'শ্রেণিভিত্তিক বকেয়া', icon: Users },
+  { id: 'balance_sheet', label: 'উদ্বৃত্তপত্র', icon: Scale },
+  { id: 'trial_balance', label: 'রেওয়ামিল', icon: Layers },
+  { id: 'cash_book', label: 'ক্যাশবুক', icon: BookOpen },
+  { id: 'bank_book', label: 'ব্যাংকবুক', icon: Landmark },
+  { id: 'general_ledger', label: 'খতিয়ান (GL)', icon: FileText },
+  { id: 'vouchers', label: 'ভাউচার রেজিস্টার', icon: Receipt },
+  { id: 'chart_of_accounts', label: 'চার্ট অব একাউন্টস', icon: Building2 },
 ];
 
-/** Renders the 8 double-entry accounting reports and Chart of Accounts management panel. */
+/** Renders the independent Financial Reports & Dues workspace (9 accounting & dues reports + date filtering + COA). */
 export function FinanceReportsTab({
   vouchers,
   chartOfAccounts,
   bankAccounts,
+  students,
+  allStudentLedgers,
   schoolInfo,
   onRefreshAll,
   onOpenVoucherModal,
   onPrintVoucher,
+  onCollectStudentDue,
 }: FinanceReportsTabProps) {
   const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('income_statement');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [dueGradeFilter, setDueGradeFilter] = useState<string>('all');
   const [selectedLedgerAccount, setSelectedLedgerAccount] = useState('1010');
   const [selectedBankBookCode, setSelectedBankBookCode] = useState('1020');
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -78,16 +97,26 @@ export function FinanceReportsTab({
   });
 
   const trialBalance = useMemo(() => financeService.getTrialBalance(), [vouchers, chartOfAccounts]);
-  const incomeStatement = useMemo(() => financeService.getIncomeStatement(), [vouchers, chartOfAccounts]);
+  const incomeStatement = useMemo(
+    () => financeService.getIncomeStatement(fromDate || undefined, toDate || undefined),
+    [vouchers, chartOfAccounts, fromDate, toDate]
+  );
   const balanceSheet = useMemo(() => financeService.getBalanceSheet(), [vouchers, chartOfAccounts]);
-  const cashBook = useMemo(() => financeService.getCashBook(), [vouchers, chartOfAccounts]);
+  const cashBook = useMemo(
+    () => financeService.getCashBook(fromDate || undefined, toDate || undefined),
+    [vouchers, chartOfAccounts, fromDate, toDate]
+  );
   const bankBook = useMemo(
-    () => financeService.getBankBook(selectedBankBookCode),
-    [vouchers, chartOfAccounts, selectedBankBookCode]
+    () => financeService.getBankBook(selectedBankBookCode, fromDate || undefined, toDate || undefined),
+    [vouchers, chartOfAccounts, selectedBankBookCode, fromDate, toDate]
   );
   const generalLedger = useMemo(
-    () => financeService.getGeneralLedger(selectedLedgerAccount),
-    [vouchers, chartOfAccounts, selectedLedgerAccount]
+    () => financeService.getGeneralLedger(selectedLedgerAccount, fromDate || undefined, toDate || undefined),
+    [vouchers, chartOfAccounts, selectedLedgerAccount, fromDate, toDate]
+  );
+  const classWiseDueReport = useMemo(
+    () => financeService.getClassWiseDueReport(allStudentLedgers, students),
+    [allStudentLedgers, students]
   );
 
   const handleSaveAccount = (e: React.FormEvent) => {
@@ -104,27 +133,70 @@ export function FinanceReportsTab({
   const reportPrintTitle =
     reportSubTab === 'income_statement'
       ? 'আর্থিক আয় ও ব্যয় বিবরণী (Statement of Income & Expenditure)'
-      : reportSubTab === 'balance_sheet'
-        ? 'আর্থিক অবস্থার বিবরণী / উদ্বৃত্তপত্র (Balance Sheet)'
-        : reportSubTab === 'trial_balance'
-          ? 'রেওয়ামিল খতিয়ান বিবরণী (Trial Balance Statement)'
-          : reportSubTab === 'cash_book'
-            ? 'ক্যাশবুক / দৈনিক নগদ প্রবাহ খতিয়ান (Cash Book)'
-            : reportSubTab === 'bank_book'
-              ? `ব্যাংক হিসাব খতিয়ান — ${bankBook.bankName}`
-              : reportSubTab === 'general_ledger'
-                ? `সাধারণ খতিয়ান হিসাব — ${generalLedger.account.nameBn || generalLedger.account.name}`
-                : reportSubTab === 'vouchers'
-                  ? 'ভাউচার ও জার্নাল রেজিস্টার (Voucher Master Ledger)'
-                  : 'চার্ট অব একাউন্টস ও লেজার সূচি (Chart of Accounts)';
+      : reportSubTab === 'student_dues'
+        ? 'শ্রেণিভিত্তিক শিক্ষার্থী বকেয়া ও আদায় বিবরণী (Student Dues Report)'
+        : reportSubTab === 'balance_sheet'
+          ? 'আর্থিক অবস্থার বিবরণী / উদ্বৃত্তপত্র (Balance Sheet)'
+          : reportSubTab === 'trial_balance'
+            ? 'রেওয়ামিল খতিয়ান বিবরণী (Trial Balance Statement)'
+            : reportSubTab === 'cash_book'
+              ? 'ক্যাশবুক / দৈনিক নগদ প্রবাহ খতিয়ান (Cash Book)'
+              : reportSubTab === 'bank_book'
+                ? `ব্যাংক হিসাব খতিয়ান — ${bankBook.bankName}`
+                : reportSubTab === 'general_ledger'
+                  ? `সাধারণ খতিয়ান হিসাব — ${generalLedger.account.nameBn || generalLedger.account.name}`
+                  : reportSubTab === 'vouchers'
+                    ? 'ভাউচার ও জার্নাল রেজিস্টার (Voucher Master Ledger)'
+                    : 'চার্ট অব একাউন্টস ও লেজার সূচি (Chart of Accounts)';
 
   const customBankOptions = bankAccounts.filter(
     (b) => b.accountCode && !['1020', '1030', '1040'].includes(b.accountCode)
   );
 
+  const supportsDateRange = ['income_statement', 'cash_book', 'bank_book', 'general_ledger'].includes(reportSubTab);
+  const totalStudentsDueSum = classWiseDueReport.reduce((s, c) => s + c.totalDue, 0);
+
   return (
-    <div className="space-y-5">
-      <div className="print:hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-2 flex flex-wrap items-center gap-1.5">
+    <div className="space-y-4">
+      <FinanceSlimHeader
+        title="বকেয়া ও আর্থিক রিপোর্ট"
+        subtitle="ডাবল-এন্ট্রি আয়-ব্যয় বিবরণী, শ্রেণিভিত্তিক বকেয়া, উদ্বৃত্তপত্র, রেওয়ামিল, ক্যাশবুক, ব্যাংকবুক ও COA"
+        icon={<FileBarChart className="w-5 h-5" />}
+        iconBg="bg-cyan-600"
+        badge={
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10.5px] font-black border inline-flex items-center gap-1 ${
+              trialBalance.isBalanced
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+            }`}
+          >
+            {trialBalance.isBalanced ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+            {trialBalance.isBalanced ? 'রেওয়ামিল ব্যালেন্সড' : 'অসামঞ্জস্য'}
+          </span>
+        }
+        actions={
+          <>
+            <Link
+              href="/dashboard/ledger/"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>খতিয়ান বই</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => onOpenVoucherModal('Journal')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-xs transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>নতুন ভাউচার</span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="print:hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs rounded-2xl p-2 flex flex-wrap items-center gap-1">
         {REPORT_SUB_TABS.map((sub) => {
           const Icon = sub.icon;
           const isSelected = reportSubTab === sub.id;
@@ -133,9 +205,9 @@ export function FinanceReportsTab({
               key={sub.id}
               type="button"
               onClick={() => setReportSubTab(sub.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 isSelected
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -146,12 +218,170 @@ export function FinanceReportsTab({
         })}
       </div>
 
+      {supportsDateRange && (
+        <div className="print:hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
+            <Calendar className="w-4 h-4 text-indigo-500" />
+            <span>সময়সীমা ফিল্টার:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-white"
+              title="শুরুর তারিখ"
+            />
+            <span className="text-slate-400">থেকে</span>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-white"
+              title="শেষ তারিখ"
+            />
+            {(fromDate || toDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFromDate('');
+                  setToDate('');
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
+              >
+                সব সময়
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <FinancePrintHeader
         schoolInfo={schoolInfo}
         title={reportPrintTitle}
-        sessionText="২০২৬"
+        sessionText={schoolInfo.session}
         dateLabel="প্রতিবেদন তৈরির তারিখ"
       />
+
+      {reportSubTab === 'student_dues' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs rounded-2xl p-5 space-y-5 print:border-none print:p-0">
+          <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                শ্রেণিভিত্তিক শিক্ষার্থী বকেয়া ও আদায় সারসংক্ষেপ
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                মোট সক্রিয় শিক্ষার্থী: {students.length} জন · সর্বমোট বকেয়া: ৳{totalStudentsDueSum.toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={dueGradeFilter}
+                onChange={(e) => setDueGradeFilter(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="all">সকল শ্রেণি</option>
+                {classWiseDueReport.map((g) => (
+                  <option key={g.grade} value={g.grade}>
+                    {g.gradeName} ({g.studentsWithDue} বকেয়া)
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" /> প্রিন্ট
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {classWiseDueReport.map((cls) => (
+              <div
+                key={cls.grade}
+                onClick={() => setDueGradeFilter(dueGradeFilter === cls.grade ? 'all' : cls.grade)}
+                className={`p-3.5 rounded-xl border transition cursor-pointer ${
+                  dueGradeFilter === cls.grade
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-white">
+                  <span>{cls.gradeName}</span>
+                  <span className="text-[10px] text-slate-500">{cls.totalStudents} জন</span>
+                </div>
+                <div className="text-sm font-black font-mono text-rose-600 dark:text-rose-400 mt-1">
+                  ৳ {cls.totalDue.toLocaleString('bn-BD')}
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5">
+                  বকেয়া: {cls.studentsWithDue} · পরিশোধিত: {cls.studentsPaid}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse print:text-black">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
+                  <th className="p-3">শ্রেণি ও রোল</th>
+                  <th className="p-3">শিক্ষার্থীর নাম</th>
+                  <th className="p-3">বকেয়া মাসসমূহ</th>
+                  <th className="p-3 text-right">পরিশোধিত</th>
+                  <th className="p-3 text-right font-black text-rose-600">অবশিষ্ট বকেয়া</th>
+                  <th className="p-3 text-right print:hidden">অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {classWiseDueReport
+                  .filter((c) => dueGradeFilter === 'all' || c.grade === dueGradeFilter)
+                  .flatMap((c) =>
+                    c.students
+                      .filter((st) => st.totalDue > 0)
+                      .map((st) => ({ ...st, gradeName: c.gradeName }))
+                  )
+                  .slice(0, 100)
+                  .map((row) => {
+                    const studentObj = students.find((s) => s.id === row.id);
+                    return (
+                      <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                        <td className="p-3 font-bold">
+                          {row.gradeName} · রোল #{row.roll}
+                        </td>
+                        <td className="p-3 font-black text-slate-900 dark:text-white">{row.name}</td>
+                        <td className="p-3 text-[11px] text-slate-500">
+                          {row.monthsDue.length > 0 ? row.monthsDue.slice(0, 4).join(', ') + (row.monthsDue.length > 4 ? ` (+${row.monthsDue.length - 4})` : '') : 'অন্যান্য/পূর্বের বকেয়া'}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                          ৳ {row.totalPaid.toLocaleString('bn-BD')}
+                        </td>
+                        <td className="p-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                          ৳ {row.totalDue.toLocaleString('bn-BD')}
+                        </td>
+                        <td className="p-3 text-right print:hidden">
+                          {studentObj && onCollectStudentDue && (
+                            <button
+                              type="button"
+                              onClick={() => onCollectStudentDue(studentObj)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black cursor-pointer"
+                            >
+                              ফি আদায় করুন
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+
+          <FinancePrintSignatureBlock labels={['হিসাবরক্ষকের স্বাক্ষর', 'অর্থ কমিটি আহ্বায়ক', 'প্রধান শিক্ষক']} />
+        </div>
+      )}
 
       {reportSubTab === 'income_statement' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl p-5 sm:p-6 space-y-6 print:border-none print:p-0">

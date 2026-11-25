@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
-import * as XLSX from 'xlsx';
 import { confirmDialog } from '@/components/ui/ToastProvider';
 import {
   Users,
@@ -374,13 +373,14 @@ function TeacherManagementContent() {
     triggerProfessionalPrint([schoolName, currentTabConfig.printTitle, '২০২৬']);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     setShowMoreMenu(false);
     if (filteredTeachers.length === 0) {
       showAlert('error', 'এক্সপোর্ট করার মতো কোনো শিক্ষক তালিকা পাওয়া যায়নি।');
       return;
     }
 
+    const XLSX = await import('xlsx');
     const rows = filteredTeachers.map((t, index) => {
       const tSubs = teacherSubjectsMap.get(t.id) || [];
       const tCTs = teacherClassesMap.get(t.id) || [];
