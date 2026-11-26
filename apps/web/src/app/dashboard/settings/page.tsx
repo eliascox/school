@@ -501,6 +501,7 @@ export default function SettingsPage() {
                 examNames={examNames}
                 currentSession={currentSession}
                 totalStudents={totalStudents}
+                currentLang={currentLang}
               />
             </div>
           ) : (

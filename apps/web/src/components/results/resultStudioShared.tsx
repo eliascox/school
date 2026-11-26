@@ -1,7 +1,11 @@
 'use client';
 
 import React from 'react';
-import { SchoolSettings } from '@/services/settingsService';
+import {
+  SchoolSettings,
+  getEnglishSchoolName,
+  getEnglishAddress,
+} from '@/services/settingsService';
 import { GRADE_BUCKETS, GradeBucket } from '@/lib/resultAnalyticsEngine';
 import { AppLanguage } from '@/services/languageService';
 
@@ -70,12 +74,12 @@ export function PrintInstitutionalHeader({
   }
 
   const schoolName =
-    lang === 'en' && settings?.schoolNameEn
-      ? settings.schoolNameEn
-      : settings?.schoolName || 'SchoolPro Smart Institution';
+    lang === 'en'
+      ? getEnglishSchoolName(settings, 'SchoolPro Smart Institution')
+      : settings?.schoolName || 'স্মার্ট শিক্ষা প্রতিষ্ঠান';
   const address =
-    lang === 'en' && settings?.addressEn
-      ? settings.addressEn
+    lang === 'en'
+      ? getEnglishAddress(settings, '')
       : settings?.address || '';
 
   return (

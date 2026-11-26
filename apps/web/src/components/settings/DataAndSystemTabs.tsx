@@ -32,7 +32,14 @@ import { SecurityDeleteModal } from '@/components/SecurityDeleteModal';
 import FirebaseCloudSyncPanel from '@/components/dashboard/FirebaseCloudSyncPanel';
 import { backupService, BackupValidationResult } from '@/services/backupService';
 import { AppLanguage } from '@/services/languageService';
-import { SchoolSettings, settingsService } from '@/services/settingsService';
+import {
+  SchoolSettings,
+  settingsService,
+  getEnglishSchoolName,
+  getEnglishAddress,
+  getEnglishPrincipalNameFromSettings,
+  getEnglishPrincipalTitleFromSettings,
+} from '@/services/settingsService';
 import { SystemPurgeReport } from '@/services/systemResetService';
 import { showToast } from '@/components/ui/ToastProvider';
 import { DangerZoneCard, SettingsCard } from './settingsShared';
@@ -657,6 +664,7 @@ interface SettingsSidebarPreviewProps {
   examNames: string[];
   currentSession: string;
   totalStudents: number;
+  currentLang?: AppLanguage;
 }
 
 export function SettingsSidebarPreview({
@@ -664,7 +672,24 @@ export function SettingsSidebarPreview({
   examNames,
   currentSession,
   totalStudents,
+  currentLang = 'bn',
 }: SettingsSidebarPreviewProps) {
+  const isEnPreview = currentLang === 'en';
+  const previewSchoolName = isEnPreview
+    ? getEnglishSchoolName(formData, 'Institution Name')
+    : formData.schoolName || 'প্রতিষ্ঠানের নাম';
+  const previewAddress = isEnPreview
+    ? getEnglishAddress(formData, 'Institution Address')
+    : formData.address || 'প্রতিষ্ঠানের ঠিকানা';
+  const previewPrincipalTitle = isEnPreview
+    ? getEnglishPrincipalTitleFromSettings(formData, 'Headmaster')
+    : formData.principalTitle || 'প্রধান শিক্ষক';
+  const previewPrincipalName = isEnPreview
+    ? (formData.principalNameEn?.trim() || '')
+    : (formData.principalName?.trim() || '');
+  const previewClassTeacherTitle = isEnPreview
+    ? 'Class Teacher'
+    : formData.classTeacherTitle || 'শ্রেণি শিক্ষকের স্বাক্ষর';
   return (
     <aside className="xl:col-span-4 space-y-4">
       <div className="sticky top-4 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
@@ -706,30 +731,26 @@ export function SettingsSidebarPreview({
                   </div>
                 )}
               </div>
-              <div>
-                <h3 className="text-[12.5px] font-black text-slate-950 leading-tight">
-                  {formData.schoolName || 'প্রতিষ্ঠানের নাম'}
-                </h3>
-                {formData.schoolNameEn && (
-                  <p className="text-[9.5px] font-bold text-slate-700 leading-tight">{formData.schoolNameEn}</p>
-                )}
-              </div>
+              <h3 className="text-[12.5px] font-black text-slate-950 leading-tight">
+                {previewSchoolName}
+              </h3>
             </div>
 
-            <p className="text-[9px] font-bold text-slate-700">
-              {formData.address || 'প্রতিষ্ঠানের ঠিকানা'}
-              {formData.addressEn ? ` • ${formData.addressEn}` : ''}
-            </p>
+            <p className="text-[9px] font-bold text-slate-700">{previewAddress}</p>
             <p className="text-[8px] font-bold text-slate-600 font-mono">
-              স্থাপিত: {formData.estdYear || '1969'} খ্রি. । EIIN: {formData.eiin || '106184'}
+              {isEnPreview
+                ? `Estd: ${formData.estdYear || '1969'} • EIIN: ${formData.eiin || '106184'}`
+                : `স্থাপিত: ${formData.estdYear || '1969'} খ্রি. । EIIN: ${formData.eiin || '106184'}`}
             </p>
 
             <div className="w-full border-b border-slate-900 my-1.5" />
 
             <div className="text-center space-y-0.5">
-              <div className="text-[9px] font-black uppercase text-slate-950">একাডেমিক ট্রান্সক্রিপ্ট / নম্বরপত্র</div>
+              <div className="text-[9px] font-black uppercase text-slate-950">
+                {isEnPreview ? 'Academic Transcript / Marksheet' : 'একাডেমিক ট্রান্সক্রিপ্ট / নম্বরপত্র'}
+              </div>
               <span className="inline-block px-2.5 py-0.5 bg-slate-950 text-white font-black text-[8px] tracking-wider rounded-xs">
-                {(Array.isArray(examNames) && examNames[0]) || 'অর্ধ-বার্ষিক পরীক্ষা'} {currentSession}
+                {(Array.isArray(examNames) && examNames[0]) || (isEnPreview ? 'Half-Yearly Exam' : 'অর্ধ-বার্ষিক পরীক্ষা')} {currentSession}
               </span>
             </div>
           </div>
@@ -737,14 +758,14 @@ export function SettingsSidebarPreview({
           <div className="pt-6 flex justify-between text-[8px] font-bold border-t border-slate-200 mt-4 relative z-10 text-slate-800">
             <div>
               <div className="w-14 border-b border-slate-900 mb-0.5" />
-              <span>{formData.classTeacherTitle}</span>
+              <span>{previewClassTeacherTitle}</span>
             </div>
             <div className="text-right">
               <div className="w-14 border-b border-slate-900 mb-0.5 ml-auto" />
-              <span className="font-black">{formData.principalTitle}</span>
-              {formData.principalName && (
+              <span className="font-black">{previewPrincipalTitle}</span>
+              {previewPrincipalName && (
                 <div className="text-[7px] font-normal text-slate-600">
-                  ({formData.principalName}{formData.principalNameEn ? ` / ${formData.principalNameEn}` : ''})
+                  ({previewPrincipalName})
                 </div>
               )}
             </div>

@@ -11,6 +11,8 @@ import { studentService } from '@/services/studentService';
 import {
   getEnglishSchoolName as resolveEnglishSchoolName,
   getEnglishAddress as resolveEnglishAddress,
+  getEnglishPrincipalNameFromSettings,
+  getEnglishPrincipalTitleFromSettings,
   getSchoolInitials,
 } from '@/services/settingsService';
 import {
@@ -1511,11 +1513,11 @@ function MarksheetSheetCardInner({
               <div>
                 <div className="w-28 sm:w-32 border-b border-slate-900 mx-auto" />
                 <p className="mt-1 font-black">
-                  {settings?.principalTitleEn || 'Headmaster'}
+                  {getEnglishPrincipalTitleFromSettings(settings, 'Headmaster')}
                 </p>
-                {settings?.principalName && (
+                {settings?.principalNameEn?.trim() && (
                   <p className="text-[9px] text-slate-700 font-semibold leading-tight truncate">
-                    {isEn && settings.principalName ? settings.principalName : ''}
+                    {getEnglishPrincipalNameFromSettings(settings, '')}
                   </p>
                 )}
               </div>

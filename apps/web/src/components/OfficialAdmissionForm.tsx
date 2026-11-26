@@ -71,7 +71,6 @@ export default function OfficialAdmissionForm({
   onPrint,
 }: OfficialAdmissionFormProps) {
   const schoolName = settings?.schoolName || 'স্মার্ট স্কুল';
-  const schoolNameEn = settings?.schoolNameEn || '';
   const schoolAddress = settings?.address || '';
   const eiin = settings?.eiin || '';
   const estdYear = settings?.estdYear || '';
@@ -179,16 +178,11 @@ export default function OfficialAdmissionForm({
               )}
             </div>
 
-            {/* Center School Identity */}
+            {/* Center School Identity (Bangla Admission Format) */}
             <div className="text-center flex-1">
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 {schoolName}
               </h1>
-              {schoolNameEn && (
-                <h2 className="text-xs sm:text-sm font-extrabold text-indigo-900 uppercase tracking-widest mt-0.5">
-                  {schoolNameEn}
-                </h2>
-              )}
               <p className="text-[11px] font-bold text-slate-700 mt-1">
                 {[schoolAddress, eiin ? `EIIN: ${toBnDigit(eiin)}` : '', estdYear ? `স্থাপিত: ${toBnDigit(estdYear)} খ্রিঃ` : ''].filter(Boolean).join(' | ')}
               </p>

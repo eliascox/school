@@ -133,8 +133,9 @@ export function StudentIdCardPreview({
           </div>
         )}
         <div className="min-w-0 leading-tight">
-          <p className="text-[8.5px] font-black truncate">{settings.schoolName || 'স্মার্ট স্কুল'}</p>
-          <p className="text-[6.5px] text-white/80 font-semibold truncate">{schoolEn}</p>
+          <p className="text-[8.5px] font-black truncate">
+            {settings?.language === 'en' ? schoolEn : (settings.schoolName || 'স্মার্ট স্কুল')}
+          </p>
           <p className="text-[6px] text-white/75">EIIN: {settings.eiin || '—'} • সেশন {sessionYear}</p>
         </div>
       </div>
