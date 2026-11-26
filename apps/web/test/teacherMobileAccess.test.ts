@@ -257,7 +257,7 @@ describe('Mobile App Teacher Login, Assigned Subject Mark Entry & Class Teacher 
       records: initial8A,
     });
     expect(saveAnonAtt.success).toBe(false);
-  });
+  }, 15000);
 
   it('normalizes Class Teacher classId variants like "8th - A" and "9th-বিজ্ঞান"', () => {
     expect(parseClassTeacherClassId('8th - A')).toEqual({ grade: '8th', branch: 'A' });

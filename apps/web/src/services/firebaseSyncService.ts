@@ -326,18 +326,32 @@ class FirebaseSyncService {
     const start = Date.now();
     try {
       const firestore = db as Firestore;
-      // Ping a dedicated healthcheck document
-      const pingRef = doc(firestore, '_system_health', 'ping');
-      await setDoc(pingRef, {
-        timestamp: serverTimestamp(),
-        client: 'Next.js School Web App',
-        project: firebaseConfig.projectId
-      }, { merge: true });
+      // Verify live Firestore connectivity & authenticated staff permission via students count
+      const countSnap = await withTimeout(
+        getCountFromServer(collection(firestore, 'students')),
+        8000
+      );
+      const cloudStudentCount = countSnap.data().count;
+
+      // Best-effort healthcheck ping (ignore stale-doc merge errors if students read succeeded)
+      try {
+        const pingRef = doc(firestore, '_system_health', 'ping');
+        await withTimeout(
+          setDoc(pingRef, {
+            timestamp: serverTimestamp(),
+            client: 'Next.js School Web App',
+            project: firebaseConfig.projectId
+          }, { merge: true }),
+          5000
+        );
+      } catch (pingErr) {
+        console.warn('[FirebaseSync] Health ping note:', pingErr);
+      }
 
       const latencyMs = Date.now() - start;
       return {
         success: true,
-        message: `গুগল ক্লাউড ফায়ারবেস সফলভাবে সংযুক্ত (${latencyMs}ms)`,
+        message: `গুগল ক্লাউড ফায়ারবেস সফলভাবে সংযুক্ত (${latencyMs}ms • ক্লাউডে ${cloudStudentCount} জন শিক্ষার্থী)`,
         latencyMs
       };
     } catch (error: any) {
@@ -1008,11 +1022,19 @@ class FirebaseSyncService {
     try {
       const firestore = db as Firestore;
       const settingsRef = doc(firestore, 'settings', 'general');
-      await setDoc(settingsRef, {
-        ...settings,
-        updatedAt: serverTimestamp(),
-        schoolId: firebaseConfig.projectId
-      }, { merge: true });
+      const sanitized = this.sanitizeFirestoreObject(settings as Record<string, any>);
+      await withTimeout(
+        setDoc(
+          settingsRef,
+          {
+            ...sanitized,
+            updatedAt: serverTimestamp(),
+            schoolId: firebaseConfig.projectId
+          },
+          { merge: true }
+        ),
+        5000
+      );
     } catch (err) {
       console.warn('[FirebaseSync] Cloud settings sync warning:', err);
     }
@@ -1026,11 +1048,19 @@ class FirebaseSyncService {
     try {
       const firestore = db as Firestore;
       const landingRef = doc(firestore, 'landing_page', 'published');
-      await setDoc(landingRef, {
-        ...config,
-        updatedAt: serverTimestamp(),
-        schoolId: firebaseConfig.projectId
-      }, { merge: true });
+      const sanitized = this.sanitizeFirestoreObject(config as unknown as Record<string, any>);
+      await withTimeout(
+        setDoc(
+          landingRef,
+          {
+            ...sanitized,
+            updatedAt: serverTimestamp(),
+            schoolId: firebaseConfig.projectId
+          },
+          { merge: true }
+        ),
+        5000
+      );
     } catch (err) {
       console.warn('[FirebaseSync] Cloud landing page sync warning:', err);
     }

@@ -290,9 +290,10 @@ export default function SettingsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isSaving) return;
     setIsSaving(true);
     try {
-      settingsService.updateSettings(formData);
+      settingsService.updateSettings(formData, { skipCloudSync: true });
 
       try {
         landingPageService.syncWithSchoolSettings(formData, true);
@@ -303,13 +304,6 @@ export default function SettingsPage() {
         console.warn('Failed to sync settings with landing page service', err);
       }
 
-      try {
-        const { firebaseSyncService } = await import('@/services/firebaseSyncService');
-        await firebaseSyncService.syncSettingsToCloud(formData);
-      } catch (err) {
-        console.warn('[SettingsSubmit] Cloud settings sync error:', err);
-      }
-
       if (typeof window !== 'undefined') {
         localStorage.setItem('sms_admin_phone', adminPhoneInput.trim());
         if (adminPassInput.trim() && !adminPassInput.trim().startsWith('pbkdf2:')) {
@@ -317,6 +311,17 @@ export default function SettingsPage() {
         }
         localStorage.setItem('sms_academic_session', currentSession);
         localStorage.setItem('sms_exam_names', JSON.stringify(examNames));
+      }
+
+      // Bounded cloud sync so stalled Firestore long-polling never freezes the Save button
+      try {
+        const { firebaseSyncService } = await import('@/services/firebaseSyncService');
+        await Promise.race([
+          firebaseSyncService.syncSettingsToCloud(formData),
+          new Promise<void>((resolve) => window.setTimeout(resolve, 3500)),
+        ]);
+      } catch (err) {
+        console.warn('[SettingsSubmit] Cloud settings sync error:', err);
       }
 
       const persisted = settingsService.getSettings();
