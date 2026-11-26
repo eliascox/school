@@ -32,6 +32,8 @@ import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 export default function FirebaseCloudSyncPanel() {
   const [status, setStatus] = useState<CloudSyncStatus>(firebaseSyncService.getStatus());
   const [cloudUser, setCloudUser] = useState<CloudAuthUser | null>(firebaseSyncService.getCloudAuthUser());
+  const [authReady, setAuthReady] = useState<boolean>(Boolean(firebaseSyncService.getCloudAuthUser()));
+  const [rememberedUser] = useState<CloudAuthUser | null>(() => firebaseSyncService.getRememberedCloudAuthMeta());
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
@@ -55,8 +57,12 @@ export default function FirebaseCloudSyncPanel() {
   useEffect(() => {
     setLocalStudentCount(studentService.getAllStudents().length);
     setStatus(firebaseSyncService.getStatus());
-    const unsubAuth = firebaseSyncService.subscribeCloudAuth((user) => {
+    if (rememberedUser?.email) {
+      setAuthEmail((prev) => prev || rememberedUser.email || '');
+    }
+    const unsubAuth = firebaseSyncService.subscribeCloudAuth((user, ready) => {
       setCloudUser(user);
+      if (ready) setAuthReady(true);
     });
     const unsubStudents = studentService.subscribe(() => {
       setLocalStudentCount(studentService.getAllStudents().length);
@@ -275,7 +281,9 @@ export default function FirebaseCloudSyncPanel() {
       <div className={`p-4 rounded-2xl border ${
         cloudUser
           ? 'bg-emerald-50/70 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/70'
-          : 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60'
+          : !authReady && rememberedUser
+            ? 'bg-sky-50/70 dark:bg-sky-950/25 border-sky-200 dark:border-sky-900/70'
+            : 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60'
       }`}>
         {cloudUser ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -287,8 +295,8 @@ export default function FirebaseCloudSyncPanel() {
                 <p className="text-xs sm:text-sm font-extrabold text-emerald-900 dark:text-emerald-200 truncate">
                   Firebase ক্লাউড অ্যাকাউন্ট সংযুক্ত: {cloudUser.email || 'Admin User'}
                 </p>
-                <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 truncate">
-                  UID: {cloudUser.uid}
+                <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 truncate">
+                  অটো-সেভ সক্রিয় (ব্রাউজার রিফ্রেশেও লগইন থাকবে) • <span className="font-mono">UID: {cloudUser.uid}</span>
                 </p>
               </div>
             </div>
@@ -300,6 +308,13 @@ export default function FirebaseCloudSyncPanel() {
               <LogOut className="w-3.5 h-3.5" />
               <span>সাইন-আউট</span>
             </button>
+          </div>
+        ) : !authReady && rememberedUser ? (
+          <div className="flex items-center gap-3">
+            <RefreshCw className="w-4 h-4 animate-spin text-sky-600 shrink-0" />
+            <p className="text-xs font-bold text-sky-900 dark:text-sky-200">
+              সংরক্ষিত ক্লাউড সেশন পুনরায় যুক্ত হচ্ছে ({rememberedUser.email || rememberedUser.uid})...
+            </p>
           </div>
         ) : (
           <form onSubmit={handleCloudSignIn} className="space-y-3">

@@ -61,6 +61,7 @@ export default function SettingsPage() {
   // Saved Baseline Snapshot for Floating Unsaved Changes Bar
   const [baselineSnapshot, setBaselineSnapshot] = useState<SettingsDirtySnapshot | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
+  const isDirtyRef = useRef(false);
 
   // Sync activeTab with URL query parameter (supports 0ms Sidebar clicks & deep-links)
   useEffect(() => {
@@ -155,6 +156,7 @@ export default function SettingsPage() {
     });
 
     const unsub = settingsService.subscribe((savedSettings) => {
+      if (isDirtyRef.current) return;
       setFormData(savedSettings);
       setBaselineSnapshot((prev) => (prev ? { ...prev, formData: savedSettings } : prev));
     });
@@ -189,6 +191,10 @@ export default function SettingsPage() {
       ),
     [formData, adminPhoneInput, adminPassInput, currentSession, examNames, baselineSnapshot],
   );
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
 
   const handleSelectTab = useCallback((nextTab: SettingsNavItemId) => {
     setActiveTab(nextTab);
@@ -314,12 +320,25 @@ export default function SettingsPage() {
       }
 
       // Bounded cloud sync so stalled Firestore long-polling never freezes the Save button
+      let cloudSyncNote: string | undefined;
+      let cloudSynced = false;
       try {
         const { firebaseSyncService } = await import('@/services/firebaseSyncService');
-        await Promise.race([
-          firebaseSyncService.syncSettingsToCloud(formData),
-          new Promise<void>((resolve) => window.setTimeout(resolve, 3500)),
+        const cloudRes = await Promise.race([
+          firebaseSyncService.syncSettingsToCloud(settingsService.getSettings()),
+          new Promise<{ success: false; warning: string }>((resolve) =>
+            window.setTimeout(
+              () =>
+                resolve({
+                  success: false,
+                  warning: 'লোকাল ডিভাইসে সেভ হয়েছে; ক্লাউড সিঙ্ক ব্যাকগ্রাউন্ডে চলছে।',
+                }),
+              3500,
+            ),
+          ),
         ]);
+        cloudSynced = Boolean(cloudRes?.success);
+        cloudSyncNote = cloudRes?.warning;
       } catch (err) {
         console.warn('[SettingsSubmit] Cloud settings sync error:', err);
       }
@@ -336,7 +355,14 @@ export default function SettingsPage() {
       });
 
       setSavedSuccess(true);
-      showToast('সকল পরিবর্তন সফলভাবে সংরক্ষিত হয়েছে।', 'success');
+      showToast(
+        cloudSyncNote
+          ? `সফলভাবে সংরক্ষিত! (${cloudSyncNote})`
+          : cloudSynced
+            ? 'সকল পরিবর্তন লোকাল ও ক্লাউডে সফলভাবে সংরক্ষিত হয়েছে।'
+            : 'সকল পরিবর্তন সফলভাবে সংরক্ষিত হয়েছে।',
+        'success',
+      );
       window.setTimeout(() => setSavedSuccess(false), 4000);
     } finally {
       setIsSaving(false);

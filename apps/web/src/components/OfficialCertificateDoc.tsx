@@ -25,6 +25,8 @@ import {
   DEFAULT_PAD_HEADER_FIELDS,
   getEnglishSchoolName,
   getEnglishAddress,
+  getEnglishPrincipalNameFromSettings,
+  getEnglishPrincipalTitleFromSettings,
 } from '@/services/settingsService';
 import {
   CertificateCanvasMode,
@@ -187,11 +189,13 @@ export default function OfficialCertificateDoc({
       : cleanEntityText(safeSettings.address || '');
   const principalNameDisplay =
     cert.principalTitle ||
-    cleanEntityText(safeSettings.principalName) ||
-    (lang === 'en' ? 'Headmaster / Principal' : 'প্রধান শিক্ষক / অধ্যক্ষ');
+    (lang === 'en'
+      ? cleanEntityText(getEnglishPrincipalNameFromSettings(safeSettings, 'Headmaster / Principal'))
+      : cleanEntityText(safeSettings.principalName) || 'প্রধান শিক্ষক / অধ্যক্ষ');
   const principalRoleDisplay =
-    cleanEntityText(safeSettings.principalTitle) ||
-    (lang === 'en' ? 'Headmaster' : 'প্রধান শিক্ষক');
+    lang === 'en'
+      ? cleanEntityText(getEnglishPrincipalTitleFromSettings(safeSettings, 'Headmaster'))
+      : cleanEntityText(safeSettings.principalTitle) || 'প্রধান শিক্ষক';
 
   const studentTargetEn = cleanEntityText(cert.studentNameEn || cert.studentName).toLowerCase();
   const fatherTargetEn = cleanEntityText(cert.fatherNameEn || cert.fatherName).toLowerCase();

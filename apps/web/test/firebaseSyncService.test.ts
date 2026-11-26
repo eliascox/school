@@ -23,9 +23,17 @@ try {
   });
 } catch {}
 
-import { firebaseSyncService } from '../src/services/firebaseSyncService';
+import { firebaseSyncService, sanitizeSettingsForCloudDoc } from '../src/services/firebaseSyncService';
 import { isFirebaseConfigured, firebaseConfig } from '../src/lib/firebase';
 import { studentService } from '../src/services/studentService';
+import {
+  shouldApplyCloudSettings,
+  mergeCloudSettingsPreservingLocalPad,
+  getEnglishSchoolName,
+  getEnglishAddress,
+  getEnglishPrincipalNameFromSettings,
+  getEnglishPrincipalTitleFromSettings,
+} from '../src/services/settingsService';
 import { canonicalizeLocalStorageKeys } from '../src/lib/storageMigration';
 import { backupService } from '../src/services/backupService';
 
@@ -201,5 +209,73 @@ describe('firebaseSyncService Unit Tests', () => {
 
     const emptySignIn = await firebaseSyncService.signInCloudAdmin('', '');
     expect(emptySignIn.success).toBe(false);
+    expect(firebaseSyncService.getRememberedCloudAuthMeta()).toBeNull();
+  });
+
+  it('prevents stale cloud settings from overwriting newer local edits and strips >680KB blobs safely', () => {
+    const localSettings = {
+      schoolName: 'বরইতলী উচ্চ বিদ্যালয়',
+      schoolNameEn: 'Baraitali High School',
+      address: 'চকরিয়া, কক্সবাজার',
+      addressEn: "Chakaria, Cox's Bazar",
+      principalName: 'মোহাম্মদ রফিকুল ইসলাম',
+      principalNameEn: 'Mohammad Rafiqul Islam',
+      principalTitle: 'প্রধান শিক্ষক',
+      principalTitleEn: 'Headmaster',
+    };
+
+    // Newer local pending edits MUST NOT be overwritten by cloud snapshot
+    expect(
+      shouldApplyCloudSettings(
+        localSettings,
+        { schoolName: 'Old Cloud Name', clientUpdatedAt: 1000 },
+        2000,
+        true
+      )
+    ).toBe(false);
+
+    // Newer local timestamp MUST NOT be overwritten even when pendingSync=false
+    expect(
+      shouldApplyCloudSettings(
+        localSettings,
+        { schoolName: 'Old Cloud Name', clientUpdatedAt: 1500 },
+        2500,
+        false
+      )
+    ).toBe(false);
+
+    // Strictly newer cloud snapshot on clean local device SHOULD hydrate
+    expect(
+      shouldApplyCloudSettings(
+        localSettings,
+        { schoolName: 'Updated Cloud Name', clientUpdatedAt: 4000 },
+        2500,
+        false
+      )
+    ).toBe(true);
+
+    // Bilingual fields preserved if cloud doc omits them
+    const merged = mergeCloudSettingsPreservingLocalPad(localSettings as any, {
+      schoolName: 'বরইতলী উচ্চ বিদ্যালয়',
+      schoolNameEn: '',
+    });
+    expect(merged.schoolNameEn).toBe('Baraitali High School');
+    expect(merged.principalNameEn).toBe('Mohammad Rafiqul Islam');
+
+    // Oversized media trimmed while text & bilingual fields remain intact
+    const oversizedLogo = 'data:image/png;base64,' + 'A'.repeat(700_000);
+    const { payload, trimmedMediaFields } = sanitizeSettingsForCloudDoc({
+      ...localSettings,
+      schoolLogo: oversizedLogo,
+    });
+    expect(trimmedMediaFields).toContain('schoolLogo');
+    expect(payload.schoolLogo).toBeUndefined();
+    expect(payload.schoolNameEn).toBe('Baraitali High School');
+    expect(payload.principalNameEn).toBe('Mohammad Rafiqul Islam');
+
+    expect(getEnglishSchoolName(localSettings)).toBe('Baraitali High School');
+    expect(getEnglishAddress(localSettings)).toBe("Chakaria, Cox's Bazar");
+    expect(getEnglishPrincipalNameFromSettings(localSettings)).toBe('Mohammad Rafiqul Islam');
+    expect(getEnglishPrincipalTitleFromSettings(localSettings)).toBe('Headmaster');
   });
 });

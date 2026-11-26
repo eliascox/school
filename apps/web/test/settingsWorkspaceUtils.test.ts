@@ -77,6 +77,9 @@ describe('settingsWorkspaceUtils', () => {
 
     const resetHit = searchSettingsItems('রিসেট');
     expect(resetHit.some((i) => i.tab === 'system' && i.anchorId === 'section-system-danger')).toBe(true);
+
+    const englishHit = searchSettingsItems('principalNameEn');
+    expect(englishHit.some((i) => i.tab === 'identity' && i.anchorId === 'field-principalName')).toBe(true);
   });
 
   it('computes setup checklist progress and auto-hides when all 5 core fields are set', () => {

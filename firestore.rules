@@ -26,10 +26,12 @@ rules_version = '2';
 //     - schoolName, schoolNameEn: string (optional, <= 200)
 //     - schoolLogo, schoolPhoto, customBorderPng, uploadedPadTemplateUrl: media/path string (optional, <= 700000)
 //     - address, addressEn: string (optional, <= 400), eiin: string (optional, <= 30), estdYear: string (optional, <= 20)
-//     - principalName, principalTitle, classTeacherTitle, guardianTitle, watermarkText, padRefPrefix: string (optional, <= 200)
+//     - principalName, principalNameEn, principalTitle, principalTitleEn, classTeacherTitle, guardianTitle: string (optional, <= 120)
+//     - watermarkText, padRefPrefix: string (optional, <= 200)
 //     - phone, email, website, selectedBorderId, uploadedPadFileName: string (optional, <= 300)
 //     - uploadedPadType: 'image' | 'pdf' (optional), activePadMode: 'uploaded' | 'preprinted' (optional)
 //     - uploadedPadUpdatedAt: number (0..9999999999999) | string (0..64) (optional)
+//     - clientUpdatedAt: number (optional, 0..9999999999999)
 //     - language: 'bn' | 'en' (optional), theme: 'light' | 'dark' (optional)
 //     - showWatermark, showClassSelection, showSectionSelection, showRollInput, onlineAdmissionEnabled: bool (optional)
 //     - watermarkOpacity, uploadedPadFileSize, padFontSize, padLineHeight, padSignatureGap: number (optional, >= 0)
@@ -337,17 +339,17 @@ service cloud.firestore {
       let allowed = [
         'schoolName', 'schoolNameEn', 'schoolLogo', 'schoolPhoto', 'customBorderPng', 'customBorders',
         'selectedBorderId', 'address', 'addressEn', 'eiin', 'estdYear', 'principalName',
-        'principalTitle', 'classTeacherTitle', 'guardianTitle', 'showWatermark',
-        'watermarkText', 'watermarkOpacity', 'phone', 'email', 'website',
+        'principalNameEn', 'principalTitle', 'principalTitleEn', 'classTeacherTitle', 'guardianTitle',
+        'showWatermark', 'watermarkText', 'watermarkOpacity', 'phone', 'email', 'website',
         'showClassSelection', 'showSectionSelection', 'showRollInput', 'language',
         'theme', 'onlineAdmissionEnabled', 'uploadedPadTemplateUrl', 'uploadedPadType',
         'uploadedPadFileName', 'uploadedPadFileSize', 'uploadedPadUpdatedAt',
         'activePadMode', 'padMargins', 'padHeaderFields',
         'padFontSize', 'padLineHeight', 'padSignatureGap', 'padRefPrefix',
-        'committeeMembers', 'updatedAt', 'createdAt', 'schoolId'
+        'committeeMembers', 'clientUpdatedAt', 'updatedAt', 'createdAt', 'schoolId'
       ];
       return data.keys().hasOnly(allowed) &&
-             data.keys().size() <= 48 &&
+             data.keys().size() <= 52 &&
              isOptStr(data, 'schoolName', 0, 200) &&
              isOptStr(data, 'schoolNameEn', 0, 200) &&
              (!('schoolLogo' in data) || isValidMediaOrPath(data.schoolLogo, 700000)) &&
@@ -361,7 +363,9 @@ service cloud.firestore {
              isOptStr(data, 'eiin', 0, 30) &&
              isOptStr(data, 'estdYear', 0, 20) &&
              isOptStr(data, 'principalName', 0, 120) &&
+             isOptStr(data, 'principalNameEn', 0, 120) &&
              isOptStr(data, 'principalTitle', 0, 120) &&
+             isOptStr(data, 'principalTitleEn', 0, 120) &&
              isOptStr(data, 'classTeacherTitle', 0, 120) &&
              isOptStr(data, 'guardianTitle', 0, 120) &&
              isOptBool(data, 'showWatermark') &&
@@ -390,6 +394,7 @@ service cloud.firestore {
              isOptNum(data, 'padSignatureGap', 0, 20) &&
              isOptStr(data, 'padRefPrefix', 0, 120) &&
              isOptList(data, 'committeeMembers', 100) &&
+             isOptNum(data, 'clientUpdatedAt', 0, 9999999999999) &&
              isOptStr(data, 'schoolId', 0, 64) &&
              isOptTimestamp(data, 'updatedAt') &&
              isOptTimestamp(data, 'createdAt');

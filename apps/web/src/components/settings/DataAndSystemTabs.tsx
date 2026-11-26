@@ -706,12 +706,20 @@ export function SettingsSidebarPreview({
                   </div>
                 )}
               </div>
-              <h3 className="text-[12.5px] font-black text-slate-950 leading-tight">
-                {formData.schoolName || 'প্রতিষ্ঠানের নাম'}
-              </h3>
+              <div>
+                <h3 className="text-[12.5px] font-black text-slate-950 leading-tight">
+                  {formData.schoolName || 'প্রতিষ্ঠানের নাম'}
+                </h3>
+                {formData.schoolNameEn && (
+                  <p className="text-[9.5px] font-bold text-slate-700 leading-tight">{formData.schoolNameEn}</p>
+                )}
+              </div>
             </div>
 
-            <p className="text-[9px] font-bold text-slate-700">{formData.address || 'প্রতিষ্ঠানের ঠিকানা'}</p>
+            <p className="text-[9px] font-bold text-slate-700">
+              {formData.address || 'প্রতিষ্ঠানের ঠিকানা'}
+              {formData.addressEn ? ` • ${formData.addressEn}` : ''}
+            </p>
             <p className="text-[8px] font-bold text-slate-600 font-mono">
               স্থাপিত: {formData.estdYear || '1969'} খ্রি. । EIIN: {formData.eiin || '106184'}
             </p>
@@ -735,7 +743,9 @@ export function SettingsSidebarPreview({
               <div className="w-14 border-b border-slate-900 mb-0.5 ml-auto" />
               <span className="font-black">{formData.principalTitle}</span>
               {formData.principalName && (
-                <div className="text-[7px] font-normal text-slate-600">({formData.principalName})</div>
+                <div className="text-[7px] font-normal text-slate-600">
+                  ({formData.principalName}{formData.principalNameEn ? ` / ${formData.principalNameEn}` : ''})
+                </div>
               )}
             </div>
           </div>

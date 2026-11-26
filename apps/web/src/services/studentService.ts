@@ -351,40 +351,48 @@ export const studentService = {
           (s.section || '') === (student.section || ''))
     );
     let updated: Student[];
+    let syncedStudent: Student = student;
     if (index !== -1) {
       updated = [...all];
-      updated[index] = {
+      syncedStudent = {
         ...all[index],
         ...student,
         photo: student.photo !== undefined ? student.photo : all[index].photo
       };
+      updated[index] = syncedStudent;
       updated = sortStudentsGroupAndRoll(updated, 'roll_asc');
     } else {
       updated = sortStudentsGroupAndRoll(deduplicateStudentList([student, ...all]), 'roll_asc');
     }
     try {
       localStorage.setItem('sms_students', JSON.stringify(updated));
-      if (student.photo) {
+      if (syncedStudent.photo) {
         const pSaved = localStorage.getItem('sms_student_photos');
         const pMap = pSaved ? JSON.parse(pSaved) : {};
-        if (student.id) pMap[student.id] = student.photo;
-        if (student.roll) {
-          pMap[student.roll] = student.photo;
-          const g = (student.grade || student.gradeBn || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (g) pMap[`${g}_${student.roll}`] = student.photo;
+        if (syncedStudent.id) pMap[syncedStudent.id] = syncedStudent.photo;
+        if (syncedStudent.roll) {
+          pMap[syncedStudent.roll] = syncedStudent.photo;
+          const g = (syncedStudent.grade || syncedStudent.gradeBn || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (g) pMap[`${g}_${syncedStudent.roll}`] = syncedStudent.photo;
         }
         localStorage.setItem('sms_student_photos', JSON.stringify(pMap));
       }
-      syncQueueService.enqueue('student', student.id, 'UPDATE', student).catch(() => {});
+      syncQueueService.enqueue('student', syncedStudent.id, 'UPDATE', syncedStudent).catch(() => {});
       // ☁️ Auto-sync to Firebase Cloud Firestore
       import('./firebaseSyncService').then(({ firebaseSyncService }) => {
-        firebaseSyncService.syncStudent(student).catch(() => {});
+        firebaseSyncService.syncStudent(syncedStudent).catch(() => {});
       }).catch(() => {});
     } catch (e) {
       console.error('Storage error in updateStudent:', e);
     }
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
+    if (index !== -1) {
+      const updatedTarget = all[index];
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncStudent(updatedTarget).catch(() => {});
+      }).catch(() => {});
+    }
     return true;
   },
 
@@ -423,6 +431,12 @@ export const studentService = {
 
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
+    if (index !== -1) {
+      const updatedTarget = all[index];
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncStudent(updatedTarget).catch(() => {});
+      }).catch(() => {});
+    }
     return true;
   },
 
@@ -486,6 +500,9 @@ export const studentService = {
 
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
+    import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+      firebaseSyncService.syncStudent(updatedStudent).catch(() => {});
+    }).catch(() => {});
     return { success: true, message: 'শিক্ষার্থীর মৌলিক তথ্য সফলভাবে আপডেট করা হয়েছে!', student: updatedStudent };
   },
 
@@ -625,6 +642,9 @@ export const studentService = {
     localStorage.setItem('sms_students', JSON.stringify(updatedStudents));
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
+    import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+      firebaseSyncService.uploadAllToCloud().catch(() => {});
+    }).catch(() => {});
 
     return {
       success: true,
@@ -676,6 +696,12 @@ export const studentService = {
     invalidateStudentCache();
     window.dispatchEvent(new Event('storage'));
     listeners.forEach((fn) => fn());
+    const syncedStipendStudent = updated.find((s) => s.id === studentId);
+    if (syncedStipendStudent) {
+      import('./firebaseSyncService').then(({ firebaseSyncService }) => {
+        firebaseSyncService.syncStudent(syncedStipendStudent).catch(() => {});
+      }).catch(() => {});
+    }
 
     return {
       success: true,

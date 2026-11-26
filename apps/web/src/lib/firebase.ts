@@ -11,7 +11,12 @@ import {
   persistentMultipleTabManager,
   Firestore,
 } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import {
+  getAuth,
+  Auth,
+  setPersistence,
+  browserLocalPersistence,
+} from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const EXPECTED_OFFLINE_LOG_PATTERNS = [
@@ -93,6 +98,9 @@ try {
     }
 
     auth = getAuth(app);
+    if (typeof window !== 'undefined' && auth) {
+      setPersistence(auth, browserLocalPersistence).catch(() => {});
+    }
     storage = getStorage(app);
   }
 } catch (err) {

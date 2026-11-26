@@ -15,24 +15,46 @@ export function IdentitySettingsTab({ formData, handleChange }: IdentitySettings
     <div className="space-y-5">
       {/* School Identity Card */}
       <SettingsCard
-        title="প্রতিষ্ঠানের মূল তথ্য"
-        subtitle="প্রতিষ্ঠানের নাম, EIIN নম্বর, ঠিকানা ও স্থাপিত সাল — সকল ডকুমেন্টে ব্যবহৃত হবে"
+        title="প্রতিষ্ঠানের মূল তথ্য (বাংলা ও ইংরেজি)"
+        subtitle="প্রতিষ্ঠানের বাংলা ও ইংরেজি নাম, ঠিকানা, EIIN নম্বর ও স্থাপিত সাল — সকল ডকুমেন্টে ব্যবহৃত হবে"
         icon={<School className="w-4.5 h-4.5" />}
         iconBg="bg-indigo-50 dark:bg-indigo-950/60"
         iconColor="text-indigo-600 dark:text-indigo-400"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <FormInput
-              id="field-schoolName"
-              label="প্রতিষ্ঠানের নাম"
-              value={formData.schoolName}
-              onChange={(v) => handleChange('schoolName', v)}
-              placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয়"
-              hint="নম্বরপত্র, সনদপত্র, নোটিশ ও পাবলিক ওয়েবসাইটের শিরোনামে এই নাম দেখাবে।"
-              required
-            />
-          </div>
+          <FormInput
+            id="field-schoolName"
+            label="প্রতিষ্ঠানের নাম (বাংলা)"
+            value={formData.schoolName}
+            onChange={(v) => handleChange('schoolName', v)}
+            placeholder="যেমন: বরইতলী উচ্চ বিদ্যালয়"
+            hint="নম্বরপত্র, সনদপত্র, নোটিশ ও পাবলিক ওয়েবসাইটে দেখাবে।"
+            required
+          />
+          <FormInput
+            id="field-schoolNameEn"
+            label="প্রতিষ্ঠানের নাম (English)"
+            value={formData.schoolNameEn || ''}
+            onChange={(v) => handleChange('schoolNameEn', v)}
+            placeholder="e.g. Baraitali High School"
+            hint="ইংরেজি সনদ, SSC প্রশংসাপত্র, আইডি কার্ড ও অ্যাডমিট কার্ডে ব্যবহৃত হবে।"
+          />
+          <FormInput
+            id="field-address"
+            label="প্রতিষ্ঠানের ঠিকানা (বাংলা)"
+            value={formData.address}
+            onChange={(v) => handleChange('address', v)}
+            placeholder="যেমন: বরইতলী, চকরিয়া, কক্সবাজার"
+            required
+          />
+          <FormInput
+            id="field-addressEn"
+            label="প্রতিষ্ঠানের ঠিকানা (English)"
+            value={formData.addressEn || ''}
+            onChange={(v) => handleChange('addressEn', v)}
+            placeholder="e.g. Baraitoli, Chakaria, Cox's Bazar"
+            hint="ইংরেজি ডকুমেন্ট ও ট্রান্সক্রিপ্ট হেডারে দেখাবে।"
+          />
           <FormInput
             id="field-eiin"
             label="EIIN নম্বর"
@@ -52,22 +74,13 @@ export function IdentitySettingsTab({ formData, handleChange }: IdentitySettings
             required
             mono
           />
-          <div className="sm:col-span-2">
-            <FormInput
-              label="প্রতিষ্ঠানের ঠিকানা"
-              value={formData.address}
-              onChange={(v) => handleChange('address', v)}
-              placeholder="যেমন: বরইতলী, চকরিয়া, কক্সবাজার"
-              required
-            />
-          </div>
         </div>
       </SettingsCard>
 
       {/* Authority & Signatures */}
       <SettingsCard
-        title="কর্তৃপক্ষ ও স্বাক্ষর লেবেল"
-        subtitle="প্রধান শিক্ষকের নাম এবং নম্বরপত্র ও সনদের ফুটার স্বাক্ষর নির্ধারণ করুন"
+        title="কর্তৃপক্ষ ও স্বাক্ষর লেবেল (বাংলা ও ইংরেজি)"
+        subtitle="প্রধান শিক্ষকের বাংলা ও ইংরেজি নাম, পদবি এবং নম্বরপত্র ও সনদের স্বাক্ষর নির্ধারণ করুন"
         icon={<UserCheck className="w-4.5 h-4.5" />}
         iconBg="bg-purple-50 dark:bg-purple-950/60"
         iconColor="text-purple-600 dark:text-purple-400"
@@ -75,18 +88,34 @@ export function IdentitySettingsTab({ formData, handleChange }: IdentitySettings
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormInput
             id="field-principalName"
-            label="প্রধান শিক্ষকের নাম"
+            label="প্রধান শিক্ষকের নাম (বাংলা)"
             value={formData.principalName}
             onChange={(v) => handleChange('principalName', v)}
             placeholder="যেমন: মোহাম্মদ রফিকুল ইসলাম"
-            hint="প্রত্যয়ন, ছাড়পত্র ও মার্কশিটের স্বাক্ষর অংশে প্রদর্শিত হবে।"
+            hint="বাংলা প্রত্যয়ন, ছাড়পত্র ও মার্কশিটের স্বাক্ষর অংশে প্রদর্শিত হবে।"
           />
           <FormInput
-            label="প্রধান শিক্ষকের পদবি"
+            id="field-principalNameEn"
+            label="প্রধান শিক্ষকের নাম (English)"
+            value={formData.principalNameEn || ''}
+            onChange={(v) => handleChange('principalNameEn', v)}
+            placeholder="e.g. Mohammad Rafiqul Islam"
+            hint="ইংরেজি সনদ, SSC প্রশংসাপত্র ও ইংরেজি ট্রান্সক্রিপ্টে প্রদর্শিত হবে।"
+          />
+          <FormInput
+            label="প্রধান শিক্ষকের পদবি (বাংলা)"
             value={formData.principalTitle}
             onChange={(v) => handleChange('principalTitle', v)}
             placeholder="যেমন: প্রধান শিক্ষক"
             required
+          />
+          <FormInput
+            id="field-principalTitleEn"
+            label="প্রধান শিক্ষকের পদবি (English)"
+            value={formData.principalTitleEn || ''}
+            onChange={(v) => handleChange('principalTitleEn', v)}
+            placeholder="e.g. Headmaster"
+            hint="ইংরেজি স্বাক্ষর লেবেলে (যেমন: Headmaster / Principal) প্রদর্শিত হবে।"
           />
           <FormInput
             label="শ্রেণি শিক্ষক স্বাক্ষর লেবেল"

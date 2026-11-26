@@ -46,9 +46,12 @@ export type SchoolSettings = {
   eiin: string;
   estdYear: string;
   principalName: string;
+  principalNameEn?: string;
   principalTitle: string;
+  principalTitleEn?: string;
   classTeacherTitle: string;
   guardianTitle: string;
+  clientUpdatedAt?: number;
   showWatermark: boolean;
   watermarkText: string;
   watermarkOpacity: number;
@@ -117,16 +120,20 @@ export const DEFAULT_PAD_MARGINS: PadMargins = {
 
 const DEFAULT_SETTINGS: SchoolSettings = {
   schoolName: '',  // ← Set in Settings → এখানে প্রতিষ্ঠানের নাম দিন
+  schoolNameEn: '',
   schoolLogo: '',  // ← Empty by default; dynamically falls back to institutional crest or uploaded logo
   schoolPhoto: '/school-campus.jpg',
   customBorderPng: '',
   customBorders: [],
   selectedBorderId: '',
   address: '',  // ← Set in Settings
+  addressEn: '',
   eiin: '',  // ← Set in Settings
   estdYear: '1969',
   principalName: '',  // ← Set in Settings
+  principalNameEn: '',
   principalTitle: 'প্রধান শিক্ষক',
+  principalTitleEn: 'Headmaster',
   classTeacherTitle: 'শ্রেণি শিক্ষকের স্বাক্ষর',
   guardianTitle: 'অভিভাবকের স্বাক্ষর',
   showWatermark: true,
@@ -159,8 +166,96 @@ const DEFAULT_SETTINGS: SchoolSettings = {
 const STORAGE_KEY = 'sms_school_settings';
 const STORAGE_KEY_LOGO = 'sms_school_logo_master';
 const STORAGE_KEY_PAD = 'sms_school_pad_master';
+const SETTINGS_LOCAL_UPDATED_AT_KEY = 'sms_settings_local_updated_at';
+const SETTINGS_PENDING_CLOUD_SYNC_KEY = 'sms_settings_pending_cloud_sync';
 const IDB_NAME = 'sms_persistent_vault';
 const IDB_STORE = 'app_state';
+
+export function extractSettingsTimestampMs(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val) && val > 0) return val;
+  if (val && typeof val === 'object') {
+    const anyVal = val as { toMillis?: () => number; seconds?: number };
+    if (typeof anyVal.toMillis === 'function') {
+      const ms = anyVal.toMillis();
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    if (typeof anyVal.seconds === 'number' && Number.isFinite(anyVal.seconds)) {
+      return anyVal.seconds * 1000;
+    }
+  }
+  if (typeof val === 'string' && val.trim()) {
+    const parsed = Date.parse(val);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+export function getLocalSettingsUpdatedAt(): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = localStorage.getItem(SETTINGS_LOCAL_UPDATED_AT_KEY);
+    const num = Number(raw || 0);
+    return Number.isFinite(num) && num > 0 ? num : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function isSettingsPendingCloudSync(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(SETTINGS_PENDING_CLOUD_SYNC_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markSettingsPendingCloudSync(pending: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (pending) {
+      localStorage.setItem(SETTINGS_PENDING_CLOUD_SYNC_KEY, '1');
+    } else {
+      localStorage.removeItem(SETTINGS_PENDING_CLOUD_SYNC_KEY);
+    }
+  } catch {
+    // Ignore storage restriction
+  }
+}
+
+/**
+ * Prevents stale Cloud Firestore settings snapshots from overwriting newer local edits.
+ */
+export function shouldApplyCloudSettings(
+  local: Partial<SchoolSettings> | null | undefined,
+  cloud: (Partial<SchoolSettings> & { updatedAt?: unknown }) | null | undefined,
+  localUpdatedAtMs: number = getLocalSettingsUpdatedAt(),
+  pendingSync: boolean = isSettingsPendingCloudSync(),
+): boolean {
+  if (!cloud || (!cloud.schoolName && !cloud.schoolLogo && !cloud.schoolNameEn && !cloud.principalName)) {
+    return false;
+  }
+  const hasMeaningfulLocal = Boolean(
+    local?.schoolName?.trim() ||
+    local?.schoolNameEn?.trim() ||
+    local?.schoolLogo?.trim() ||
+    local?.principalName?.trim()
+  );
+  if (!hasMeaningfulLocal) return true;
+  if (pendingSync) return false;
+
+  const cloudTs = Math.max(
+    extractSettingsTimestampMs(cloud.clientUpdatedAt),
+    extractSettingsTimestampMs((cloud as any).updatedAt),
+  );
+  if (localUpdatedAtMs > 0 && cloudTs > 0 && localUpdatedAtMs >= cloudTs) {
+    return false;
+  }
+  if (localUpdatedAtMs > 0 && cloudTs === 0) {
+    return false;
+  }
+  return true;
+}
 
 type PadVaultEntry = {
   url: string;
@@ -237,6 +332,10 @@ export function mergeCloudSettingsPreservingLocalPad(
     ...DEFAULT_SETTINGS,
     ...local,
     ...cloud,
+    schoolNameEn: cloud.schoolNameEn?.trim() ? cloud.schoolNameEn : (local.schoolNameEn || ''),
+    addressEn: cloud.addressEn?.trim() ? cloud.addressEn : (local.addressEn || ''),
+    principalNameEn: cloud.principalNameEn?.trim() ? cloud.principalNameEn : (local.principalNameEn || ''),
+    principalTitleEn: cloud.principalTitleEn?.trim() ? cloud.principalTitleEn : (local.principalTitleEn || DEFAULT_SETTINGS.principalTitleEn),
     ...(keepLocalPad
       ? {
           uploadedPadTemplateUrl: local.uploadedPadTemplateUrl,
@@ -423,7 +522,7 @@ if (typeof window !== 'undefined') {
       import('./firebaseSyncService').then(({ firebaseSyncService }) => {
         // 1. Fetch latest settings from Cloud Firestore (no 403 student count aggregation)
         firebaseSyncService.fetchLandingPageCloudData({ includeStudentCount: false }).then((cloudData) => {
-          if (cloudData.settings && (cloudData.settings.schoolLogo || cloudData.settings.schoolName)) {
+          if (cloudData.settings && shouldApplyCloudSettings(currentSettings, cloudData.settings)) {
             const nextMerged = mergeCloudSettingsPreservingLocalPad(currentSettings, cloudData.settings);
             const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
             const nextClean = JSON.stringify({ ...(nextMerged as any), updatedAt: undefined });
@@ -432,17 +531,20 @@ if (typeof window !== 'undefined') {
               persistSettingsSafely(currentSettings);
               listeners.forEach((fn) => fn(currentSettings));
             }
-          } else if (currentSettings.schoolLogo) {
-            // Local browser has the logo but Cloud Firestore doesn't yet
+          } else if (
+            isSettingsPendingCloudSync() ||
+            (currentSettings.schoolLogo && !cloudData.settings?.schoolLogo)
+          ) {
+            // Local edits are newer or pending cloud sync — push local truth cleanly to Cloud Firestore
             firebaseSyncService.syncSettingsToCloud(currentSettings).catch((err) => {
-              console.warn('[SettingsService] Cloud logo seed warning:', err);
+              console.warn('[SettingsService] Pending cloud sync warning:', err);
             });
           }
         }).catch(() => {});
 
         // 2. Real-time onSnapshot subscription for live multi-PC syncing
         firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
-          if (cloudUpdate.settings && (cloudUpdate.settings.schoolLogo || cloudUpdate.settings.schoolName)) {
+          if (cloudUpdate.settings && shouldApplyCloudSettings(currentSettings, cloudUpdate.settings)) {
             const nextSettings = mergeCloudSettingsPreservingLocalPad(currentSettings, cloudUpdate.settings);
             const prevSerialized = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
             const nextSerialized = JSON.stringify({ ...(nextSettings as any), updatedAt: undefined });
@@ -481,13 +583,15 @@ export const settingsService = {
     const padChanged =
       newSettings.uploadedPadTemplateUrl !== undefined &&
       newSettings.uploadedPadTemplateUrl !== currentSettings.uploadedPadTemplateUrl;
+    const now = Date.now();
     const nextSettings: SchoolSettings = {
       ...currentSettings,
       ...newSettings,
+      ...(!options?.skipCloudSync ? { clientUpdatedAt: now } : {}),
       ...(padChanged
         ? {
             uploadedPadUpdatedAt:
-              newSettings.uploadedPadUpdatedAt ?? Date.now(),
+              newSettings.uploadedPadUpdatedAt ?? now,
           }
         : {}),
       padMargins: {
@@ -501,14 +605,28 @@ export const settingsService = {
         ...(newSettings.padHeaderFields || {})
       }
     };
-    const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined });
-    const nextClean = JSON.stringify({ ...(nextSettings as any), updatedAt: undefined });
-    if (prevClean === nextClean) {
+    const prevClean = JSON.stringify({ ...(currentSettings as any), updatedAt: undefined, clientUpdatedAt: undefined });
+    const nextClean = JSON.stringify({ ...(nextSettings as any), updatedAt: undefined, clientUpdatedAt: undefined });
+    if (prevClean === nextClean && options?.skipCloudSync) {
       return;
     }
     currentSettings = nextSettings;
     if (typeof window !== 'undefined') {
       persistSettingsSafely(currentSettings);
+      try {
+        if (options?.skipCloudSync) {
+          const cloudTs = Math.max(
+            extractSettingsTimestampMs(newSettings.clientUpdatedAt),
+            extractSettingsTimestampMs((newSettings as any).updatedAt),
+            now,
+          );
+          localStorage.setItem(SETTINGS_LOCAL_UPDATED_AT_KEY, String(cloudTs));
+          markSettingsPendingCloudSync(false);
+        } else {
+          localStorage.setItem(SETTINGS_LOCAL_UPDATED_AT_KEY, String(now));
+          markSettingsPendingCloudSync(true);
+        }
+      } catch {}
 
       // ⚡ Auto-sync with Google Cloud Firestore (skipped when hydrating from cloud to prevent echo loops)
       if (!options?.skipCloudSync) {
@@ -568,6 +686,27 @@ export const getEnglishAddress = (
   if (bn.includes('বরইতলী') && (bn.includes('চকরিয়া') || bn.includes('চকরিয়া') || bn.includes('কক্সবাজার'))) {
     return "Baraitoli, Chakaria, Cox's Bazar";
   }
+  return bn;
+};
+
+export const getEnglishPrincipalNameFromSettings = (
+  settings?: Partial<SchoolSettings> | null,
+  fallback: string = 'Headmaster'
+): string => {
+  if (settings?.principalNameEn?.trim()) return settings.principalNameEn.trim();
+  const bn = settings?.principalName?.trim() || '';
+  if (!bn) return fallback;
+  return bn;
+};
+
+export const getEnglishPrincipalTitleFromSettings = (
+  settings?: Partial<SchoolSettings> | null,
+  fallback: string = 'Headmaster'
+): string => {
+  if (settings?.principalTitleEn?.trim()) return settings.principalTitleEn.trim();
+  const bn = settings?.principalTitle?.trim() || '';
+  if (!bn || bn.includes('প্রধান শিক্ষক')) return fallback;
+  if (bn.includes('অধ্যক্ষ')) return 'Principal';
   return bn;
 };
 

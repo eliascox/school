@@ -301,10 +301,10 @@ export default function SSCTestimonialSheetCard({
           <div className="text-center">
             <div className="w-60 border-t-[1.8px] border-slate-950 pt-1">
               <p className="font-black text-slate-950 text-[14px] tracking-wide font-sans">
-                {getEnglishPrincipalTitle(schoolSettings?.principalTitle)}
+                {schoolSettings?.principalTitleEn?.trim() || getEnglishPrincipalTitle(schoolSettings?.principalTitle)}
               </p>
               <p className="text-[11.5px] font-bold text-slate-800 uppercase font-sans tracking-wide">
-                {getEnglishPrincipalName(schoolSettings?.principalName)}
+                {schoolSettings?.principalNameEn?.trim() || getEnglishPrincipalName(schoolSettings?.principalName)}
               </p>
               <p className="text-[11.5px] font-bold text-slate-800 font-sans tracking-wide">{schoolNameEn}</p>
               {schoolAddressEn && <p className="text-[10.5px] text-slate-600 font-sans">{schoolAddressEn}</p>}

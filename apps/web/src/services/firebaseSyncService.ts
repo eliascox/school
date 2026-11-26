@@ -22,10 +22,17 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
 } from 'firebase/auth';
 import { db, auth, isFirebaseConfigured, firebaseConfig } from '../lib/firebase';
 import { studentService, Student } from './studentService';
-import { settingsService, SchoolSettings } from './settingsService';
+import {
+  settingsService,
+  SchoolSettings,
+  isSettingsPendingCloudSync,
+  markSettingsPendingCloudSync,
+} from './settingsService';
 import { classSectionService } from './classSectionService';
 import { auditTrailService } from './auditTrailService';
 import { landingPageService, LandingPageConfig } from './landingPageService';
@@ -184,7 +191,9 @@ export interface CloudSyncStatus {
 }
 
 const STORAGE_KEY_LAST_CLOUD_SYNC = 'sms_last_firebase_cloud_sync_time';
+const STORAGE_KEY_CLOUD_AUTH_META = 'sms_firebase_cloud_auth_meta';
 const CLOUD_FETCH_TIMEOUT_MS = 8000;
+const FIRESTORE_MEDIA_FIELD_SAFE_LIMIT = 680_000;
 
 /** Bound a cloud promise so stalled DNS/ISPs resolve to fallback without hanging UI loads. */
 function withTimeout<T>(promise: Promise<T>, ms: number = CLOUD_FETCH_TIMEOUT_MS): Promise<T> {
@@ -246,6 +255,39 @@ export interface CloudAuthUser {
   email: string | null;
 }
 
+const SETTINGS_MEDIA_KEYS_BOUNDED = [
+  'uploadedPadTemplateUrl',
+  'schoolLogo',
+  'schoolPhoto',
+  'customBorderPng',
+] as const;
+
+export function sanitizeSettingsForCloudDoc(
+  settings: Partial<SchoolSettings>
+): { payload: Record<string, any>; trimmedMediaFields: string[] } {
+  const payload: Record<string, any> = {};
+  const trimmedMediaFields: string[] = [];
+
+  for (const [k, v] of Object.entries(settings || {})) {
+    if (v === undefined) continue;
+    if (
+      (SETTINGS_MEDIA_KEYS_BOUNDED as readonly string[]).includes(k) &&
+      typeof v === 'string' &&
+      v.length > FIRESTORE_MEDIA_FIELD_SAFE_LIMIT
+    ) {
+      trimmedMediaFields.push(k);
+      continue;
+    }
+    payload[k] = v;
+  }
+
+  try {
+    return { payload: JSON.parse(JSON.stringify(payload)), trimmedMediaFields };
+  } catch {
+    return { payload, trimmedMediaFields };
+  }
+}
+
 class FirebaseSyncService {
   private activeStudentsUnsub: Unsubscribe | null = null;
   private activeSettingsUnsub: Unsubscribe | null = null;
@@ -258,14 +300,66 @@ class FirebaseSyncService {
     };
   }
 
-  public subscribeCloudAuth(callback: (user: CloudAuthUser | null) => void): () => void {
+  public getRememberedCloudAuthMeta(): CloudAuthUser | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_CLOUD_AUTH_META);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.uid === 'string' && parsed.uid) {
+        return { uid: parsed.uid, email: parsed.email || null };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async waitForCloudAuthReady(timeoutMs: number = 2000): Promise<void> {
+    if (!auth || typeof window === 'undefined') return;
+    if (auth.currentUser) return;
+    if (typeof (auth as any).authStateReady === 'function') {
+      try {
+        await withTimeout((auth as any).authStateReady(), timeoutMs);
+      } catch {
+        // Proceed gracefully if authStateReady times out
+      }
+    }
+  }
+
+  public subscribeCloudAuth(
+    callback: (user: CloudAuthUser | null, ready?: boolean) => void
+  ): () => void {
     if (!auth || typeof window === 'undefined') {
-      callback(null);
+      callback(null, true);
       return () => {};
     }
-    return onAuthStateChanged(auth, (user) => {
-      callback(user ? { uid: user.uid, email: user.email } : null);
+    let resolvedOnce = false;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      resolvedOnce = true;
+      const mapped = user ? { uid: user.uid, email: user.email } : null;
+      if (mapped) {
+        try {
+          localStorage.setItem(
+            STORAGE_KEY_CLOUD_AUTH_META,
+            JSON.stringify({ ...mapped, signedInAt: Date.now() })
+          );
+        } catch {}
+        if (isSettingsPendingCloudSync()) {
+          this.syncSettingsToCloud(settingsService.getSettings()).catch(() => {});
+        }
+      }
+      callback(mapped, true);
     });
+    if (typeof (auth as any).authStateReady === 'function') {
+      (auth as any).authStateReady().then(() => {
+        if (!resolvedOnce) {
+          resolvedOnce = true;
+          callback(this.getCloudAuthUser(), true);
+        }
+      }).catch(() => {});
+    }
+    return unsub;
   }
 
   public async signInCloudAdmin(
@@ -280,7 +374,16 @@ class FirebaseSyncService {
       return { success: false, message: 'Firebase Auth এই পরিবেশে সক্রিয় নয়।' };
     }
     try {
+      await setPersistence(auth, browserLocalPersistence).catch(() => {});
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(
+            STORAGE_KEY_CLOUD_AUTH_META,
+            JSON.stringify({ uid: cred.user.uid, email: cred.user.email, signedInAt: Date.now() })
+          );
+        } catch {}
+      }
       if (typeof sessionStorage !== 'undefined') {
         try {
           sessionStorage.removeItem('sms_cloud_restore_checked');
@@ -293,9 +396,12 @@ class FirebaseSyncService {
         uid: cred.user.uid,
         email: cred.user.email,
       };
+      if (isSettingsPendingCloudSync()) {
+        this.syncSettingsToCloud(settingsService.getSettings()).catch(() => {});
+      }
       return {
         success: true,
-        message: 'Firebase ক্লাউড অ্যাকাউন্ট সফলভাবে সংযুক্ত হয়েছে।',
+        message: 'Firebase ক্লাউড অ্যাকাউন্ট সফলভাবে সংযুক্ত হয়েছে (ব্রাউজারে অটো-সেভ থাকবে)।',
         user,
       };
     } catch (err: any) {
@@ -307,6 +413,11 @@ class FirebaseSyncService {
   }
 
   public async signOutCloudAdmin(): Promise<void> {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY_CLOUD_AUTH_META);
+      } catch {}
+    }
     if (!auth) return;
     try {
       await signOut(auth);
@@ -323,6 +434,7 @@ class FirebaseSyncService {
       return { success: false, message: 'ফায়ারবেস কনফিগারেশন পাওয়া যায়নি।' };
     }
 
+    await this.waitForCloudAuthReady();
     const start = Date.now();
     try {
       const firestore = db as Firestore;
@@ -414,17 +526,24 @@ class FirebaseSyncService {
     };
 
     try {
+      await this.waitForCloudAuthReady();
       canonicalizeLocalStorageKeys();
       reportProgress('স্কুল সেটিংস ক্লাউডে পাঠানো হচ্ছে...', 0, 100);
 
       // 1. Settings Collection
       const currentSettings = settingsService.getSettings();
+      const { payload: safeCloudSettings } = sanitizeSettingsForCloudDoc(currentSettings);
       const settingsRef = doc(firestore, 'settings', 'general');
-      await setDoc(settingsRef, {
-        ...currentSettings,
-        updatedAt: serverTimestamp(),
-        schoolId: firebaseConfig.projectId
-      }, { merge: true });
+      await withTimeout(
+        setDoc(settingsRef, {
+          ...safeCloudSettings,
+          clientUpdatedAt: currentSettings.clientUpdatedAt || Date.now(),
+          updatedAt: serverTimestamp(),
+          schoolId: firebaseConfig.projectId
+        }, { merge: true }),
+        6000
+      );
+      markSettingsPendingCloudSync(false);
 
       reportProgress('ল্যান্ডিং পেইজ ও নোটিশ ক্লাউডে পাঠানো হচ্ছে...', 10, 100);
 
@@ -721,6 +840,7 @@ class FirebaseSyncService {
     }
 
     try {
+      await this.waitForCloudAuthReady();
       canonicalizeLocalStorageKeys();
       // 1. Pull Settings
       const settingsRef = doc(firestore, 'settings', 'general');
@@ -963,15 +1083,20 @@ class FirebaseSyncService {
   public async syncStudent(student: Student): Promise<void> {
     if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
     try {
+      await this.waitForCloudAuthReady();
       const firestore = db as Firestore;
       const studentId = student.id || `st_${student.grade}_${student.roll}_${Date.now()}`;
       const stRef = doc(firestore, 'students', studentId);
-      await setDoc(stRef, {
-        ...student,
-        id: studentId,
-        updatedAt: serverTimestamp(),
-        schoolId: firebaseConfig.projectId
-      }, { merge: true });
+      const sanitized = this.sanitizeFirestoreObject(student as Record<string, any>);
+      await withTimeout(
+        setDoc(stRef, {
+          ...sanitized,
+          id: studentId,
+          updatedAt: serverTimestamp(),
+          schoolId: firebaseConfig.projectId
+        }, { merge: true }),
+        5000
+      );
     } catch (err) {
       console.warn('[FirebaseSync] Single student auto-sync failed (queued offline):', err);
     }
@@ -1017,17 +1142,30 @@ class FirebaseSyncService {
   /**
    * Instant settings auto-sync to Firestore doc 'settings/general'
    */
-  public async syncSettingsToCloud(settings: Partial<SchoolSettings>): Promise<void> {
-    if (!db || typeof navigator === 'undefined' || !navigator.onLine) return;
+  public async syncSettingsToCloud(
+    settings: Partial<SchoolSettings>
+  ): Promise<{ success: boolean; warning?: string }> {
+    if (!db || typeof navigator === 'undefined' || !navigator.onLine) {
+      return { success: false, warning: 'অফলাইন অবস্থায় শুধু এই ডিভাইসে সংরক্ষিত হয়েছে।' };
+    }
     try {
+      await this.waitForCloudAuthReady();
+      if (!auth?.currentUser) {
+        markSettingsPendingCloudSync(true);
+        return {
+          success: false,
+          warning: 'লোকাল ডিভাইসে সংরক্ষিত হয়েছে। ক্লাউডে পাঠাতে Firebase ক্লাউড সাইন-ইন যুক্ত করুন।',
+        };
+      }
       const firestore = db as Firestore;
       const settingsRef = doc(firestore, 'settings', 'general');
-      const sanitized = this.sanitizeFirestoreObject(settings as Record<string, any>);
+      const { payload, trimmedMediaFields } = sanitizeSettingsForCloudDoc(settings);
       await withTimeout(
         setDoc(
           settingsRef,
           {
-            ...sanitized,
+            ...payload,
+            clientUpdatedAt: settings.clientUpdatedAt || Date.now(),
             updatedAt: serverTimestamp(),
             schoolId: firebaseConfig.projectId
           },
@@ -1035,8 +1173,21 @@ class FirebaseSyncService {
         ),
         5000
       );
-    } catch (err) {
+      markSettingsPendingCloudSync(false);
+      if (trimmedMediaFields.length > 0) {
+        return {
+          success: true,
+          warning: 'তথ্য ক্লাউডে সেভ হয়েছে (বড় ছবি/প্যাড এই ডিভাইসের ভল্টে সংরক্ষিত রয়েছে)।',
+        };
+      }
+      return { success: true };
+    } catch (err: any) {
+      markSettingsPendingCloudSync(true);
       console.warn('[FirebaseSync] Cloud settings sync warning:', err);
+      return {
+        success: false,
+        warning: err?.message || 'ক্লাউড সিঙ্ক বাকি আছে (লোকাল ডিভাইসে সেভ করা হয়েছে)।',
+      };
     }
   }
 
