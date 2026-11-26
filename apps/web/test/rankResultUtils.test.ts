@@ -3,13 +3,18 @@ import {
   EvaluatedRankStudent,
   buildChampionsExcelRows,
   buildClassRankExcelRows,
+  buildCriteriaForPreset,
   buildStudentRankDedupKey,
   computeSchoolChampions,
+  detectRankPresetMode,
   formatBanglaOrdinal,
+  formatEnglishOrdinal,
+  getRankGroupEn,
   normalizeRankGrade,
   normalizeRankGroupAndSection,
   normalizeRankRollNumber,
   rankAndFilterClassStudents,
+  summarizeAvailableScopes,
 } from '@/lib/rankResultUtils';
 
 function makeStudent(overrides: Partial<EvaluatedRankStudent>): EvaluatedRankStudent {
@@ -205,5 +210,111 @@ describe('rankResultUtils — Board-Grade Merit Ranking, Deduplication & Print/E
     expect(excelChamp).toHaveLength(3);
     expect(formatBanglaOrdinal(1)).toBe('১ম');
     expect(formatBanglaOrdinal(4)).toBe('৪র্থ');
+
+    // English Champions Excel export emits English headers & ordinals
+    const excelChampEn = buildChampionsExcelRows(byClass.buckets, 'en');
+    expect(excelChampEn).toHaveLength(3);
+    expect(excelChampEn[0]['Merit Rank']).toBe('1st Merit');
+    expect(excelChampEn[0]['School Position']).toBe('1st');
+    expect(excelChampEn[1]['Section / Group']).toBe('Science');
+  });
+
+  it('supports roll-order sorting while preserving true meritPosition, marks_first tie-breaker, topN slicing, presets, scope summary, and English export', () => {
+    const students: EvaluatedRankStudent[] = [
+      makeStudent({ id: 'a', roll: '১০', name: 'আহমেদ', finalGPA: 5.0, gpaWithout4th: 4.8, totalObtained: 980 }),
+      makeStudent({ id: 'b', roll: '০২', name: 'নুসরাত', finalGPA: 4.8, gpaWithout4th: 4.7, overallGrade: 'A', totalObtained: 1040 }),
+      makeStudent({ id: 'c', roll: '০৫', name: 'সাকিব', finalGPA: 4.5, gpaWithout4th: 4.4, overallGrade: 'A', totalObtained: 910 }),
+      makeStudent({
+        id: 'd',
+        roll: '০১',
+        name: 'তানভীর',
+        hasFailed: true,
+        failedCount: 1,
+        failedSubjects: ['গণিত'],
+        finalGPA: 0,
+        gpaWithout4th: 0,
+        overallGrade: 'F',
+        totalObtained: 650,
+      }),
+    ];
+
+    const allCriteria = buildCriteriaForPreset('all');
+    expect(detectRankPresetMode(allCriteria)).toBe('all');
+    expect(detectRankPresetMode(buildCriteriaForPreset('pass_only'))).toBe('pass_only');
+    expect(detectRankPresetMode(buildCriteriaForPreset('notice_default'))).toBe('notice_default');
+    expect(detectRankPresetMode(buildCriteriaForPreset('fail_only'))).toBe('fail_only');
+    expect(
+      detectRankPresetMode({
+        ...allCriteria,
+        includeFail3: false,
+      }),
+    ).toBe('custom');
+
+    // 1. Roll-order sorting keeps roll ascending (01, 02, 05, 10) while keeping true meritPosition intact
+    const rollOrdered = rankAndFilterClassStudents(students, allCriteria, '', {
+      sortMode: 'roll',
+      tieBreaker: 'gpa_first',
+    });
+    expect(rollOrdered.displayedList.map((s) => s.id)).toEqual(['d', 'b', 'c', 'a']);
+    expect(rollOrdered.displayedList[0].meritPosition).toBeNull(); // failed roll 01
+    expect(rollOrdered.displayedList[1].meritPosition).toBe(2); // b (GPA 4.8)
+    expect(rollOrdered.displayedList[2].meritPosition).toBe(3); // c (GPA 4.5)
+    expect(rollOrdered.displayedList[3].meritPosition).toBe(1); // a (GPA 5.0)
+
+    // 2. Marks-first tie-breaker ranks b (1040 marks, GPA 4.8) ahead of a (980 marks, GPA 5.0)
+    const marksFirst = rankAndFilterClassStudents(students, buildCriteriaForPreset('pass_only'), '', {
+      sortMode: 'merit',
+      tieBreaker: 'marks_first',
+    });
+    expect(marksFirst.displayedList.map((s) => s.id)).toEqual(['b', 'a', 'c']);
+    expect(marksFirst.displayedList[0].meritPosition).toBe(1);
+    expect(marksFirst.displayedList[1].meritPosition).toBe(2);
+
+    // 3. Top-N slicing caps displayed rows after true ranking
+    const top2FailPlusPass = rankAndFilterClassStudents(students, allCriteria, '', {
+      sortMode: 'merit',
+      topN: 3,
+    });
+    expect(top2FailPlusPass.displayedList).toHaveLength(3);
+    expect(top2FailPlusPass.displayedList.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+
+    // 4. Fail-only preset returns strictly failed students
+    const failOnly = rankAndFilterClassStudents(students, buildCriteriaForPreset('fail_only'), '');
+    expect(failOnly.displayedList.map((s) => s.id)).toEqual(['d']);
+    expect(failOnly.displayedList[0].meritPosition).toBeNull();
+
+    // 5. Scope summary aggregates grade counts & populated jump chips
+    const scopePool = [
+      makeStudent({ id: 'p1', grade: '6th', section: 'A', group: 'সাধারণ' }),
+      makeStudent({ id: 'p2', grade: '6th', section: 'A', group: 'সাধারণ' }),
+      makeStudent({ id: 'p3', grade: '9th', section: 'Humanities', group: 'মানবিক' }),
+    ];
+    const scopeSummary = summarizeAvailableScopes(scopePool);
+    expect(scopeSummary.byGrade['6th']).toBe(2);
+    expect(scopeSummary.byGrade['9th']).toBe(1);
+    expect(scopeSummary.byGrade['8th']).toBe(0);
+    expect(scopeSummary.populatedScopes).toHaveLength(2);
+    expect(scopeSummary.populatedScopes[0]).toMatchObject({ grade: '6th', section: 'A', count: 2 });
+    expect(scopeSummary.populatedScopes[1]).toMatchObject({ grade: '9th', group: 'মানবিক', count: 1 });
+
+    // 6. English ordinal, group translation & English Excel export
+    expect(formatEnglishOrdinal(1)).toBe('1st');
+    expect(formatEnglishOrdinal(2)).toBe('2nd');
+    expect(formatEnglishOrdinal(3)).toBe('3rd');
+    expect(formatEnglishOrdinal(4)).toBe('4th');
+    expect(formatEnglishOrdinal(11)).toBe('11th');
+    expect(formatEnglishOrdinal(21)).toBe('21st');
+    expect(getRankGroupEn('ব্যবসায় শিক্ষা')).toBe('Business Studies');
+
+    const enRows = buildClassRankExcelRows(rollOrdered.displayedList, {
+      isClass9or10: true,
+      officeCopyMode: true,
+      lang: 'en',
+    });
+    expect(enRows[0]['Merit Position']).toBe('—');
+    expect(enRows[0]['Roll']).toBe('01');
+    expect(enRows[0]['Failed Subjects']).toBe('গণিত');
+    expect(enRows[3]['Merit Position']).toBe('1st');
+    expect(enRows[3]['Result / Status']).toBe('Passed');
   });
 });

@@ -51,6 +51,31 @@ export interface CombinedRankCriteria {
   includeConsidered: boolean;
 }
 
+export type RankSortMode = 'merit' | 'roll';
+export type RankTieBreakerMode = 'gpa_first' | 'marks_first';
+export type RankTopNLimit = 'all' | 3 | 5 | 10 | 20;
+export type RankDocLang = 'bn' | 'en';
+export type RankPresetMode = 'pass_only' | 'notice_default' | 'fail_only' | 'all' | 'custom';
+
+export interface RankColumnConfig {
+  showMarks: boolean;
+  showSecondaryMetric: boolean;
+}
+
+export interface RankFilterOptions {
+  sortMode?: RankSortMode;
+  tieBreaker?: RankTieBreakerMode;
+  topN?: RankTopNLimit;
+}
+
+export interface PopulatedScopeSummary {
+  grade: '6th' | '7th' | '8th' | '9th' | '10th';
+  section: string;
+  group: 'সাধারণ' | 'বিজ্ঞান' | 'মানবিক' | 'ব্যবসায় শিক্ষা';
+  count: number;
+  labelBn: string;
+}
+
 export interface ClassRankSummaryStats {
   totalStudents: number;
   passedCount: number;
@@ -81,6 +106,187 @@ export const RANK_GRADE_SHORT_BN: Record<string, string> = {
   '9th': '৯ম',
   '10th': '১০ম',
 };
+
+export const RANK_GRADE_EN_MAP: Record<string, string> = {
+  '6th': 'Class Six (6th)',
+  '7th': 'Class Seven (7th)',
+  '8th': 'Class Eight (8th)',
+  '9th': 'Class Nine (9th)',
+  '10th': 'Class Ten (10th)',
+};
+
+export const RANK_GRADE_SHORT_EN: Record<string, string> = {
+  '6th': 'Class 6',
+  '7th': 'Class 7',
+  '8th': 'Class 8',
+  '9th': 'Class 9',
+  '10th': 'Class 10',
+};
+
+export function getRankGroupEn(groupBn: string): string {
+  const g = (groupBn || '').toLowerCase();
+  if (g.includes('বিজ্ঞান') || g.includes('science')) return 'Science';
+  if (g.includes('মানবিক') || g.includes('humanities')) return 'Humanities';
+  if (g.includes('ব্যবসা') || g.includes('commerce') || g.includes('business')) return 'Business Studies';
+  return 'General';
+}
+
+export function formatEnglishOrdinal(n: number): string {
+  if (n <= 0) return '—';
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  const mod10 = n % 10;
+  if (mod10 === 1) return `${n}st`;
+  if (mod10 === 2) return `${n}nd`;
+  if (mod10 === 3) return `${n}rd`;
+  return `${n}th`;
+}
+
+export function buildCriteriaForPreset(
+  preset: Exclude<RankPresetMode, 'custom'>,
+): CombinedRankCriteria {
+  if (preset === 'pass_only') {
+    return {
+      includePass: true,
+      includeFail1: false,
+      includeFail2: false,
+      includeFail3: false,
+      includeFail4Plus: false,
+      includeConsidered: false,
+    };
+  }
+  if (preset === 'fail_only') {
+    return {
+      includePass: false,
+      includeFail1: true,
+      includeFail2: true,
+      includeFail3: true,
+      includeFail4Plus: true,
+      includeConsidered: false,
+    };
+  }
+  if (preset === 'all') {
+    return {
+      includePass: true,
+      includeFail1: true,
+      includeFail2: true,
+      includeFail3: true,
+      includeFail4Plus: true,
+      includeConsidered: true,
+    };
+  }
+  return {
+    includePass: true,
+    includeFail1: true,
+    includeFail2: true,
+    includeFail3: false,
+    includeFail4Plus: false,
+    includeConsidered: true,
+  };
+}
+
+export function detectRankPresetMode(c: CombinedRankCriteria): RankPresetMode {
+  if (
+    c.includePass &&
+    !c.includeFail1 &&
+    !c.includeFail2 &&
+    !c.includeFail3 &&
+    !c.includeFail4Plus &&
+    !c.includeConsidered
+  ) {
+    return 'pass_only';
+  }
+  if (
+    c.includePass &&
+    c.includeFail1 &&
+    c.includeFail2 &&
+    !c.includeFail3 &&
+    !c.includeFail4Plus &&
+    c.includeConsidered
+  ) {
+    return 'notice_default';
+  }
+  if (
+    !c.includePass &&
+    c.includeFail1 &&
+    c.includeFail2 &&
+    c.includeFail3 &&
+    c.includeFail4Plus &&
+    !c.includeConsidered
+  ) {
+    return 'fail_only';
+  }
+  if (
+    c.includePass &&
+    c.includeFail1 &&
+    c.includeFail2 &&
+    c.includeFail3 &&
+    c.includeFail4Plus &&
+    c.includeConsidered
+  ) {
+    return 'all';
+  }
+  return 'custom';
+}
+
+export function summarizeAvailableScopes(allStudents: RankStudentBase[]): {
+  byGrade: Record<'6th' | '7th' | '8th' | '9th' | '10th', number>;
+  populatedScopes: PopulatedScopeSummary[];
+} {
+  const byGrade: Record<'6th' | '7th' | '8th' | '9th' | '10th', number> = {
+    '6th': 0,
+    '7th': 0,
+    '8th': 0,
+    '9th': 0,
+    '10th': 0,
+  };
+  const scopeMap = new Map<string, PopulatedScopeSummary>();
+
+  for (const st of allStudents) {
+    const g = normalizeRankGrade(st.grade);
+    byGrade[g] = (byGrade[g] || 0) + 1;
+    const is9or10 = g === '9th' || g === '10th';
+    const grp = (
+      is9or10
+        ? st.group === 'মানবিক'
+          ? 'মানবিক'
+          : st.group === 'ব্যবসায় শিক্ষা'
+            ? 'ব্যবসায় শিক্ষা'
+            : 'বিজ্ঞান'
+        : 'সাধারণ'
+    ) as PopulatedScopeSummary['group'];
+    const sec = is9or10
+      ? grp === 'বিজ্ঞান'
+        ? 'Science'
+        : grp === 'মানবিক'
+          ? 'Humanities'
+          : 'Commerce'
+      : st.section || 'A';
+    const key = `${g}__${is9or10 ? grp : sec}`;
+    const existing = scopeMap.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      scopeMap.set(key, {
+        grade: g,
+        section: sec,
+        group: grp,
+        count: 1,
+        labelBn: is9or10
+          ? `${RANK_GRADE_SHORT_BN[g]} · ${grp}`
+          : `${RANK_GRADE_SHORT_BN[g]} · শাখা ${sec}`,
+      });
+    }
+  }
+
+  const gradeRank: Record<string, number> = { '6th': 6, '7th': 7, '8th': 8, '9th': 9, '10th': 10 };
+  const populatedScopes = Array.from(scopeMap.values()).sort((a, b) => {
+    if (gradeRank[a.grade] !== gradeRank[b.grade]) return gradeRank[a.grade] - gradeRank[b.grade];
+    return b.count - a.count;
+  });
+
+  return { byGrade, populatedScopes };
+}
 
 /**
  * Converts a Bengali or English roll string (e.g., "০৫", "05", "12") into a comparable integer.
@@ -148,7 +354,18 @@ export function buildStudentRankDedupKey(
  * Comparator for official Class-level Merit ordering (strictly for passed students).
  * Priority: Final GPA → GPA without 4th → Total Obtained Marks → Percentage → Roll (asc).
  */
-export function comparePassedClassMerit(a: EvaluatedRankStudent, b: EvaluatedRankStudent): number {
+export function comparePassedClassMerit(
+  a: EvaluatedRankStudent,
+  b: EvaluatedRankStudent,
+  tieBreaker: RankTieBreakerMode = 'gpa_first',
+): number {
+  if (tieBreaker === 'marks_first') {
+    if (b.totalObtained !== a.totalObtained) return b.totalObtained - a.totalObtained;
+    if (b.finalGPA !== a.finalGPA) return b.finalGPA - a.finalGPA;
+    if (b.gpaWithout4th !== a.gpaWithout4th) return b.gpaWithout4th - a.gpaWithout4th;
+    if (b.obtainedPercentage !== a.obtainedPercentage) return b.obtainedPercentage - a.obtainedPercentage;
+    return normalizeRankRollNumber(a.roll) - normalizeRankRollNumber(b.roll);
+  }
   if (b.finalGPA !== a.finalGPA) return b.finalGPA - a.finalGPA;
   if (b.gpaWithout4th !== a.gpaWithout4th) return b.gpaWithout4th - a.gpaWithout4th;
   if (b.totalObtained !== a.totalObtained) return b.totalObtained - a.totalObtained;
@@ -191,13 +408,20 @@ export function rankAndFilterClassStudents(
   classStudents: EvaluatedRankStudent[],
   criteria: CombinedRankCriteria,
   searchQuery: string = '',
+  options: RankFilterOptions = {},
 ): {
   criteriaMatchedList: EvaluatedRankStudent[];
   displayedList: EvaluatedRankStudent[];
   summary: ClassRankSummaryStats;
 } {
+  const sortMode: RankSortMode = options.sortMode || 'merit';
+  const tieBreaker: RankTieBreakerMode = options.tieBreaker || 'gpa_first';
+  const topN: RankTopNLimit = options.topN ?? 'all';
+
   // 1. Compute true meritPosition among ALL passed students of this class
-  const allPassed = classStudents.filter((s) => !s.hasFailed).sort(comparePassedClassMerit);
+  const allPassed = classStudents
+    .filter((s) => !s.hasFailed)
+    .sort((a, b) => comparePassedClassMerit(a, b, tieBreaker));
   const meritMap = new Map<string, number>();
   allPassed.forEach((st, idx) => {
     meritMap.set(st.id, idx + 1);
@@ -216,11 +440,16 @@ export function rankAndFilterClassStudents(
     return false;
   });
 
-  // 3. Sort criteria-matched students: Passed (by merit) FIRST, then Considered/Failed fairly
+  // 3. Sort criteria-matched students by either Merit Order or Roll Order
   const sortedCriteriaMatched = [...criteriaMatched].sort((a, b) => {
+    if (sortMode === 'roll') {
+      const rollDiff = normalizeRankRollNumber(a.roll) - normalizeRankRollNumber(b.roll);
+      if (rollDiff !== 0) return rollDiff;
+      return a.name.localeCompare(b.name);
+    }
     if (a.hasFailed !== b.hasFailed) return a.hasFailed ? 1 : -1;
     if (!a.hasFailed && !b.hasFailed) {
-      return comparePassedClassMerit(a, b);
+      return comparePassedClassMerit(a, b, tieBreaker);
     }
     if (a.isConsidered !== b.isConsidered) return a.isConsidered ? -1 : 1;
     if (a.failedCount !== b.failedCount) return a.failedCount - b.failedCount;
@@ -245,12 +474,16 @@ export function rankAndFilterClassStudents(
     };
   });
 
-  // 4. Apply search query WITHOUT recalculating meritPosition or listOrder!
+  // 4. Optional Top-N slice (applied after true merit ranking & list order)
+  const limitedList =
+    topN === 'all' ? rankedCriteriaList : rankedCriteriaList.slice(0, topN);
+
+  // 5. Apply search query WITHOUT recalculating meritPosition or listOrder!
   const q = searchQuery.trim().toLowerCase();
   const qAscii = toAsciiDigits(q);
   const displayedList = !q
-    ? rankedCriteriaList
-    : rankedCriteriaList.filter((st) => {
+    ? limitedList
+    : limitedList.filter((st) => {
         const nameHit = st.name.toLowerCase().includes(q);
         const rollAscii = toAsciiDigits(st.roll).toLowerCase();
         const rollHit = rollAscii.includes(qAscii) || st.roll.toLowerCase().includes(q);
@@ -370,8 +603,38 @@ export function computeSchoolChampions(
  */
 export function buildClassRankExcelRows(
   list: EvaluatedRankStudent[],
-  options: { isClass9or10: boolean; officeCopyMode: boolean },
+  options: { isClass9or10: boolean; officeCopyMode: boolean; lang?: RankDocLang },
 ): Array<Record<string, string | number>> {
+  const isEn = options.lang === 'en';
+  if (isEn) {
+    return list.map((st) => {
+      const base: Record<string, string | number> = {
+        'SL': st.listOrder,
+        'Merit Position': st.meritPosition !== null ? formatEnglishOrdinal(st.meritPosition) : '—',
+        'Roll': toAsciiDigits(st.roll),
+        'Student Name': st.name,
+        'Obtained Marks': st.totalObtained,
+        'Full Marks': st.totalFull,
+        'Percentage (%)': `${st.obtainedPercentage}%`,
+      };
+      if (options.isClass9or10) {
+        base['GPA (W/O 4th)'] = st.hasFailed ? '0.00' : st.gpaWithout4th.toFixed(2);
+      }
+      base['Final GPA'] = st.hasFailed ? '0.00' : st.finalGPA.toFixed(2);
+      base['Grade'] = st.overallGrade;
+      base['Result / Status'] = st.hasFailed
+        ? st.isConsidered
+          ? 'Special Consideration (Approved)'
+          : 'Special Consideration'
+        : 'Passed';
+      if (options.officeCopyMode) {
+        base['Failed Subjects Count'] = st.failedCount;
+        base['Failed Subjects'] = st.failedSubjects.join(', ');
+      }
+      return base;
+    });
+  }
+
   return list.map((st) => {
     const base: Record<string, string | number> = {
       'ক্রম': st.listOrder,
@@ -405,22 +668,42 @@ export function buildClassRankExcelRows(
  */
 export function buildChampionsExcelRows(
   buckets: ChampionBucket[],
+  lang: RankDocLang = 'bn',
 ): Array<Record<string, string | number>> {
   const rows: Array<Record<string, string | number>> = [];
   for (const bucket of buckets) {
     for (const st of bucket.winners) {
-      rows.push({
-        'শ্রেণি / বিভাগ': bucket.labelBn,
-        'মেধা স্থান': st.classPosition ? `${formatBanglaOrdinal(st.classPosition)} মেধা` : '—',
-        'রোল': st.roll,
-        'শিক্ষার্থীর নাম': st.name,
-        'শাখা / বিভাগ': st.grade === '9th' || st.grade === '10th' ? st.group : `শাখা ${st.section}`,
-        'প্রাপ্ত নম্বর': `${st.totalObtained}/${st.totalFull}`,
-        'শতকরা (%)': `${st.obtainedPercentage}%`,
-        'GPA': st.finalGPA.toFixed(2),
-        'গ্রেড': st.overallGrade,
-        'বিদ্যালয় স্থান': st.schoolPosition ? formatBanglaOrdinal(st.schoolPosition) : '—',
-      });
+      if (lang === 'en') {
+        rows.push({
+          'Class / Group':
+            st.grade === '9th' || st.grade === '10th'
+              ? `${RANK_GRADE_SHORT_EN[st.grade]} (${getRankGroupEn(st.group)})`
+              : RANK_GRADE_EN_MAP[st.grade] || st.grade,
+          'Merit Rank': st.classPosition ? `${formatEnglishOrdinal(st.classPosition)} Merit` : '—',
+          'Roll': toAsciiDigits(st.roll),
+          'Student Name': st.name,
+          'Section / Group':
+            st.grade === '9th' || st.grade === '10th' ? getRankGroupEn(st.group) : `Section ${st.section}`,
+          'Marks': `${st.totalObtained}/${st.totalFull}`,
+          'Percentage (%)': `${st.obtainedPercentage}%`,
+          'GPA': st.finalGPA.toFixed(2),
+          'Grade': st.overallGrade,
+          'School Position': st.schoolPosition ? formatEnglishOrdinal(st.schoolPosition) : '—',
+        });
+      } else {
+        rows.push({
+          'শ্রেণি / বিভাগ': bucket.labelBn,
+          'মেধা স্থান': st.classPosition ? `${formatBanglaOrdinal(st.classPosition)} মেধা` : '—',
+          'রোল': st.roll,
+          'শিক্ষার্থীর নাম': st.name,
+          'শাখা / বিভাগ': st.grade === '9th' || st.grade === '10th' ? st.group : `শাখা ${st.section}`,
+          'প্রাপ্ত নম্বর': `${st.totalObtained}/${st.totalFull}`,
+          'শতকরা (%)': `${st.obtainedPercentage}%`,
+          'GPA': st.finalGPA.toFixed(2),
+          'গ্রেড': st.overallGrade,
+          'বিদ্যালয় স্থান': st.schoolPosition ? formatBanglaOrdinal(st.schoolPosition) : '—',
+        });
+      }
     }
   }
   return rows;
