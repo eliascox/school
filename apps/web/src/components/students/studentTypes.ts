@@ -64,7 +64,8 @@ export const STUDENT_PRINT_COLUMNS: PrintColumnMeta[] = [
   { key: 'bloodGroup', labelBn: '১৭. রক্তের গ্রুপ', labelEn: '17. Blood Group' },
   { key: 'address', labelBn: '১৮. ঠিকানা / গ্রাম', labelEn: '18. Address / Village' },
   { key: 'stipend', labelBn: '১৯. উপবৃত্তি স্ট্যাটাস', labelEn: '19. Stipend Status' },
-  { key: 'remarks', labelBn: '২০. মন্তব্য / স্বাক্ষর', labelEn: '20. Remarks / Signature' },
+  { key: 'signature', labelBn: '২০. স্বাক্ষর', labelEn: '20. Signature' },
+  { key: 'remarks', labelBn: '২১. মন্তব্য', labelEn: '21. Remarks' },
 ];
 
 export const toBanglaNumeral = (str: string | number | undefined): string => {
