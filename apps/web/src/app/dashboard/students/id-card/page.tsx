@@ -1,56 +1,200 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  CreditCard, Printer, Search, CheckSquare, Square, Layers,
-  ArrowLeft, Sliders, Sparkles, Users
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  Eye,
+  FileDown,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Printer,
+  ShieldCheck,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { studentService, Student } from '@/services/studentService';
-import { settingsService, SchoolSettings } from '@/services/settingsService';
+import { studentService, type Student } from '@/services/studentService';
+import { settingsService, type SchoolSettings } from '@/services/settingsService';
+import { triggerProfessionalPrint } from '@/lib/printPdfUtils';
+import { toBanglaDigits } from '@/lib/omr/omrTemplates';
 import {
-  StudentIdCardPreview,
-  IdCardOrientation,
-  IdCardSideMode,
-  IdCardTheme,
-} from '@/components/students/StudentIdCardPreview';
+  BUILT_IN_ID_CARD_TEMPLATES,
+  type IdCardDocLang,
+  type IdCardSideMode,
+  type IdCardTemplateConfig,
+  createBlankCustomTemplate,
+  getIdCardGradeLabel,
+} from '@/lib/idCardTemplateTypes';
+import {
+  DEFAULT_ID_CARD_PAGE_SETTINGS,
+  type IdCardPageSettings,
+  type IdCardPrintScope,
+  buildIdCardPrintCss,
+  paginateStudentsForPrint,
+  resolveTargetPageNumbers,
+} from '@/lib/idCardLayoutUtils';
+import {
+  deleteCustomTemplate,
+  estimateTemplatesByteSize,
+  formatBytesReadable,
+  getSavedActiveTemplateId,
+  listCustomTemplates,
+  parseAndValidateTemplateJson,
+  saveCustomTemplate,
+  serializeTemplateToJson,
+  setSavedActiveTemplateId,
+} from '@/lib/idCardTemplateStorage';
+import { exportIdCardPageAsPng, exportIdCardPagesAsPdf } from '@/lib/idCardHighResExporter';
+import { IdCardControlRail } from '@/components/students/IdCardControlRail';
+import { IdCardPaginatedSheetCanvas } from '@/components/students/IdCardPaginatedSheetCanvas';
+import { IdCardCustomTemplateModal } from '@/components/students/IdCardCustomTemplateModal';
 
-export default function StudentIdCardPrintPage() {
+const SAMPLE_PREVIEW_STUDENT: Student = {
+  id: 'STU-2026-001',
+  name: 'তাসনিম আহমেদ রাফি',
+  nameEn: 'Tasnim Ahmed Rafi',
+  roll: '01',
+  grade: '9th',
+  gradeBn: '৯ম শ্রেণি',
+  section: 'Science',
+  branch: 'Science',
+  group: 'বিজ্ঞান',
+  guardian: 'মোহাম্মদ আবুল কালাম',
+  fatherName: 'মোহাম্মদ আবুল কালাম',
+  fatherNameEn: 'Mohammad Abul Kalam',
+  mobile: '01819-000000',
+  bloodGroup: 'O+',
+  dob: '12-03-2011',
+  currentAddress: 'বরইতলী, চকরিয়া, কক্সবাজার',
+};
+
+const GRADE_ORDER = ['6th', '7th', '8th', '9th', '10th'];
+
+export default function StudentIdCardStudioPage() {
+  const [mounted, setMounted] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
 
-  const [gradeFilter, setGradeFilter] = useState<string>('6th');
+  // Studio UI State
+  const [showLeftRail, setShowLeftRail] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [useSamplePreview, setUseSamplePreview] = useState(false);
+
+  // Student Filters
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [sectionFilter, setSectionFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // Card Print Calibration
-  const [orientation, setOrientation] = useState<IdCardOrientation>('portrait');
-  const [sideMode, setSideMode] = useState<IdCardSideMode>('both');
-  const [printTarget, setPrintTarget] = useState<'a4-grid' | 'cr80-pvc'>('a4-grid');
-  const [bleedMm, setBleedMm] = useState<number>(2);
-  const [showCropMarks, setShowCropMarks] = useState<boolean>(true);
-  const [theme, setTheme] = useState<IdCardTheme>('indigo');
   const [sessionYear, setSessionYear] = useState<string>('2026');
-  const [previewLimit, setPreviewLimit] = useState<number>(24);
-  const [isPrintingAll, setIsPrintingAll] = useState<boolean>(false);
+  const didAutoPickGradeRef = useRef(false);
 
-  const loadData = useCallback(() => {
+  // Design & Custom Templates (Local IndexedDB only — 0 server bytes!)
+  const [docLang, setDocLang] = useState<IdCardDocLang>('bn');
+  const [customTemplates, setCustomTemplates] = useState<IdCardTemplateConfig[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string>(BUILT_IN_ID_CARD_TEMPLATES[0].id);
+  const [editingTemplate, setEditingTemplate] = useState<IdCardTemplateConfig | null>(null);
+
+  // Page & High-Res Print Settings
+  const [sideMode, setSideMode] = useState<IdCardSideMode>('both_side_by_side');
+  const [pageSettings, setPageSettings] = useState<IdCardPageSettings>(DEFAULT_ID_CARD_PAGE_SETTINGS);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [printScope, setPrintScope] = useState<IdCardPrintScope>('all');
+  const [pageRangeExpr, setPageRangeExpr] = useState<string>('1');
+
+  // High-Res Ephemeral Export Progress & Toast
+  const [exportProgressText, setExportProgressText] = useState<string>('');
+  const [toast, setToast] = useState<{ text: string; tone: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = useCallback((text: string, tone: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ text, tone });
+    setTimeout(() => {
+      setToast((prev) => (prev?.text === text ? null : prev));
+    }, 4500);
+  }, []);
+
+  const refreshStudents = useCallback(() => {
     const all = studentService.getAllStudents();
     setStudents(all);
-    setSettings(settingsService.getSettings());
+    if (!didAutoPickGradeRef.current && all.length > 0) {
+      didAutoPickGradeRef.current = true;
+      // Smartly select first populated class if default is 'all' with many students
+      const firstPopulated = GRADE_ORDER.find((g) => all.some((s) => s.grade === g));
+      if (firstPopulated) {
+        setGradeFilter(firstPopulated);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    loadData();
-    const unsub = settingsService.subscribe((s) => setSettings({ ...s }));
-    const handleAfterPrint = () => setIsPrintingAll(false);
-    window.addEventListener('afterprint', handleAfterPrint);
+    setMounted(true);
+    refreshStudents();
+    const initialSettings = settingsService.getSettings();
+    setSettings(initialSettings);
+    if (initialSettings?.language === 'en') {
+      setDocLang('en');
+    }
+
+    // Load locally saved custom templates (0 server storage)
+    listCustomTemplates().then((saved) => {
+      setCustomTemplates(saved);
+      const savedId = getSavedActiveTemplateId();
+      if (savedId) {
+        const exists =
+          BUILT_IN_ID_CARD_TEMPLATES.some((t) => t.id === savedId) ||
+          saved.some((t) => t.id === savedId);
+        if (exists) setActiveTemplateId(savedId);
+      }
+    });
+
+    const unsubStudents = studentService.subscribe(() => refreshStudents());
+    const unsubSettings = settingsService.subscribe((updated) => setSettings({ ...updated }));
     return () => {
-      unsub();
-      window.removeEventListener('afterprint', handleAfterPrint);
+      unsubStudents();
+      unsubSettings();
     };
-  }, [loadData]);
+  }, [refreshStudents]);
+
+  const allTemplates = useMemo(
+    () => [...BUILT_IN_ID_CARD_TEMPLATES, ...customTemplates],
+    [customTemplates],
+  );
+
+  const activeTemplate = useMemo(
+    () => allTemplates.find((t) => t.id === activeTemplateId) || BUILT_IN_ID_CARD_TEMPLATES[0],
+    [allTemplates, activeTemplateId],
+  );
+
+  const localTemplateBytes = useMemo(
+    () => estimateTemplatesByteSize(customTemplates),
+    [customTemplates],
+  );
+
+  // Class counts for dropdown & empty-state jump pills
+  const gradeCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      '6th': 0,
+      '7th': 0,
+      '8th': 0,
+      '9th': 0,
+      '10th': 0,
+    };
+    for (const st of students) {
+      if (counts[st.grade] !== undefined) counts[st.grade] += 1;
+    }
+    return counts;
+  }, [students]);
+
+  const populatedGrades = useMemo(
+    () =>
+      GRADE_ORDER.filter((g) => (gradeCounts[g] || 0) > 0).map((g) => ({
+        grade: g,
+        labelBn: getIdCardGradeLabel(g, 'bn'),
+        count: gradeCounts[g] || 0,
+      })),
+    [gradeCounts],
+  );
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -58,10 +202,20 @@ export default function StudentIdCardPrintPage() {
       .filter((s) => {
         if (gradeFilter !== 'all' && s.grade !== gradeFilter) return false;
         const sec = (s.section || s.branch || 'A').toLowerCase();
-        if (sectionFilter !== 'all' && sec !== sectionFilter.toLowerCase()) return false;
+        const grp = (s.group || '').toLowerCase();
+        if (sectionFilter !== 'all') {
+          const sf = sectionFilter.toLowerCase();
+          const matchSec = sec === sf;
+          const matchGrp =
+            (sf === 'science' && (grp.includes('বিজ্ঞান') || grp.includes('science'))) ||
+            (sf === 'humanities' && (grp.includes('মানবিক') || grp.includes('humanities'))) ||
+            (sf === 'commerce' && (grp.includes('ব্যবসা') || grp.includes('commerce')));
+          if (!matchSec && !matchGrp) return false;
+        }
         if (
           q &&
           !s.name.toLowerCase().includes(q) &&
+          !(s.nameEn || '').toLowerCase().includes(q) &&
           !String(s.roll).toLowerCase().includes(q) &&
           !String(s.id).toLowerCase().includes(q)
         ) {
@@ -73,28 +227,98 @@ export default function StudentIdCardPrintPage() {
   }, [students, gradeFilter, sectionFilter, searchQuery]);
 
   const targetStudents = useMemo(() => {
-    if (selectedIds.size === 0) return filteredStudents;
-    return filteredStudents.filter((s) => selectedIds.has(s.id));
-  }, [filteredStudents, selectedIds]);
-
-  const visibleStudents = useMemo(() => {
-    if (isPrintingAll || targetStudents.length <= previewLimit) return targetStudents;
-    return targetStudents.slice(0, previewLimit);
-  }, [targetStudents, previewLimit, isPrintingAll]);
-
-  const handlePrintCards = () => {
-    if (targetStudents.length > previewLimit && !isPrintingAll) {
-      setIsPrintingAll(true);
-      // Let React commit all cards & QR codes cleanly before opening print dialog
-      setTimeout(() => {
-        window.print();
-      }, 220);
-      return;
+    const base =
+      selectedIds.size === 0
+        ? filteredStudents
+        : filteredStudents.filter((s) => selectedIds.has(s.id));
+    if (base.length === 0 && useSamplePreview) {
+      return [SAMPLE_PREVIEW_STUDENT];
     }
-    window.print();
+    return base;
+  }, [filteredStudents, selectedIds, useSamplePreview]);
+
+  // Paginated Sheets Engine
+  const { metrics, pages } = useMemo(
+    () => paginateStudentsForPrint(targetStudents, pageSettings, sideMode),
+    [targetStudents, pageSettings, sideMode],
+  );
+
+  // Clamp currentPage when pagination shrinks
+  useEffect(() => {
+    if (pages.length === 0) {
+      setCurrentPage(1);
+    } else if (currentPage > pages.length) {
+      setCurrentPage(pages.length);
+    }
+  }, [pages.length, currentPage]);
+
+  const targetPrintPageNumbers = useMemo(
+    () => resolveTargetPageNumbers(printScope, currentPage, pageRangeExpr, pages.length),
+    [printScope, currentPage, pageRangeExpr, pages.length],
+  );
+
+  const dynamicPrintCss = useMemo(() => buildIdCardPrintCss(pageSettings), [pageSettings]);
+
+  const handleUpdatePageSettings = useCallback((patch: Partial<IdCardPageSettings>) => {
+    setPageSettings((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const handleSelectTemplate = useCallback((tpl: IdCardTemplateConfig) => {
+    setActiveTemplateId(tpl.id);
+    setSavedActiveTemplateId(tpl.id);
+  }, []);
+
+  const handleSaveCustomTemplate = async (tpl: IdCardTemplateConfig) => {
+    const saved = await saveCustomTemplate(tpl);
+    const updatedList = await listCustomTemplates();
+    setCustomTemplates(updatedList);
+    setActiveTemplateId(saved.id);
+    setSavedActiveTemplateId(saved.id);
+    setEditingTemplate(null);
+    showToast(`কাস্টম টেম্পলেট "${saved.name}" লোকালি সংরক্ষিত হয়েছে (সার্ভার স্পেস ০ KB)।`, 'success');
   };
 
-  const toggleSelect = (id: string) => {
+  const handleDeleteCustomTemplate = async (id: string) => {
+    await deleteCustomTemplate(id);
+    const updatedList = await listCustomTemplates();
+    setCustomTemplates(updatedList);
+    if (activeTemplateId === id) {
+      setActiveTemplateId(BUILT_IN_ID_CARD_TEMPLATES[0].id);
+      setSavedActiveTemplateId(BUILT_IN_ID_CARD_TEMPLATES[0].id);
+    }
+    showToast('কাস্টম টেম্পলেটটি মুছে ফেলা হয়েছে।', 'info');
+  };
+
+  const handleExportTemplateJson = (tpl: IdCardTemplateConfig) => {
+    const json = serializeTemplateToJson(tpl);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ID_Card_Template_${tpl.name.replace(/[^\w\u0980-\u09FF-]+/g, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1200);
+    showToast('টেম্পলেট JSON ব্যাকআপ ডাউনলোড হয়েছে (সার্ভার স্পেস ০ KB)।', 'success');
+  };
+
+  const handleImportTemplateJsonFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = parseAndValidateTemplateJson(text);
+      const saved = await saveCustomTemplate(parsed);
+      const updatedList = await listCustomTemplates();
+      setCustomTemplates(updatedList);
+      setActiveTemplateId(saved.id);
+      setSavedActiveTemplateId(saved.id);
+      showToast(`"${saved.name}" টেম্পলেট সফলভাবে ইম্পোর্ট ও প্রয়োগ হয়েছে।`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'টেম্পলেট JSON ইম্পোর্ট ব্যর্থ হয়েছে।', 'error');
+    }
+  };
+
+  const handleToggleSelectStudent = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -103,282 +327,412 @@ export default function StudentIdCardPrintPage() {
     });
   };
 
-  const selectAllFiltered = () => {
-    if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
+  const handleToggleSelectAll = () => {
+    if (selectedIds.size > 0 && selectedIds.size === filteredStudents.length) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filteredStudents.map((s) => s.id)));
     }
   };
 
-  const cr80PageCss =
-    printTarget === 'cr80-pvc'
-      ? orientation === 'portrait'
-        ? '@page { size: 53.98mm 85.6mm; margin: 0; }'
-        : '@page { size: 85.6mm 53.98mm; margin: 0; }'
-      : '@page { size: A4 portrait; margin: 8mm; }';
+  const handleVectorPrint = () => {
+    if (pages.length === 0) {
+      showToast('প্রিন্ট করার জন্য কোনো কার্ড নেই।', 'info');
+      return;
+    }
+    const gradeLabel = gradeFilter === 'all' ? 'All_Classes' : gradeFilter;
+    triggerProfessionalPrint([
+      'Student_ID_Cards',
+      gradeLabel,
+      pageSettings.pageSize.toUpperCase(),
+      sessionYear,
+    ]);
+  };
+
+  const handleDownloadHighResPng = async () => {
+    if (!settings || pages.length === 0) return;
+    const activePageObj = pages[Math.max(0, Math.min(pages.length - 1, currentPage - 1))];
+    if (!activePageObj) return;
+    try {
+      setExportProgressText(`পেইজ ${toBanglaDigits(activePageObj.pageNumber)} (${pageSettings.dpi} DPI PNG) তৈরি হচ্ছে...`);
+      const fileName = `ID_Card_Sheet_P${activePageObj.pageNumber}_${pageSettings.pageSize}_${pageSettings.dpi}DPI.png`;
+      const receipt = await exportIdCardPageAsPng({
+        page: activePageObj,
+        metrics,
+        pageSettings,
+        schoolSettings: settings,
+        template: activeTemplate,
+        docLang,
+        sessionYear,
+        fileName,
+      });
+      showToast(
+        `${receipt.dpi} DPI PNG ডাউনলোড সম্পন্ন (${formatBytesReadable(receipt.fileBytes)}) — মেমরি অটো-ক্লিয়ার, সার্ভার স্পেস ০ KB।`,
+        'success',
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'হাই-রেস PNG তৈরি ব্যর্থ হয়েছে।', 'error');
+    } finally {
+      setExportProgressText('');
+    }
+  };
+
+  const handleDownloadHighResPdf = async () => {
+    if (!settings || pages.length === 0) return;
+    const targetSet = new Set(targetPrintPageNumbers);
+    const targetPages = pages.filter((p) => targetSet.has(p.pageNumber));
+    if (targetPages.length === 0) return;
+
+    try {
+      const fileName = `ID_Cards_${gradeFilter}_${pageSettings.pageSize.toUpperCase()}_${pageSettings.dpi}DPI_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const receipt = await exportIdCardPagesAsPdf({
+        pages: targetPages,
+        metrics,
+        pageSettings,
+        schoolSettings: settings,
+        template: activeTemplate,
+        docLang,
+        sessionYear,
+        fileName,
+        onProgress: (cur, tot) => {
+          setExportProgressText(
+            `পেইজ ${toBanglaDigits(cur)}/${toBanglaDigits(tot)} রেন্ডার হচ্ছে (${pageSettings.dpi} DPI)...`,
+          );
+        },
+      });
+      showToast(
+        `${toBanglaDigits(receipt.pageCount)} পেইজ (${receipt.dpi} DPI) PDF ডাউনলোড সম্পন্ন (${formatBytesReadable(receipt.fileBytes)}) — অস্থায়ী মেমরি ক্লিয়ার, সার্ভার স্পেস ০ KB।`,
+        'success',
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'হাই-রেস PDF তৈরি ব্যর্থ হয়েছে।', 'error');
+    } finally {
+      setExportProgressText('');
+    }
+  };
+
+  if (!mounted || !settings) {
+    return (
+      <div className="p-10 text-center text-sm font-semibold text-slate-400">
+        শিক্ষার্থী আইডি কার্ড স্টুডিও লোড হচ্ছে...
+      </div>
+    );
+  }
+
+  const sampleStudentForModal = targetStudents[0] || SAMPLE_PREVIEW_STUDENT;
 
   return (
-    <div className="space-y-6 pb-12 print:p-0 print:m-0">
-      <style jsx global>{`
-        @media print {
-          ${cr80PageCss}
-          body {
-            background: #ffffff !important;
-          }
-          ${
-            printTarget === 'cr80-pvc'
-              ? `.cr80-card-sheet { page-break-after: always; break-after: page; margin: 0 !important; }`
-              : `.cr80-card-sheet { break-inside: avoid; page-break-inside: avoid; }`
-          }
-        }
-      `}</style>
+    <div className="min-h-full bg-slate-50/70 dark:bg-slate-950 print:bg-white">
+      <style>{dynamicPrintCss}</style>
 
-      {/* Header & Controls (Print Hidden) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 print:hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Link
-                href="/dashboard/students"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <ArrowLeft className="w-3 h-3" /> শিক্ষার্থী তালিকা
-              </Link>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-black">
-                <CreditCard className="w-3.5 h-3.5" /> ISO CR80 (85.6mm × 53.98mm)
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-              শিক্ষার্থী স্মার্ট PVC আইডি কার্ড বাল্ক প্রিন্ট
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              ডিজিটাল ভেরিফিকেশন QR কোড সহ A4 শিট অথবা সরাসরি সিঙ্গেল PVC কার্ড প্রিন্টারে প্রিন্ট করুন
-            </p>
-          </div>
+      {/* ─── SLIM STICKY WORKSPACE ACTION BAR (print:hidden) ─── */}
+      <div className="sticky top-0 z-30 min-h-13 py-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-5 flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Desktop Left Rail Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowLeftRail((v) => !v)}
+            className="hidden lg:inline-flex h-8.5 w-8.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 text-slate-600 dark:text-slate-300 items-center justify-center transition cursor-pointer shrink-0"
+            title={showLeftRail ? 'বাম কন্ট্রোল প্যানেল লুকান' : 'বাম কন্ট্রোল প্যানেল দেখান'}
+            aria-label={showLeftRail ? 'বাম কন্ট্রোল প্যানেল লুকান' : 'বাম কন্ট্রোল প্যানেল দেখান'}
+          >
+            {showLeftRail ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+          </button>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Mobile Drawer Trigger */}
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className="inline-flex lg:hidden h-8.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 text-xs font-bold items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#0B5D3B]" />
+            <span>ডিজাইন ও পেইজ</span>
+          </button>
+
+          <Link
+            href="/dashboard/students/"
+            className="hidden sm:inline-flex h-8.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 text-slate-600 dark:text-slate-300 text-xs font-bold items-center gap-1 shrink-0"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>শিক্ষার্থী</span>
+          </Link>
+
+          <span className="hidden xl:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[#0B5D3B] dark:text-emerald-300 text-[11px] font-extrabold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            সার্ভার স্পেস ০ KB · {pageSettings.dpi} DPI
+          </span>
+
+          {students.length === 0 && (
             <button
               type="button"
-              onClick={selectAllFiltered}
-              className="px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-black flex items-center gap-1.5 cursor-pointer"
+              onClick={() => setUseSamplePreview((v) => !v)}
+              className={`h-8.5 px-2.5 rounded-xl border text-[11px] font-extrabold inline-flex items-center gap-1 cursor-pointer transition ${
+                useSamplePreview
+                  ? 'bg-amber-100 border-amber-300 text-amber-900'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50'
+              }`}
             >
-              {selectedIds.size > 0 && selectedIds.size === filteredStudents.length ? (
-                <CheckSquare className="w-4 h-4 text-indigo-600" />
-              ) : (
-                <Square className="w-4 h-4" />
-              )}
-              {selectedIds.size > 0 ? `নির্বাচিত (${selectedIds.size})` : `সব নির্বাচন (${filteredStudents.length})`}
+              <Eye className="w-3.5 h-3.5" />
+              <span>{useSamplePreview ? 'নমুনা প্রিভিউ চালু' : 'নমুনা কার্ড দেখুন'}</span>
             </button>
-            <button
-              type="button"
-              onClick={handlePrintCards}
-              disabled={targetStudents.length === 0}
-              className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              আইডি কার্ড প্রিন্ট ({targetStudents.length} জন)
-            </button>
-          </div>
-        </div>
-
-        {/* Filters & Calibration Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">শ্রেণি</label>
-            <select
-              value={gradeFilter}
-              onChange={(e) => {
-                setGradeFilter(e.target.value);
-                setSelectedIds(new Set());
-              }}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="all">সকল শ্রেণি</option>
-              <option value="6th">৬ষ্ঠ শ্রেণি</option>
-              <option value="7th">৭ম শ্রেণি</option>
-              <option value="8th">৮ম শ্রেণি</option>
-              <option value="9th">৯ম শ্রেণি</option>
-              <option value="10th">১০ম শ্রেণি</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">শাখা / বিভাগ</label>
-            <select
-              value={sectionFilter}
-              onChange={(e) => setSectionFilter(e.target.value)}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="all">সকল</option>
-              <option value="A">Section A</option>
-              <option value="B">Section B</option>
-              <option value="C">Section C</option>
-              <option value="Science">Science</option>
-              <option value="Humanities">Humanities</option>
-              <option value="Commerce">Commerce</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">সার্চ (নাম/রোল)</label>
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="খুঁজুন..."
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">কার্ড ওরিয়েন্টেশন</label>
-            <select
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value as IdCardOrientation)}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="portrait">লম্বালম্বি (Portrait)</option>
-              <option value="landscape">আড়াআড়ি (Landscape)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">পৃষ্ঠা মোড</label>
-            <select
-              value={sideMode}
-              onChange={(e) => setSideMode(e.target.value as IdCardSideMode)}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="both">সামনে ও পেছনে (Both)</option>
-              <option value="front">শুধু সামনের দিক</option>
-              <option value="back">শুধু পেছনের দিক</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">প্রিন্ট টার্গেট</label>
-            <select
-              value={printTarget}
-              onChange={(e) => setPrintTarget(e.target.value as 'a4-grid' | 'cr80-pvc')}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="a4-grid">A4 মাল্টি-কার্ড শিট</option>
-              <option value="cr80-pvc">সিঙ্গেল CR80 PVC প্রিন্টার</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">রঙের থিম</label>
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as IdCardTheme)}
-              className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="indigo">নেভি-ইন্ডিগো</option>
-              <option value="emerald">এমারেল্ড সবুজ</option>
-              <option value="crimson">রয়্যাল ক্রিমসন</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 mb-1">ব্লিড গ্যাপ / সেশন</label>
-            <div className="flex items-center gap-1.5">
-              <select
-                value={bleedMm}
-                onChange={(e) => setBleedMm(Number(e.target.value))}
-                className="w-1/2 px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-              >
-                <option value={0}>0mm</option>
-                <option value={2}>2mm</option>
-                <option value={4}>4mm</option>
-              </select>
-              <input
-                value={sessionYear}
-                onChange={(e) => setSessionYear(e.target.value)}
-                className="w-1/2 px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Optional Student Quick Picker Chips */}
-        {filteredStudents.length > 0 && (
-          <div className="flex items-center justify-between pt-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <label className="inline-flex items-center gap-1.5 cursor-pointer font-bold">
-              <input
-                type="checkbox"
-                checked={showCropMarks}
-                onChange={(e) => setShowCropMarks(e.target.checked)}
-                className="rounded"
-              />
-              কাটার সুবিধার্থে ড্যাশ বর্ডার (Crop Marks) দেখান
-            </label>
-            <span>
-              কোনো কার্ডে ক্লিক করলে নির্দিষ্ট শিক্ষার্থী প্রিন্টের জন্য আলাদাভাবে নির্বাচন/বাদ দিতে পারবেন।
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Cards Render Grid */}
-      {!settings ? null : targetStudents.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 print:hidden">
-          <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-          <p className="text-sm font-black text-slate-700 dark:text-slate-300">
-            নির্বাচিত ফিল্টারে কোনো শিক্ষার্থী পাওয়া যায়নি
-          </p>
-        </div>
-      ) : (
-        <div
-          style={{ gap: printTarget === 'a4-grid' ? `${bleedMm}mm` : '0px' }}
-          className={
-            printTarget === 'cr80-pvc'
-              ? 'flex flex-col items-center gap-4 print:block print:gap-0'
-              : 'flex flex-wrap items-start justify-center bg-slate-100/70 dark:bg-slate-950/60 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 print:bg-transparent print:border-0 print:p-0 print:justify-start'
-          }
-        >
-          {visibleStudents.map((st) => {
-            const isPicked = selectedIds.has(st.id);
-            return (
-              <div
-                key={st.id}
-                onClick={() => toggleSelect(st.id)}
-                className={`relative group cursor-pointer rounded-xl p-1 transition print:p-0 print:ring-0 ${
-                  isPicked ? 'ring-2 ring-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30' : ''
-                }`}
-                title="সিলেক্ট/আনসিলেক্ট করতে ক্লিক করুন"
-              >
-                <StudentIdCardPreview
-                  student={st}
-                  settings={settings}
-                  orientation={orientation}
-                  sideMode={sideMode}
-                  theme={theme}
-                  sessionYear={sessionYear}
-                  showCropMarks={showCropMarks}
-                />
-              </div>
-            );
-          })}
-          {!isPrintingAll && targetStudents.length > visibleStudents.length && (
-            <div className="w-full flex items-center justify-center gap-3 pt-4 print:hidden">
-              <button
-                type="button"
-                onClick={() => setPreviewLimit((n) => n + 24)}
-                className="px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
-              >
-                আরও ২৪টি দেখুন ({visibleStudents.length}/{targetStudents.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewLimit(targetStudents.length)}
-                className="px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 cursor-pointer"
-              >
-                সব {targetStudents.length}টি কার্ড দেখান
-              </button>
-            </div>
           )}
         </div>
+
+        {/* Right High-Res Export & Print Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            disabled={pages.length === 0 || Boolean(exportProgressText)}
+            onClick={handleDownloadHighResPng}
+            className="hidden sm:inline-flex h-8.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 disabled:opacity-45 text-slate-700 dark:text-slate-200 text-xs font-bold items-center gap-1.5 transition cursor-pointer"
+            title="বর্তমান পেইজটি হাই-রেজুলেশন PNG হিসেবে ডাউনলোড করুন (সার্ভারে সেভ হবে না)"
+          >
+            <Download className="w-3.5 h-3.5 text-indigo-600" />
+            <span>PNG ({pageSettings.dpi} DPI)</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={pages.length === 0 || Boolean(exportProgressText)}
+            onClick={handleDownloadHighResPdf}
+            className="h-8.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-45 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+            title="নির্বাচিত পেইজগুলো হাই-রেজুলেশন PDF হিসেবে ডাউনলোড করুন (ডাউনলোডের পর মেমরি অটো-ক্লিয়ার)"
+          >
+            {exportProgressText ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileDown className="w-3.5 h-3.5" />
+            )}
+            <span>PDF ({pageSettings.dpi} DPI)</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={pages.length === 0}
+            onClick={handleVectorPrint}
+            className="h-8.5 px-3.5 rounded-xl bg-[#0B5D3B] hover:bg-[#094a2f] disabled:opacity-45 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>
+              প্রিন্ট ({toBanglaDigits(targetPrintPageNumbers.length)} পেইজ)
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Live Ephemeral Progress / Toast Notification Banner */}
+      {(exportProgressText || toast) && (
+        <div className="px-3 sm:px-5 pt-2.5 max-w-[1440px] mx-auto print:hidden">
+          {exportProgressText ? (
+            <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3.5 py-2 text-xs font-extrabold text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span>{exportProgressText}</span>
+            </div>
+          ) : toast ? (
+            <div
+              className={`rounded-xl px-3.5 py-2 text-xs font-extrabold border flex items-center gap-2 ${
+                toast.tone === 'error'
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : toast.tone === 'info'
+                    ? 'bg-slate-100 border-slate-200 text-slate-800'
+                    : 'bg-emerald-50 border-emerald-200 text-[#0B5D3B]'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{toast.text}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* ─── SPLIT-PANE STUDIO WORKSPACE ─── */}
+      <div className="p-3 sm:p-4 max-w-[1440px] mx-auto w-full overflow-x-clip print:p-0 print:max-w-none print:overflow-visible">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-start gap-4 print:block">
+          {/* Desktop Left Control Rail */}
+          {showLeftRail && (
+            <div className="hidden lg:block lg:sticky lg:top-[64px] max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar print:hidden">
+              <IdCardControlRail
+                totalStudentsCount={students.length}
+                filteredStudentsCount={filteredStudents.length}
+                selectedCount={selectedIds.size}
+                totalPages={pages.length}
+                currentPage={currentPage}
+                gradeCounts={gradeCounts}
+                gradeFilter={gradeFilter}
+                onGradeFilterChange={(g) => {
+                  setGradeFilter(g);
+                  setSectionFilter('all');
+                  setSelectedIds(new Set());
+                  setCurrentPage(1);
+                }}
+                sectionFilter={sectionFilter}
+                onSectionFilterChange={(s) => {
+                  setSectionFilter(s);
+                  setSelectedIds(new Set());
+                  setCurrentPage(1);
+                }}
+                searchQuery={searchQuery}
+                onSearchChange={(q) => {
+                  setSearchQuery(q);
+                  setCurrentPage(1);
+                }}
+                onToggleSelectAll={handleToggleSelectAll}
+                allFilteredSelected={
+                  filteredStudents.length > 0 && selectedIds.size === filteredStudents.length
+                }
+                sessionYear={sessionYear}
+                onSessionYearChange={setSessionYear}
+                docLang={docLang}
+                onDocLangChange={setDocLang}
+                activeTemplate={activeTemplate}
+                customTemplates={customTemplates}
+                onSelectTemplate={handleSelectTemplate}
+                onOpenNewTemplateModal={() =>
+                  setEditingTemplate(createBlankCustomTemplate(activeTemplate))
+                }
+                onEditCustomTemplate={(tpl) => setEditingTemplate(tpl)}
+                onDeleteCustomTemplate={handleDeleteCustomTemplate}
+                onExportTemplateJson={handleExportTemplateJson}
+                onImportTemplateJsonFile={handleImportTemplateJsonFile}
+                localTemplateBytes={localTemplateBytes}
+                sideMode={sideMode}
+                onSideModeChange={(m) => {
+                  setSideMode(m);
+                  setCurrentPage(1);
+                }}
+                pageSettings={pageSettings}
+                onUpdatePageSettings={handleUpdatePageSettings}
+                metrics={metrics}
+                printScope={printScope}
+                onPrintScopeChange={setPrintScope}
+                pageRangeExpr={pageRangeExpr}
+                onPageRangeExprChange={setPageRangeExpr}
+              />
+            </div>
+          )}
+
+          {/* Right Live Paginated Sheet Preview & Print Canvas */}
+          <IdCardPaginatedSheetCanvas
+            pages={pages}
+            currentPage={currentPage}
+            onChangePage={setCurrentPage}
+            targetPrintPageNumbers={targetPrintPageNumbers}
+            metrics={metrics}
+            pageSettings={pageSettings}
+            schoolSettings={settings}
+            template={activeTemplate}
+            docLang={docLang}
+            sessionYear={sessionYear}
+            selectedIds={selectedIds}
+            onToggleSelectStudent={handleToggleSelectStudent}
+            populatedGrades={populatedGrades}
+            onJumpToGrade={(g) => {
+              setGradeFilter(g);
+              setSectionFilter('all');
+              setSelectedIds(new Set());
+              setCurrentPage(1);
+            }}
+            onResetFilters={() => {
+              setGradeFilter('all');
+              setSectionFilter('all');
+              setSearchQuery('');
+              setSelectedIds(new Set());
+              setCurrentPage(1);
+            }}
+            totalStudentsInDb={students.length}
+          />
+        </div>
+      </div>
+
+      {/* ─── MOBILE SLIDE-OVER CONTROL DRAWER ─── */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden bg-slate-950/60 backdrop-blur-xs flex print:hidden">
+          <div className="w-[316px] max-w-[88vw] bg-slate-50 dark:bg-slate-950 h-full overflow-y-auto p-3.5 shadow-2xl border-r border-slate-200 dark:border-slate-800">
+            <IdCardControlRail
+              totalStudentsCount={students.length}
+              filteredStudentsCount={filteredStudents.length}
+              selectedCount={selectedIds.size}
+              totalPages={pages.length}
+              currentPage={currentPage}
+              gradeCounts={gradeCounts}
+              gradeFilter={gradeFilter}
+              onGradeFilterChange={(g) => {
+                setGradeFilter(g);
+                setSectionFilter('all');
+                setSelectedIds(new Set());
+                setCurrentPage(1);
+              }}
+              sectionFilter={sectionFilter}
+              onSectionFilterChange={(s) => {
+                setSectionFilter(s);
+                setSelectedIds(new Set());
+                setCurrentPage(1);
+              }}
+              searchQuery={searchQuery}
+              onSearchChange={(q) => {
+                setSearchQuery(q);
+                setCurrentPage(1);
+              }}
+              onToggleSelectAll={handleToggleSelectAll}
+              allFilteredSelected={
+                filteredStudents.length > 0 && selectedIds.size === filteredStudents.length
+              }
+              sessionYear={sessionYear}
+              onSessionYearChange={setSessionYear}
+              docLang={docLang}
+              onDocLangChange={setDocLang}
+              activeTemplate={activeTemplate}
+              customTemplates={customTemplates}
+              onSelectTemplate={handleSelectTemplate}
+              onOpenNewTemplateModal={() => {
+                setMobileDrawerOpen(false);
+                setEditingTemplate(createBlankCustomTemplate(activeTemplate));
+              }}
+              onEditCustomTemplate={(tpl) => {
+                setMobileDrawerOpen(false);
+                setEditingTemplate(tpl);
+              }}
+              onDeleteCustomTemplate={handleDeleteCustomTemplate}
+              onExportTemplateJson={handleExportTemplateJson}
+              onImportTemplateJsonFile={handleImportTemplateJsonFile}
+              localTemplateBytes={localTemplateBytes}
+              sideMode={sideMode}
+              onSideModeChange={(m) => {
+                setSideMode(m);
+                setCurrentPage(1);
+              }}
+              pageSettings={pageSettings}
+              onUpdatePageSettings={handleUpdatePageSettings}
+              metrics={metrics}
+              printScope={printScope}
+              onPrintScopeChange={setPrintScope}
+              pageRangeExpr={pageRangeExpr}
+              onPageRangeExprChange={setPageRangeExpr}
+              onCloseMobileDrawer={() => setMobileDrawerOpen(false)}
+            />
+          </div>
+          <button
+            type="button"
+            className="flex-1"
+            onClick={() => setMobileDrawerOpen(false)}
+            aria-label="ওভারলে বন্ধ করুন"
+          />
+        </div>
+      )}
+
+      {/* ─── CUSTOM TEMPLATE STUDIO MODAL ─── */}
+      {editingTemplate && (
+        <IdCardCustomTemplateModal
+          initialTemplate={editingTemplate}
+          sampleStudent={sampleStudentForModal}
+          schoolSettings={settings}
+          docLang={docLang}
+          cardOrientation={pageSettings.cardOrientation}
+          sessionYear={sessionYear}
+          onSave={handleSaveCustomTemplate}
+          onExportJson={handleExportTemplateJson}
+          onClose={() => setEditingTemplate(null)}
+        />
       )}
     </div>
   );
