@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { 
-  Monitor, 
-  FlaskConical, 
-  BookOpen, 
-  Trophy, 
-  Compass, 
+import {
+  Monitor,
+  FlaskConical,
+  BookOpen,
+  Trophy,
+  Compass,
   Droplet,
   Sparkles,
   Microscope,
@@ -18,18 +17,19 @@ import {
   Heart,
   Building2,
   CheckCircle2,
-  ArrowRight,
-  Settings
 } from 'lucide-react';
 import { FacilitiesConfig, FacilityItem } from '@/services/landingPageService';
+import { toBanglaDigits } from '@/lib/resultPortalUtils';
 
 interface PublicFacilitiesSectionProps {
   facilitiesConfig?: FacilitiesConfig | null;
 }
 
-// Map icon string names to React Lucide components
-function renderFacilityIcon(iconName: string, colorClass: string = 'text-indigo-600') {
-  const props = { className: `w-6 h-6 sm:w-7 sm:h-7 ${colorClass} transition-transform duration-300 group-hover:scale-110`, strokeWidth: 2.2 };
+function renderFacilityIcon(iconName: string, colorClass = 'text-[#0B5D3B]') {
+  const props = {
+    className: `w-6 h-6 ${colorClass} transition-transform duration-300 group-hover:scale-110`,
+    strokeWidth: 2.1,
+  };
   switch (iconName?.toLowerCase()) {
     case 'monitor':
     case 'computer':
@@ -69,81 +69,55 @@ function renderFacilityIcon(iconName: string, colorClass: string = 'text-indigo-
   }
 }
 
-// Preset color configurations for high-contrast, modern cards
-interface ColorScheme {
-  ring: string;
-  bgGlow: string;
-  iconBg: string;
-  iconColor: string;
-  badgeBg: string;
-  badgeText: string;
-  hoverBorder: string;
-}
-
-const COLOR_SCHEMES: Record<string, ColorScheme> = {
+const COLOR_SCHEMES: Record<
+  string,
+  { iconBg: string; iconColor: string; badge: string; hoverBorder: string }
+> = {
   indigo: {
-    ring: 'border-indigo-300/80 dark:border-indigo-700/80',
-    bgGlow: 'from-indigo-500/10 via-transparent to-transparent',
     iconBg: 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-200 dark:border-indigo-800',
     iconColor: 'text-indigo-600 dark:text-indigo-400',
-    badgeBg: 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-200 dark:border-indigo-800',
-    badgeText: 'text-indigo-700 dark:text-indigo-300',
-    hoverBorder: 'hover:border-indigo-400 dark:hover:border-indigo-500',
+    badge: 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300',
+    hoverBorder: 'hover:border-indigo-400/70',
   },
   emerald: {
-    ring: 'border-emerald-300/80 dark:border-emerald-700/80',
-    bgGlow: 'from-emerald-500/10 via-transparent to-transparent',
     iconBg: 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-800',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
-    badgeBg: 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-800',
-    badgeText: 'text-emerald-700 dark:text-emerald-300',
-    hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-500',
+    iconColor: 'text-[#0B5D3B] dark:text-emerald-400',
+    badge: 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-800 text-[#0B5D3B] dark:text-emerald-300',
+    hoverBorder: 'hover:border-emerald-400/70',
   },
   amber: {
-    ring: 'border-amber-300/80 dark:border-amber-700/80',
-    bgGlow: 'from-amber-500/10 via-transparent to-transparent',
     iconBg: 'bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-800',
     iconColor: 'text-amber-600 dark:text-amber-400',
-    badgeBg: 'bg-amber-50 dark:bg-amber-950/80 border-amber-200 dark:border-amber-800',
-    badgeText: 'text-amber-700 dark:text-amber-300',
-    hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-500',
+    badge: 'bg-amber-50 dark:bg-amber-950/80 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300',
+    hoverBorder: 'hover:border-amber-400/70',
   },
   rose: {
-    ring: 'border-rose-300/80 dark:border-rose-700/80',
-    bgGlow: 'from-rose-500/10 via-transparent to-transparent',
     iconBg: 'bg-rose-50 dark:bg-rose-950/70 border-rose-200 dark:border-rose-800',
     iconColor: 'text-rose-600 dark:text-rose-400',
-    badgeBg: 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800',
-    badgeText: 'text-rose-700 dark:text-rose-300',
-    hoverBorder: 'hover:border-rose-400 dark:hover:border-rose-500',
+    badge: 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300',
+    hoverBorder: 'hover:border-rose-400/70',
   },
   cyan: {
-    ring: 'border-cyan-300/80 dark:border-cyan-700/80',
-    bgGlow: 'from-cyan-500/10 via-transparent to-transparent',
     iconBg: 'bg-cyan-50 dark:bg-cyan-950/70 border-cyan-200 dark:border-cyan-800',
     iconColor: 'text-cyan-600 dark:text-cyan-400',
-    badgeBg: 'bg-cyan-50 dark:bg-cyan-950/80 border-cyan-200 dark:border-cyan-800',
-    badgeText: 'text-cyan-700 dark:text-cyan-300',
-    hoverBorder: 'hover:border-cyan-400 dark:hover:border-cyan-500',
+    badge: 'bg-cyan-50 dark:bg-cyan-950/80 border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300',
+    hoverBorder: 'hover:border-cyan-400/70',
   },
   blue: {
-    ring: 'border-blue-300/80 dark:border-blue-700/80',
-    bgGlow: 'from-blue-500/10 via-transparent to-transparent',
-    iconBg: 'bg-blue-50 dark:bg-blue-950/70 border-blue-200 dark:border-blue-800',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    badgeBg: 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800',
-    badgeText: 'text-blue-700 dark:text-blue-300',
-    hoverBorder: 'hover:border-blue-400 dark:hover:border-blue-500',
+    iconBg: 'bg-sky-50 dark:bg-sky-950/70 border-sky-200 dark:border-sky-800',
+    iconColor: 'text-sky-600 dark:text-sky-400',
+    badge: 'bg-sky-50 dark:bg-sky-950/80 border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300',
+    hoverBorder: 'hover:border-sky-400/70',
   },
 };
 
-// 6 Default facilities in Bengali
 const DEFAULT_FACILITIES: FacilityItem[] = [
   {
     id: 'fac-1',
     title: 'শেখ রাসেল ডিজিটাল ল্যাব',
     titleEn: 'Sheikh Russel Digital Lab',
-    description: 'উচ্চগতির ব্রডব্যান্ড ইন্টারনেট ও আধুনিক কম্পিউটার সমৃদ্ধ ল্যাব, যেখানে শিক্ষার্থীরা আইসিটি, কোডিং ও ডিজিটাল লিটারেসি হাতে-কলমে শেখে।',
+    description:
+      'উচ্চগতির ইন্টারনেট ও আধুনিক কম্পিউটার সমৃদ্ধ ল্যাব, যেখানে শিক্ষার্থীরা আইসিটি, কোডিং ও ডিজিটাল দক্ষতা হাতে-কলমে শেখে।',
     icon: 'Monitor',
     badge: 'আইসিটি ও কম্পিউটার',
     color: 'indigo',
@@ -153,7 +127,8 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
     id: 'fac-2',
     title: 'আধুনিক বিজ্ঞানাগার (ল্যাব)',
     titleEn: 'Science Laboratories',
-    description: 'পদার্থবিজ্ঞান, রসায়ন ও জীববিজ্ঞানের সকল প্রয়োজনীয় আধুনিক যন্ত্রপাতি ও গবেষণাসামগ্রী সমৃদ্ধ সার্বক্ষণিক ব্যবহারিক ল্যাবরেটরি।',
+    description:
+      'পদার্থবিজ্ঞান, রসায়ন ও জীববিজ্ঞানের সকল প্রয়োজনীয় আধুনিক যন্ত্রপাতি সমৃদ্ধ সার্বক্ষণিক ব্যবহারিক ল্যাবরেটরি।',
     icon: 'FlaskConical',
     badge: 'ব্যবহারিক বিজ্ঞান',
     color: 'emerald',
@@ -163,7 +138,8 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
     id: 'fac-3',
     title: 'কেন্দ্রীয় লাইব্রেরি ও পাঠকক্ষ',
     titleEn: 'Central Library & Reading Room',
-    description: 'পাঠ্যপুস্তক, সৃজনশীল সাহিত্য, দেশি-বিদেশি রেফারেন্স বই, বিজ্ঞান সাময়িকী ও দৈনিক সংবাদপত্রে সমৃদ্ধ একটি শান্ত ও সুশৃঙ্খল পাঠাগার।',
+    description:
+      'পাঠ্যপুস্তক, সৃজনশীল সাহিত্য, রেফারেন্স বই, বিজ্ঞান সাময়িকী ও দৈনিক সংবাদপত্রে সমৃদ্ধ শান্ত ও সুশৃঙ্খল পাঠাগার।',
     icon: 'BookOpen',
     badge: '৫,০০০+ বই সংগ্রহ',
     color: 'amber',
@@ -173,7 +149,8 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
     id: 'fac-4',
     title: 'প্রশস্ত খেলার মাঠ ও ক্রীড়া',
     titleEn: 'Expansive Sports Ground',
-    description: 'ফুটবল, ক্রিকেট, ভলিবল ও বার্ষিক ক্রীড়া প্রতিযোগিতার জন্য উন্মুক্ত ও সবুজ ঘাসে ঘেরা সুবিশাল খেলাধুলার মাঠ।',
+    description:
+      'ফুটবল, ক্রিকেট, ভলিবল ও বার্ষিক ক্রীড়া প্রতিযোগিতার জন্য উন্মুক্ত ও সবুজ ঘাসে ঘেরা সুবিশাল খেলার মাঠ।',
     icon: 'Trophy',
     badge: 'খেলাধুলা ও শরীরচর্চা',
     color: 'rose',
@@ -183,7 +160,8 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
     id: 'fac-5',
     title: 'স্কাউটিং ও সহশিক্ষা কার্যক্রম',
     titleEn: 'Scouting & Co-Curricular',
-    description: 'বাংলাদেশ স্কাউটস ও গার্ল গাইডসের সক্রিয় ইউনিট, বিতর্ক ও বিজ্ঞান ক্লাব যা শিক্ষার্থীদের নেতৃত্বগুণ ও শৃঙ্খলাবোধ গড়ে তোলে।',
+    description:
+      'বাংলাদেশ স্কাউটস ও গার্ল গাইডস ইউনিট, বিতর্ক ও বিজ্ঞান ক্লাব যা শিক্ষার্থীদের নেতৃত্বগুণ ও শৃঙ্খলাবোধ গড়ে তোলে।',
     icon: 'Compass',
     badge: 'নেতৃত্ব ও শৃঙ্খলা',
     color: 'cyan',
@@ -193,7 +171,8 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
     id: 'fac-6',
     title: 'বিশুদ্ধ পানি ও আধুনিক স্যানিটেশন',
     titleEn: 'Purified Water & Hygiene',
-    description: 'আধুনিক ডিপ-ফিল্টারযুক্ত নিরাপদ বিশুদ্ধ খাবার পানির ব্যবস্থা এবং ছাত্র ও ছাত্রীদের জন্য সম্পূর্ণ পৃথক পরিচ্ছন্ন স্যানিটেশন ব্লক।',
+    description:
+      'আধুনিক ডিপ-ফিল্টারযুক্ত নিরাপদ বিশুদ্ধ খাবার পানির ব্যবস্থা এবং ছাত্র-ছাত্রীদের জন্য পৃথক পরিচ্ছন্ন স্যানিটেশন ব্লক।',
     icon: 'Droplet',
     badge: 'স্বাস্থ্য ও সুরক্ষা',
     color: 'blue',
@@ -202,117 +181,94 @@ const DEFAULT_FACILITIES: FacilityItem[] = [
 ];
 
 export default function PublicFacilitiesSection({ facilitiesConfig }: PublicFacilitiesSectionProps) {
-  // If section is disabled by admin, return null
   if (facilitiesConfig && facilitiesConfig.enabled === false) {
     return null;
   }
 
   const eyebrow = facilitiesConfig?.eyebrow || 'ক্যাম্পাস অবকাঠামো ও সুবিধাসমূহ';
   const title = facilitiesConfig?.title || 'শিক্ষার্থীদের সার্বিক বিকাশে আধুনিক সুযোগ-সুবিধা';
-  const subtitle = facilitiesConfig?.subtitle || 'সুপরিকল্পিত ও মনোরম ক্যাম্পাস পরিবেশ, যা শিক্ষার্থীদের সুস্থ, সৃজনশীল ও বাস্তবমুখী জ্ঞানার্জনে অনুপ্রাণিত করে।';
-  
-  // Use config items if defined, otherwise fallback to defaults
-  const activeItems = (facilitiesConfig?.items && facilitiesConfig.items.length > 0)
-    ? facilitiesConfig.items.filter((item) => item.visible !== false)
-    : DEFAULT_FACILITIES;
+  const subtitle =
+    facilitiesConfig?.subtitle ||
+    'সুপরিকল্পিত ও মনোরম ক্যাম্পাস পরিবেশ, যা শিক্ষার্থীদের সুস্থ, সৃজনশীল ও বাস্তবমুখী জ্ঞানার্জনে অনুপ্রাণিত করে।';
+
+  const activeItems =
+    facilitiesConfig?.items && facilitiesConfig.items.length > 0
+      ? facilitiesConfig.items.filter((item) => item.visible !== false)
+      : DEFAULT_FACILITIES;
 
   return (
-    <section 
-      id="facilities" 
-      className="py-10 sm:py-14 bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200 dark:border-slate-800 relative overflow-hidden"
+    <section
+      id="facilities"
+      className="py-12 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 relative overflow-hidden"
     >
-      {/* Background Ambient Decorative Lights */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
-        {/* ===================================================================
-            সেকশন হেডার: টাইটেল, ডুয়েল আন্ডারলাইন ও সাবটাইটেল
-            =================================================================== */}
-        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
-          
-          {/* Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-4 py-1.5 rounded-full border border-indigo-200/80 dark:border-indigo-800 text-xs font-bold uppercase tracking-wider shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-9 sm:mb-12">
+          <div className="inline-flex items-center gap-2 text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5 text-[#F4B400]" />
             <span>{eyebrow}</span>
           </div>
 
-          {/* Section Main Title */}
-          <div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-              {title}
-            </h2>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+            {title}
+          </h2>
 
-            {/* Institutional Dual-colored Underline */}
-            <div className="flex items-center justify-center gap-1.5 mt-2.5">
-              <span className="w-16 h-1.5 bg-[#0B5D3B] rounded-full"></span>
-              <span className="w-4 h-1.5 bg-[#F4B400] rounded-full"></span>
-            </div>
+          <div className="flex items-center justify-center gap-1.5 pt-0.5">
+            <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full" />
+            <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full" />
           </div>
 
-          {/* Subtitle Description */}
-          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto pt-1 font-medium">
+          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto pt-1">
             {subtitle}
           </p>
         </div>
 
-        {/* ===================================================================
-            ৬টি কার্ডের আধুনিক গ্রিড (Desktop: 3 কলাম, Tablet: 2 কলাম, Mobile: 1 কলাম)
-            =================================================================== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {activeItems.map((fac, idx) => {
-            const scheme = COLOR_SCHEMES[fac.color || 'indigo'] || COLOR_SCHEMES.indigo;
+            const scheme = COLOR_SCHEMES[fac.color || 'emerald'] || COLOR_SCHEMES.emerald;
             return (
               <div
                 key={fac.id || idx}
-                className={`group relative bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl ${scheme.hoverBorder} hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between overflow-hidden`}
+                className={`group relative bg-[#F8FAFC] dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800/90 rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xl ${scheme.hoverBorder} hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between`}
               >
-                {/* Ambient Top Glow on Hover */}
-                <div className={`absolute top-0 left-0 right-0 h-28 bg-gradient-to-b ${scheme.bgGlow} opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
-
                 <div>
-                  {/* Top Bar: 3D Neo-glass Icon Container + Micro Badge */}
-                  <div className="flex items-start justify-between gap-3 mb-5 relative z-10">
-                    <div className={`w-13 h-13 sm:w-14 sm:h-14 rounded-2xl ${scheme.iconBg} border flex items-center justify-center shadow-xs group-hover:shadow-md transition-all duration-300 group-hover:scale-105`}>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div
+                      className={`w-12 h-12 rounded-2xl ${scheme.iconBg} border flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform`}
+                    >
                       {renderFacilityIcon(fac.icon, scheme.iconColor)}
                     </div>
 
                     {fac.badge && (
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold ${scheme.badgeBg} ${scheme.badgeText} shadow-2xs`}>
-                        <Sparkles className="w-2.5 h-2.5 opacity-70" />
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold ${scheme.badge}`}
+                      >
                         <span>{fac.badge}</span>
                       </span>
                     )}
                   </div>
 
-                  {/* Facility Title */}
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug relative z-10">
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors leading-snug">
                     {fac.title}
                   </h3>
 
-                  {/* Facility English Title (if present) */}
                   {fac.titleEn && (
                     <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 font-en mt-0.5">
                       {fac.titleEn}
                     </div>
                   )}
 
-                  {/* Facility Detailed Description */}
-                  <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed mt-2.5 font-normal relative z-10">
+                  <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed mt-2.5">
                     {fac.description}
                   </p>
                 </div>
 
-                {/* Bottom Card Footer with Feature Indicator */}
-                <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 relative z-10">
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <div className="mt-5 pt-3 border-t border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1.5 text-[#0B5D3B] dark:text-emerald-400">
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                     <span>ক্যাম্পাসে সার্বক্ষণিক সচল</span>
                   </span>
-
-                  <span className="text-[10px] uppercase font-bold text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-                    সুবিধা #{idx + 1}
+                  <span className="text-[10px] font-bold text-slate-400">
+                    সুবিধা #{toBanglaDigits(idx + 1)}
                   </span>
                 </div>
               </div>
@@ -320,26 +276,15 @@ export default function PublicFacilitiesSection({ facilitiesConfig }: PublicFaci
           })}
         </div>
 
-        {/* ===================================================================
-            নিচে দ্রুত অ্যাডমিন সেটিংস লিংক / ইনফো বার
-            =================================================================== */}
-        <div className="mt-10 sm:mt-12 text-center">
-          <div className="inline-flex flex-wrap items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs text-xs text-slate-600 dark:text-slate-400">
-            <span className="flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>সকল সুযোগ-সুবিধা বিদ্যালয় পরিচালনা পর্ষদ ও সরকার কর্তৃক অনুমোদিত।</span>
+        {/* Institutional Assurance Pill */}
+        <div className="mt-9 text-center">
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+            <span className="flex items-center gap-1.5 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
+              <span>সকল আধুনিক সুবিধা বিদ্যালয় পরিচালনা পর্ষদ ও শিক্ষা বোর্ড অনুমোদিত।</span>
             </span>
-            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">|</span>
-            <Link
-              href="/dashboard/settings?tab=facilities"
-              className="inline-flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>অ্যাডমিন সেটিংস থেকে সম্পাদনা করুন</span>
-            </Link>
           </div>
         </div>
-
       </div>
     </section>
   );

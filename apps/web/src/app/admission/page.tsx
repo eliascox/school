@@ -26,6 +26,9 @@ import {
   ShieldCheck,
   FileBadge2,
   Lock,
+  Search,
+  ClipboardCheck,
+  Sparkles,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { showToast } from '@/components/ui/ToastProvider';
@@ -40,8 +43,11 @@ import {
   normalizeNumericField,
   validatePublicAdmissionFields,
   computeAdmissionStepCompletion,
+  OnlineApplicationRecord,
 } from '@/lib/admissionUtils';
 import { toBanglaDigits } from '@/lib/resultPortalUtils';
+import { findSubmittedAdmissionApplications } from '@/lib/publicLandingUtils';
+import { PublicPortalHeader, PublicPortalFooter } from '@/components/public/PublicPortalShell';
 
 const CLASS_DISPLAY_MAP: Record<string, string> = {
   '6th': '৬ষ্ঠ শ্রেণি',
@@ -108,6 +114,11 @@ export default function PublicOnlineAdmissionPage() {
   const [declaredCorrect, setDeclaredCorrect] = useState<boolean>(true);
 
   // Post Submission State
+  const [portalTab, setPortalTab] = useState<'apply' | 'track'>('apply');
+  const [trackQuery, setTrackQuery] = useState<string>('');
+  const [trackedResults, setTrackedResults] = useState<OnlineApplicationRecord[]>([]);
+  const [hasTracked, setHasTracked] = useState<boolean>(false);
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [applicationRecord, setApplicationRecord] = useState<AdmissionFormData | null>(null);
@@ -384,6 +395,54 @@ export default function PublicOnlineAdmissionPage() {
     setSmsDeliveryStatus(null);
   };
 
+  const handleTrackSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = trackQuery.trim();
+    if (!q) return;
+
+    let storedApps: OnlineApplicationRecord[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('sms_online_applications');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) storedApps = parsed;
+        }
+      } catch {
+        storedApps = [];
+      }
+    }
+
+    // Also include students registered via online admission (APP-*)
+    const studentApps: OnlineApplicationRecord[] = studentService
+      .getAllStudents()
+      .filter((s) => Boolean((s as { appId?: string }).appId || String(s.id || '').startsWith('APP-')))
+      .map((s) => ({
+        ...(s as unknown as OnlineApplicationRecord),
+        appId: (s as { appId?: string }).appId || s.id,
+      }));
+
+    const dedupMap = new Map<string, OnlineApplicationRecord>();
+    [...storedApps, ...studentApps].forEach((rec) => {
+      const key = (rec.appId || rec.id || `${rec.name}-${rec.mobile}`).toLowerCase();
+      if (!dedupMap.has(key)) dedupMap.set(key, rec);
+    });
+
+    const matches = findSubmittedAdmissionApplications(Array.from(dedupMap.values()), q);
+    setTrackedResults(matches);
+    setHasTracked(true);
+  };
+
+  const handleOpenTrackedSlip = (rec: OnlineApplicationRecord) => {
+    setApplicationRecord({
+      ...rec,
+      appId: rec.appId || rec.id || 'APP-2026',
+    } as AdmissionFormData);
+    setIsSubmitted(true);
+    setSmsDeliveryStatus(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handlePrintSlip = () => {
     triggerProfessionalPrint([
       schoolSettings?.schoolName || 'SchoolPro',
@@ -430,121 +489,29 @@ export default function PublicOnlineAdmissionPage() {
   const fieldLabelClass =
     'block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5';
 
-  // ── SHARED INSTITUTIONAL HEADER (Matches /result & /verify-certificate) ──
-  const renderInstitutionalHeader = () => (
-    <>
-      <div className="h-1 bg-gradient-to-r from-[#064e3b] via-[#0B5D3B] to-teal-500 print:hidden" />
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 shadow-2xs print:hidden">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-3 min-w-0 group">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0B5D3B] to-emerald-600 p-0.5 shadow-md shadow-emerald-900/15 group-hover:scale-[1.03] transition-transform shrink-0">
-              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
-                {schoolLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain" />
-                ) : (
-                  <GraduationCap className="w-6 h-6 text-[#0B5D3B] dark:text-emerald-400" />
-                )}
-              </div>
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base lg:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors">
-                {schoolName}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                {schoolAddress && <span className="truncate max-w-[200px] sm:max-w-xs">{schoolAddress}</span>}
-                {eiinNumber && (
-                  <>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
-                      EIIN: {toBanglaDigits(eiinNumber)}
-                    </span>
-                  </>
-                )}
-                {estdYear && (
-                  <span className="hidden md:inline-flex items-center gap-1">
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    স্থাপিত: {toBanglaDigits(estdYear)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
+  const progressPercent = Math.round((stepStatus.completedCount / 4) * 100);
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <Home className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
-              <span>হোম</span>
-            </Link>
-            <Link
-              href="/result"
-              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <Award className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <span>ফলাফল</span>
-            </Link>
-            <Link
-              href="/verify-certificate"
-              className="hidden lg:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <FileBadge2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <span>সনদ যাচাই</span>
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-[#0B5D3B] hover:bg-emerald-800 text-white shadow-sm shadow-emerald-900/20 transition"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>লগইন</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-    </>
+  // ── SHARED UNIFIED PUBLIC PORTAL HEADER & FOOTER ──
+  const renderInstitutionalHeader = () => (
+    <PublicPortalHeader
+      activePortal="admission"
+      settings={schoolSettings}
+      maxWidthClass="max-w-5xl"
+    />
   );
 
-  // ── SHARED INSTITUTIONAL FOOTER ──
   const renderInstitutionalFooter = () => (
-    <footer className="border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/80 py-6 mt-auto print:hidden">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-        <div className="text-center sm:text-left space-y-0.5">
-          <p className="font-bold text-slate-700 dark:text-slate-200">
-            © {toBanglaDigits(currentYear)} {schoolName}
-          </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            {schoolAddress}
-            {eiinNumber ? ` • EIIN: ${toBanglaDigits(eiinNumber)}` : ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] font-semibold">
-          <Link href="/" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-            মূল ওয়েবসাইট
-          </Link>
-          <Link href="/result" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-            অনলাইন ফলাফল
-          </Link>
-          <Link href="/verify-certificate" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-            সনদ যাচাই
-          </Link>
-          <Link href="/login" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-            অ্যাডমিন / শিক্ষক লগইন
-          </Link>
-        </div>
-      </div>
-    </footer>
+    <PublicPortalFooter settings={schoolSettings} maxWidthClass="max-w-5xl" />
   );
 
   // ── IF ONLINE ADMISSION IS SUSPENDED ──
   if (schoolSettings && schoolSettings.onlineAdmissionEnabled === false) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 flex flex-col">
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 flex flex-col">
         {renderInstitutionalHeader()}
 
         <main className="flex-1 max-w-lg w-full mx-auto px-4 py-16 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-4 w-full">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-4 w-full">
             <div className="w-14 h-14 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-2xl mx-auto flex items-center justify-center">
               <Lock size={26} />
             </div>
@@ -552,13 +519,13 @@ export default function PublicOnlineAdmissionPage() {
               অনলাইন ভর্তি আবেদন বর্তমানে বন্ধ রয়েছে
             </h2>
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
-              ২০২৬ শিক্ষাবর্ষের নতুন অনলাইন ভর্তি কার্যক্রম বর্তমানে স্থগিত রয়েছে। ভর্তিসংক্রান্ত যেকোনো
+              {toBanglaDigits(currentYear)} শিক্ষাবর্ষের নতুন অনলাইন ভর্তি কার্যক্রম বর্তমানে স্থগিত রয়েছে। ভর্তিসংক্রান্ত যেকোনো
               তথ্যের জন্য সরাসরি বিদ্যালয় অফিসে যোগাযোগ করুন।
             </p>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
               <Link
                 href="/"
-                className="px-5 py-2.5 bg-[#0B5D3B] hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                className="px-5 py-2.5 bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold text-xs rounded-xl shadow-sm transition"
               >
                 মূল ওয়েবসাইটে ফিরে যান
               </Link>
@@ -578,53 +545,177 @@ export default function PublicOnlineAdmissionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-600 selection:text-white print:bg-white print:text-black print:block print:min-h-0 print:p-0 print:m-0">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 flex flex-col selection:bg-[#0B5D3B] selection:text-white print:bg-white print:text-black print:block print:min-h-0 print:p-0 print:m-0">
       {renderInstitutionalHeader()}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🎓 OFFICIAL EMERALD-SLATE HERO BANNER (print:hidden)          */}
+      {/* 🎓 CRISP PEARL-EMERALD ARCHITECTURAL PORTAL BANNER            */}
       {/* ═════════════════════════════════════════════════════════════ */}
-      <section className="relative bg-gradient-to-br from-[#053b26] via-[#0B5D3B] to-[#0f172a] text-white pt-8 pb-20 sm:pt-10 sm:pb-24 overflow-hidden print:hidden">
-        <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
-            backgroundSize: '36px 36px',
-          }}
-        />
-        <div className="absolute -top-24 right-0 w-96 h-96 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 left-0 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative bg-gradient-to-b from-emerald-50/90 via-white to-[#F8FAFC] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/80 dark:border-slate-800 pt-7 pb-16 sm:pt-9 sm:pb-20 overflow-hidden print:hidden">
+        <div className="absolute -top-24 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-0 w-80 h-80 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3.5">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 border border-white/20 text-emerald-100 backdrop-blur-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>ভর্তি আবেদন উন্মুক্ত • শিক্ষাবর্ষ ২০২৬</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100/90 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-[#0B5D3B] dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>ভর্তি আবেদন উন্মুক্ত • শিক্ষাবর্ষ {toBanglaDigits(currentYear)}</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-black/20 border border-white/15 text-emerald-100/90 backdrop-blur-sm">
-              <Send className="w-3 h-3 text-emerald-300" />
-              <span>স্বয়ংক্রিয় এসএমএস নিশ্চিতকরণ ও A4 প্রিন্ট স্লিপ</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-2xs">
+              <Send className="w-3 h-3 text-[#0B5D3B] dark:text-emerald-400" />
+              <span>তাৎক্ষণিক SMS নিশ্চিতকরণ ও A4 প্রিন্ট স্লিপ</span>
             </span>
           </div>
 
           <div className="space-y-1.5 max-w-3xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
-              অনলাইন শিক্ষার্থী ভর্তি আবেদনপত্র
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+              অনলাইন শিক্ষার্থী <span className="vibrant-gradient-text">ভর্তি পোর্টাল</span>
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/85 font-medium leading-relaxed max-w-2xl mx-auto">
-              ৬ষ্ঠ থেকে ১০ম শ্রেণিতে ভর্তির জন্য শিক্ষার্থীর সঠিক তথ্য পূরণ করুন। আবেদন জমা দেওয়ার সাথে
-              সাথে অভিভাবকের মোবাইলে নিশ্চিতকরণ SMS এবং প্রিন্টযোগ্য A4 ফরম তৈরি হবে।
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto">
+              ৬ষ্ঠ থেকে ১০ম শ্রেণিতে ভর্তির জন্য অনলাইনে আবেদন জমা দিন অথবা পূর্বের আবেদন আইডি/মোবাইল নম্বর দিয়ে স্ট্যাটাস ও A4 স্লিপ সংগ্রহ করুন।
             </p>
           </div>
+
+          {/* Interactive Apply / Track Application Switcher */}
+          {!isSubmitted && (
+            <div className="pt-1 flex justify-center">
+              <div
+                role="tablist"
+                aria-label="ভর্তি পোর্টাল ট্যাব"
+                className="inline-flex items-center p-1 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={portalTab === 'apply'}
+                  onClick={() => setPortalTab('apply')}
+                  className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
+                    portalTab === 'apply'
+                      ? 'bg-[#0B5D3B] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-[#0B5D3B]'
+                  }`}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>নতুন ভর্তি আবেদন</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={portalTab === 'track'}
+                  onClick={() => setPortalTab('track')}
+                  className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
+                    portalTab === 'track'
+                      ? 'bg-[#0B5D3B] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-[#0B5D3B]'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4" />
+                  <span>আবেদন ট্র্যাক ও স্লিপ</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
       {/* ═════════════════════════════════════════════════════════════ */}
       {/* 📋 MAIN OVERLAPPING APPLICATION WORKSPACE                     */}
       {/* ═════════════════════════════════════════════════════════════ */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mt-12 sm:-mt-14 pb-12 space-y-6 relative z-20 print:p-0 print:m-0 print:mt-0 print:pb-0 print:max-w-none print:w-full print:space-y-0">
-        {isSubmitted && applicationRecord ? (
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 pb-12 space-y-6 relative z-20 print:p-0 print:m-0 print:mt-0 print:pb-0 print:max-w-none print:w-full print:space-y-0">
+        {!isSubmitted && portalTab === 'track' ? (
+          /* ═══════════════════════════════════════════════════════ */
+          /* 🔎 TRACK SUBMITTED APPLICATION & RE-PRINT SLIP          */
+          /* ═══════════════════════════════════════════════════════ */
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-slate-900/5 overflow-hidden print:hidden animate-fade-in">
+            <div className="px-6 py-4 bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white">
+                <Search className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400" />
+                <span>জমাকৃত ভর্তি আবেদন অনুসন্ধান করুন</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">
+                আবেদন আইডি (APP-2026-...) অথবা অভিভাবকের মোবাইল নম্বর
+              </span>
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-6">
+              <form onSubmit={handleTrackSearch} className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={trackQuery}
+                    onChange={(e) => setTrackQuery(e.target.value)}
+                    placeholder="উদাহরণ: APP-2026-1234 অথবা 018XXXXXXXX বা ০১৮XXXXXXXX"
+                    className="w-full h-12 pl-10 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold font-mono text-slate-900 dark:text-white placeholder:font-sans placeholder:font-medium placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-[#0B5D3B] focus:ring-2 focus:ring-emerald-600/20 outline-none transition"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="h-12 px-6 rounded-xl bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold text-sm shadow-md shadow-emerald-900/15 flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>আবেদন খুঁজুন</span>
+                </button>
+              </form>
+
+              {hasTracked && trackedResults.length === 0 && (
+                <div className="p-6 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-center space-y-2">
+                  <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
+                  <h3 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+                    কোনো আবেদন খুঁজে পাওয়া যায়নি
+                  </h3>
+                  <p className="text-xs text-amber-800/80 dark:text-amber-300/80 max-w-md mx-auto">
+                    সঠিক আবেদন আইডি বা আবেদনে ব্যবহৃত ১১ ডিজিটের মোবাইল নম্বর দিয়ে পুনরায় চেষ্টা করুন, অথবা নতুন ভর্তি আবেদন করুন।
+                  </p>
+                </div>
+              )}
+
+              {trackedResults.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-[#0B5D3B] dark:text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>মোট {toBanglaDigits(trackedResults.length)}টি আবেদন পাওয়া গেছে:</span>
+                  </p>
+                  {trackedResults.map((rec, idx) => (
+                    <div
+                      key={rec.appId || rec.id || idx}
+                      className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            {rec.appId || rec.id}
+                          </span>
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            ✓ গৃহীত / নিবন্ধিত
+                          </span>
+                        </div>
+                        <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                          {rec.name}
+                        </h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                          শ্রেণি: <strong>{CLASS_DISPLAY_MAP[rec.grade || ''] || rec.grade}</strong>
+                          {rec.fatherName ? ` • পিতা: ${rec.fatherName}` : ''}
+                          {rec.mobile ? ` • মোবাইল: ${rec.mobile}` : ''}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTrackedSlip(rec)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0B5D3B] hover:bg-[#08492e] text-white text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>A4 স্লিপ দেখুন ও প্রিন্ট</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : isSubmitted && applicationRecord ? (
           /* ═══════════════════════════════════════════════════════ */
           /* ✅ SUCCESS CONFIRMATION SLIP & SMS DELIVERY             */
           /* ═══════════════════════════════════════════════════════ */
@@ -744,42 +835,49 @@ export default function PublicOnlineAdmissionPage() {
           /* 📝 CLEAN INSTITUTIONAL SINGLE-PAGE ADMISSION FORM       */
           /* ═══════════════════════════════════════════════════════ */
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-slate-900/8 dark:shadow-black/40 overflow-hidden print:hidden">
-            {/* Compact 4-Section Indicator Strip */}
-            <div className="px-5 sm:px-8 py-3.5 bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-                {[
-                  { id: 'admission-step-1', num: '১', label: 'শ্রেণি ও বিভাগ', done: stepStatus.step1Academic },
-                  { id: 'admission-step-2', num: '২', label: 'ব্যক্তিগত তথ্য ও ছবি', done: stepStatus.step2Personal },
-                  { id: 'admission-step-3', num: '৩', label: 'পিতা ও মাতা', done: stepStatus.step3Parents },
-                  { id: 'admission-step-4', num: '৪', label: 'পূর্ববর্তী স্কুল ও ঠিকানা', done: stepStatus.step4Address },
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() =>
-                      document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                      s.done
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#0B5D3B] dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/70'
-                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    {s.done ? (
-                      <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black inline-flex items-center justify-center">
-                        {s.num}
-                      </span>
-                    )}
-                    <span>{s.label}</span>
-                  </button>
-                ))}
+            {/* Compact 4-Section Indicator Strip with Visual Progress Meter */}
+            <div className="px-5 sm:px-8 py-4 bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                  {[
+                    { id: 'admission-step-1', num: '১', label: 'শ্রেণি ও বিভাগ', done: stepStatus.step1Academic },
+                    { id: 'admission-step-2', num: '২', label: 'ব্যক্তিগত তথ্য ও ছবি', done: stepStatus.step2Personal },
+                    { id: 'admission-step-3', num: '৩', label: 'পিতা ও মাতা', done: stepStatus.step3Parents },
+                    { id: 'admission-step-4', num: '৪', label: 'পূর্ববর্তী স্কুল ও ঠিকানা', done: stepStatus.step4Address },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() =>
+                        document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                        s.done
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#0B5D3B] dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/70'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                      }`}
+                    >
+                      {s.done ? (
+                        <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black inline-flex items-center justify-center">
+                          {s.num}
+                        </span>
+                      )}
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[11px] font-bold text-[#0B5D3B] dark:text-emerald-400">
+                  অগ্রগতি: {toBanglaDigits(progressPercent)}% ({toBanglaDigits(stepStatus.completedCount)}/৪ ধাপ)
+                </span>
               </div>
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                লাল (<span className="text-rose-500 font-bold">*</span>) চিহ্নিত ঘর আবশ্যক •{' '}
-                {toBanglaDigits(stepStatus.completedCount)}/৪ ধাপ প্রস্তুত
-              </span>
+              <div className="h-1.5 w-full rounded-full bg-slate-200/80 dark:bg-slate-700 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-teal-400 transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
 
             {/* Inline Validation Notice */}

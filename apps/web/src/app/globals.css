@@ -691,7 +691,7 @@ input[type="number"] {
 }
 
 .vibrant-gradient-text {
-  background: linear-gradient(135deg, #059669 0%, #0284c7 50%, #4f46e5 100%);
+  background: linear-gradient(135deg, #0B5D3B 0%, #0D9488 55%, #0284C7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

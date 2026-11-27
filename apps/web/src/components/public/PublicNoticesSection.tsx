@@ -1,40 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  Bell, 
-  Calendar, 
-  ExternalLink, 
-  FileText, 
-  ArrowRight, 
-  X, 
-  Download, 
-  Link2, 
-  Globe, 
-  Mail, 
-  GraduationCap, 
-  Laptop, 
-  Clock, 
-  Users, 
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  Bell,
+  Calendar,
+  ExternalLink,
+  FileText,
+  ArrowRight,
+  X,
+  Printer,
+  Link2,
+  Globe,
+  GraduationCap,
+  Laptop,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Award,
+  FileBadge2,
+  Smartphone,
 } from 'lucide-react';
-import { Notice } from '@/services/noticeService';
-import { showToast } from '@/components/ui/ToastProvider';
+import { PublicNoticeViewItem } from '@/lib/publicLandingUtils';
 
 interface PublicNoticesSectionProps {
-  notices?: Notice[];
-  selectedNotice?: Notice | null;
-  onSelectNotice?: (n: Notice | null) => void;
-}
-
-interface NoticeItem {
-  id: string;
-  title: string;
-  date: string;
-  category: string;
-  description: string;
-  isUrgent?: boolean;
+  notices: PublicNoticeViewItem[];
+  selectedNotice?: PublicNoticeViewItem | null;
+  onSelectNotice?: (n: PublicNoticeViewItem | null) => void;
+  schoolName?: string;
 }
 
 interface ImportantLink {
@@ -45,138 +38,193 @@ interface ImportantLink {
   badge?: string;
 }
 
+const IMPORTANT_GOV_LINKS: ImportantLink[] = [
+  {
+    id: 'LNK-1',
+    title: 'শিক্ষা মন্ত্রণালয়',
+    shortDesc: 'মাধ্যমিক ও উচ্চ শিক্ষা বিভাগ',
+    url: 'https://moedu.gov.bd',
+    badge: 'মন্ত্রণালয়',
+  },
+  {
+    id: 'LNK-2',
+    title: 'বোর্ড পরীক্ষার রেজাল্ট',
+    shortDesc: 'অফিশিয়াল পাবলিক পরীক্ষা ফলাফল',
+    url: 'http://www.educationboardresults.gov.bd',
+    badge: 'রেজাল্ট',
+  },
+  {
+    id: 'LNK-3',
+    title: 'ব্যানবেইস (BANBEIS)',
+    shortDesc: 'বাংলাদেশ শিক্ষাতথ্য ও পরিসংখ্যান ব্যুরো',
+    url: 'https://banbeis.gov.bd',
+    badge: 'পরিসংখ্যান',
+  },
+  {
+    id: 'LNK-4',
+    title: 'মাউশি (DSHE)',
+    shortDesc: 'মাধ্যমিক ও উচ্চশিক্ষা অধিদপ্তর',
+    url: 'https://dshe.gov.bd',
+    badge: 'অধিদপ্তর',
+  },
+  {
+    id: 'LNK-5',
+    title: 'এনসিটিবি (NCTB)',
+    shortDesc: 'জাতীয় শিক্ষাক্রম ও পাঠ্যপুস্তক বোর্ড',
+    url: 'https://nctb.gov.bd',
+    badge: 'পাঠ্যবই',
+  },
+  {
+    id: 'LNK-6',
+    title: 'শিক্ষক বাতায়ন',
+    shortDesc: 'ডিজিটাল পাঠ পরিকল্পনা ও রিসোর্স',
+    url: 'https://teachers.gov.bd',
+    badge: 'শিক্ষক',
+  },
+  {
+    id: 'LNK-7',
+    title: 'কিশোর বাতায়ন (Konnect)',
+    shortDesc: 'শিক্ষার্থীদের জ্ঞান ও প্রতিভা বিকাশ',
+    url: 'https://konnect.edu.bd',
+    badge: 'শিক্ষার্থী',
+  },
+  {
+    id: 'LNK-8',
+    title: 'নায়েম (NAEM)',
+    shortDesc: 'জাতীয় শিক্ষা ব্যবস্থাপনা একাডেমি',
+    url: 'https://naem.gov.bd',
+    badge: 'প্রশিক্ষণ',
+  },
+];
+
+const OTHER_QUICK_LINKS = [
+  { label: 'অনলাইন ভর্তি আবেদন', icon: GraduationCap, href: '/admission' },
+  { label: 'পরীক্ষার ফলাফল', icon: Award, href: '/result' },
+  { label: 'সনদ ও রসিদ যাচাই', icon: FileBadge2, href: '/verify-certificate' },
+  { label: 'মোবাইল অ্যাপ পোর্টাল', icon: Smartphone, href: '/mobile-app' },
+  { label: 'অ্যাডমিন / শিক্ষক লগইন', icon: Laptop, href: '/login' },
+  { label: 'মতামত ও যোগাযোগ', icon: MessageSquare, href: '#contact' },
+];
+
 export default function PublicNoticesSection({
-  notices = [],
-  selectedNotice: initialSelectedNotice,
-  onSelectNotice: initialOnSelectNotice
+  notices,
+  selectedNotice,
+  onSelectNotice,
+  schoolName = 'বরইতলী উচ্চ বিদ্যালয়',
 }: PublicNoticesSectionProps) {
-  // Modal state
-  const [activeNoticeModal, setActiveNoticeModal] = useState<NoticeItem | null>(null);
-  const [showAllNoticesModal, setShowAllNoticesModal] = useState<boolean>(false);
+  const [activeNoticeModal, setActiveNoticeModal] = useState<PublicNoticeViewItem | null>(null);
+  const [showAllNoticesModal, setShowAllNoticesModal] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('সকল');
+  const [archiveQuery, setArchiveQuery] = useState<string>('');
 
-  // 5 Sample notices in Bengali
-  const sampleNotices: NoticeItem[] = [
-    {
-      id: 'NTC-001',
-      title: '২০২৬ সালের এসএসসি পরীক্ষার ফরম পূরণ ও ফি জমাদান সংক্রান্ত জরুরি বিজ্ঞপ্তি',
-      date: '১৯ অক্টোবর ২০২৬',
-      category: 'পরীক্ষা',
-      isUrgent: true,
-      description: 'এতদ্বারা অত্র বিদ্যালয়ের ২০২৬ সালের এসএসসি পরীক্ষার্থী ও তাদের অভিভাবকদের অবগতির জন্য জানানো যাচ্ছে যে, আগামী ২৫ অক্টোবর ২০২৬ তারিখের মধ্যে বোর্ড নির্ধারিত ফরম পূরণ ও যাবতীয় বকেয়া ফি পরিশোধ করতে হবে। নির্ধারিত সময়ের পর কোনো বিলম্ব ফি ছাড়া ফরম পূরণের সুযোগ থাকবে না। বিস্তারিত ফি বিবরণী অফিস কক্ষে পাওয়া যাবে।'
-    },
-    {
-      id: 'NTC-002',
-      title: '১ম সাময়িক পরীক্ষার সময়সূচি (রুটিন) প্রকাশ ও প্রবেশপত্র বিতরণ প্রসঙ্গে',
-      date: '১৫ অক্টোবর ২০২৬',
-      category: 'রুটিন',
-      isUrgent: false,
-      description: 'অত্র বিদ্যালয়ের ৬ষ্ঠ থেকে ১০ম শ্রেণির সকল শিক্ষার্থীদের জানানো যাচ্ছে যে, আগামী ১০ নভেম্বর ২০২৬ থেকে ১ম সাময়িক পরীক্ষা অনুষ্ঠিত হবে। পরীক্ষার পূর্ণাঙ্গ রুটিন নোটিশ বোর্ডে ও অনলাইন পোর্টালে সংযুক্ত করা হয়েছে। সকল শিক্ষার্থীকে আগামী ০৩ নভেম্বরের মধ্যে হিসাব শাখা থেকে প্রবেশপত্র (Admit Card) সংগ্রহের নির্দেশ দেওয়া হলো।'
-    },
-    {
-      id: 'NTC-003',
-      title: 'গ্রীষ্মকালীন অবকাশ ও মহান মে দিবস উপলক্ষে শ্রেণিকার্যক্রম বন্ধের নোটিশ',
-      date: '১০ অক্টোবর ২০২৬',
-      category: 'ছুটি',
-      isUrgent: false,
-      description: 'সরকারি প্রজ্ঞাপন ও বিদ্যালয় পরিচালনা পর্ষদের সিদ্ধান্ত মোতাবেক আগামী ০১ মে থেকে ১৫ মে ২০২৬ পর্যন্ত গ্রীষ্মকালীন অবকাশ উপলক্ষে বিদ্যালয়ের সকল পাঠদান কার্যক্রম বন্ধ থাকবে। তবে প্রশাসনিক ও ভর্তি সংক্রান্ত অফিস কার্যক্রম সকাল ৯:০০ টা থেকে দুপুর ১:০০ টা পর্যন্ত যথারীতি চলবে। ১৬ মে ২০২৬ থেকে নিয়মিত ক্লাস শুরু হবে।'
-    },
-    {
-      id: 'NTC-004',
-      title: 'অভিভাবক সমাবেশ ও ৬ষ্ঠ-১০ম শ্রেণির প্রগতিপত্র (রিপোর্ট কার্ড) বিতরণ',
-      date: '০৫ অক্টোবর ২০২৬',
-      category: 'সাধারণ',
-      isUrgent: false,
-      description: 'শিক্ষার্থীদের অর্ধবার্ষিক পরীক্ষার ফলাফল মূল্যায়ন ও সার্বিক আচরণ পর্যালোচনা উপলক্ষে আগামী ১২ অক্টোবর শনিবার সকাল ১০:০০ টায় বিদ্যালয় অডিটোরিয়ামে অভিভাবক সমাবেশের আয়োজন করা হয়েছে। সকল শ্রদ্ধেয় অভিভাবককে যথাসময়ে উপস্থিত হয়ে শিক্ষার্থীদের প্রগতিপত্র গ্রহণ করার জন্য বিনীত অনুরোধ করা হচ্ছে।'
-    },
-    {
-      id: 'NTC-005',
-      title: 'বার্ষিক ক্রীড়া, বিজ্ঞান মেলা ও সাংস্কৃতিক প্রতিযোগিতা ২০২৬ এর রেজিস্ট্রেশন',
-      date: '২৮ সেপ্টেম্বর ২০২৬',
-      category: 'সহশিক্ষা',
-      isUrgent: false,
-      description: 'শিক্ষার্থীদের শারীরিক ও মানসিক বিকাশের লক্ষ্যে আগামী ডিসেম্বর মাসে বার্ষিক ক্রীড়া ও বিজ্ঞান মেলা অনুষ্ঠিত হবে। যে সকল শিক্ষার্থী দৌড়, ক্রিকেট, ফুটবল, উপস্থিত বক্তৃতা, বিতর্ক ও বিজ্ঞান প্রজেক্ট প্রদর্শনীতে অংশগ্রহণ করতে ইচ্ছুক, তারা নিজ নিজ শ্রেণি শিক্ষকের নিকট আগামী ২০ অক্টোবরের মধ্যে নাম তালিকাভুক্ত করবে।'
+  // Sync external ticker click -> open notice detail modal cleanly!
+  useEffect(() => {
+    if (selectedNotice) {
+      setActiveNoticeModal(selectedNotice);
     }
-  ];
+  }, [selectedNotice]);
 
-  // 8 Important Links
-  const importantLinks: ImportantLink[] = [
-    {
-      id: 'LNK-1',
-      title: 'শিক্ষা মন্ত্রণালয়',
-      shortDesc: 'মাধ্যমিক ও উচ্চ শিক্ষা বিভাগ',
-      url: 'https://moedu.gov.bd',
-      badge: 'মন্ত্রণালয়'
-    },
-    {
-      id: 'LNK-2',
-      title: 'পরীক্ষার রেজাল্ট',
-      shortDesc: 'অফিসিয়াল পাবলিক পরীক্ষা ফলাফল',
-      url: 'http://www.educationboardresults.gov.bd',
-      badge: 'রেজাল্ট'
-    },
-    {
-      id: 'LNK-3',
-      title: 'ব্যানবেইস (BANBEIS)',
-      shortDesc: 'বাংলাদেশ শিক্ষাতথ্য ও পরিসংখ্যান ব্যুরো',
-      url: 'https://banbeis.gov.bd',
-      badge: 'পরিসংখ্যান'
-    },
-    {
-      id: 'LNK-4',
-      title: 'নায়েম (NAEM)',
-      shortDesc: 'জাতীয় শিক্ষা ব্যবস্থাপনা একাডেমি',
-      url: 'https://naem.gov.bd',
-      badge: 'প্রশিক্ষণ'
-    },
-    {
-      id: 'LNK-5',
-      title: 'এনসিটিবি (NCTB)',
-      shortDesc: 'জাতীয় শিক্ষাক্রম ও পাঠ্যপুস্তক বোর্ড',
-      url: 'https://nctb.gov.bd',
-      badge: 'পাঠ্যবই'
-    },
-    {
-      id: 'LNK-6',
-      title: 'শিক্ষক বাতায়ন',
-      shortDesc: 'ডিজিটাল পাঠ পরিকল্পনা ও রিসোর্স',
-      url: 'https://teachers.gov.bd',
-      badge: 'শিক্ষক'
-    },
-    {
-      id: 'LNK-7',
-      title: 'কিশোর বাতায়ন (Konnect)',
-      shortDesc: 'শিক্ষার্থীদের জ্ঞান ও প্রতিভা বিকাশ',
-      url: 'https://konnect.edu.bd',
-      badge: 'শিক্ষার্থী'
-    },
-    {
-      id: 'LNK-8',
-      title: 'মাউশি (DSHE)',
-      shortDesc: 'মাধ্যমিক ও উচ্চশিক্ষা অধিদপ্তর',
-      url: 'https://dshe.gov.bd',
-      badge: 'অধিদপ্তর'
+  // Escape key closes open modal
+  useEffect(() => {
+    if (!activeNoticeModal && !showAllNoticesModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveNoticeModal(null);
+        setShowAllNoticesModal(false);
+        onSelectNotice?.(null);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [activeNoticeModal, showAllNoticesModal, onSelectNotice]);
+
+  const closeDetailModal = () => {
+    setActiveNoticeModal(null);
+    onSelectNotice?.(null);
+  };
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(notices.map((n) => n.category).filter(Boolean)));
+    return ['সকল', ...unique];
+  }, [notices]);
+
+  const filteredNotices = useMemo(() => {
+    if (activeCategory === 'সকল') return notices;
+    return notices.filter((n) => n.category === activeCategory);
+  }, [notices, activeCategory]);
+
+  const archiveFiltered = useMemo(() => {
+    const q = archiveQuery.trim().toLowerCase();
+    if (!q) return notices;
+    return notices.filter(
+      (n) =>
+        n.title.toLowerCase().includes(q) ||
+        n.description.toLowerCase().includes(q) ||
+        n.category.toLowerCase().includes(q)
+    );
+  }, [notices, archiveQuery]);
+
+  const handlePrintNotice = (notice: PublicNoticeViewItem) => {
+    if (typeof window === 'undefined') return;
+    const printWin = window.open('', '_blank', 'width=820,height=920');
+    if (!printWin) {
+      window.print();
+      return;
     }
-  ];
-
-  // 6 Other Quick Links Pills
-  const otherQuickLinks = [
-    { label: 'ওয়েব মেইল', icon: Mail, url: '#' },
-    { label: 'ভর্তি আবেদন', icon: GraduationCap, url: '#/admission' },
-    { label: 'ই-স্কুল পোর্টাল', icon: Laptop, url: '#/login' },
-    { label: 'ক্লাস রুটিন ও সিলেবাস', icon: Clock, url: '#' },
-    { label: 'প্রাক্তন শিক্ষার্থী (Alumni)', icon: Users, url: '#' },
-    { label: 'মতামত ও অভিযোগ', icon: MessageSquare, url: '#contact' },
-  ];
+    const safeTitle = notice.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeDesc = notice.description.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+    const safeSchool = schoolName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    printWin.document.write(`<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <title>${safeTitle} — ${safeSchool}</title>
+  <style>
+    @page { size: A4 portrait; margin: 18mm; }
+    body { font-family: 'Hind Siliguri', 'Noto Sans Bengali', Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; line-height: 1.75; }
+    .header { text-align: center; border-bottom: 2.5px solid #0B5D3B; padding-bottom: 14px; margin-bottom: 22px; }
+    .school { font-size: 24px; font-weight: 800; color: #0B5D3B; margin: 0; }
+    .sub { font-size: 13px; color: #475569; margin: 4px 0 0; }
+    .meta { display: flex; justify-content: space-between; font-size: 13px; color: #334155; margin-bottom: 22px; font-weight: 600; }
+    .badge { display: inline-block; padding: 3px 12px; border: 1.5px solid #0B5D3B; border-radius: 999px; font-size: 13px; font-weight: 700; color: #0B5D3B; margin-bottom: 14px; }
+    h1 { font-size: 19px; margin: 0 0 16px; color: #0f172a; }
+    .body { font-size: 15px; text-align: justify; background: #f8fafc; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .sig { margin-top: 64px; display: flex; justify-content: flex-end; }
+    .sig-box { text-align: center; border-top: 1.5px solid #334155; padding-top: 6px; min-width: 190px; font-size: 13px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <p class="school">${safeSchool}</p>
+    <p class="sub">অফিশিয়াল দাপ্তরিক বিজ্ঞপ্তি / নোটিশ</p>
+  </div>
+  <div class="meta">
+    <span>স্মারক নং: ${notice.refNo || 'ব.উ.বি/নোটিশ/২০২৬'}</span>
+    <span>প্রকাশের তারিখ: ${notice.date}</span>
+  </div>
+  <div style="text-align:center"><span class="badge">বিজ্ঞপ্তি (${notice.category})</span></div>
+  <h1>${safeTitle}</h1>
+  <div class="body">${safeDesc}</div>
+  <div class="sig">
+    <div class="sig-box">প্রধান শিক্ষক / কর্তৃপক্ষ<br/>${safeSchool}</div>
+  </div>
+  <script>window.onload = function(){ window.print(); };</script>
+</body>
+</html>`);
+    printWin.document.close();
+  };
 
   return (
-    <section id="notices" className="py-10 sm:py-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <section
+      id="notices"
+      className="py-12 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 transition-colors"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* সেকশন হেডার */}
+        {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
             <Bell className="w-3.5 h-3.5 text-[#F4B400]" />
-            <span>তথ্য ও যোগাযোগ কেন্দ্র</span>
+            <span>তথ্য ও বিজ্ঞপ্তি কেন্দ্র</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -184,8 +232,8 @@ export default function PublicNoticesSection({
           </h2>
 
           <div className="flex items-center justify-center gap-1.5 pt-0.5">
-            <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full"></span>
-            <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full"></span>
+            <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full" />
+            <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full" />
           </div>
 
           <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed pt-1">
@@ -193,66 +241,80 @@ export default function PublicNoticesSection({
           </p>
         </div>
 
-        {/* দুই কলামের মূল সেকশন (বক্স দুটির সমান উচ্চতা ও নিজস্ব স্ক্রলবার) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-          
-          {/* ===================================================================
-              ১ম কলাম: #নোটিশ বোর্ড (৫টি নোটিশ লিস্ট)
-              =================================================================== */}
-          <div className="bg-[#F8FAFC] dark:bg-slate-800/80 rounded-3xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col h-[590px]">
-            {/* বক্স হেডার */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#0B5D3B] text-white flex items-center justify-center shadow-md">
+        {/* Two Equal-Height Executive Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+          {/* Column 1: Interactive Notice Board */}
+          <div className="bg-[#F8FAFC] dark:bg-slate-800/75 rounded-3xl p-5 sm:p-7 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col min-h-[540px] lg:h-[610px]">
+            <div className="flex items-center justify-between pb-4 mb-3 border-b border-slate-200 dark:border-slate-700 shrink-0 gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B5D3B] text-white flex items-center justify-center shadow-sm shrink-0">
                   <Bell className="w-5 h-5 text-[#F4B400]" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>নোটিশ বোর্ড</span>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white truncate">
+                    ডিজিটাল নোটিশ বোর্ড
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">সর্বশেষ দাপ্তরিক ও শিক্ষামূলক বিজ্ঞপ্তি</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    সর্বশেষ দাপ্তরিক ও শিক্ষামূলক বিজ্ঞপ্তি
+                  </p>
                 </div>
               </div>
 
-              {/* লাইভ ব্যাজ */}
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-[#0B5D3B] dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>আপডেট</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-[#0B5D3B] dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>লাইভ</span>
               </span>
             </div>
 
-            {/* ৫টি নোটিশের স্ক্রলেবল লিস্ট (নিজস্ব স্ক্রলবার) */}
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3.5 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
-              {sampleNotices.map((notice, idx) => (
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-2 no-scrollbar shrink-0">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer border ${
+                    activeCategory === cat
+                      ? 'bg-[#0B5D3B] text-white border-[#0B5D3B] shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Scrollable Notice Cards */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-thin">
+              {filteredNotices.map((notice, idx) => (
                 <div
                   key={notice.id || idx}
-                  className="group bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 hover:border-[#0B5D3B] dark:hover:border-emerald-500 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between"
+                  className="group bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 hover:border-[#0B5D3B] dark:hover:border-emerald-500 transition-all duration-200 shadow-2xs hover:shadow-md flex flex-col justify-between"
                 >
                   <div>
-                    {/* টপ মেটা: তারিখ ও ক্যাটাগরি */}
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                        <Calendar className="w-3.5 h-3.5 text-[#0B5D3B]" />
+                        <Calendar className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
                         <span>{notice.date}</span>
                       </span>
 
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        notice.isUrgent
-                          ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                          : 'bg-emerald-50 text-[#0B5D3B] border border-emerald-200'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          notice.isUrgent
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                            : 'bg-emerald-50 text-[#0B5D3B] border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                        }`}
+                      >
                         {notice.category}
                       </span>
                     </div>
 
-                    {/* ১-২ লাইনের শিরোনাম */}
                     <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
                       {notice.title}
                     </h4>
                   </div>
 
-                  {/* ফুটার: বিস্তারিত বাটন */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[11px] text-slate-400 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3 text-[#F4B400]" />
                       <span>দাপ্তরিক সার্কুলার</span>
@@ -261,9 +323,9 @@ export default function PublicNoticesSection({
                     <button
                       type="button"
                       onClick={() => setActiveNoticeModal(notice)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#0B5D3B] hover:text-[#08492e] dark:text-emerald-400 dark:hover:text-emerald-300 group/btn"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-[#0B5D3B] hover:text-[#08492e] dark:text-emerald-400 dark:hover:text-emerald-300 group/btn cursor-pointer"
                     >
-                      <span>বিস্তারিত</span>
+                      <span>বিস্তারিত পড়ুন</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
                     </button>
                   </div>
@@ -271,204 +333,184 @@ export default function PublicNoticesSection({
               ))}
             </div>
 
-            {/* নিচে "সকল নোটিশ" বাটন */}
             <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowAllNoticesModal(true)}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#0B5D3B] hover:bg-[#08492e] shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#0B5D3B] hover:bg-[#08492e] shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-[#F4B400]" />
-                <span>সকল নোটিশ আর্কাইভ</span>
+                <span>সকল নোটিশ আর্কাইভ দেখুন</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* ===================================================================
-              ২য় কলাম: #গুরুত্বপূর্ণ লিঙ্ক সমূহ (৮টি লিঙ্ক কার্ড)
-              =================================================================== */}
-          <div className="bg-[#F8FAFC] dark:bg-slate-800/80 rounded-3xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col h-[590px]">
-            {/* বক্স হেডার */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#0B5D3B] text-white flex items-center justify-center shadow-md">
+          {/* Column 2: Important National Links (Mobile-Wrap Friendly) */}
+          <div className="bg-[#F8FAFC] dark:bg-slate-800/75 rounded-3xl p-5 sm:p-7 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col min-h-[540px] lg:h-[610px]">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700 shrink-0 gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B5D3B] text-white flex items-center justify-center shadow-sm shrink-0">
                   <Globe className="w-5 h-5 text-[#F4B400]" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>গুরুত্বপূর্ণ লিঙ্ক সমূহ</span>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white truncate">
+                    গুরুত্বপূর্ণ লিঙ্ক সমূহ
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">সরকারি ও জাতীয় শিক্ষা পোর্টাল সংযোগ</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    সরকারি ও জাতীয় শিক্ষা পোর্টাল সংযোগ
+                  </p>
                 </div>
               </div>
 
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                ৮টি সংযোগ
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shrink-0">
+                ৮টি পোর্টাল
               </span>
             </div>
 
-            {/* ৮টি লিংকের স্ক্রলেবল লিস্ট (নিজস্ব স্ক্রলবার) */}
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
-              {importantLinks.map((link) => (
-                <div
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-thin">
+              {IMPORTANT_GOV_LINKS.map((link) => (
+                <a
                   key={link.id}
-                  className="group bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 hover:border-[#0B5D3B] dark:hover:border-emerald-500 transition-all duration-200 shadow-xs hover:shadow-md flex items-center justify-between gap-3"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 hover:border-[#0B5D3B] dark:hover:border-emerald-500 transition-all duration-200 shadow-2xs hover:shadow-md flex items-center justify-between gap-3"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    {/* লিংক আইকন */}
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center justify-center shrink-0 group-hover:bg-[#0B5D3B] group-hover:text-white transition-colors">
-                      <Link2 className="w-5 h-5" />
+                  <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center justify-center shrink-0 group-hover:bg-[#0B5D3B] group-hover:text-white transition-colors">
+                      <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors truncate">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors leading-snug">
                           {link.title}
                         </h4>
                         {link.badge && (
-                          <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700">
+                          <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded border border-slate-200 dark:border-slate-700">
                             {link.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                         {link.shortDesc}
                       </p>
                     </div>
                   </div>
 
-                  {/* "ভিজিট করুন" বাটন */}
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-[#0B5D3B] dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/60 hover:bg-[#0B5D3B] hover:text-white dark:hover:bg-[#0B5D3B] dark:hover:text-white border border-emerald-200 dark:border-emerald-800 transition-all duration-200 shrink-0 shadow-2xs"
-                  >
-                    <span>ভিজিট করুন</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-[#0B5D3B] dark:text-emerald-400 bg-emerald-50/90 dark:bg-emerald-950/60 group-hover:bg-[#0B5D3B] group-hover:text-white border border-emerald-200 dark:border-emerald-800 transition-all shrink-0">
+                    <span className="hidden sm:inline">ভিজিট</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </span>
+                </a>
               ))}
             </div>
 
-            {/* ফুটার নোট */}
             <div className="pt-3.5 mt-2 border-t border-slate-200 dark:border-slate-700 text-center shrink-0">
-              <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-[#F4B400]" />
-                <span>সকল লিংক বহিরাগত সরকারি ও অফিশিয়াল শিক্ষা পোর্টালে উন্মুক্ত হবে</span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-[#F4B400] shrink-0" />
+                <span>সকল সংযোগ অফিশিয়াল সরকারি শিক্ষা পোর্টালে নতুন ট্যাবে খুলবে</span>
               </p>
             </div>
           </div>
-
         </div>
 
-        {/* ===================================================================
-            আলাদা "অন্যান্য লিঙ্ক সমূহ" স্ট্রিপ (৬টি লিংক পিল)
-            =================================================================== */}
-        <div className="mt-12 bg-gradient-to-r from-emerald-50/80 via-slate-50 to-amber-50/50 dark:from-slate-800/90 dark:via-slate-800 dark:to-slate-800/90 rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-700/80 shadow-xs">
+        {/* Fixed Quick Links Strip (All Valid Real Routes) */}
+        <div className="mt-10 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/60 dark:from-slate-800/90 dark:via-slate-800 dark:to-slate-800/90 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
-            {/* স্ট্রিপ লেবেল */}
             <div className="flex items-center gap-2.5 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0B5D3B]"></span>
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                অন্যান্য লিঙ্ক সমূহ:
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0B5D3B]" />
+              <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                দ্রুত পোর্টাল শর্টকাট:
               </span>
             </div>
 
-            {/* ৬টি লিংক পিল */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-              {otherQuickLinks.map((item, index) => {
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              {OTHER_QUICK_LINKS.map((item) => {
                 const IconComponent = item.icon;
-                return (
-                  <a
-                    key={index}
-                    href={item.url}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 hover:border-[#0B5D3B] text-slate-700 dark:text-slate-200 hover:text-[#0B5D3B] dark:hover:text-emerald-400 text-xs font-semibold shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-95 group"
-                  >
+                const isAnchor = item.href.startsWith('#');
+                const cls =
+                  'inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 hover:border-[#0B5D3B] text-slate-700 dark:text-slate-200 hover:text-[#0B5D3B] dark:hover:text-emerald-400 text-xs font-bold shadow-2xs hover:shadow-sm hover:-translate-y-0.5 transition-all group';
+                return isAnchor ? (
+                  <a key={item.label} href={item.href} className={cls}>
                     <IconComponent className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400 group-hover:text-[#F4B400] transition-colors" />
                     <span>{item.label}</span>
                   </a>
+                ) : (
+                  <Link key={item.label} href={item.href} className={cls}>
+                    <IconComponent className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400 group-hover:text-[#F4B400] transition-colors" />
+                    <span>{item.label}</span>
+                  </Link>
                 );
               })}
             </div>
-
           </div>
         </div>
-
       </div>
 
-      {/* ===================================================================
-          নোটিশ বিস্তারিত মোডাল (NOTICE DETAILS MODAL)
-          =================================================================== */}
+      {/* Notice Details Modal */}
       {activeNoticeModal && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setActiveNoticeModal(null)}
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+          onClick={closeDetailModal}
         >
           <div
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top decorative accent */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
 
-            {/* Close Button */}
             <button
               type="button"
-              onClick={() => setActiveNoticeModal(null)}
+              onClick={closeDetailModal}
               aria-label="বন্ধ করুন"
-              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* Header */}
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-400 border border-emerald-200">
+            <div className="mt-1 space-y-2.5 pr-8">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   {activeNoticeModal.category}
                 </span>
                 <span className="text-xs text-slate-500 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
+                  <Calendar className="w-3.5 h-3.5 text-[#0B5D3B]" />
                   <span>প্রকাশিত: {activeNoticeModal.date}</span>
                 </span>
               </div>
 
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug">
+              <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white leading-snug">
                 {activeNoticeModal.title}
               </h3>
             </div>
 
-            {/* Content Body */}
-            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+            <div className="mt-5 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line max-h-[45vh] overflow-y-auto">
               {activeNoticeModal.description}
             </div>
 
-            {/* Signatory / Authority */}
-            <div className="mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+            <div className="mt-4 pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <span>কর্তৃপক্ষ: প্রধান শিক্ষক / নোটিশ কমিটি</span>
-              <span>স্মারক নং: ব.উ.বি/নোটিশ/২০২৬</span>
+              <span>স্মারক: {activeNoticeModal.refNo || 'ব.উ.বি/নোটিশ/২০২৬'}</span>
             </div>
 
-            {/* Actions */}
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => showToast('পিডিএফ বিজ্ঞপ্তি ডাউনলোড করা হচ্ছে...', 'info')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-[#0B5D3B] hover:text-white text-[#0B5D3B] font-bold text-xs transition-colors"
+                onClick={() => handlePrintNotice(activeNoticeModal)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
               >
-                <Download className="w-4 h-4" />
-                <span>বিজ্ঞপ্তি ডাউনলোড (PDF)</span>
+                <Printer className="w-4 h-4" />
+                <span>বিজ্ঞপ্তি প্রিন্ট / PDF</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setActiveNoticeModal(null)}
-                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors"
+                onClick={closeDetailModal}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors cursor-pointer"
               >
                 বন্ধ করুন
               </button>
@@ -477,71 +519,89 @@ export default function PublicNoticesSection({
         </div>
       )}
 
-      {/* ===================================================================
-          সকল নোটিশ তালিকা মোডাল (ALL NOTICES ARCHIVE MODAL)
-          =================================================================== */}
+      {/* All Notices Archive Modal with Search */}
       {showAllNoticesModal && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
           onClick={() => setShowAllNoticesModal(false)}
         >
           <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col p-6 sm:p-8 shadow-2xl relative"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col p-5 sm:p-7 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-[#0B5D3B]">
-                  <FileText className="w-5 h-5 text-[#0B5D3B]" />
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-[#0B5D3B] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
                     সকল নোটিশ আর্কাইভ
                   </h3>
-                  <p className="text-xs text-slate-500">প্রতিষ্ঠানের সর্বমোট নোটিশ ও সার্কুলার তালিকা</p>
+                  <p className="text-xs text-slate-500">প্রতিষ্ঠানের প্রকাশিত সকল নোটিশ ও সার্কুলার</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAllNoticesModal(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="বন্ধ করুন"
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* List */}
-            <div className="overflow-y-auto py-4 space-y-3 pr-1 flex-1">
-              {sampleNotices.map((n, idx) => (
-                <div
-                  key={n.id || idx}
-                  className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
-                >
-                  <div className="space-y-1 pr-4">
-                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3 text-[#0B5D3B]" />
-                      <span>{n.date}</span>
-                      <span className="text-slate-300 dark:text-slate-600">•</span>
-                      <span className="text-[#0B5D3B]">{n.category}</span>
-                    </span>
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{n.title}</h4>
-                  </div>
+            <div className="pt-4 pb-2 shrink-0">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={archiveQuery}
+                  onChange={(e) => setArchiveQuery(e.target.value)}
+                  placeholder="নোটিশের শিরোনাম বা বিষয় লিখে খুঁজুন..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:border-[#0B5D3B]"
+                />
+              </div>
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAllNoticesModal(false);
-                      setActiveNoticeModal(n);
-                    }}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-[#0B5D3B] bg-emerald-50 hover:bg-[#0B5D3B] hover:text-white transition-colors shrink-0"
-                  >
-                    পড়ুন
-                  </button>
+            <div className="overflow-y-auto py-3 space-y-2.5 pr-1 flex-1">
+              {archiveFiltered.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-500">
+                  আপনার অনুসন্ধানের সাথে মিলে এমন কোনো নোটিশ পাওয়া যায়নি।
                 </div>
-              ))}
+              ) : (
+                archiveFiltered.map((n, idx) => (
+                  <div
+                    key={n.id || idx}
+                    className="flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-[#0B5D3B]" />
+                        <span>{n.date}</span>
+                        <span className="text-slate-300 dark:text-slate-600">•</span>
+                        <span className="text-[#0B5D3B] dark:text-emerald-400 font-bold">{n.category}</span>
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                        {n.title}
+                      </h4>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAllNoticesModal(false);
+                        setActiveNoticeModal(n);
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-[#0B5D3B] hover:text-white transition-colors shrink-0 cursor-pointer"
+                    >
+                      পড়ুন
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

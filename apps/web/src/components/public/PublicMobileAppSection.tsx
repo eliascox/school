@@ -229,7 +229,7 @@ export default function PublicMobileAppSection({
               {(cfg.features || DEFAULT_MOBILE_APP_CONFIG.features).map((feat) => (
                 <div
                   key={feat.id}
-                  className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/80 dark:bg-slate-850/80 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition"
+                  className="flex items-start gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition"
                 >
                   <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
                     {getFeatureIcon(feat.icon)}
@@ -255,10 +255,10 @@ export default function PublicMobileAppSection({
                   href={apkUrl}
                   download="school-app.apk"
                   onClick={() => setShowInstallModal(true)}
-                  className="group relative inline-flex items-center gap-3.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold shadow-lg shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] border border-emerald-400/30"
+                  className="group relative inline-flex items-center gap-3.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#0B5D3B] to-teal-600 hover:from-[#08492e] hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] border border-emerald-400/30"
                 >
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                    <Download className="w-5 h-5 text-white animate-bounce" />
+                    <Download className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-100 block">
@@ -267,8 +267,8 @@ export default function PublicMobileAppSection({
                     <span className="text-sm sm:text-base font-extrabold tracking-tight">
                       APK ডাউনলোড করুন
                     </span>
-                    <span className="text-[10px] text-emerald-200 block font-normal">
-                      ভার্সন ২.০.০ • অফলাইন ও ক্লাউড সিঙ্ক
+                    <span className="text-[10px] text-emerald-100/90 block font-normal">
+                      {cfg.version || '১.২.০'} • {cfg.fileSize || '১৮.৪ MB'}
                     </span>
                   </div>
                 </a>

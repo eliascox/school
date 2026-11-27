@@ -20,6 +20,9 @@ import {
   HelpCircle,
   Smartphone,
   X,
+  Home,
+  UserPlus,
+  Award,
 } from 'lucide-react';
 import { teacherAuthService } from '@/services/teacherAuthService';
 import {
@@ -247,10 +250,35 @@ function LoginForm() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-[#0B5D3B] bg-white hover:bg-emerald-50/70 border border-slate-200/90 shadow-2xs transition-all"
+            title={isEn ? 'Back to Home' : 'মূল পাতায় ফিরুন'}
+          >
+            <Home className="w-3.5 h-3.5 text-[#0B5D3B]" />
+            <span className="hidden sm:inline">{isEn ? 'Home' : 'হোম'}</span>
+          </Link>
+
+          <Link
+            href="/admission"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-[#0B5D3B] bg-white hover:bg-emerald-50/70 border border-slate-200/90 shadow-2xs transition-all"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-[#0B5D3B]" />
+            <span>{isEn ? 'Admission' : 'ভর্তি'}</span>
+          </Link>
+
+          <Link
+            href="/result"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200/90 shadow-2xs transition-all"
+          >
+            <Award className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{isEn ? 'Result' : 'ফলাফল'}</span>
+          </Link>
+
           <Link
             href="/mobile-app/"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200/80 shadow-2xs transition-all"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200/80 shadow-2xs transition-all"
           >
             <Smartphone className="w-3.5 h-3.5 text-[#7C3AED]" />
             <span className="hidden sm:inline">{isEn ? 'Mobile App' : 'মোবাইল অ্যাপ'}</span>
@@ -259,7 +287,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowHelpModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-slate-200/90 shadow-2xs transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-slate-200/90 shadow-2xs transition-all cursor-pointer"
           >
             <HelpCircle className="w-3.5 h-3.5 text-[#6366F1]" />
             <span className="hidden sm:inline">{isEn ? 'Helpline' : 'হেল্পলাইন'}</span>

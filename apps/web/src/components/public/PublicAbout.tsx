@@ -1,10 +1,22 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { School, CheckCircle2, ArrowRight, Award, Calendar, BookOpen } from 'lucide-react';
+import {
+  School,
+  CheckCircle2,
+  ArrowRight,
+  Award,
+  X,
+  Target,
+  Compass,
+  MapPin,
+  UserPlus,
+} from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
 import { AboutConfig } from '@/services/landingPageService';
+import { sanitizePublicImageUrl } from '@/lib/publicLandingUtils';
+import { toBanglaDigits } from '@/lib/resultPortalUtils';
 
 interface PublicAboutProps {
   settings: SchoolSettings | null;
@@ -12,171 +24,258 @@ interface PublicAboutProps {
 }
 
 export default function PublicAbout({ settings, aboutConfig }: PublicAboutProps) {
-  const isDisabled = Boolean(aboutConfig && aboutConfig.enabled === false);
-
-  const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const estd = aboutConfig?.foundingYear || settings?.estdYear || '১৯৬৯';
-  const address = settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার।';
-  const eiin = aboutConfig?.eiin || settings?.eiin || '106184';
-  const schoolPhoto = aboutConfig?.campusPhoto || settings?.schoolPhoto || '/school-campus.jpg';
-
-  const title = aboutConfig?.title || 'আমাদের ঐতিহ্য, গৌরব ও পথচলা';
-  const eyebrow = aboutConfig?.subtitle || 'প্রতিষ্ঠান পরিচিতি ও ইতিহাস';
-  const defaultHistoryText = `কক্সবাজার জেলার চকরিয়া উপজেলার অন্তর্গত ঐতিহ্যবাহী বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ১৯৬৯ খ্রিষ্টাব্দে প্রতিষ্ঠিত হয় ‘${schoolName}’। তৎকালীন স্থানীয় শিক্ষানুরাগী, সমাজসেবক ও বিদ্যোৎসাহী ব্যক্তিবর্গের ঐকান্তিক প্রচেষ্টা ও ত্যাগের বিনিময়ে এই অঞ্চলে শিক্ষার আলো ছড়িয়ে দিতে বিদ্যালয়টির যাত্রা শুরু হয়েছিল। প্রতিষ্ঠালগ্ন থেকেই অত্র অঞ্চলের শিক্ষার্থীদের মানবিক গুণাবলি, শৃঙ্খলাবোধ এবং আধুনিক জ্ঞান-বিজ্ঞানে সমৃদ্ধ করে গড়ে তোলাই ছিল মূল ব্রত। দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে চট্টগ্রাম শিক্ষাবোর্ডের অধীনে বিদ্যালয়টি শতভাগ মেধা ও কৃতিত্বপূর্ণ ফলাফলের ধারাবাহিকতা অক্ষুণ্ণ রেখেছে। বর্তমান ডিজিটাল যুগে যুগোপযোগী বিজ্ঞান ও কম্পিউটার শিক্ষার সমন্বয়ে বিদ্যালয়টি আগামীর একবিংশ শতাব্দীর যোগ্য নাগরিক তৈরিতে অবিচল ও প্রতিশ্রুতিবদ্ধ।`;
-  const historyText = aboutConfig?.historyText || defaultHistoryText;
-
-  const sectionRef = useRef<HTMLElement>(null);
-  const imageRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
-    if (isDisabled) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            imageRef.current?.classList.remove('opacity-0', '-translate-x-12');
-            imageRef.current?.classList.add('opacity-100', 'translate-x-0');
+    if (!showDetailsModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDetailsModal(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showDetailsModal]);
 
-            textRef.current?.classList.remove('opacity-0', 'translate-x-12');
-            textRef.current?.classList.add('opacity-100', 'translate-x-0');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [isDisabled]);
-
-  if (isDisabled) {
+  if (aboutConfig && aboutConfig.enabled === false) {
     return null;
   }
 
+  const schoolName = settings?.schoolName?.trim() || 'বরইতলী উচ্চ বিদ্যালয়';
+  const estd = toBanglaDigits(aboutConfig?.foundingYear || settings?.estdYear || '১৯৬৯');
+  const address = settings?.address?.trim() || 'বরইতলী, চকরিয়া, কক্সবাজার।';
+  const eiin = toBanglaDigits(aboutConfig?.eiin || settings?.eiin || '106184');
+  const schoolPhoto = imgFailed
+    ? '/school-campus.jpg'
+    : sanitizePublicImageUrl(aboutConfig?.campusPhoto || settings?.schoolPhoto, '/school-campus.jpg');
+
+  const title = aboutConfig?.title || 'আমাদের ঐতিহ্য, গৌরব ও পথচলা';
+  const eyebrow = aboutConfig?.subtitle || 'প্রতিষ্ঠান পরিচিতি ও ইতিহাস';
+  const defaultHistoryText = `কক্সবাজার জেলার চকরিয়া উপজেলার অন্তর্গত ঐতিহ্যবাহী বরইতলী ইউনিয়নের প্রাণকেন্দ্রে ${estd} খ্রিষ্টাব্দে প্রতিষ্ঠিত হয় ‘${schoolName}’। স্থানীয় শিক্ষানুরাগী, সমাজসেবক ও বিদ্যোৎসাহী ব্যক্তিবর্গের ঐকান্তিক প্রচেষ্টায় এই অঞ্চলে শিক্ষার আলো ছড়িয়ে দিতে বিদ্যালয়টির যাত্রা শুরু হয়েছিল। দীর্ঘ পাঁচ দশকেরও বেশি সময় ধরে চট্টগ্রাম শিক্ষাবোর্ডের অধীনে বিদ্যালয়টি কৃতিত্বপূর্ণ ফলাফল, নৈতিক মূল্যবোধ ও আধুনিক বিজ্ঞান-প্রযুক্তি শিক্ষার সমন্বয়ে একবিংশ শতাব্দীর যোগ্য নাগরিক তৈরিতে প্রতিশ্রুতিবদ্ধ।`;
+  const historyText = aboutConfig?.historyText?.trim() || defaultHistoryText;
+  const missionText =
+    aboutConfig?.missionText?.trim() ||
+    'আধুনিক প্রযুক্তিনির্ভর ও নৈতিক শিক্ষায় প্রতিটি শিক্ষার্থীকে সুনাগরিক ও দক্ষ মানবসম্পদ হিসেবে গড়ে তোলা।';
+  const visionText =
+    aboutConfig?.visionText?.trim() ||
+    'দক্ষিণ চট্টগ্রামের একটি মডেল ডিজিটাল শিক্ষা প্রতিষ্ঠান হিসেবে গুণগত শিক্ষার অনন্য দৃষ্টান্ত স্থাপন করা।';
+
   return (
-    <section 
-      id="about" 
-      ref={sectionRef}
-      className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 overflow-hidden relative"
+    <section
+      id="about"
+      className="py-12 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 overflow-hidden relative"
     >
       <div id="recognition" className="absolute top-0 left-0" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Two Column Layout: Mobile (Image on Top, Text Below), Desktop (Side-by-Side) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          
-          {/* ═══════════ LEFT COLUMN: LARGE IMAGE WITH OFFSET COLORED BORDER ═══════════ */}
-          <div 
-            ref={imageRef}
-            className="lg:col-span-6 relative transition-all duration-1000 ease-out opacity-0 -translate-x-12"
-          >
+          {/* Left Column: Framed Institutional Campus Showcase */}
+          <div className="lg:col-span-6 relative">
             <div className="relative mx-auto max-w-lg lg:max-w-none">
-              
-              {/* Offset Decorative Colored Border & Shape (পেছনে সামান্য অফসেট রঙিন বর্ডার) */}
-              <div className="absolute -inset-2 sm:-inset-4 rounded-3xl bg-gradient-to-tr from-[#0B5D3B] to-[#F4B400] opacity-90 -rotate-2 transform transition-transform group-hover:rotate-0"></div>
-              <div className="absolute -inset-1 sm:-inset-2 rounded-3xl bg-[#0B5D3B] opacity-80 rotate-1"></div>
+              <div className="absolute -inset-2 sm:-inset-3 rounded-[28px] bg-gradient-to-tr from-[#0B5D3B]/20 via-emerald-400/15 to-[#F4B400]/25 blur-xs" />
 
-              {/* Main Image Container */}
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border-4 border-white dark:border-slate-800">
+              <div className="relative rounded-3xl overflow-hidden bg-slate-950 shadow-xl border-4 border-white dark:border-slate-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={schoolPhoto} 
-                  alt={`${schoolName} ক্যাম্পাস`} 
-                  className="w-full h-[320px] sm:h-[420px] lg:h-[460px] object-cover hover:scale-105 transition-transform duration-700"
+                <img
+                  src={schoolPhoto}
+                  alt={`${schoolName} ক্যাম্পাস`}
+                  onError={() => setImgFailed(true)}
+                  className="w-full h-[300px] sm:h-[400px] lg:h-[440px] object-cover hover:scale-105 transition-transform duration-700"
                 />
-                
-                {/* Soft Gradient Overlay for Tag Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent pointer-events-none" />
 
-                {/* Floating Experience Badge */}
-                <div className="absolute bottom-5 left-5 right-5 z-10 flex items-center justify-between gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 sm:p-4 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0B5D3B] text-[#F4B400] flex items-center justify-center font-black shadow-md shrink-0">
-                      <Award className="w-6 h-6" />
+                {/* Floating Institutional Crest Badge */}
+                <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3.5 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#0B5D3B] text-[#F4B400] flex items-center justify-center shadow-sm shrink-0">
+                      <Award className="w-5 h-5" />
                     </div>
-                    <div>
-                      <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">ঐতিহ্যের ৫৫ বছর</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">স্থাপিত: {estd} খ্রিষ্টাব্দ</div>
+                    <div className="min-w-0">
+                      <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                        ঐতিহ্যের গৌরবময় বিদ্যাপীঠ
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        স্থাপিত: {estd} খ্রিষ্টাব্দ
+                      </div>
                     </div>
                   </div>
-                  <span className="text-[11px] font-bold text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full whitespace-nowrap">
+                  <span className="text-[11px] font-extrabold font-mono text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
                     EIIN: {eiin}
                   </span>
                 </div>
               </div>
-
             </div>
           </div>
 
-          {/* ═══════════ RIGHT COLUMN: HEADING, HISTORY TEXT & BUTTON ═══════════ */}
-          <div 
-            ref={textRef}
-            className="lg:col-span-6 space-y-6 transition-all duration-1000 ease-out opacity-0 translate-x-12"
-          >
-            {/* Top Eyebrow Tag */}
-            <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
-              <School className="w-3.5 h-3.5" />
+          {/* Right Column: Narrative, Mission/Vision Highlights & Interactive Detail Modal */}
+          <div className="lg:col-span-6 space-y-5">
+            <div className="inline-flex items-center gap-2 text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
+              <School className="w-3.5 h-3.5 text-[#F4B400]" />
               <span>{eyebrow}</span>
             </div>
 
-            {/* Section Heading with Custom Underline */}
             <div>
-              <h2 className="text-2xl sm:text-4xl lg:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">
                 {title}
               </h2>
-              {/* Dual-colored Underline */}
               <div className="flex items-center gap-1.5 mt-3">
-                <span className="w-16 h-1.5 bg-[#0B5D3B] rounded-full"></span>
-                <span className="w-4 h-1.5 bg-[#F4B400] rounded-full"></span>
+                <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full" />
+                <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full" />
               </div>
             </div>
 
-            {/* ৫-৬ লাইনের সাবলীল ইতিহাস বর্ণনা */}
-            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed text-justify whitespace-pre-line">
+            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-[15px] leading-relaxed text-justify whitespace-pre-line">
               {historyText}
             </p>
 
-            {/* Key Features Bullet List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                <span>চট্টগ্রাম শিক্ষাবোর্ড অনুমোদিত</span>
+            {/* Mission & Vision Preview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#0B5D3B] dark:text-emerald-400">
+                  <Target className="w-3.5 h-3.5" />
+                  <span>আমাদের লক্ষ্য (Mission)</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
+                  {missionText}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                <span>অভিজ্ঞ ও এমপিওভুক্ত শিক্ষকমণ্ডলী</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                <span>আধুনিক বিজ্ঞানাগার ও আইসিটি ল্যাব</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                <span>সুশৃঙ্খল ও রাজনীতিমুক্ত ক্যাম্পাস</span>
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-700 dark:text-amber-400">
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>আমাদের রূপকল্প (Vision)</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
+                  {visionText}
+                </p>
               </div>
             </div>
 
-            {/* Action Button: বিস্তারিত পড়ুন */}
-            <div className="pt-2">
-              <Link
-                href="#school-info"
-                className="inline-flex items-center gap-2 bg-[#0B5D3B] hover:bg-[#073B25] text-white font-bold px-7 py-3.5 rounded-full text-sm sm:text-base transition duration-300 shadow-md shadow-emerald-900/20 transform hover:-translate-y-0.5"
+            {/* Key Strengths */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {[
+                'চট্টগ্রাম শিক্ষাবোর্ড অনুমোদিত',
+                'অভিজ্ঞ ও এমপিওভুক্ত শিক্ষকমণ্ডলী',
+                'আধুনিক বিজ্ঞানাগার ও আইসিটি ল্যাব',
+                'সুশৃঙ্খল ও রাজনীতিমুক্ত ক্যাম্পাস',
+              ].map((feat) => (
+                <div key={feat} className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
+                  <span>{feat}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDetailsModal(true)}
+                className="inline-flex items-center gap-2 bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold px-6 py-3 rounded-xl text-xs sm:text-sm transition shadow-md shadow-emerald-900/15 hover:-translate-y-0.5 cursor-pointer"
               >
-                <span>বিস্তারিত পড়ুন</span>
+                <span>বিস্তারিত ইতিহাস পড়ুন</span>
                 <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <Link
+                href="/admission"
+                className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-950 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold px-5 py-3 rounded-xl text-xs sm:text-sm transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>ভর্তি আবেদন</span>
               </Link>
             </div>
-
           </div>
-
         </div>
-
       </div>
+
+      {/* Institutional Full History, Mission & Vision Modal */}
+      {showDetailsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowDetailsModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
+
+            <button
+              type="button"
+              onClick={() => setShowDetailsModal(false)}
+              aria-label="বন্ধ করুন"
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="pr-8">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-[#0B5D3B] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold mb-2">
+                <School className="w-3.5 h-3.5" />
+                <span>প্রতিষ্ঠানের পূর্ণ পরিচিতি</span>
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                {schoolName}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2 mt-1">
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-[#0B5D3B]" />
+                  {address}
+                </span>
+                <span>•</span>
+                <span>স্থাপিত: {estd}</span>
+                <span>•</span>
+                <span className="font-mono font-bold text-[#0B5D3B] dark:text-emerald-400">
+                  EIIN: {eiin}
+                </span>
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 leading-relaxed text-justify whitespace-pre-line">
+              {historyText}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1.5">
+                <h4 className="text-xs font-extrabold text-[#0B5D3B] dark:text-emerald-300 flex items-center gap-1.5">
+                  <Target className="w-4 h-4" />
+                  <span>লক্ষ্য (Mission)</span>
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {missionText}
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 space-y-1.5">
+                <h4 className="text-xs font-extrabold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <Compass className="w-4 h-4" />
+                  <span>রূপকল্প (Vision)</span>
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {visionText}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              <Link
+                href="/admission"
+                onClick={() => setShowDetailsModal(false)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B5D3B] hover:bg-[#08492e] text-white text-xs font-bold transition"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>অনলাইন ভর্তি আবেদন</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowDetailsModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

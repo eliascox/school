@@ -1,15 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { settingsService, SchoolSettings } from '@/services/settingsService';
 import { noticeService, Notice } from '@/services/noticeService';
 import { teacherAuthService, TeacherAccount } from '@/services/teacherAuthService';
-import { studentService } from '@/services/studentService';
-import { landingPageService, LandingPageConfig, DEFAULT_LANDING_CONFIG } from '@/services/landingPageService';
+import { studentService, Student } from '@/services/studentService';
+import {
+  landingPageService,
+  LandingPageConfig,
+  DEFAULT_LANDING_CONFIG,
+} from '@/services/landingPageService';
 import { firebaseSyncService, LandingPageCloudData } from '@/services/firebaseSyncService';
+import {
+  PublicNoticeViewItem,
+  resolvePublicNotices,
+} from '@/lib/publicLandingUtils';
 
 // Public Landing Page Components
-import PublicTopBar from '@/components/public/PublicTopBar';
 import PublicNavbar from '@/components/public/PublicNavbar';
 import PublicNoticeTicker from '@/components/public/PublicNoticeTicker';
 import PublicHero from '@/components/public/PublicHero';
@@ -29,58 +36,54 @@ import PublicContactSection from '@/components/public/PublicContactSection';
 import PublicFaqSection from '@/components/public/PublicFaqSection';
 import PublicMobileAppSection from '@/components/public/PublicMobileAppSection';
 import PublicFooter from '@/components/public/PublicFooter';
-import { ScrollRevealSection, LandingScrollFeatures, RevealVariant } from '@/components/public/ScrollRevealSection';
+import {
+  ScrollRevealSection,
+  LandingScrollFeatures,
+  RevealVariant,
+} from '@/components/public/ScrollRevealSection';
 
 const SECTION_REVEAL_VARIANTS: Record<string, RevealVariant> = {
   stats: 'fade-scale',
   services: 'fade-up',
-  headmaster_message: 'slide-right',
-  about: 'slide-left',
+  headmaster_message: 'fade-up',
+  about: 'fade-up',
   notices: 'fade-up',
   academic: 'fade-scale',
   teachers: 'fade-up',
   committee: 'fade-scale',
-  achievers: 'blur-up',
+  achievers: 'fade-up',
   facilities: 'fade-up',
   gallery: 'fade-scale',
   blog: 'fade-up',
-  contact: 'slide-right',
+  contact: 'fade-up',
   faq: 'fade-up',
   mobile_app: 'fade-scale',
 };
 
 export default function PublicSchoolHomePage() {
-  const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
   const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(DEFAULT_LANDING_CONFIG);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
-  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+  const [selectedNotice, setSelectedNotice] = useState<PublicNoticeViewItem | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-
     const loadData = () => {
-      // 1. School Settings
       const currentSettings = settingsService.getSettings();
       setSettings(currentSettings);
 
-      // 2. Auto-sync Landing Page Config with School Settings
       landingPageService.syncWithSchoolSettings(currentSettings);
       const currentConfig = landingPageService.getPublishedConfig();
       setLandingConfig(currentConfig);
 
-      // 3. Published Notices
       const allNotices = noticeService.getNotices();
       setNotices(allNotices);
 
-      // 4. Teachers & Staff (privacy-safe public fields)
       const allTeachers = teacherAuthService.getAllTeachers();
       setTeachers(allTeachers);
 
-      // 5. Aggregated Student count & List
       const allStudents = studentService.getAllStudents();
       setStudents(allStudents);
       setTotalStudents(allStudents.length);
@@ -88,9 +91,6 @@ export default function PublicSchoolHomePage() {
 
     loadData();
 
-    // ⚡ Real-Time Google Cloud Firestore Sync
-    // Allows visitors on any browser, mobile phone, or incognito mode
-    // to instantly receive live school name, logo, hero banners, notices, and stats from the database
     const applyCloudData = (cloudData: LandingPageCloudData) => {
       if (cloudData.settings) {
         setSettings((prev) => ({ ...(prev || {}), ...cloudData.settings } as SchoolSettings));
@@ -101,7 +101,7 @@ export default function PublicSchoolHomePage() {
           if (typeof window !== 'undefined') {
             localStorage.setItem('sms_landing_published', JSON.stringify(cloudData.landingConfig));
           }
-        } catch (e) {}
+        } catch {}
       }
       if (cloudData.notices && cloudData.notices.length > 0) {
         setNotices(cloudData.notices);
@@ -109,7 +109,7 @@ export default function PublicSchoolHomePage() {
           if (typeof window !== 'undefined') {
             localStorage.setItem('sms_notices', JSON.stringify(cloudData.notices));
           }
-        } catch (e) {}
+        } catch {}
       }
       if (cloudData.teachers && cloudData.teachers.length > 0) {
         setTeachers(cloudData.teachers);
@@ -119,22 +119,18 @@ export default function PublicSchoolHomePage() {
       }
     };
 
-    // 1. Asynchronously fetch latest data from Cloud Firestore
-    firebaseSyncService.fetchLandingPageCloudData().then((cloudData) => {
-      applyCloudData(cloudData);
-    }).catch((err) => {
-      console.warn('[LandingPage] Cloud sync fetch fallback to local:', err);
-    });
+    firebaseSyncService
+      .fetchLandingPageCloudData()
+      .then((cloudData) => applyCloudData(cloudData))
+      .catch((err) => {
+        console.warn('[LandingPage] Cloud sync fetch fallback to local:', err);
+      });
 
-    // 2. Subscribe to live Firestore changes (Real-time updates without page refresh)
     const unsubCloud = firebaseSyncService.subscribeLandingPageCloud((cloudUpdate) => {
       applyCloudData(cloudUpdate);
     });
 
-    // Re-sync on service updates
-    const unsubSettings = settingsService.subscribe((s) => {
-      setSettings(s);
-    });
+    const unsubSettings = settingsService.subscribe((s) => setSettings(s));
     const unsubLanding = landingPageService.subscribePublished((cfg) => setLandingConfig(cfg));
     const unsubNotices = noticeService.subscribe(() => setNotices(noticeService.getNotices()));
     const unsubStudents = studentService.subscribe(() => {
@@ -159,7 +155,11 @@ export default function PublicSchoolHomePage() {
     };
   }, []);
 
-  // Section Renderer Function mapped by key
+  // Unified notices list shared between Notice Ticker & Notice Board
+  const resolvedPublicNotices = useMemo(() => resolvePublicNotices(notices), [notices]);
+  const resolvedSchoolName =
+    settings?.schoolName?.trim() || landingConfig.header.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+
   const renderSection = (secKey: string) => {
     switch (secKey) {
       case 'stats':
@@ -172,14 +172,22 @@ export default function PublicSchoolHomePage() {
             estdYear={settings?.estdYear}
             statsConfig={landingConfig.stats}
             students={students}
-            schoolName={settings?.schoolName || landingConfig.header.schoolName}
+            schoolName={resolvedSchoolName}
+            settings={settings}
+            schoolCode={landingConfig.footer?.schoolCode}
           />
         );
       case 'services':
         if (landingConfig.services && landingConfig.services.enabled === false) return null;
         return <PublicServicesSection key="services" servicesConfig={landingConfig.services} />;
       case 'headmaster_message':
-        return <PublicHeadmasterMessage key="headmaster_message" settings={settings} aboutConfig={landingConfig.about} />;
+        return (
+          <PublicHeadmasterMessage
+            key="headmaster_message"
+            settings={settings}
+            aboutConfig={landingConfig.about}
+          />
+        );
       case 'about':
         if (landingConfig.about && landingConfig.about.enabled === false) return null;
         return <PublicAbout key="about" settings={settings} aboutConfig={landingConfig.about} />;
@@ -187,9 +195,10 @@ export default function PublicSchoolHomePage() {
         return (
           <PublicNoticesSection
             key="notices"
-            notices={notices}
+            notices={resolvedPublicNotices}
             selectedNotice={selectedNotice}
             onSelectNotice={(n) => setSelectedNotice(n)}
+            schoolName={resolvedSchoolName}
           />
         );
       case 'academic':
@@ -197,56 +206,82 @@ export default function PublicSchoolHomePage() {
       case 'teachers':
         return <PublicTeachersSection key="teachers" teachers={teachers} />;
       case 'committee':
-        return <PublicCommitteeSection key="committee" committeeMembers={settings?.committeeMembers} />;
+        return (
+          <PublicCommitteeSection
+            key="committee"
+            committeeMembers={settings?.committeeMembers}
+          />
+        );
       case 'achievers':
-        return <PublicBestStudentsSection key="achievers" achieversConfig={landingConfig.achievers} students={students} />;
+        return (
+          <PublicBestStudentsSection
+            key="achievers"
+            achieversConfig={landingConfig.achievers}
+            students={students}
+          />
+        );
       case 'facilities':
-        return <PublicFacilitiesSection key="facilities" facilitiesConfig={landingConfig.facilities} />;
+        return (
+          <PublicFacilitiesSection
+            key="facilities"
+            facilitiesConfig={landingConfig.facilities}
+          />
+        );
       case 'gallery':
         return <PublicGallerySection key="gallery" galleryConfig={landingConfig.gallery} />;
       case 'blog':
         return <PublicBlogSection key="blog" blogConfig={landingConfig.blog} />;
       case 'contact':
-        return <PublicContactSection key="contact" settings={settings} />;
+        return (
+          <PublicContactSection
+            key="contact"
+            settings={settings}
+            contactConfig={landingConfig.contact}
+            footerConfig={landingConfig.footer}
+          />
+        );
       case 'faq':
         return <PublicFaqSection key="faq" faqConfig={landingConfig.faq} />;
       case 'mobile_app':
         if (landingConfig.mobileApp && landingConfig.mobileApp.enabled === false) return null;
-        return <PublicMobileAppSection key="mobile_app" appConfig={landingConfig.mobileApp} settings={settings} />;
+        return (
+          <PublicMobileAppSection
+            key="mobile_app"
+            appConfig={landingConfig.mobileApp}
+            settings={settings}
+          />
+        );
       default:
         return null;
     }
   };
 
-  // Sort sections by order and filter enabled ones
   const activeSections = (landingConfig.sections || [])
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div className="landing-smooth-root min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative overflow-x-clip">
-      {/* 0. Smooth Scroll Progress Bar & Floating Back-to-Top Orb */}
+    <div className="landing-smooth-root min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-[#0B5D3B] selection:text-white relative overflow-x-clip">
       <LandingScrollFeatures />
 
-      {/* 1. Main Navigation Bar with Glass Effect directly over Hero Image */}
-      <PublicNavbar 
-        settings={settings} 
-        headerConfig={landingConfig.header} 
-        isOverHero={landingConfig.hero.enabled} 
+      <PublicNavbar
+        settings={settings}
+        headerConfig={landingConfig.header}
+        isOverHero={landingConfig.hero.enabled}
       />
 
       <main className="flex-1">
-        {/* 2. Hero Section with Campus Photo starting at top: 0 behind Floating Navbar */}
         {landingConfig.hero.enabled && (
           <PublicHero settings={settings} heroConfig={landingConfig.hero} />
         )}
 
-        {/* 3. Live Notice Ticker below Hero Section */}
-        {landingConfig.header.showNoticeTicker && notices.length > 0 && (
-          <PublicNoticeTicker notices={notices} onSelectNotice={(n) => setSelectedNotice(n)} />
+        {landingConfig.header.showNoticeTicker !== false && resolvedPublicNotices.length > 0 && (
+          <PublicNoticeTicker
+            notices={resolvedPublicNotices}
+            onSelectNotice={(n) => setSelectedNotice(n)}
+          />
         )}
 
-        {/* 4. Dynamically Ordered & Enabled Sections with Smooth Scroll Reveal & Staggered Cards */}
         {activeSections.map((sec) => {
           const content = renderSection(sec.key);
           if (!content) return null;
@@ -261,22 +296,25 @@ export default function PublicSchoolHomePage() {
           );
         })}
 
-        {/* 5. Mobile App Download Section Fallback (if not already included in activeSections) */}
-        {!activeSections.some((s) => s.key === 'mobile_app') && landingConfig.mobileApp?.enabled !== false && (
-          <ScrollRevealSection sectionKey="mobile_app_fallback" variant="fade-scale">
-            <PublicMobileAppSection appConfig={landingConfig.mobileApp} settings={settings} />
-          </ScrollRevealSection>
-        )}
+        {!activeSections.some((s) => s.key === 'mobile_app') &&
+          landingConfig.mobileApp?.enabled !== false && (
+            <ScrollRevealSection sectionKey="mobile_app_fallback" variant="fade-scale">
+              <PublicMobileAppSection
+                appConfig={landingConfig.mobileApp}
+                settings={settings}
+              />
+            </ScrollRevealSection>
+          )}
       </main>
 
-      {/* Institutional Footer */}
-      <ScrollRevealSection sectionKey="footer" variant="fade-up">
-        <PublicFooter
-          settings={settings}
-          footerConfig={landingConfig.footer}
-          lastUpdatedAt={landingConfig.lastUpdatedAt || (settings as any)?.updatedAt}
-        />
-      </ScrollRevealSection>
+      <PublicFooter
+        settings={settings}
+        footerConfig={landingConfig.footer}
+        contactConfig={landingConfig.contact}
+        lastUpdatedAt={
+          landingConfig.lastUpdatedAt || (settings as { updatedAt?: unknown } | null)?.updatedAt
+        }
+      />
     </div>
   );
 }

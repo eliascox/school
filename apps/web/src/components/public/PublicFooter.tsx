@@ -2,42 +2,48 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  School, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  ChevronRight, 
-  ExternalLink, 
-  Clock, 
-  ArrowUp, 
-  Heart,
-  Globe,
-  ShieldCheck
+import {
+  School,
+  MapPin,
+  Phone,
+  Mail,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  ShieldCheck,
+  UserPlus,
+  Award,
+  FileBadge2,
+  Smartphone,
+  LogIn,
 } from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
-import { FooterConfig } from '@/services/landingPageService';
+import { ContactConfig, FooterConfig } from '@/services/landingPageService';
+import { resolvePublicContactInfo, resolvePublicHref } from '@/lib/publicLandingUtils';
+import { normalizeRollDigits } from '@/lib/resultPortalUtils';
 
 interface PublicFooterProps {
   settings?: SchoolSettings | null;
   footerConfig?: FooterConfig | null;
-  lastUpdatedAt?: any;
+  contactConfig?: ContactConfig | null;
+  lastUpdatedAt?: unknown;
 }
 
-function formatBengaliDateTime(raw?: any): string {
+function formatBengaliDateTime(raw?: unknown): string {
   try {
     let dateObj: Date | null = null;
-    if (raw && typeof raw?.toDate === 'function') {
-      dateObj = raw.toDate();
-    } else if (raw && typeof raw?.seconds === 'number') {
-      dateObj = new Date(raw.seconds * 1000);
-    } else if (typeof raw === 'string' && raw.trim()) {
-      const parsed = new Date(raw);
-      if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2025) {
+    const anyRaw = raw as { toDate?: () => Date; seconds?: number } | string | undefined;
+    if (anyRaw && typeof anyRaw === 'object' && typeof anyRaw.toDate === 'function') {
+      dateObj = anyRaw.toDate();
+    } else if (anyRaw && typeof anyRaw === 'object' && typeof anyRaw.seconds === 'number') {
+      dateObj = new Date(anyRaw.seconds * 1000);
+    } else if (typeof anyRaw === 'string' && anyRaw.trim()) {
+      const parsed = new Date(anyRaw);
+      if (!Number.isNaN(parsed.getTime()) && parsed.getFullYear() >= 2025) {
         dateObj = parsed;
       }
     }
-    if (!dateObj || isNaN(dateObj.getTime())) {
+    if (!dateObj || Number.isNaN(dateObj.getTime())) {
       dateObj = new Date();
     }
     const dateStr = dateObj.toLocaleDateString('bn-BD', {
@@ -56,298 +62,359 @@ function formatBengaliDateTime(raw?: any): string {
   }
 }
 
-export default function PublicFooter({ settings, footerConfig, lastUpdatedAt }: PublicFooterProps) {
+export default function PublicFooter({
+  settings,
+  footerConfig,
+  contactConfig,
+  lastUpdatedAt,
+}: PublicFooterProps) {
   const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>('');
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
-    setLastUpdatedDisplay(formatBengaliDateTime(lastUpdatedAt || (settings as any)?.updatedAt));
+    setLastUpdatedDisplay(
+      formatBengaliDateTime(lastUpdatedAt || (settings as { updatedAt?: unknown })?.updatedAt)
+    );
   }, [lastUpdatedAt, settings]);
 
-  const schoolName = settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
-  const eiin = footerConfig?.eiin || settings?.eiin || '১০৬১৮৪';
-  const schoolCode = footerConfig?.schoolCode || '৩৪১২';
-  const regNo = footerConfig?.regNo || 'বি-৭৮৯৪ (চট্টগ্রাম বোর্ড)';
-  const address = footerConfig?.address || settings?.address || 'বরইতলী, চকরিয়া, কক্সবাজার, বাংলাদেশ।';
-  const phone1 = footerConfig?.phone1 || '+৮৮০ ১৮১২-৩৪৫৬৭৮ (অফিস)';
-  const phone2 = footerConfig?.phone2 || '+৮৮০ ৩৪১-৬৫৪৩২ (অধ্যক্ষ)';
-  const email1 = footerConfig?.email1 || 'info@baraitolihs.edu.bd';
-  const email2 = footerConfig?.email2 || 'principal@baraitolihs.edu.bd';
-  const copyrightText = footerConfig?.copyrightText || `© ২০২৬ ${schoolName}। সর্বস্বত্ব সংরক্ষিত।`;
-  
-  const scrollToTop = () => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const info = resolvePublicContactInfo(settings, contactConfig, footerConfig);
+  const schoolLogo = settings?.schoolLogo || '/logo.png';
+
+  const cleanTelHref = (raw: string) => {
+    const digits = normalizeRollDigits(raw).replace(/[^\d+]/g, '');
+    return digits ? `tel:${digits}` : undefined;
   };
 
+  const whatsappDigits = normalizeRollDigits(info.phone1).replace(/\D/g, '');
+  const whatsappUrl = whatsappDigits
+    ? `https://wa.me/${whatsappDigits.startsWith('88') ? whatsappDigits : `88${whatsappDigits}`}`
+    : '';
+
+  const defaultCol1 = [
+    { id: 'p-1', label: 'শিক্ষা মন্ত্রণালয় (MoEDU)', href: 'https://moedu.gov.bd', isExternal: true },
+    { id: 'p-2', label: 'মাধ্যমিক ও উচ্চশিক্ষা অধিদপ্তর (DSHE)', href: 'https://dshe.gov.bd', isExternal: true },
+    { id: 'p-3', label: 'ব্যানবেইস (BANBEIS)', href: 'https://banbeis.gov.bd', isExternal: true },
+    { id: 'p-4', label: 'এনসিটিবি (NCTB)', href: 'https://nctb.gov.bd', isExternal: true },
+    { id: 'p-5', label: 'শিক্ষক বাতায়ন (PDS)', href: 'https://teachers.gov.bd', isExternal: true },
+    { id: 'p-6', label: 'বোর্ড পরীক্ষার ফলাফল', href: 'http://www.educationboardresults.gov.bd', isExternal: true },
+  ];
+
+  const col1Links =
+    footerConfig?.col1Links && footerConfig.col1Links.length > 0
+      ? footerConfig.col1Links
+      : defaultCol1;
+
+  const col2Links = [
+    { id: 'q-1', label: 'প্রতিষ্ঠান পরিচিতি ও ইতিহাস', href: '/#about' },
+    { id: 'q-2', label: 'নোটিশ বোর্ড ও প্রজ্ঞাপন', href: '/#notices' },
+    { id: 'q-3', label: 'সম্মানিত শিক্ষকমণ্ডলী', href: '/#teachers' },
+    { id: 'q-4', label: 'শ্রেণি ও একাডেমিক বিভাগ', href: '/#academic' },
+    { id: 'q-5', label: 'ছবি ও ভিডিও গ্যালারি', href: '/#gallery' },
+    { id: 'q-6', label: 'যোগাযোগ ও অনুসন্ধান', href: '/#contact' },
+  ];
+
   return (
-    <footer className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800 relative transition-colors">
-      {/* Decorative Top Accent Border */}
-      <div className="h-1.5 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
+    <footer className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800 relative transition-colors print:hidden">
+      {/* Top Emerald-Gold Institutional Trim */}
+      <div className="h-1 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-        
-        {/* ৪ কলামের মূল ফুটার গ্রিড */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
-          
-          {/* ===================================================================
-              কলাম ১: অন্যান্য লিঙ্ক
-              (ওয়েব মেইল, পিডিএস, ই-স্কুল, শিক্ষা মন্ত্রণালয়, ব্যানবেইস, নায়েম, এনসিটিবি)
-              =================================================================== */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#F4B400]" />
-              <span>অন্যান্য লিঙ্ক</span>
-            </h4>
-            
-            <ul className="space-y-2 text-xs">
-              <li>
-                <Link href="/login" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>ওয়েব মেইল ও স্টাফ পোর্টাল</span>
-                </Link>
-              </li>
-              <li>
-                <a href="https://pds.emis.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>পিডিএস (PDS - শিক্ষক তথ্য)</span>
-                </a>
-              </li>
-              <li>
-                <Link href="/login" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>ই-স্কুল পোর্টাল (E-School)</span>
-                </Link>
-              </li>
-              <li>
-                <a href="https://moedu.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>শিক্ষা মন্ত্রণালয় (MoEDU)</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://banbeis.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>ব্যানবেইস (BANBEIS)</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://naem.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>নায়েম (NAEM)</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://nctb.gov.bd" target="_blank" rel="noopener noreferrer" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B]" />
-                  <span>এনসিটিবি (NCTB)</span>
-                </a>
-              </li>
-            </ul>
+      {/* Direct Public Portal Action Strip */}
+      <div className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400" />
+            <span>তাৎক্ষণিক ডিজিটাল পোর্টাল অ্যাক্সেস:</span>
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admission"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-[#0B5D3B] text-[#0B5D3B] hover:text-white dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>অনলাইন ভর্তি</span>
+            </Link>
+            <Link
+              href="/result"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold transition"
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>পরীক্ষার ফলাফল</span>
+            </Link>
+            <Link
+              href="/verify-certificate"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold transition"
+            >
+              <FileBadge2 className="w-3.5 h-3.5" />
+              <span>সনদ যাচাই</span>
+            </Link>
+            <Link
+              href="/mobile-app"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-600 text-sky-700 hover:text-white dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-bold transition"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>মোবাইল অ্যাপ</span>
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-[#F4B400] text-xs font-bold transition"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>অ্যাডমিন / শিক্ষক লগইন</span>
+            </Link>
           </div>
-
-          {/* ===================================================================
-              কলাম ২: গুরুত্বপূর্ণ লিঙ্ক
-              (যোগাযোগ, প্রতিষ্ঠান পরিচিতি, শিক্ষক, কমিটি, গ্যালারী, ব্লগ)
-              =================================================================== */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#0B5D3B]" />
-              <span>গুরুত্বপূর্ণ লিঙ্ক</span>
-            </h4>
-
-            <ul className="space-y-2 text-xs">
-              <li>
-                <a href="#about" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>প্রতিষ্ঠান পরিচিতি ও ইতিহাস</span>
-                </a>
-              </li>
-              <li>
-                <a href="#teachers" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>শিক্ষক ও শিক্ষিকাবৃন্দ</span>
-                </a>
-              </li>
-              <li>
-                <a href="#committee" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>পরিচালনা কমিটি (Managing Committee)</span>
-                </a>
-              </li>
-              <li>
-                <a href="#gallery" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>ছবির গ্যালারী ও ভিডিও</span>
-                </a>
-              </li>
-              <li>
-                <a href="#blog" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>সংবাদ ও ব্লগ প্রতিবেদন</span>
-                </a>
-              </li>
-              <li>
-                <a href="#contact" className="hover:text-[#0B5D3B] dark:hover:text-[#F4B400] transition-colors flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 duration-200">
-                  <ChevronRight className="w-3.5 h-3.5 text-[#F4B400]" />
-                  <span>যোগাযোগ ও লোকেশন ম্যাপ</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* ===================================================================
-              কলাম ৩: যোগাযোগ (ঠিকানা, ২টি ফোন, ২টি ইমেইল, আইকন সহ)
-              =================================================================== */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#F4B400]" />
-              <span>যোগাযোগ</span>
-            </h4>
-
-            <div className="space-y-3.5 text-xs text-slate-600 dark:text-slate-400">
-              {/* ঠিকানা */}
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-[#F4B400] shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{address}</span>
-              </div>
-
-              {/* ২টি ফোন নম্বর */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                  <a href="tel:+8801812345678" className="hover:text-slate-950 dark:hover:text-white transition-colors">+৮৮০ ১৮১২-৩৪৫৬৭৮ (অফিস)</a>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-[#0B5D3B] shrink-0" />
-                  <a href="tel:+88034165432" className="hover:text-slate-950 dark:hover:text-white transition-colors">+৮৮০ ৩৪১-৬৫৪৩২ (অধ্যক্ষ)</a>
-                </div>
-              </div>
-
-              {/* ২টি ইমেইল */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-[#F4B400] shrink-0" />
-                  <a href="mailto:info@baraitolihs.edu.bd" className="hover:text-slate-950 dark:hover:text-white transition-colors">info@baraitolihs.edu.bd</a>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-[#F4B400] shrink-0" />
-                  <a href="mailto:principal@baraitolihs.edu.bd" className="hover:text-slate-950 dark:hover:text-white transition-colors">principal@baraitolihs.edu.bd</a>
-                </div>
-              </div>
-
-              {/* অফিস সময় */}
-              <div className="flex items-center gap-2.5 pt-1 text-[11px] text-slate-500">
-                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>রবি - বৃহস্পতি: সকাল ৯:০০ - বিকাল ৪:০০</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ===================================================================
-              কলাম ৪: EIIN/স্কুল কোড/রেজি. নং ও "Connect us" সোশ্যাল আইকন
-              =================================================================== */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#0B5D3B]" />
-              <span>প্রতিষ্ঠান পরিচিতি</span>
-            </h4>
-
-            {/* লোগো ও নাম */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0B5D3B] to-emerald-900 dark:to-slate-900 border border-emerald-600/40 flex items-center justify-center text-[#F4B400] shadow-md shrink-0">
-                <School className="w-5 h-5" />
-              </div>
-              <div>
-                <h5 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{schoolName}</h5>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">চকোরিয়া, কক্সবাজার</span>
-              </div>
-            </div>
-
-            {/* প্রাতিষ্ঠানিক কোড বক্স */}
-            <div className="bg-white dark:bg-slate-900/90 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs shadow-2xs dark:shadow-none">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">EIIN নং:</span>
-                <span className="font-bold text-amber-700 dark:text-[#F4B400]">{eiin}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">স্কুল কোড:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{schoolCode}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">রেজি. নং:</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-300">{regNo}</span>
-              </div>
-            </div>
-
-            {/* "Connect us" সোশ্যাল আইকন */}
-            <div className="pt-2">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-2.5">
-                Connect us (আমাদের সাথে যুক্ত থাকুন):
-              </span>
-              <div className="flex items-center gap-2.5">
-                {/* Facebook */}
-                <a href="#" aria-label="Facebook" className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-[#0B5D3B] text-slate-700 dark:text-white hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm" title="Facebook">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                </a>
-                {/* YouTube */}
-                <a href="#" aria-label="YouTube" className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-rose-600 text-slate-700 dark:text-white hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm" title="YouTube">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                </a>
-                {/* LinkedIn */}
-                <a href="#" aria-label="LinkedIn" className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-[#0B5D3B] text-slate-700 dark:text-white hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm" title="LinkedIn">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                </a>
-                {/* WhatsApp */}
-                <a href="https://wa.me/8801812345678" target="_blank" rel="noreferrer" aria-label="WhatsApp" className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-emerald-600 text-slate-700 dark:text-white hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm" title="WhatsApp">
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                </a>
-              </div>
-            </div>
-          </div>
-
         </div>
-
       </div>
 
-      {/* ===================================================================
-          সবার নিচে কপিরাইট বার ও সর্বশেষ আপডেটের তারিখ ও সময় (BOTTOM BAR)
-          =================================================================== */}
-      <div className="bg-slate-200/70 dark:bg-black/60 border-t border-slate-300/70 dark:border-slate-900 py-5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-500">
-          
-          {/* কপিরাইট নোটিশ ও সর্বশেষ আপডেট */}
+      {/* 4-Column Executive Footer Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
+          {/* Column 1: Institutional Identity & Codes */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/80 p-1.5 flex items-center justify-center shadow-xs shrink-0">
+                {schoolLogo && !logoError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={schoolLogo}
+                    alt={info.schoolName}
+                    className="w-full h-full object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <School className="w-5 h-5 text-[#0B5D3B] dark:text-emerald-400" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug truncate">
+                  {info.schoolName}
+                </h4>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
+                  {info.address}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-3.5 border border-slate-200/90 dark:border-slate-800 space-y-2 text-xs shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500 dark:text-slate-400">EIIN নম্বর:</span>
+                <span className="font-extrabold text-[#0B5D3B] dark:text-emerald-400 font-mono">
+                  {info.eiin}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500 dark:text-slate-400">স্কুল কোড:</span>
+                <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  {info.schoolCode}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500 dark:text-slate-400">রেজিস্ট্রেশন নং:</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  {info.regNo}
+                </span>
+              </div>
+            </div>
+
+            {/* Social Links (only valid links rendered) */}
+            {(info.socialLinks.facebook || info.socialLinks.youtube || info.socialLinks.linkedin || whatsappUrl) && (
+              <div className="pt-1">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-2">
+                  আমাদের সাথে যুক্ত থাকুন:
+                </span>
+                <div className="flex items-center gap-2">
+                  {info.socialLinks.facebook && (
+                    <a
+                      href={info.socialLinks.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Facebook"
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#0B5D3B] text-slate-700 dark:text-slate-200 hover:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all hover:scale-105 shadow-2xs"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                    </a>
+                  )}
+                  {info.socialLinks.youtube && (
+                    <a
+                      href={info.socialLinks.youtube}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="YouTube"
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-600 text-slate-700 dark:text-slate-200 hover:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all hover:scale-105 shadow-2xs"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
+                    </a>
+                  )}
+                  {whatsappUrl && (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="WhatsApp"
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-600 text-slate-700 dark:text-slate-200 hover:text-white border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all hover:scale-105 shadow-2xs"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Column 2: Important Site Navigation */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#0B5D3B]" />
+              <span>{footerConfig?.col2Title || 'গুরুত্বপূর্ণ লিঙ্ক'}</span>
+            </h4>
+            <ul className="space-y-2.5 text-xs">
+              {col2Links.map((link) => (
+                <li key={link.id}>
+                  <Link
+                    href={link.href}
+                    className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition-all flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-0.5 font-medium"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-[#F4B400] shrink-0" />
+                    <span>{link.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Column 3: National Education Portals */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#F4B400]" />
+              <span>{footerConfig?.col1Title || 'সরকারি ও শিক্ষা পোর্টাল'}</span>
+            </h4>
+            <ul className="space-y-2.5 text-xs">
+              {col1Links.slice(0, 7).map((link) => {
+                const safeHref = resolvePublicHref(link.href, '/');
+                const isExt = link.isExternal || safeHref.startsWith('http');
+                return (
+                  <li key={link.id}>
+                    {isExt ? (
+                      <a
+                        href={safeHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition-all flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-0.5 font-medium"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B] shrink-0" />
+                        <span className="truncate">{link.label}</span>
+                        <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={safeHref}
+                        className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition-all flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:translate-x-0.5 font-medium"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5 text-[#0B5D3B] shrink-0" />
+                        <span>{link.label}</span>
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Column 4: Official Contact Details (100% synced with Contact Section) */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#0B5D3B]" />
+              <span>{footerConfig?.col3Title || 'যোগাযোগ ও অফিস'}</span>
+            </h4>
+
+            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-[#F4B400] shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{info.address}</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
+                  <a
+                    href={cleanTelHref(info.phone1)}
+                    className="hover:text-slate-950 dark:hover:text-white transition-colors font-semibold"
+                  >
+                    {info.phone1}
+                  </a>
+                </div>
+                {info.phone2 && (
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="w-4 h-4 text-[#0B5D3B] dark:text-emerald-400 shrink-0" />
+                    <a
+                      href={cleanTelHref(info.phone2)}
+                      className="hover:text-slate-950 dark:hover:text-white transition-colors font-semibold"
+                    >
+                      {info.phone2}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-[#F4B400] shrink-0" />
+                  <a
+                    href={`mailto:${info.email1}`}
+                    className="hover:text-slate-950 dark:hover:text-white transition-colors truncate"
+                  >
+                    {info.email1}
+                  </a>
+                </div>
+                {info.email2 && (
+                  <div className="flex items-center gap-2.5">
+                    <Mail className="w-4 h-4 text-[#F4B400] shrink-0" />
+                    <a
+                      href={`mailto:${info.email2}`}
+                      className="hover:text-slate-950 dark:hover:text-white transition-colors truncate"
+                    >
+                      {info.email2}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-start gap-2.5 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{info.officeHours}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Copyright Bar — generous bottom-right clearance on mobile so Back-to-Top FAB never overlaps text */}
+      <div className="bg-slate-100/90 dark:bg-slate-900/90 border-t border-slate-200/90 dark:border-slate-800 py-5 pb-20 sm:pb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400 sm:pr-16">
           <div className="text-center sm:text-left space-y-1">
-            <p className="text-slate-700 dark:text-slate-400">
-              {copyrightText}
-            </p>
+            <p className="font-semibold text-slate-700 dark:text-slate-300">{info.copyrightText}</p>
             {lastUpdatedDisplay && (
-              <p className="text-[10.5px] text-slate-500 flex items-center justify-center sm:justify-start gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 inline-block" />
-                <Clock className="w-3 h-3 text-slate-500 shrink-0" />
-                <span>সর্বশেষ আপডেট: <span className="text-slate-700 dark:text-slate-400 font-medium">{lastUpdatedDisplay}</span></span>
+              <p className="text-[11px] text-slate-500 flex items-center justify-center sm:justify-start gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                <span>
+                  সর্বশেষ আপডেট:{' '}
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">
+                    {lastUpdatedDisplay}
+                  </span>
+                </span>
               </p>
             )}
           </div>
 
-          {/* সিস্টেম ক্রেডিট ও ব্যাক টু টপ বাটন */}
-          <div className="flex items-center gap-4">
-            <span className="text-[11px] text-slate-600 dark:text-slate-400">
-              ডিজিটাল স্কুল ম্যানেজমেন্ট সিস্টেম দ্বারা পরিচালিত
-            </span>
-
-            {/* ব্যাক টু টপ বাটন */}
-            <button
-              type="button"
-              onClick={scrollToTop}
-              className="p-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-[#0B5D3B] text-slate-700 dark:text-slate-300 hover:text-white border border-slate-300 dark:border-transparent transition-colors shadow-2xs cursor-pointer"
-              title="উপরে যান"
-              aria-label="পৃষ্ঠার শীর্ষে ফিরে যান"
-            >
-              <ArrowUp className="w-4 h-4" />
-            </button>
-          </div>
-
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            SchoolPro ডিজিটাল স্কুল ম্যানেজমেন্ট সিস্টেম দ্বারা পরিচালিত
+          </span>
         </div>
       </div>
     </footer>

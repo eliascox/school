@@ -1,18 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  Trophy, 
-  Star, 
-  Award, 
-  ArrowRight, 
-  X, 
-  GraduationCap, 
-  Calendar, 
-  CheckCircle2, 
-  BookOpen 
-} from 'lucide-react';
-
+import React, { useEffect, useState } from 'react';
+import { Trophy, Star, ArrowRight, X } from 'lucide-react';
 import { AchieversConfig } from '@/services/landingPageService';
 import { Student } from '@/services/studentService';
 import InitialsAvatar from './InitialsAvatar';
@@ -35,15 +24,29 @@ interface PublicBestStudentsSectionProps {
   students?: Student[];
 }
 
-export default function PublicBestStudentsSection({ achieversConfig, students }: PublicBestStudentsSectionProps = {}) {
+export default function PublicBestStudentsSection({
+  achieversConfig,
+  students,
+}: PublicBestStudentsSectionProps = {}) {
   const [selectedStudent, setSelectedStudent] = useState<BestStudent | null>(null);
-  const [showAllModal, setShowAllModal] = useState<boolean>(false);
+  const [showAllModal, setShowAllModal] = useState(false);
+
+  useEffect(() => {
+    if (!selectedStudent && !showAllModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedStudent(null);
+        setShowAllModal(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedStudent, showAllModal]);
 
   if (achieversConfig && achieversConfig.enabled === false) {
     return null;
   }
 
-  // 4 Best Students matching user requirements
   const defaultBestStudents: BestStudent[] = [
     {
       id: 'STD-01',
@@ -55,7 +58,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       badgeType: 'trophy',
       achievement: '১ম স্থান ও বিজ্ঞান অলিম্পিয়াড চ্যাম্পিয়ন',
       gpa: 'জিপিএ ৫.০০',
-      quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+      quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।',
     },
     {
       id: 'STD-02',
@@ -67,7 +70,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       badgeType: 'star',
       achievement: 'মেধাতালিকায় শীর্ষ ও বিতর্ক দলনেতা',
       gpa: 'জিপিএ ৫.০০',
-      quote: 'পাঠ্যবইয়ের পাশাপাশি সাধারণ জ্ঞান ও সহশিক্ষা কার্যক্রমে যুক্ত থাকলে মেধা আরও শাণিত হয়।'
+      quote: 'পাঠ্যবইয়ের পাশাপাশি সাধারণ জ্ঞান ও সহশিক্ষা কার্যক্রমে যুক্ত থাকলে মেধা আরও শাণিত হয়।',
     },
     {
       id: 'STD-03',
@@ -79,7 +82,7 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       badgeType: 'trophy',
       achievement: 'ট্যালেন্টপুল বৃত্তি ও গণিত উৎসব বিজয়ী',
       gpa: 'জিপিএ ৫.০০',
-      quote: 'প্রতিদিনের পড়া প্রতিদিন শেষ করা এবং কোনো বিষয়ে দ্বিধা থাকলে শিক্ষকদের কাছে বুঝে নেওয়া জরুরি।'
+      quote: 'প্রতিদিনের পড়া প্রতিদিন শেষ করা এবং কোনো বিষয়ে দ্বিধা থাকলে শিক্ষকদের কাছে বুঝে নেওয়া জরুরি।',
     },
     {
       id: 'STD-04',
@@ -91,68 +94,72 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
       badgeType: 'star',
       achievement: 'বার্ষিক মূল্যায়ন পরীক্ষায় ১ম স্থান',
       gpa: 'জিপিএ ৫.০০',
-      quote: 'স্কুলের সুন্দর ও সুশৃঙ্খল পরিবেশ আমাকে আরও বেশি মনোযোগী হতে উৎসাহিত করে।'
-    }
+      quote: 'স্কুলের সুন্দর ও সুশৃঙ্খল পরিবেশ আমাকে আরও বেশি মনোযোগী হতে উৎসাহিত করে।',
+    },
   ];
 
-  // Auto-sync best students from live student database if available
-  const autoSyncedStudents: BestStudent[] = (students && students.length > 0)
-    ? [...students]
-        .filter(s => parseFloat(s.gpa || '0') >= 4.5 || s.roll === '1' || s.roll === '01')
-        .slice(0, 4)
-        .map((st, i) => ({
+  const autoSyncedStudents: BestStudent[] =
+    students && students.length > 0
+      ? [...students]
+          .filter((s) => parseFloat(s.gpa || '0') >= 4.5 || s.roll === '1' || s.roll === '01')
+          .slice(0, 8)
+          .map((st, i) => ({
+            id: st.id,
+            name: st.name,
+            class: st.gradeBn || `${st.grade} শ্রেণি`,
+            roll: st.roll,
+            year: st.session || '২০২৬',
+            photo: st.photo || '',
+            badgeType: (i % 2 === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
+            achievement: st.gpa === '5.00' ? 'গোল্ডেন জিপিএ ৫.০০' : `মেধাবী স্থান #${st.roll}`,
+            gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
+            quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।',
+          }))
+      : [];
+
+  const configuredAchievers = achieversConfig?.students?.filter((s) => s.visible !== false);
+  const bestStudents: BestStudent[] =
+    configuredAchievers && configuredAchievers.length > 0
+      ? configuredAchievers.map((st, i) => ({
           id: st.id,
           name: st.name,
-          class: st.gradeBn || `${st.grade} শ্রেণি`,
+          class: st.class,
           roll: st.roll,
-          year: st.session || '২০২৬',
+          year: st.year,
           photo: st.photo || '',
-          badgeType: (i === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
-          achievement: st.gpa === '5.00' ? '🏆 গোল্ডেন জিপিএ ৫.০০' : `মেধাবী স্থান #${st.roll}`,
-          gpa: st.gpa ? `জিপিএ ${st.gpa}` : 'জিপিএ ৫.০০',
-          quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
+          badgeType: (i % 2 === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
+          achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
+          gpa: st.gpa ? (st.gpa.startsWith('জিপিএ') ? st.gpa : `জিপিএ ${st.gpa}`) : 'জিপিএ ৫.০০',
+          quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।',
         }))
-    : [];
-
-  const configuredAchievers = achieversConfig?.students?.filter(s => s.visible !== false);
-  const bestStudents: BestStudent[] = (configuredAchievers && configuredAchievers.length > 0)
-    ? configuredAchievers.map((st, i) => ({
-        id: st.id,
-        name: st.name,
-        class: st.class,
-        roll: st.roll,
-        year: st.year,
-        photo: st.photo || '',
-        badgeType: (i % 2 === 0 ? 'trophy' : 'star') as 'trophy' | 'star',
-        achievement: st.awardBadge || 'কৃতী শিক্ষার্থী',
-        gpa: st.gpa ? (st.gpa.startsWith('জিপিএ') ? st.gpa : `জিপিএ ${st.gpa}`) : 'জিপিএ ৫.০০',
-        quote: 'নিয়মিত অধ্যাবসায় ও শিক্ষকদের সঠিক দিকনির্দেশনাই পরীক্ষায় ভালো ফলাফলের মূল চাবিকাঠি।'
-      }))
-    : (autoSyncedStudents.length > 0 ? autoSyncedStudents : defaultBestStudents);
+      : autoSyncedStudents.length > 0
+      ? autoSyncedStudents
+      : defaultBestStudents;
 
   const sectionTitle = achieversConfig?.title || 'সেরা ছাত্র/ছাত্রী';
-  const sectionSubtitle = achieversConfig?.subtitle || 'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';
+  const sectionSubtitle =
+    achieversConfig?.subtitle ||
+    'বোর্ড পরীক্ষা ও মেধা অন্বেষণে শীর্ষস্থান অর্জনকারী আমাদের গর্বিত শিক্ষার্থীদের একাংশ';
 
   return (
-    <section id="best-students" className="py-10 sm:py-14 bg-[#F5F7FA] dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <section
+      id="best-students"
+      className="py-12 sm:py-16 bg-[#F8FAFC] dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 transition-colors"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* ===================================================================
-            সেকশন হেডার
-            =================================================================== */}
-        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-2 text-[#0B5D3B] bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold uppercase tracking-wider">
+        <div className="text-center max-w-3xl mx-auto space-y-2.5 mb-9 sm:mb-12">
+          <div className="inline-flex items-center gap-2 text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
             <Trophy className="w-3.5 h-3.5 text-[#F4B400]" />
             <span>মেধা ও গৌরব</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
             {sectionTitle}
           </h2>
 
           <div className="flex items-center justify-center gap-1.5 pt-0.5">
-            <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full"></span>
-            <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full"></span>
+            <span className="w-14 h-1.5 bg-[#0B5D3B] rounded-full" />
+            <span className="w-3.5 h-1.5 bg-[#F4B400] rounded-full" />
           </div>
 
           <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed pt-1">
@@ -160,79 +167,66 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
           </p>
         </div>
 
-        {/* ===================================================================
-            ৪টি কার্ডের গ্রিড (Desktop: 4, Tablet: 2, Mobile: 1)
-            =================================================================== */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-          {bestStudents.map((student) => (
+        {/* Top 4 Achiever Cards (Calm Modern Metallic Badge — no jittery bounce) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {bestStudents.slice(0, 4).map((student) => (
             <div
               key={student.id}
-              className="group bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-700/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between"
+              className="group bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-400/70 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
             >
               <div>
-                {/* গোল ছবি ও ট্রফি/স্টার ব্যাজ */}
-                <div className="flex justify-center mb-5">
+                <div className="flex justify-center mb-4">
                   <div className="relative">
-                    {/* গোল ছবি */}
                     <InitialsAvatar
                       src={student.photo}
                       name={student.name}
-                      className="w-28 h-28 rounded-full border-4 border-[#0B5D3B]/20 group-hover:border-[#0B5D3B] shadow-md transition-all duration-300 group-hover:scale-105"
+                      className="w-24 h-24 rounded-full border-4 border-emerald-100 dark:border-emerald-900/60 group-hover:border-[#0B5D3B] shadow-md transition-all duration-300 group-hover:scale-105"
                       textClassName="text-3xl"
                     />
-
-                    {/* ছবির ওপর ট্রফি/স্টার ব্যাজ */}
-                    <div className="absolute top-0 right-0 w-8 h-8 rounded-full bg-[#F4B400] text-slate-900 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 animate-bounce">
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-br from-[#F4B400] to-amber-500 text-slate-950 flex items-center justify-center shadow-md border-2 border-white dark:border-slate-900">
                       {student.badgeType === 'trophy' ? (
-                        <Trophy className="w-4 h-4 fill-slate-900 text-slate-900" />
+                        <Trophy className="w-3.5 h-3.5" />
                       ) : (
-                        <Star className="w-4 h-4 fill-slate-900 text-slate-900" />
+                        <Star className="w-3.5 h-3.5 fill-slate-950" />
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* নাম ও ক্লাস */}
                 <div className="text-center space-y-1">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-snug group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors">
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-snug group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors">
                     {student.name}
                   </h3>
-                  
-                  <p className="text-xs font-semibold text-[#0B5D3B] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 inline-block px-3 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  <p className="text-xs font-bold text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 inline-block px-3 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                     {student.class}
                   </p>
                 </div>
 
-                {/* রোল নং, সাল ও জিপিএ */}
-                <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-700/60 space-y-2 text-xs">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                     <span className="text-slate-400">রোল নং:</span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">{student.roll}</span>
                   </div>
-
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                    <span className="text-slate-400">শিক্ষাবর্ষ (সাল):</span>
+                    <span className="text-slate-400">শিক্ষাবর্ষ:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{student.year}</span>
                   </div>
-
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                     <span className="text-slate-400">ফলাফল:</span>
-                    <span className="font-bold text-[#0B5D3B] dark:text-emerald-400">{student.gpa}</span>
+                    <span className="font-extrabold text-[#0B5D3B] dark:text-emerald-400">{student.gpa}</span>
                   </div>
                 </div>
 
-                {/* অর্জন ট্যাগ */}
-                <div className="mt-3.5 p-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-900 dark:text-amber-300 font-medium text-center line-clamp-1">
-                  ★ {student.achievement}
+                <div className="mt-3 p-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-900 dark:text-amber-300 font-semibold text-center line-clamp-1">
+                  {student.achievement}
                 </div>
               </div>
 
-              {/* কার্ড ফুটার বাটন */}
-              <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-slate-700/60">
+              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setSelectedStudent(student)}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold text-[#0B5D3B] bg-emerald-50 hover:bg-[#0B5D3B] hover:text-white transition-all duration-200 shadow-2xs"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-[#0B5D3B] dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-[#0B5D3B] hover:text-white border border-emerald-200/80 dark:border-emerald-800/60 transition-all cursor-pointer"
                 >
                   <span>কৃতিত্বের বিবরণ</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -242,65 +236,53 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
           ))}
         </div>
 
-        {/* ===================================================================
-            নিচে "আরো দেখুন" বাটন
-            =================================================================== */}
-        <div className="mt-12 text-center">
+        <div className="mt-10 text-center">
           <button
             type="button"
             onClick={() => setShowAllModal(true)}
-            className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group active:scale-95 border-2 border-transparent hover:border-[#F4B400]"
+            className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-[#0B5D3B] hover:bg-[#08492e] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
           >
-            <Trophy className="w-5 h-5 text-[#F4B400]" />
-            <span>আরো দেখুন</span>
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <Trophy className="w-4 h-4 text-[#F4B400]" />
+            <span>সকল কৃতী শিক্ষার্থী ({bestStudents.length} জন)</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-
       </div>
 
-      {/* ===================================================================
-          শিক্ষার্থীর কৃতিত্ব মোডাল (STUDENT PROFILE MODAL)
-          =================================================================== */}
+      {/* Student Detail Modal */}
       {selectedStudent && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
           onClick={() => setSelectedStudent(null)}
         >
           <div
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0B5D3B] via-[#F4B400] to-[#0B5D3B]" />
 
             <button
               type="button"
               onClick={() => setSelectedStudent(null)}
               aria-label="বন্ধ করুন"
-              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex flex-col items-center text-center mt-2">
-              <div className="relative mb-3">
-                <InitialsAvatar
-                  src={selectedStudent.photo}
-                  name={selectedStudent.name}
-                  className="w-24 h-24 rounded-full border-4 border-[#0B5D3B] shadow-md"
-                  textClassName="text-3xl"
-                />
-                <div className="absolute top-0 right-0 w-7 h-7 rounded-full bg-[#F4B400] flex items-center justify-center shadow-md">
-                  <Trophy className="w-3.5 h-3.5 text-slate-900" />
-                </div>
-              </div>
-
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+              <InitialsAvatar
+                src={selectedStudent.photo}
+                name={selectedStudent.name}
+                className="w-22 h-22 rounded-full border-4 border-[#0B5D3B] shadow-md mb-3"
+                textClassName="text-3xl"
+              />
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
                 {selectedStudent.name}
               </h3>
-              <p className="text-xs text-[#0B5D3B] dark:text-emerald-400 font-semibold mt-0.5">
+              <p className="text-xs text-[#0B5D3B] dark:text-emerald-400 font-bold mt-0.5">
                 {selectedStudent.class} • রোল: {selectedStudent.roll}
               </p>
             </div>
@@ -308,27 +290,29 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
             <div className="mt-5 space-y-2 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
               <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
                 <span className="text-slate-500">শিক্ষাবর্ষ:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedStudent.year} খ্রিঃ</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedStudent.year}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
                 <span className="text-slate-500">ফলাফল:</span>
-                <span className="font-bold text-[#0B5D3B] dark:text-emerald-400">{selectedStudent.gpa}</span>
+                <span className="font-extrabold text-[#0B5D3B] dark:text-emerald-400">{selectedStudent.gpa}</span>
               </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">বিশেষ অর্জন:</span>
-                <span className="font-semibold text-amber-700 dark:text-amber-300">{selectedStudent.achievement}</span>
+              <div className="flex justify-between py-1 gap-3">
+                <span className="text-slate-500 shrink-0">বিশেষ অর্জন:</span>
+                <span className="font-semibold text-amber-700 dark:text-amber-300 text-right">
+                  {selectedStudent.achievement}
+                </span>
               </div>
             </div>
 
             <div className="mt-4 p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 text-xs text-slate-700 dark:text-slate-300 italic leading-relaxed">
-              &ldquo;{selectedStudent.quote}&rdquo;
+              “{selectedStudent.quote}”
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+            <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
               <button
                 type="button"
                 onClick={() => setSelectedStudent(null)}
-                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors"
+                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer"
               >
                 বন্ধ করুন
               </button>
@@ -337,64 +321,72 @@ export default function PublicBestStudentsSection({ achieversConfig, students }:
         </div>
       )}
 
-      {/* ===================================================================
-          সকল সেরা শিক্ষার্থীদের মেধা তালিকা মোডাল (ALL ACHIEVERS MODAL)
-          =================================================================== */}
+      {/* All Achievers Modal (Deduplicated — No Duplicate Entries!) */}
       {showAllModal && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
           onClick={() => setShowAllModal(false)}
         >
           <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col p-6 sm:p-8 shadow-2xl relative"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600">
-                  <Trophy className="w-5 h-5 text-amber-600" />
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/70 flex items-center justify-center text-amber-600 border border-amber-200 dark:border-amber-800">
+                  <Trophy className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
                     সকল কৃতী ও সেরা ছাত্র/ছাত্রীদের তালিকা
                   </h3>
-                  <p className="text-xs text-slate-500">বার্ষিক পরীক্ষা ও মেধা তালিকায় উত্তীর্ণ শিক্ষার্থীদের তালিকা</p>
+                  <p className="text-xs text-slate-500">মেধা তালিকায় উত্তীর্ণ গর্বিত শিক্ষার্থীবৃন্দ</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAllModal(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="বন্ধ করুন"
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="overflow-y-auto py-4 space-y-3 flex-1">
-              {bestStudents.concat(bestStudents).map((s, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+            <div className="overflow-y-auto py-4 space-y-2.5 flex-1">
+              {bestStudents.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setShowAllModal(false);
+                    setSelectedStudent(s);
+                  }}
+                  className="w-full text-left flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <InitialsAvatar
                       src={s.photo}
                       name={s.name}
-                      className="w-11 h-11 rounded-full border-2 border-emerald-500 shrink-0"
+                      className="w-11 h-11 rounded-full border-2 border-[#0B5D3B] shrink-0"
                       textClassName="text-sm"
                     />
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{s.name}</h4>
-                      <p className="text-xs text-[#0B5D3B] dark:text-emerald-400 font-semibold">{s.class} (রোল: {s.roll})</p>
-                      <p className="text-[11px] text-slate-500">{s.achievement}</p>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                        {s.name}
+                      </h4>
+                      <p className="text-xs text-[#0B5D3B] dark:text-emerald-400 font-bold truncate">
+                        {s.class} (রোল: {s.roll})
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate">{s.achievement}</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
                     {s.gpa}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>

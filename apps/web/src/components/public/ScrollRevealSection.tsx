@@ -14,35 +14,32 @@ interface ScrollRevealSectionProps {
 }
 
 function tagSectionChildrenForMotion(root: HTMLElement) {
-  // 1. Tag section header items (eyebrow pill, h2 title, divider, subtitle)
   const headerContainers = root.querySelectorAll('.text-center.max-w-3xl, .text-center.max-w-4xl');
   headerContainers.forEach((hdr) => {
     Array.from(hdr.children).forEach((child, idx) => {
       const htmlChild = child as HTMLElement;
       if (!htmlChild.hasAttribute('data-reveal-header-item')) {
         htmlChild.setAttribute('data-reveal-header-item', 'true');
-        htmlChild.style.setProperty('--header-index', String(Math.min(idx, 5)));
+        htmlChild.style.setProperty('--header-index', String(Math.min(idx, 4)));
       }
     });
   });
 
-  // 2. Tag direct children of grids inside this section for staggered cascade animation
   const grids = root.querySelectorAll('.grid');
   grids.forEach((grid) => {
     Array.from(grid.children).forEach((child, idx) => {
       const htmlChild = child as HTMLElement;
       if (!htmlChild.hasAttribute('data-stagger-child')) {
         htmlChild.setAttribute('data-stagger-child', 'true');
-        htmlChild.style.setProperty('--stagger-index', String(Math.min(idx, 10)));
+        htmlChild.style.setProperty('--stagger-index', String(Math.min(idx, 8)));
       }
     });
   });
 }
 
 /**
- * Wraps any landing page section with smooth scroll-triggered entrance animations,
- * cascades section headers & internal grid cards, and clears entrance delays after
- * completion so card hover micro-interactions respond with zero latency.
+ * Progressive scroll-reveal wrapper that NEVER leaves below-the-fold sections stuck
+ * blank on initial load, fast scrolling, or anchor-hash jumps.
  */
 export function ScrollRevealSection({
   children,
@@ -52,46 +49,84 @@ export function ScrollRevealSection({
   sectionKey,
 }: ScrollRevealSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isDone, setIsDone] = useState(false);
+  // Start visible by default for SSR & instant paint, then smoothly enhance below-fold sections
+  const [isVisible, setIsVisible] = useState(true);
+  const [isDone, setIsDone] = useState(true);
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || typeof window === 'undefined') return;
 
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsVisible(true);
+      setIsDone(true);
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    const isNearViewport = rect.top < window.innerHeight + 180;
+
+    // Never hide sections already in or close to the initial viewport
+    if (isNearViewport || window.location.hash) {
       setIsVisible(true);
       setIsDone(true);
       return;
     }
 
     tagSectionChildrenForMotion(el);
+    setIsVisible(false);
+    setIsDone(false);
+
+    const revealNow = () => {
+      setIsVisible(true);
+    };
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
+          if (entry.isIntersecting || entry.boundingClientRect.top < window.innerHeight + 140) {
+            revealNow();
             observer.unobserve(entry.target);
           }
         });
       },
       {
-        threshold: 0.07,
-        rootMargin: '0px 0px -36px 0px',
-      },
+        threshold: 0.01,
+        rootMargin: '160px 0px 140px 0px',
+      }
     );
 
     observer.observe(el);
 
-    return () => observer.disconnect();
+    // Reveal immediately on hash change so anchor jumps never land on a hidden wrapper
+    const onHashChange = () => {
+      revealNow();
+      setIsDone(true);
+    };
+    window.addEventListener('hashchange', onHashChange);
+
+    // Safety fallback timer so no section can ever remain stuck invisible
+    const safetyScrollCheck = () => {
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight + 220) {
+        revealNow();
+        window.removeEventListener('scroll', safetyScrollCheck);
+      }
+    };
+    window.addEventListener('scroll', safetyScrollCheck, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('scroll', safetyScrollCheck);
+    };
   }, [sectionKey]);
 
   useEffect(() => {
     if (!isVisible || isDone) return;
     const timer = window.setTimeout(() => {
       setIsDone(true);
-    }, 950 + delayMs);
+    }, 700 + delayMs);
     return () => window.clearTimeout(timer);
   }, [isVisible, isDone, delayMs]);
 
@@ -110,7 +145,7 @@ export function ScrollRevealSection({
 }
 
 /**
- * Global Landing Page Smooth Scroll Progress Bar + Floating Back-to-Top Button with SVG Progress Ring
+ * Global Landing Page Smooth Scroll Progress Bar + Single Floating Back-to-Top Orb
  */
 export function LandingScrollFeatures() {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -131,7 +166,7 @@ export function LandingScrollFeatures() {
         lastPct = roundedPct;
         setScrollProgress(roundedPct);
       }
-      const show = scrollTop > 380;
+      const show = scrollTop > 420;
       if (show !== lastShow) {
         lastShow = show;
         setShowBackToTop(show);
@@ -158,59 +193,59 @@ export function LandingScrollFeatures() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const radius = 20;
+  const radius = 19;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (scrollProgress / 100) * circumference;
 
   return (
     <>
-      {/* 1. Top Smooth Scroll Reading Progress Bar */}
+      {/* Top Smooth Scroll Progress Bar */}
       <div
         aria-hidden="true"
         className="fixed top-0 left-0 right-0 h-1 z-[100] pointer-events-none bg-transparent print:hidden"
       >
         <div
-          className="h-full origin-left bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-[#F4B400] shadow-[0_0_10px_rgba(16,185,129,0.6)] transition-transform duration-150 ease-out will-change-transform"
+          className="h-full origin-left bg-gradient-to-r from-[#0B5D3B] via-emerald-500 to-[#F4B400] shadow-[0_0_8px_rgba(11,93,59,0.5)] transition-transform duration-150 ease-out will-change-transform"
           style={{ transform: `scaleX(${scrollProgress / 100})` }}
         />
       </div>
 
-      {/* 2. Floating Back-to-Top Button with Circular Progress Ring */}
+      {/* Single Floating Back-to-Top Button with SVG Progress Ring */}
       <button
         type="button"
         onClick={scrollToTop}
         aria-label="পেজের উপরে যান"
-        title="পেজের উপরে যান (Back to Top)"
-        className={`group fixed bottom-6 right-5 sm:bottom-8 sm:right-8 z-50 w-12 h-12 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl shadow-emerald-950/15 border border-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-[#0B5D3B] hover:text-white dark:hover:bg-emerald-500 dark:hover:text-slate-950 hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer print:hidden ${
+        title="পেজের উপরে যান"
+        className={`group fixed bottom-5 right-4 sm:bottom-7 sm:right-7 z-40 w-11 h-11 rounded-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-lg shadow-emerald-950/15 border border-emerald-200/90 dark:border-emerald-800/70 flex items-center justify-center text-[#0B5D3B] dark:text-emerald-400 hover:bg-[#0B5D3B] hover:text-white dark:hover:bg-emerald-500 dark:hover:text-slate-950 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer print:hidden ${
           showBackToTop
             ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-6 pointer-events-none'
+            : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 48 48">
+        <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 44 44">
           <circle
-            cx="24"
-            cy="24"
+            cx="22"
+            cy="22"
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2.2"
             className="opacity-15"
           />
           <circle
-            cx="24"
-            cy="24"
+            cx="22"
+            cy="22"
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2.2"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
             className="transition-all duration-150 ease-out"
           />
         </svg>
-        <ArrowUp className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:-translate-y-0.5" />
+        <ArrowUp className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:-translate-y-0.5" />
       </button>
     </>
   );

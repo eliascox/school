@@ -20,7 +20,6 @@ import {
   TrendingUp,
   FileText,
   Lock,
-  ChevronDown,
   Sparkles,
   Home,
   Copy,
@@ -63,6 +62,7 @@ import {
   pickDefaultExamTitle,
   buildResultShareUrl,
 } from '@/lib/resultPortalUtils';
+import { PublicPortalHeader, PublicPortalFooter } from '@/components/public/PublicPortalShell';
 
 type MarksheetComputedData = ReturnType<typeof generateStudentMarksheetData>;
 type ResultViewMode = 'marksheet' | 'breakdown';
@@ -492,153 +492,42 @@ function ResultSearchContent() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-emerald-600 selection:text-white print:bg-white print:text-black print:min-h-0 print:h-auto print:block print:p-0 print:m-0">
-      {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🏛️ INSTITUTIONAL TOP ACCENT & NAVIGATION HEADER (print:hidden) */}
-      {/* ═════════════════════════════════════════════════════════════ */}
-      <div className="h-1 bg-gradient-to-r from-[#064e3b] via-[#0B5D3B] to-teal-500 print:hidden" />
-
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 shadow-2xs print:hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
-          {/* Left: Official School Crest & Identity */}
-          <Link
-            href="/"
-            className="flex items-center gap-3 min-w-0 group"
-            title={isBn ? 'মূল ওয়েবসাইটে ফিরে যান' : 'Back to School Home'}
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0B5D3B] to-emerald-600 p-0.5 shadow-md shadow-emerald-900/15 group-hover:scale-[1.03] transition-transform shrink-0">
-              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden p-1">
-                {settings?.schoolLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={settings.schoolLogo}
-                    alt={schoolDisplayName}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <GraduationCap className="w-6 h-6 text-[#0B5D3B] dark:text-emerald-400" />
-                )}
-              </div>
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base lg:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate group-hover:text-[#0B5D3B] dark:group-hover:text-emerald-400 transition-colors">
-                {schoolDisplayName}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                <span className="truncate max-w-[200px] sm:max-w-xs">{schoolDisplayAddress}</span>
-                {settings?.eiin && (
-                  <>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
-                      EIIN: {formatPortalNumber(settings.eiin, lang)}
-                    </span>
-                  </>
-                )}
-                {settings?.estdYear && (
-                  <span className="hidden md:inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    {isBn ? 'স্থাপিত:' : 'ESTD:'} {formatPortalNumber(settings.estdYear, lang)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Link>
-
-          {/* Right: Language Switcher & Compact Portal Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Bilingual Pill Switcher */}
-            <div
-              className="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700"
-              role="group"
-              aria-label="Language Switcher"
-            >
-              <button
-                type="button"
-                onClick={() => setLang('bn')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
-                  isBn
-                    ? 'bg-[#0B5D3B] text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                বাংলা
-              </button>
-              <button
-                type="button"
-                onClick={() => setLang('en')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
-                  !isBn
-                    ? 'bg-[#0B5D3B] text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                EN
-              </button>
-            </div>
-
-            <Link
-              href="/"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <Home className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
-              <span>{isBn ? 'হোম' : 'Home'}</span>
-            </Link>
-
-            <Link
-              href="/verify-certificate"
-              className="hidden lg:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
-            >
-              <FileBadge2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <span>{isBn ? 'সনদ যাচাই' : 'Verify'}</span>
-            </Link>
-
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-[#0B5D3B] hover:bg-emerald-800 text-white shadow-sm shadow-emerald-900/20 transition active:scale-[0.98]"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>{isBn ? 'লগইন' : 'Login'}</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-[#0B5D3B] selection:text-white print:bg-white print:text-black print:min-h-0 print:h-auto print:block print:p-0 print:m-0">
+      {/* Unified Public Portal Header */}
+      <PublicPortalHeader
+        activePortal="result"
+        settings={settings}
+        lang={lang}
+        onLangChange={setLang}
+        maxWidthClass="max-w-6xl"
+      />
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🎓 INSTITUTIONAL EMERALD HERO BANNER (print:hidden)          */}
+      {/* 🎓 CRISP PEARL-EMERALD ARCHITECTURAL RESULT HEADER            */}
       {/* ═════════════════════════════════════════════════════════════ */}
-      <section className="relative bg-gradient-to-br from-[#053b26] via-[#0B5D3B] to-[#0f172a] text-white pt-8 pb-20 sm:pt-10 sm:pb-24 overflow-hidden print:hidden">
-        {/* Subtle Architectural Grid Overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
-            backgroundSize: '36px 36px',
-          }}
-        />
-        <div className="absolute -top-24 right-0 w-96 h-96 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 left-0 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative bg-gradient-to-b from-emerald-50/90 via-white to-[#F8FAFC] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/80 dark:border-slate-800 pt-7 pb-16 sm:pt-9 sm:pb-20 overflow-hidden print:hidden">
+        <div className="absolute -top-24 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-0 w-80 h-80 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-          {/* Official Status Pills */}
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide bg-white/10 border border-white/20 text-emerald-100 backdrop-blur-sm">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100/90 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-[#0B5D3B] dark:text-emerald-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
               <span>
                 {isBn ? 'অফিশিয়াল অনলাইন ফলাফল পোর্টাল (NCTB)' : 'OFFICIAL NCTB RESULT PORTAL'}
               </span>
             </span>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-black/20 border border-white/15 text-emerald-100/90 backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-2xs">
               {isSyncingCloud ? (
                 <>
-                  <RefreshCw className="w-3 h-3 animate-spin text-emerald-300" />
+                  <RefreshCw className="w-3 h-3 animate-spin text-[#0B5D3B]" />
                   <span>{isBn ? 'ক্লাউড ডাটা হালনাগাদ হচ্ছে...' : 'Syncing Live Data...'}</span>
                 </>
               ) : (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <Cloud className="w-3 h-3 text-emerald-300" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <Cloud className="w-3 h-3 text-[#0B5D3B] dark:text-emerald-400" />
                   <span>
                     {isBn
                       ? `লাইভ ডাটা সংযুক্ত • ${formatPortalNumber(publishedExamCount, lang)}টি প্রকাশিত পরীক্ষা`
@@ -649,23 +538,25 @@ function ResultSearchContent() {
             </span>
           </div>
 
-          {/* Hero Title & Subtitle */}
-          <div className="space-y-2 max-w-3xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
-              {isBn
-                ? 'অনলাইন পরীক্ষার ফলাফল ও একাডেমিক ট্রান্সক্রিপ্ট'
-                : 'Online Examination Results & Academic Transcript'}
+          <div className="space-y-1.5 max-w-3xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+              {isBn ? (
+                <>
+                  অনলাইন পরীক্ষার <span className="vibrant-gradient-text">ফলাফল ও মার্কশিট</span>
+                </>
+              ) : (
+                'Online Examination Results & Academic Transcript'
+              )}
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/85 font-medium leading-relaxed max-w-2xl mx-auto">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-2xl mx-auto">
               {isBn
                 ? 'পরীক্ষা, শ্রেণি এবং শিক্ষার্থীর রোল নম্বর দিয়ে তাৎক্ষণিক ফলাফল দেখুন এবং অফিশিয়াল A4 মার্কশিট প্রিন্ট অথবা PDF ডাউনলোড করুন।'
                 : 'Instantly look up verified examination results by roll number and print or save your official A4 academic transcript as PDF.'}
             </p>
           </div>
 
-          {/* Quick Interactive Exam Selector Strip */}
           {activeExams.length > 0 && (
-            <div className="pt-2 flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
+            <div className="pt-1 flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
               {activeExams.slice(0, 5).map((exam) => {
                 const displayLabel = examService.formatExamNameForDisplay(exam.title);
                 const isSelected =
@@ -677,27 +568,25 @@ function ResultSearchContent() {
                     key={exam.id}
                     type="button"
                     onClick={() => setSelectedExam(exam.title)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer border ${
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer border ${
                       isSelected
-                        ? 'bg-white text-[#064e3b] border-white shadow-md'
-                        : 'bg-white/10 hover:bg-white/18 text-white/90 border-white/20'
+                        ? 'bg-[#0B5D3B] text-white border-[#0B5D3B] shadow-md shadow-emerald-900/15'
+                        : 'bg-white dark:bg-slate-800 hover:border-emerald-300 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 shadow-2xs'
                     }`}
                   >
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
-                        isPub ? 'bg-emerald-500' : 'bg-amber-400'
+                        isPub ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}
                     />
                     <span className="truncate max-w-[200px]">{displayLabel}</span>
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                         isSelected
-                          ? isPub
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
+                          ? 'bg-white/20 text-white'
                           : isPub
-                          ? 'bg-emerald-400/20 text-emerald-100'
-                          : 'bg-amber-400/20 text-amber-100'
+                          ? 'bg-emerald-50 text-[#0B5D3B] dark:bg-emerald-950/80 dark:text-emerald-300'
+                          : 'bg-amber-50 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
                       }`}
                     >
                       {isPub ? (isBn ? 'প্রকাশিত' : 'Live') : isBn ? 'অপ্রকাশিত' : 'Pending'}
@@ -713,7 +602,7 @@ function ResultSearchContent() {
       {/* ═════════════════════════════════════════════════════════════ */}
       {/* 🔍 MAIN CONTENT CONTAINER                                     */}
       {/* ═════════════════════════════════════════════════════════════ */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mt-12 sm:-mt-14 pb-12 space-y-8 relative z-20 print:p-0 print:m-0 print:mt-0 print:pb-0 print:space-y-0 print:max-w-none print:w-full print:block">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 pb-12 space-y-8 relative z-20 print:p-0 print:m-0 print:mt-0 print:pb-0 print:space-y-0 print:max-w-none print:w-full print:block">
         {/* ─── ELEVATED SEARCH CONSOLE CARD (print:hidden) ─── */}
         <div id="search-section" className="space-y-4 print:hidden">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-900/8 dark:shadow-black/50 overflow-hidden">
@@ -765,34 +654,31 @@ function ResultSearchContent() {
                     <Calendar className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
                     <span>{isBn ? 'পরীক্ষার নাম' : 'Examination'}</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      value={selectedExam}
-                      onChange={(e) => setSelectedExam(e.target.value)}
-                      className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 pr-9 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] appearance-none cursor-pointer transition outline-none"
-                    >
-                      {activeExams.length > 0 ? (
-                        activeExams.map((exam) => {
-                          const displayLabel = examService.formatExamNameForDisplay(exam.title);
-                          const isPub = Boolean(exam.isPublished);
-                          return (
-                            <option
-                              key={exam.id}
-                              value={exam.title}
-                              className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                            >
-                              {displayLabel} — {isPub ? (isBn ? 'প্রকাশিত ✓' : 'Published ✓') : isBn ? 'অপ্রকাশিত' : 'Unpublished'}
-                            </option>
-                          );
-                        })
-                      ) : (
-                        <option value="Annual Examination 2026">
-                          Annual Examination 2026
-                        </option>
-                      )}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                  </div>
+                  <select
+                    value={selectedExam}
+                    onChange={(e) => setSelectedExam(e.target.value)}
+                    className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] cursor-pointer transition outline-none"
+                  >
+                    {activeExams.length > 0 ? (
+                      activeExams.map((exam) => {
+                        const displayLabel = examService.formatExamNameForDisplay(exam.title);
+                        const isPub = Boolean(exam.isPublished);
+                        return (
+                          <option
+                            key={exam.id}
+                            value={exam.title}
+                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                          >
+                            {displayLabel} — {isPub ? (isBn ? 'প্রকাশিত ✓' : 'Published ✓') : isBn ? 'অপ্রকাশিত' : 'Unpublished'}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <option value="Annual Examination 2026">
+                        Annual Examination 2026
+                      </option>
+                    )}
+                  </select>
                 </div>
 
                 {/* 2. Class */}
@@ -801,24 +687,21 @@ function ResultSearchContent() {
                     <GraduationCap className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
                     <span>{isBn ? 'শ্রেণি' : 'Class'}</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      value={selectedGrade}
-                      onChange={(e) => setSelectedGrade(e.target.value)}
-                      className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 pr-9 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] appearance-none cursor-pointer transition outline-none"
-                    >
-                      {PORTAL_CLASS_OPTIONS.map((cls) => (
-                        <option
-                          key={cls.value}
-                          value={cls.value}
-                          className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                        >
-                          {isBn ? cls.labelBn : cls.labelEn}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                  </div>
+                  <select
+                    value={selectedGrade}
+                    onChange={(e) => setSelectedGrade(e.target.value)}
+                    className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] cursor-pointer transition outline-none"
+                  >
+                    {PORTAL_CLASS_OPTIONS.map((cls) => (
+                      <option
+                        key={cls.value}
+                        value={cls.value}
+                        className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      >
+                        {isBn ? cls.labelBn : cls.labelEn}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* 3. Group (Conditional ONLY for Class 9 & 10) */}
@@ -828,24 +711,21 @@ function ResultSearchContent() {
                       <BookOpen className="w-3.5 h-3.5 text-[#0B5D3B] dark:text-emerald-400" />
                       <span>{isBn ? 'বিভাগ' : 'Group'}</span>
                     </label>
-                    <div className="relative">
-                      <select
-                        value={selectedGroup}
-                        onChange={(e) => setSelectedGroup(e.target.value)}
-                        className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 pr-9 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] appearance-none cursor-pointer transition outline-none"
-                      >
-                        {PORTAL_GROUP_OPTIONS.map((grp) => (
-                          <option
-                            key={grp.value}
-                            value={grp.value}
-                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                          >
-                            {isBn ? grp.labelBn : grp.labelEn}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                    </div>
+                    <select
+                      value={selectedGroup}
+                      onChange={(e) => setSelectedGroup(e.target.value)}
+                      className="w-full h-11 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-emerald-600/20 focus:border-[#0B5D3B] cursor-pointer transition outline-none"
+                    >
+                      {PORTAL_GROUP_OPTIONS.map((grp) => (
+                        <option
+                          key={grp.value}
+                          value={grp.value}
+                          className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        >
+                          {isBn ? grp.labelBn : grp.labelEn}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
@@ -1614,40 +1494,8 @@ function ResultSearchContent() {
         )}
       </main>
 
-      {/* ═════════════════════════════════════════════════════════════ */}
-      {/* 🏛️ INSTITUTIONAL FOOTER (print:hidden)                       */}
-      {/* ═════════════════════════════════════════════════════════════ */}
-      <footer className="border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/80 py-6 mt-auto print:hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <div className="text-center sm:text-left space-y-0.5">
-            <p className="font-bold text-slate-700 dark:text-slate-200">
-              © {formatPortalNumber(currentYear, lang)} {schoolDisplayName}
-            </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {schoolDisplayAddress}
-              {settings?.eiin ? ` • EIIN: ${formatPortalNumber(settings.eiin, lang)}` : ''}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] font-semibold">
-            <Link href="/" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-              {isBn ? 'মূল ওয়েবসাইট' : 'Home'}
-            </Link>
-            <Link href="/admission" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-              {isBn ? 'অনলাইন ভর্তি' : 'Online Admission'}
-            </Link>
-            <Link
-              href="/verify-certificate"
-              className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition"
-            >
-              {isBn ? 'সনদ যাচাই' : 'Verify Certificate'}
-            </Link>
-            <Link href="/login" className="hover:text-[#0B5D3B] dark:hover:text-emerald-400 transition">
-              {isBn ? 'অ্যাডমিন / শিক্ষক লগইন' : 'Portal Login'}
-            </Link>
-          </div>
-        </div>
-      </footer>
+      {/* Unified Institutional Footer */}
+      <PublicPortalFooter settings={settings} lang={lang} maxWidthClass="max-w-6xl" />
 
       {/* Canonical A4 Portrait 0mm Full-Bleed Marksheet Print & PDF Rules */}
       <style>{MARKSHEET_A4_PRINT_STYLES}</style>

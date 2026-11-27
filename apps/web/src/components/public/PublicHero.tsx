@@ -2,9 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Camera, ArrowRight, Award } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  Award,
+  UserPlus,
+  Search,
+  FileBadge2,
+  Smartphone,
+} from 'lucide-react';
 import { SchoolSettings } from '@/services/settingsService';
 import { HeroConfig } from '@/services/landingPageService';
+import { sanitizePublicImageUrl } from '@/lib/publicLandingUtils';
 
 interface PublicHeroProps {
   settings?: SchoolSettings | null;
@@ -21,52 +31,42 @@ interface SlideItem {
   ctaLink?: string;
 }
 
-// 🏛️ Curated vibrant academic campus photography fallback collection
 const CURATED_DEFAULT_SLIDES: SlideItem[] = [
   {
     id: 'slide-1',
     imageUrl: '/school-campus.jpg',
     title: 'বরইতলী উচ্চ বিদ্যালয়',
-    subtitle: 'ঐতিহ্যের ৫৫ বছর | জ্ঞান, প্রজ্ঞা ও মূল্যবোধের অনন্য বিদ্যাপীঠ',
-    badge: '🏛️ স্থাপিত ১৯৬৯ | ঐতিহ্যের ৫৫ বছর',
+    subtitle: 'ঐতিহ্যের ৫৫ বছর | জ্ঞান, প্রজ্ঞা ও নৈতিক মূল্যবোধের আদর্শ বিদ্যাপীঠ',
+    badge: 'স্থাপিত ১৯৬৯ • ঐতিহ্যের ৫৫+ বছর',
     ctaText: 'ভর্তি আবেদন করুন',
     ctaLink: '/admission',
   },
   {
     id: 'slide-2',
-    imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2000&q=85',
+    imageUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1800&q=80',
     title: 'নান্দনিক ক্যাম্পাস ও আধুনিক বিদ্যাপীঠ',
-    subtitle: 'মনোরম প্রাকৃতিক ও কোলাহলমুক্ত পরিবেশে শিক্ষার্থীদের সৃষ্টিশীল মেধা বিকাশ',
-    badge: '🌿 সবুজ ও পরিচ্ছন্ন ক্যাম্পাস',
-    ctaText: 'ক্যাম্পাস পরিচিতি',
+    subtitle: 'মনোরম ও কোলাহলমুক্ত পরিবেশে শিক্ষার্থীদের সৃজনশীল মেধা ও নেতৃত্বের বিকাশ',
+    badge: 'সবুজ ও সুশৃঙ্খল ক্যাম্পাস',
+    ctaText: 'প্রতিষ্ঠান পরিচিতি',
     ctaLink: '#about',
   },
   {
     id: 'slide-3',
-    imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=2000&q=85',
+    imageUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80',
     title: 'শেখ রাসেল ডিজিটাল ল্যাব ও বিজ্ঞানাগার',
     subtitle: 'হাতে-কলমে আধুনিক বিজ্ঞান শিক্ষা ও ডিজিটাল তথ্যপ্রযুক্তির সমন্বিত প্রশিক্ষণ',
-    badge: '🔬 বিজ্ঞান ও তথ্যপ্রযুক্তি ল্যাব',
+    badge: 'বিজ্ঞান ও আইসিটি ল্যাব',
     ctaText: 'সুবিধাসমূহ দেখুন',
     ctaLink: '#facilities',
   },
   {
     id: 'slide-4',
-    imageUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2000&q=85',
+    imageUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1800&q=80',
     title: 'ক্রীড়া, বিতর্ক ও সুস্থ সাংস্কৃতিক চর্চা',
-    subtitle: 'পড়াশোনার পাশাপাশি শারীরিক ও মানসিক উৎকর্ষ সাধনে সক্রিয় সহশিক্ষা কার্যক্রম',
-    badge: '🏆 সহশিক্ষা ও খেলাধুলা',
+    subtitle: 'পাঠ্যক্রমের পাশাপাশি শারীরিক ও মানসিক উৎকর্ষ সাধনে সক্রিয় সহশিক্ষা কার্যক্রম',
+    badge: 'সহশিক্ষা ও ক্রীড়া উৎকর্ষ',
     ctaText: 'ফলাফল অনুসন্ধান',
     ctaLink: '/result',
-  },
-  {
-    id: 'slide-5',
-    imageUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=2000&q=85',
-    title: 'সমৃদ্ধ লাইব্রেরি ও নিরবচ্ছিন্ন পাঠচর্চা',
-    subtitle: '৫০০০+ মূল্যবান বই, গবেষণা সাময়িকী ও নিয়মিত জাতীয় দৈনিক পত্রিকা সমৃদ্ধ পাঠাগার',
-    badge: '📚 ৫০০০+ বইয়ের সংগ্রহ',
-    ctaText: 'অনলাইন ভর্তি',
-    ctaLink: '/admission',
   },
 ];
 
@@ -74,114 +74,67 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [parallaxY, setParallaxY] = useState(0);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
-  // Subtle GPU-accelerated scroll parallax on the hero backdrop
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    let ticking = false;
-    const onScroll = () => {
-      if (!ticking) {
-        ticking = true;
-        window.requestAnimationFrame(() => {
-          ticking = false;
-          if (window.scrollY <= 900) {
-            setParallaxY(Math.round(window.scrollY * 0.16));
-          }
-        });
-      }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // 1. Resolve Active Slides
   const slides = useMemo<SlideItem[]>(() => {
-    // A. If custom slides exist in heroConfig
+    const defaultTitle = heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়';
+    const defaultSubtitle =
+      heroConfig?.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ';
+    const defaultBadge = heroConfig?.badgeText || 'স্থাপিত ১৯৬৯ • ঐতিহ্যের ৫৫+ বছর';
+
     if (heroConfig?.slides && heroConfig.slides.length > 0) {
       const valid = heroConfig.slides.filter((s) => s && s.imageUrl && s.imageUrl.trim() !== '');
-
-      // Multi-slide custom collection
       if (valid.length > 1) {
         return valid.map((s, idx) => ({
           id: s.id || `slide-${idx}`,
-          imageUrl: s.imageUrl,
-          title: s.title || heroConfig.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-          subtitle: s.subtitle || heroConfig.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-          badge: heroConfig.badgeText || '🏛️ ঐতিহ্যের ৫৫ বছর',
+          imageUrl: sanitizePublicImageUrl(s.imageUrl, '/school-campus.jpg'),
+          title: s.title || defaultTitle,
+          subtitle: s.subtitle || defaultSubtitle,
+          badge: defaultBadge,
           ctaText: s.ctaText || heroConfig.primaryCta?.text || 'ভর্তি আবেদন করুন',
           ctaLink: s.ctaLink || heroConfig.primaryCta?.href || '/admission',
         }));
       }
 
-      // Single custom slide
       if (valid.length === 1) {
         const single = valid[0];
-        if (single.imageUrl !== '/school-campus.jpg') {
-          if (heroConfig.enableSlider === false) {
-            return [{
-              id: single.id || 'custom-1',
-              imageUrl: single.imageUrl,
-              title: single.title || heroConfig.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-              subtitle: single.subtitle || heroConfig.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-              badge: heroConfig.badgeText || '🏛️ ঐতিহ্যের ৫৫ বছর',
-              ctaText: single.ctaText || heroConfig.primaryCta?.text || 'ভর্তি আবেদন করুন',
-              ctaLink: single.ctaLink || heroConfig.primaryCta?.href || '/admission',
-            }];
-          }
-          // Combine user's uploaded campus photo with curated views for dynamic slideshow
-          return [
-            {
-              id: single.id || 'custom-1',
-              imageUrl: single.imageUrl,
-              title: single.title || heroConfig.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-              subtitle: single.subtitle || heroConfig.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-              badge: heroConfig.badgeText || '🏛️ ঐতিহ্যের ৫৫ বছর',
-              ctaText: single.ctaText || heroConfig.primaryCta?.text || 'ভর্তি আবেদন করুন',
-              ctaLink: single.ctaLink || heroConfig.primaryCta?.href || '/admission',
-            },
-            ...CURATED_DEFAULT_SLIDES.slice(1),
-          ];
+        const safeImg = sanitizePublicImageUrl(single.imageUrl, '/school-campus.jpg');
+        if (safeImg !== '/school-campus.jpg') {
+          const firstSlide: SlideItem = {
+            id: single.id || 'custom-1',
+            imageUrl: safeImg,
+            title: single.title || defaultTitle,
+            subtitle: single.subtitle || defaultSubtitle,
+            badge: defaultBadge,
+            ctaText: single.ctaText || heroConfig.primaryCta?.text || 'ভর্তি আবেদন করুন',
+            ctaLink: single.ctaLink || heroConfig.primaryCta?.href || '/admission',
+          };
+          if (heroConfig.enableSlider === false) return [firstSlide];
+          return [firstSlide, ...CURATED_DEFAULT_SLIDES.slice(1)];
         }
       }
     }
 
-    // B. If a custom single school photo exists
-    const customPhoto = heroConfig?.bgImage || settings?.schoolPhoto;
+    const customPhoto = sanitizePublicImageUrl(heroConfig?.bgImage || settings?.schoolPhoto, '');
     if (customPhoto && customPhoto !== '/school-campus.jpg') {
-      if (heroConfig?.enableSlider === false) {
-        return [{
-          id: 'custom-photo-single',
-          imageUrl: customPhoto,
-          title: heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-          subtitle: heroConfig?.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-          badge: heroConfig?.badgeText || '🏛️ ঐতিহ্যের ৫৫ বছর',
-          ctaText: heroConfig?.primaryCta?.text || 'ভর্তি আবেদন করুন',
-          ctaLink: heroConfig?.primaryCta?.href || '/admission',
-        }];
-      }
-      return [
-        {
-          id: 'custom-photo-single',
-          imageUrl: customPhoto,
-          title: heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়',
-          subtitle: heroConfig?.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ',
-          badge: heroConfig?.badgeText || '🏛️ ঐতিহ্যের ৫৫ বছর',
-          ctaText: heroConfig?.primaryCta?.text || 'ভর্তি আবেদন করুন',
-          ctaLink: heroConfig?.primaryCta?.href || '/admission',
-        },
-        ...CURATED_DEFAULT_SLIDES.slice(1),
-      ];
+      const customFirst: SlideItem = {
+        id: 'custom-photo-single',
+        imageUrl: customPhoto,
+        title: defaultTitle,
+        subtitle: defaultSubtitle,
+        badge: defaultBadge,
+        ctaText: heroConfig?.primaryCta?.text || 'ভর্তি আবেদন করুন',
+        ctaLink: heroConfig?.primaryCta?.href || '/admission',
+      };
+      if (heroConfig?.enableSlider === false) return [customFirst];
+      return [customFirst, ...CURATED_DEFAULT_SLIDES.slice(1)];
     }
 
-    // C. Curated high-res default slides
     return CURATED_DEFAULT_SLIDES.map((s, i) => ({
       ...s,
-      title: i === 0 ? (heroConfig?.title || settings?.schoolName || s.title) : s.title,
-      subtitle: i === 0 ? (heroConfig?.subtitle || settings?.address || s.subtitle) : s.subtitle,
-      badge: heroConfig?.badgeText || s.badge,
+      title: i === 0 ? defaultTitle : s.title,
+      subtitle: i === 0 ? defaultSubtitle : s.subtitle,
+      badge: i === 0 ? defaultBadge : s.badge,
     }));
   }, [
     heroConfig?.slides,
@@ -196,7 +149,6 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
     settings?.address,
   ]);
 
-  // Keep currentIndex valid
   useEffect(() => {
     if (slides.length > 0 && currentIndex >= slides.length) {
       setCurrentIndex(0);
@@ -210,172 +162,196 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
     setCurrentIndex(newIndex);
   };
 
-  const handlePrev = () => {
-    goToSlide(currentIndex === 0 ? slides.length - 1 : currentIndex - 1);
-  };
+  const handlePrev = () => goToSlide(currentIndex === 0 ? slides.length - 1 : currentIndex - 1);
+  const handleNext = () => goToSlide((currentIndex + 1) % slides.length);
 
-  const handleNext = () => {
-    goToSlide((currentIndex + 1) % slides.length);
-  };
-
-  // 5.5-second auto slideshow transition
   useEffect(() => {
     if (slides.length <= 1 || isPaused || heroConfig?.enableSlider === false) return;
-
     const timer = setInterval(() => {
       setCurrentIndex((prev) => {
         setPreviousIndex(prev);
         return (prev + 1) % slides.length;
       });
-    }, 5500);
-
+    }, 6000);
     return () => clearInterval(timer);
   }, [slides.length, isPaused, heroConfig?.enableSlider]);
 
   const activeSlide = slides[currentIndex] || slides[0];
-
-  // Calculate gentle, non-darkening overlay opacity (max 35% to prevent dull gloomy visuals)
   const effectiveOverlayOpacity = Math.min(
-    Math.max((heroConfig?.bgOverlayOpacity ?? 25) / 100, 0.1),
-    0.35
+    Math.max((heroConfig?.bgOverlayOpacity ?? 28) / 100, 0.18),
+    0.42
   );
 
   return (
     <section
       id="home"
-      aria-label="Campus Hero Gallery"
+      aria-label="ক্যাম্পাস হিরো গ্যালারি"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="group relative w-full h-[70vh] sm:h-[78vh] lg:h-[86vh] min-h-[480px] max-h-[860px] overflow-hidden bg-slate-900 select-none flex items-center justify-center"
+      className="group relative w-full min-h-[540px] sm:min-h-[600px] lg:min-h-[660px] max-h-[780px] overflow-hidden bg-slate-900 select-none flex items-center justify-center pt-24 pb-16 sm:pt-28 sm:pb-20"
     >
-      {/* ── Slide Images with Ken Burns Auto-Zoom & Seamless Crossfade ── */}
+      {/* Crossfade Photographic Slides with Guaranteed Fallback */}
       {slides.map((slide, index) => {
         const isCurrent = index === currentIndex;
         const isPrevious = index === previousIndex;
+        const resolvedImg = failedImages[slide.id] ? '/school-campus.jpg' : slide.imageUrl;
 
         return (
           <div
-            key={slide.id + '-' + index}
+            key={`${slide.id}-${index}`}
             aria-hidden={!isCurrent}
-            className={`absolute inset-0 transition-opacity duration-[1200ms] ease-out ${
+            className={`absolute inset-0 transition-opacity duration-[1100ms] ease-out ${
               isCurrent
                 ? 'opacity-100 z-10'
                 : isPrevious
                 ? 'opacity-100 z-[5]'
                 : 'opacity-0 z-0 pointer-events-none'
             }`}
-            style={{
-              transform: parallaxY ? `translate3d(0, ${parallaxY}px, 0)` : undefined,
-            }}
           >
-            {/* The Image Layer: Ken Burns smooth slow zoom from 100% to 106% over 7 seconds */}
-            <div
-              className={`w-full h-full bg-cover bg-center transition-transform duration-[7200ms] ease-out will-change-transform ${
-                isCurrent ? 'scale-[1.06]' : 'scale-100'
-              }`}
-              style={{
-                backgroundImage: `url('${slide.imageUrl}')`,
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={resolvedImg}
+              alt={slide.title}
+              onError={() => {
+                if (!failedImages[slide.id]) {
+                  setFailedImages((prev) => ({ ...prev, [slide.id]: true }));
+                }
               }}
+              className={`w-full h-full object-cover transition-transform duration-[7200ms] ease-out will-change-transform ${
+                isCurrent ? 'scale-[1.05]' : 'scale-100'
+              }`}
             />
           </div>
         );
       })}
 
-      {/* ── Subtle Photographic Vignette & Clean Contrast (Bright & Vibrant) ── */}
-      {/* 1. Soft overall tint for image pop without darkening trees/sky */}
+      {/* Editorial Atmospheric Gradient Layers (Vibrant Emerald-Slate Contrast) */}
       <div
         className="absolute inset-0 z-20 pointer-events-none bg-slate-950 transition-opacity duration-500"
         style={{ opacity: effectiveOverlayOpacity }}
       />
-      {/* 2. Gentle cinematic gradient: subtle dark top for header, transparent center, soft ground fade */}
-      <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-t from-slate-950/70 via-transparent to-black/30" />
-      {/* 3. Soft seamless blend to the next section */}
-      <div className="absolute bottom-0 left-0 right-0 h-16 z-20 pointer-events-none bg-gradient-to-t from-slate-900/40 to-transparent" />
+      <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-b from-slate-950/60 via-emerald-950/20 to-slate-950/80" />
 
-      {/* ── Institutional Overlay Content ── */}
-      <div className="relative z-30 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white space-y-4 sm:space-y-6 pt-8 sm:pt-12">
-        {/* Stable Frosted Glassmorphism Card (inner text crossfades without flashing glass border) */}
-        <div className="relative overflow-hidden p-6 sm:p-10 rounded-3xl backdrop-blur-[4px] bg-slate-950/28 border border-white/15 shadow-2xl transition-all duration-500">
-          <div key={`hero-slide-content-${currentIndex}`} className="space-y-4 sm:space-y-6">
-            {/* Eyebrow Badge */}
+      {/* Center Editorial Content */}
+      <div className="relative z-30 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white w-full">
+        <div className="relative overflow-hidden p-6 sm:p-10 lg:p-11 rounded-[28px] backdrop-blur-md bg-slate-950/42 border border-white/18 shadow-[0_28px_70px_-18px_rgba(0,0,0,0.55)]">
+          <div key={`hero-slide-content-${currentIndex}`} className="space-y-4 sm:space-y-5">
+            {/* Institutional Eyebrow Pill */}
             {(activeSlide?.badge || heroConfig?.badgeText) && (
-              <div className="animate-hero-text-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/25 backdrop-blur-md border border-indigo-400/30 text-amber-300 text-xs sm:text-sm font-bold shadow-lg">
-                <Award className="w-4 h-4 text-amber-400 shrink-0 animate-float-slow" />
+              <div className="animate-hero-text-1 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-300/35 text-amber-300 text-xs sm:text-[13px] font-bold shadow-sm">
+                <Award className="w-4 h-4 text-[#F4B400] shrink-0" />
                 <span>{activeSlide?.badge || heroConfig?.badgeText}</span>
               </div>
             )}
 
-            {/* Main School Heading */}
-            <h1 className="animate-hero-text-2 text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.7)] text-white font-sans leading-tight">
+            {/* Main Display Title */}
+            <h1 className="animate-hero-text-2 text-3xl sm:text-5xl lg:text-[54px] font-black tracking-tight text-white leading-[1.15] drop-shadow-[0_4px_16px_rgba(0,0,0,0.45)]">
               {activeSlide?.title || heroConfig?.title || settings?.schoolName || 'বরইতলী উচ্চ বিদ্যালয়'}
             </h1>
 
-            {/* Subtitle / Location */}
-            <p className="animate-hero-text-3 text-sm sm:text-lg text-slate-100 max-w-2xl mx-auto font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] leading-relaxed">
-              {activeSlide?.subtitle || heroConfig?.subtitle || settings?.address || 'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ'}
+            {/* Subtitle */}
+            <p className="animate-hero-text-3 text-sm sm:text-base lg:text-lg text-slate-100/95 max-w-2xl mx-auto font-medium leading-relaxed">
+              {activeSlide?.subtitle ||
+                heroConfig?.subtitle ||
+                settings?.address ||
+                'গুণগত শিক্ষা ও সুনাগরিক গড়ার আদর্শ বিদ্যাপীঠ'}
             </p>
 
-            {/* Action Buttons (CTAs) */}
-            <div className="animate-hero-text-4 flex flex-wrap items-center justify-center gap-3 pt-2">
+            {/* Primary & Secondary CTAs */}
+            <div className="animate-hero-text-4 flex flex-wrap items-center justify-center gap-3 pt-1">
               {heroConfig?.primaryCta?.visible !== false && (
                 <Link
                   href={activeSlide?.ctaLink || heroConfig?.primaryCta?.href || '/admission'}
-                  className="group/btn px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-black text-xs sm:text-sm shadow-xl shadow-indigo-600/30 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 flex items-center gap-2"
+                  className="group/btn px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#0B5D3B] via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-500 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-950/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200 flex items-center gap-2 border border-emerald-400/30"
                 >
+                  <UserPlus className="w-4 h-4" />
                   <span>{activeSlide?.ctaText || heroConfig?.primaryCta?.text || 'ভর্তি আবেদন করুন'}</span>
-                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+                  <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover/btn:translate-x-1" />
                 </Link>
               )}
 
               {heroConfig?.secondaryCta?.visible !== false && (
                 <Link
                   href={heroConfig?.secondaryCta?.href || '/result'}
-                  className="px-6 py-3.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/30 font-black text-xs sm:text-sm shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-300 flex items-center gap-2"
+                  className="px-6 py-3.5 rounded-2xl bg-white/16 hover:bg-white/25 text-white backdrop-blur-md border border-white/30 font-extrabold text-xs sm:text-sm shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200 flex items-center gap-2"
                 >
+                  <Search className="w-4 h-4 text-[#F4B400]" />
                   <span>{heroConfig?.secondaryCta?.text || 'ফলাফল অনুসন্ধান'}</span>
                 </Link>
               )}
             </div>
+
+            {/* Integrated Public Quick-Portal Strip */}
+            <div className="pt-3 border-t border-white/15 flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs font-bold">
+              <Link
+                href="/admission"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/15 transition"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-emerald-300" />
+                <span>অনলাইন ভর্তি</span>
+              </Link>
+              <Link
+                href="/result"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/15 transition"
+              >
+                <Award className="w-3.5 h-3.5 text-[#F4B400]" />
+                <span>পরীক্ষার ফলাফল</span>
+              </Link>
+              <Link
+                href="/verify-certificate"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/15 transition"
+              >
+                <FileBadge2 className="w-3.5 h-3.5 text-amber-300" />
+                <span>সনদ যাচাই</span>
+              </Link>
+              <Link
+                href="/mobile-app"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/15 transition"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-sky-300" />
+                <span>মোবাইল অ্যাপ</span>
+              </Link>
+            </div>
           </div>
 
-          {/* Smooth Auto-Slide Progress Bar at bottom of Glass Card */}
+          {/* Smooth Auto-Slide Timer Bar */}
           {slides.length > 1 && !isPaused && heroConfig?.enableSlider !== false && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 overflow-hidden">
               <div
                 key={`hero-timer-${currentIndex}`}
-                className="h-full w-full bg-gradient-to-r from-amber-400 via-emerald-400 to-indigo-400 animate-hero-timer"
+                className="h-full w-full bg-gradient-to-r from-[#F4B400] via-emerald-400 to-teal-300 animate-hero-timer"
               />
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Navigation Arrows (Appear on Hover) ── */}
+      {/* Desktop Slider Navigation Arrows */}
       {slides.length > 1 && (
         <>
           <button
             type="button"
             onClick={handlePrev}
             aria-label="পূর্ববর্তী স্লাইড"
-            className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/30 hover:bg-black/60 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 shadow-xl cursor-pointer"
+            className="hidden sm:flex absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-950/40 hover:bg-[#0B5D3B] text-white backdrop-blur-md border border-white/20 items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-105 cursor-pointer shadow-xl"
           >
-            <ChevronLeft className="w-6 h-6 -ml-0.5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
 
           <button
             type="button"
             onClick={handleNext}
             aria-label="পরবর্তী স্লাইড"
-            className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/30 hover:bg-black/60 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 shadow-xl cursor-pointer"
+            className="hidden sm:flex absolute right-4 lg:right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-950/40 hover:bg-[#0B5D3B] text-white backdrop-blur-md border border-white/20 items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-105 cursor-pointer shadow-xl"
           >
-            <ChevronRight className="w-6 h-6 -mr-0.5" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </>
       )}
 
-      {/* ── Bottom Navigation Dots Indicator ── */}
+      {/* Slide Dots Indicator */}
       {slides.length > 1 && (
-        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-xl">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/50 backdrop-blur-md border border-white/20 shadow-lg">
           {slides.map((_, i) => (
             <button
               key={i}
@@ -384,8 +360,8 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
               aria-label={`স্লাইড ${i + 1}`}
               className={`transition-all duration-300 cursor-pointer rounded-full ${
                 i === currentIndex
-                  ? 'w-8 h-2.5 bg-gradient-to-r from-amber-400 to-amber-300 shadow-md shadow-amber-500/50'
-                  : 'w-2.5 h-2.5 bg-white/45 hover:bg-white/80'
+                  ? 'w-7 h-2 bg-gradient-to-r from-[#F4B400] to-emerald-400'
+                  : 'w-2 h-2 bg-white/45 hover:bg-white/80'
               }`}
             />
           ))}
@@ -394,18 +370,6 @@ export default function PublicHero({ settings, heroConfig }: PublicHeroProps) {
           </span>
         </div>
       )}
-
-      {/* ── Admin Floating Quick Shortcut to Edit Slides ── */}
-      <div className="absolute bottom-6 right-4 sm:right-6 z-30">
-        <Link
-          href="/dashboard/landing-page?tab=hero"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-indigo-600 text-[11px] font-bold text-slate-200 hover:text-white backdrop-blur-md transition-all shadow-lg border border-white/15"
-          title="ব্যানার ও ট্রানজিশন স্লাইড পরিবর্তন করুন"
-        >
-          <Camera className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden sm:inline">স্লাইডার ছবি পরিবর্তন</span>
-        </Link>
-      </div>
     </section>
   );
 }
