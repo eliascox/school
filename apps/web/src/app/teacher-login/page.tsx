@@ -12,9 +12,9 @@ export default function TeacherLoginPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-[#050714] flex items-center justify-center p-4 text-slate-200 font-bold text-xs">
-      <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-[#0D112E] border border-[#7C6FFF]/35 shadow-lg">
-        <Loader2 className="w-4 h-4 text-[#C084FC] animate-spin" />
+    <div className="min-h-screen bg-[#F6F8FF] flex items-center justify-center p-4 text-slate-700 font-bold text-xs">
+      <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-white border border-indigo-200/80 shadow-md">
+        <Loader2 className="w-4 h-4 text-[#6366F1] animate-spin" />
         <span>শিক্ষক লগইন প্যানেলে রিডাইরেক্ট হচ্ছে...</span>
       </div>
     </div>

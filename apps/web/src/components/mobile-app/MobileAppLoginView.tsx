@@ -49,7 +49,6 @@ export default function MobileAppLoginView({
   const [roleTab, setRoleTab] = useState<'teacher' | 'guardian'>('teacher');
   const [logoError, setLogoError] = useState(false);
 
-  // Teacher / Admin login form
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +57,6 @@ export default function MobileAppLoginView({
   const [loginError, setLoginError] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
 
-  // Guardian / Student verification form
   const [selectedGrade, setSelectedGrade] = useState('10th');
   const [verifyRoll, setVerifyRoll] = useState('');
   const [verifyPhone, setVerifyPhone] = useState('');
@@ -72,7 +70,7 @@ export default function MobileAppLoginView({
         '';
       if (saved) setIdentifier(saved);
     } catch {
-      // Ignore storage access errors
+      // Ignore storage errors
     }
   }, []);
 
@@ -156,7 +154,7 @@ export default function MobileAppLoginView({
     try {
       sessionStorage.setItem('mobile_app_verified_student_id', matched.id);
     } catch {
-      // Ignore sessionStorage restriction
+      // Ignore restriction
     }
     onGuardianVerifySuccess(matched);
   };
@@ -167,21 +165,21 @@ export default function MobileAppLoginView({
       <div className="px-5 pt-5 pb-2 flex items-center justify-between shrink-0">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-indigo-300/20 text-white/90 text-[11px] font-bold transition"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#F5F7FF] hover:bg-indigo-50 border border-indigo-200/80 text-slate-700 text-[11px] font-bold transition"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#6366F1]" />
           <span>ওয়েবসাইট</span>
         </Link>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/20 border border-violet-400/35 text-violet-200 text-[10px] font-extrabold">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#E879F9] animate-pulse" />
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-[#7C3AED] text-[10px] font-extrabold">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#D946EF] animate-pulse" />
           মোবাইল অ্যাপ
         </span>
       </div>
 
-      {/* Main Content Stack (padded cleanly above bottom luminous waves) */}
-      <div className="px-5 pt-4 pb-28 flex-1 flex flex-col justify-between gap-5">
+      {/* Main Content Stack */}
+      <div className="px-5 pt-4 pb-24 flex-1 flex flex-col justify-between gap-5">
         <div className="space-y-5">
-          {/* Glowing Floating Glass Emblem + School Branding */}
+          {/* Glowing Floating White Emblem + School Branding */}
           <div className="flex flex-col items-center text-center">
             <AuroraEmblemTile
               schoolLogo={schoolLogo}
@@ -197,10 +195,10 @@ export default function MobileAppLoginView({
               }
               badgeTitle={roleTab === 'teacher' ? 'শিক্ষক / অ্যাডমিন' : 'অভিভাবক / শিক্ষার্থী'}
             />
-            <h1 className="mt-4 text-xl font-extrabold tracking-tight text-white leading-snug">
+            <h1 className="mt-4 text-xl font-extrabold tracking-tight text-slate-900 leading-snug">
               {schoolName}
             </h1>
-            <p className="mt-1 text-[11px] font-medium text-indigo-200/80 flex items-center gap-1.5">
+            <p className="mt-1 text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
               <span>স্মার্ট ক্যাম্পাস মোবাইল পোর্টাল</span>
               {schoolEiin && (
                 <>
@@ -211,8 +209,8 @@ export default function MobileAppLoginView({
             </p>
           </div>
 
-          {/* Translucent Role Switcher Pill */}
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#080D22]/85 border border-indigo-400/20">
+          {/* Clean Light-Indigo Role Switcher Pill */}
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#EEF2FF] border border-indigo-200/70">
             <button
               type="button"
               onClick={() => {
@@ -221,8 +219,8 @@ export default function MobileAppLoginView({
               }}
               className={`py-2.5 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 roleTab === 'teacher'
-                  ? 'bg-gradient-to-r from-[#4B6BFF]/90 to-[#9333EA]/90 text-white shadow-sm'
-                  : 'text-slate-300/80 hover:text-white'
+                  ? 'bg-gradient-to-r from-[#4B6BFF] to-[#9333EA] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
@@ -236,8 +234,8 @@ export default function MobileAppLoginView({
               }}
               className={`py-2.5 px-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 roleTab === 'guardian'
-                  ? 'bg-gradient-to-r from-[#0EA5E9]/90 to-[#10B981]/90 text-white shadow-sm'
-                  : 'text-slate-300/80 hover:text-white'
+                  ? 'bg-gradient-to-r from-[#0284C7] to-[#059669] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5 shrink-0" />
@@ -248,76 +246,72 @@ export default function MobileAppLoginView({
           {roleTab === 'teacher' ? (
             <form onSubmit={handleStaffSubmit} className="space-y-3.5">
               <div className="text-center">
-                <h2 className="text-base font-extrabold text-white tracking-tight">
+                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
                   অ্যাকাউন্টে লগইন করুন
                 </h2>
-                <p className="text-[11px] text-slate-300/75 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   ফলাফল এন্ট্রি ও শ্রেণির দৈনিক হাজিরা পরিচালনা করুন
                 </p>
               </div>
 
-              <div>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#A78BFA] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="মোবাইল নম্বর অথবা শিক্ষক আইডি"
-                    autoComplete="username"
-                    aria-label="মোবাইল নম্বর অথবা আইডি"
-                    className={AURORA_INPUT_CLASS}
-                  />
-                </div>
+              <div className="relative">
+                <User className="w-4 h-4 text-[#6366F1] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="মোবাইল নম্বর অথবা শিক্ষক আইডি"
+                  autoComplete="username"
+                  aria-label="মোবাইল নম্বর অথবা আইডি"
+                  className={AURORA_INPUT_CLASS}
+                />
               </div>
 
-              <div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#A78BFA] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="পাসওয়ার্ড"
-                    autoComplete="current-password"
-                    aria-label="পাসওয়ার্ড"
-                    className={AURORA_INPUT_PR10_CLASS}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                    aria-label={showPassword ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-[#6366F1] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="পাসওয়ার্ড"
+                  autoComplete="current-password"
+                  aria-label="পাসওয়ার্ড"
+                  className={AURORA_INPUT_PR10_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                  aria-label={showPassword ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
 
               <div className="flex items-center justify-between text-xs pt-0.5">
-                <label className="inline-flex items-center gap-2 font-medium text-slate-300 cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 font-medium text-slate-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-indigo-400/40 bg-[#0B122B] accent-[#8B5CF6]"
+                    className="w-4 h-4 rounded border-indigo-300 bg-white accent-[#7C3AED]"
                   />
                   <span>মনে রাখুন</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowOtpModal(true)}
-                  className="font-semibold text-[#D875FF] hover:text-[#F0ABFC] transition cursor-pointer"
+                  className="font-bold text-[#7C3AED] hover:text-[#A21CAF] transition cursor-pointer"
                 >
                   পাসওয়ার্ড ভুলে গেছেন?
                 </button>
               </div>
 
               {loginError && (
-                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/35 text-rose-200 text-xs font-medium flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
                   <span>{loginError}</span>
                 </div>
               )}
@@ -339,10 +333,10 @@ export default function MobileAppLoginView({
           ) : (
             <form onSubmit={handleGuardianSubmit} className="space-y-3.5">
               <div className="text-center">
-                <h2 className="text-base font-extrabold text-white tracking-tight">
+                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
                   শিক্ষার্থী ও অভিভাবক যাচাইকরণ
                 </h2>
-                <p className="text-[11px] text-slate-300/75 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   হাজিরা, ফলাফল, রুটিন ও ফি খতিয়ান দেখুন
                 </p>
               </div>
@@ -353,13 +347,13 @@ export default function MobileAppLoginView({
                     value={selectedGrade}
                     onChange={(e) => setSelectedGrade(e.target.value)}
                     aria-label="শ্রেণি নির্বাচন"
-                    className="w-full px-3 py-3 rounded-xl bg-[#0B122B]/85 border border-[#7C8CFF]/25 text-xs font-bold text-white outline-none focus:border-[#34D399]/80"
+                    className="w-full px-3 py-3 rounded-xl bg-[#F5F7FF] border border-indigo-200/80 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-emerald-500"
                   >
-                    <option value="6th" className="bg-[#0B122B] text-white">৬ষ্ঠ শ্রেণি</option>
-                    <option value="7th" className="bg-[#0B122B] text-white">৭ম শ্রেণি</option>
-                    <option value="8th" className="bg-[#0B122B] text-white">৮ম শ্রেণি</option>
-                    <option value="9th" className="bg-[#0B122B] text-white">৯ম শ্রেণি</option>
-                    <option value="10th" className="bg-[#0B122B] text-white">১০ম শ্রেণি</option>
+                    <option value="6th">৬ষ্ঠ শ্রেণি</option>
+                    <option value="7th">৭ম শ্রেণি</option>
+                    <option value="8th">৮ম শ্রেণি</option>
+                    <option value="9th">৯ম শ্রেণি</option>
+                    <option value="10th">১০ম শ্রেণি</option>
                   </select>
                 </div>
                 <div className="col-span-7">
@@ -370,13 +364,13 @@ export default function MobileAppLoginView({
                     onChange={(e) => setVerifyRoll(e.target.value)}
                     placeholder="রোল বা আইডি (যেমন: 01)"
                     aria-label="রোল বা শিক্ষার্থী আইডি"
-                    className="w-full px-3.5 py-3 rounded-xl bg-[#0B122B]/85 border border-[#7C8CFF]/25 text-xs font-bold text-white placeholder:text-slate-400/75 outline-none focus:border-[#34D399]/80"
+                    className="w-full px-3.5 py-3 rounded-xl bg-[#F5F7FF] border border-indigo-200/80 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-emerald-500"
                   />
                 </div>
               </div>
 
               <div className="relative">
-                <Phone className="w-4 h-4 text-[#6EE7B7] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Phone className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="tel"
                   required
@@ -389,8 +383,8 @@ export default function MobileAppLoginView({
               </div>
 
               {verifyError && (
-                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/35 text-rose-200 text-xs font-medium flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
                   <span>{verifyError}</span>
                 </div>
               )}
@@ -403,43 +397,43 @@ export default function MobileAppLoginView({
           )}
         </div>
 
-        {/* Frosted Mini Feature Highlights Strip */}
+        {/* Clean White Frosted Mini Feature Strip */}
         <div className="space-y-2.5 pt-2">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2.5 rounded-2xl bg-white/[0.06] backdrop-blur-xs border border-indigo-300/15 space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-xl bg-indigo-500/20 text-[#A78BFA] flex items-center justify-center">
+            <div className="p-2.5 rounded-2xl bg-white/85 backdrop-blur-xs border border-indigo-100 shadow-2xs space-y-1">
+              <div className="w-7 h-7 mx-auto rounded-xl bg-indigo-50 text-[#6366F1] flex items-center justify-center">
                 <Edit3 className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-slate-200 block leading-tight">
+              <span className="text-[10px] font-bold text-slate-700 block leading-tight">
                 দ্রুত নম্বর এন্ট্রি
               </span>
             </div>
-            <div className="p-2.5 rounded-2xl bg-white/[0.06] backdrop-blur-xs border border-indigo-300/15 space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-xl bg-sky-500/20 text-sky-300 flex items-center justify-center">
+            <div className="p-2.5 rounded-2xl bg-white/85 backdrop-blur-xs border border-indigo-100 shadow-2xs space-y-1">
+              <div className="w-7 h-7 mx-auto rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
                 <CalendarCheck2 className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-slate-200 block leading-tight">
+              <span className="text-[10px] font-bold text-slate-700 block leading-tight">
                 অটো-সেভ হাজিরা
               </span>
             </div>
-            <div className="p-2.5 rounded-2xl bg-white/[0.06] backdrop-blur-xs border border-indigo-300/15 space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-xl bg-fuchsia-500/20 text-fuchsia-300 flex items-center justify-center">
+            <div className="p-2.5 rounded-2xl bg-white/85 backdrop-blur-xs border border-indigo-100 shadow-2xs space-y-1">
+              <div className="w-7 h-7 mx-auto rounded-xl bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center">
                 <Cloud className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-slate-200 block leading-tight">
+              <span className="text-[10px] font-bold text-slate-700 block leading-tight">
                 ক্লাউড সিংক
               </span>
             </div>
           </div>
 
-          <p className="text-center text-[10px] font-medium text-indigo-200/70 flex items-center justify-center gap-1">
-            <Sparkles className="w-3 h-3 text-[#D875FF]" />
+          <p className="text-center text-[10px] font-semibold text-slate-500 flex items-center justify-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#7C3AED]" />
             <span>সুরক্ষিত রোল-ভিত্তিক অ্যাক্সেস (RBAC) দ্বারা পরিচালিত</span>
           </p>
         </div>
       </div>
 
-      {/* Unified Admin & Teacher SMS OTP Password Reset Modal */}
+      {/* Unified White-Pearl SMS OTP Password Reset Modal */}
       {showOtpModal && (
         <TeacherOtpResetModal
           isOpen={showOtpModal}

@@ -41,26 +41,20 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
-  // School Settings
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
   const [topLogoFailed, setTopLogoFailed] = useState(false);
   const [centerLogoFailed, setCenterLogoFailed] = useState(false);
 
-  // Active Role Tab ('admin' | 'teacher')
   const [activeRole, setActiveRole] = useState<'admin' | 'teacher'>('admin');
-
-  // Form Fields
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isCapsLockOn, setIsCapsLockOn] = useState(false);
 
-  // Modals
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  // Status & Feedback
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -74,7 +68,6 @@ function LoginForm() {
     const adminInitialized = teacherAuthService.isAdminInitialized();
     setAdminNeedsSetup(!adminInitialized);
 
-    // Subscribe to settings changes for dynamic live sync
     const unsubscribe = settingsService.subscribe((updated) => {
       setSchoolSettings(updated);
     });
@@ -204,42 +197,40 @@ function LoginForm() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#050714] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#8B5CF6] animate-spin" />
+      <div className="min-h-screen bg-[#F6F8FF] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#6366F1] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#050714] text-white relative overflow-hidden flex flex-col justify-between items-center p-4 sm:p-6">
-      {/* Ambient Cosmic Backlight Orbs */}
+    <div className="min-h-screen w-full bg-[#F6F8FF] text-slate-900 relative overflow-hidden flex flex-col justify-between items-center p-4 sm:p-6">
+      {/* Soft Pastel Pearl Ambient Blobs */}
       <div
-        className="pointer-events-none fixed -top-32 -left-24 w-96 h-96 rounded-full bg-[#4F46E5]/20 blur-[120px]"
+        className="pointer-events-none fixed -top-32 -left-24 w-96 h-96 rounded-full bg-[#6366F1]/12 blur-[110px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none fixed -bottom-32 -right-24 w-[28rem] h-[28rem] rounded-full bg-[#C026D3]/18 blur-[130px]"
+        className="pointer-events-none fixed -bottom-32 -right-24 w-[28rem] h-[28rem] rounded-full bg-[#D946EF]/10 blur-[120px]"
         aria-hidden="true"
       />
 
-      {/* Top Brand Navigation */}
+      {/* Top Crisp White Brand Navigation */}
       <header className="relative z-10 w-full max-w-4xl flex items-center justify-between py-2 sm:py-3">
         <Link
           href="/"
           className="flex items-center gap-2.5 hover:opacity-95 transition-opacity cursor-pointer group min-w-0"
           title="মূল হোমপেজে ফিরে যান"
         >
-          <div className="w-10 h-10 rounded-xl bg-white/10 border border-indigo-400/25 shadow-sm flex items-center justify-center p-1 overflow-hidden shrink-0 group-hover:border-[#A855F7]/60 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-white border border-indigo-200/80 shadow-xs flex items-center justify-center p-1 overflow-hidden shrink-0 group-hover:border-[#8B5CF6] transition-all">
             {schoolLogo && !topLogoFailed ? (
-              <div className="w-full h-full rounded-lg bg-white p-0.5 flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={schoolLogo}
-                  alt={schoolName}
-                  className="w-full h-full object-contain"
-                  onError={() => setTopLogoFailed(true)}
-                />
-              </div>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={schoolLogo}
+                alt={schoolName}
+                className="w-full h-full object-contain"
+                onError={() => setTopLogoFailed(true)}
+              />
             ) : (
               <div className="w-full h-full rounded-lg bg-gradient-to-br from-[#4F6BFF] to-[#9333EA] text-white flex items-center justify-center">
                 <School className="w-5 h-5" />
@@ -247,10 +238,10 @@ function LoginForm() {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-extrabold text-white leading-tight truncate group-hover:text-[#C4B5FD] transition-colors">
+            <h1 className="text-sm font-extrabold text-slate-900 leading-tight truncate group-hover:text-[#6366F1] transition-colors">
               {schoolName}
             </h1>
-            <span className="text-[11px] text-slate-400 font-medium block truncate">
+            <span className="text-[11px] text-slate-500 font-medium block truncate">
               {isEn ? `Smart School Portal • EIIN: ${eiin}` : `স্মার্ট স্কুল পোর্টাল • EIIN: ${eiin}`}
             </span>
           </div>
@@ -259,28 +250,27 @@ function LoginForm() {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href="/mobile-app/"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-200 bg-white/[0.06] hover:bg-white/[0.12] border border-indigo-400/20 transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200/80 shadow-2xs transition-all"
           >
-            <Smartphone className="w-3.5 h-3.5 text-[#C084FC]" />
+            <Smartphone className="w-3.5 h-3.5 text-[#7C3AED]" />
             <span className="hidden sm:inline">{isEn ? 'Mobile App' : 'মোবাইল অ্যাপ'}</span>
           </Link>
 
           <button
             type="button"
             onClick={() => setShowHelpModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-indigo-400/15 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-slate-200/90 shadow-2xs transition-all cursor-pointer"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-[#A78BFA]" />
+            <HelpCircle className="w-3.5 h-3.5 text-[#6366F1]" />
             <span className="hidden sm:inline">{isEn ? 'Helpline' : 'হেল্পলাইন'}</span>
           </button>
         </div>
       </header>
 
-      {/* Main Cosmic Aurora Glass Login Card */}
+      {/* Main Crisp White Pearl Aurora Login Card */}
       <main className="relative z-10 w-full max-w-[412px] my-auto py-4">
         <AuroraLoginCard variant="card">
           <div className="px-6 sm:px-8 pt-8 pb-20 sm:pb-24">
-            {/* Floating Luminous Glass Emblem + Title */}
             <div className="text-center mb-6">
               <div className="mb-4 flex justify-center">
                 <AuroraEmblemTile
@@ -293,7 +283,7 @@ function LoginForm() {
                 />
               </div>
 
-              <h2 className="text-2xl font-extrabold text-white tracking-tight">
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                 {activeRole === 'admin' && adminNeedsSetup
                   ? isEn
                     ? 'Admin Account Setup'
@@ -302,7 +292,7 @@ function LoginForm() {
                     ? 'Login to Continue'
                     : 'লগইন করুন'}
               </h2>
-              <p className="text-xs text-slate-300/80 mt-1 font-medium">
+              <p className="text-xs text-slate-500 mt-1 font-medium">
                 {activeRole === 'admin'
                   ? adminNeedsSetup
                     ? isEn
@@ -317,15 +307,15 @@ function LoginForm() {
               </p>
             </div>
 
-            {/* Translucent Segmented Role Switcher */}
-            <div className="bg-[#080D22]/85 p-1 rounded-xl flex items-center gap-1 mb-5 border border-indigo-400/20">
+            {/* Clean Soft-Indigo Segmented Role Switcher */}
+            <div className="bg-[#EEF2FF] p-1 rounded-xl flex items-center gap-1 mb-5 border border-indigo-200/70">
               <button
                 type="button"
                 onClick={() => handleRoleChange('admin')}
                 className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeRole === 'admin'
-                    ? 'bg-gradient-to-r from-[#4B6BFF]/90 to-[#9333EA]/90 text-white shadow-sm'
-                    : 'text-slate-300/80 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#4B6BFF] to-[#9333EA] text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span>👑</span>
@@ -336,8 +326,8 @@ function LoginForm() {
                 onClick={() => handleRoleChange('teacher')}
                 className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeRole === 'teacher'
-                    ? 'bg-gradient-to-r from-[#4B6BFF]/90 to-[#9333EA]/90 text-white shadow-sm'
-                    : 'text-slate-300/80 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#4B6BFF] to-[#9333EA] text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span>👨‍🏫</span>
@@ -347,24 +337,23 @@ function LoginForm() {
 
             {/* Feedback Messages */}
             {errorMessage && (
-              <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-400/35 text-rose-200 text-xs flex items-center gap-2.5">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                <span className="font-medium leading-relaxed">{errorMessage}</span>
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span className="font-semibold leading-relaxed">{errorMessage}</span>
               </div>
             )}
 
             {successMessage && (
-              <div className="mb-4 p-3 rounded-xl bg-emerald-500/15 border border-emerald-400/35 text-emerald-200 text-xs flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span className="font-medium leading-relaxed">{successMessage}</span>
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span className="font-semibold leading-relaxed">{successMessage}</span>
               </div>
             )}
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* Identifier Input */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300/90 mb-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
                   {activeRole === 'admin'
                     ? isEn
                       ? 'Username or ID'
@@ -374,7 +363,7 @@ function LoginForm() {
                       : 'মোবাইল নম্বর বা শিক্ষক আইডি'}
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#A78BFA]">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#6366F1]">
                     {activeRole === 'admin' ? (
                       <User className="w-4 h-4" />
                     ) : (
@@ -400,13 +389,12 @@ function LoginForm() {
                 </div>
               </div>
 
-              {/* Password Input */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300/90 mb-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
                   {isEn ? 'Password' : 'পাসওয়ার্ড'}
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#A78BFA]">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#6366F1]">
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
@@ -422,7 +410,7 @@ function LoginForm() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition cursor-pointer"
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
                     tabIndex={-1}
                     aria-label={showPassword ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
                   >
@@ -431,22 +419,21 @@ function LoginForm() {
                 </div>
 
                 {isCapsLockOn && (
-                  <p className="mt-1.5 text-[11px] text-amber-300 font-medium flex items-center gap-1">
+                  <p className="mt-1.5 text-[11px] text-amber-700 font-semibold flex items-center gap-1">
                     <span>⚠️</span> আপনার কিবোর্ডে <strong>Caps Lock</strong> অন রয়েছে!
                   </p>
                 )}
               </div>
 
-              {/* Confirm Password Input for First-Time Admin Setup */}
               {activeRole === 'admin' && adminNeedsSetup && (
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300/90 mb-1.5">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
                     {isEn
                       ? 'Confirm Password (min 6 characters)'
                       : 'পাসওয়ার্ড নিশ্চিত করুন (কমপক্ষে ৬ অক্ষর)'}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#A78BFA]">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#6366F1]">
                       <KeyRound className="w-4 h-4" />
                     </div>
                     <input
@@ -464,12 +451,12 @@ function LoginForm() {
 
               {/* Utility Row: Remember Me + Forgot Password (SMS OTP for both Admin & Teacher) */}
               <div className="flex items-center justify-between pt-1 pb-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-slate-600">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-indigo-400/40 bg-[#0B122B] accent-[#8B5CF6] cursor-pointer"
+                    className="w-4 h-4 rounded border-indigo-300 bg-white accent-[#7C3AED] cursor-pointer"
                   />
                   <span>{isEn ? 'Remember me' : 'লগইন মনে রাখুন'}</span>
                 </label>
@@ -478,7 +465,7 @@ function LoginForm() {
                   <button
                     type="button"
                     onClick={() => setShowOtpModal(true)}
-                    className="text-xs font-semibold text-[#D875FF] hover:text-[#F0ABFC] transition cursor-pointer"
+                    className="text-xs font-bold text-[#7C3AED] hover:text-[#A21CAF] transition cursor-pointer"
                   >
                     {isEn ? 'Forgot password?' : 'পাসওয়ার্ড ভুলে গেছেন?'}
                   </button>
@@ -519,55 +506,55 @@ function LoginForm() {
 
       {/* Bottom Footer */}
       <footer className="relative z-10 w-full max-w-4xl py-3 text-center">
-        <p className="text-xs text-slate-400/80 font-medium">
+        <p className="text-xs text-slate-500 font-medium">
           {isEn
             ? `© 2026 ${schoolName} • Digital School Management System`
             : `© ২০২৬ ${schoolName} • ডিজিটাল স্কুল ম্যানেজমেন্ট সিস্টেম`}
         </p>
       </footer>
 
-      {/* Matching Dark-Glass Helpline Modal */}
+      {/* Crisp White Pearl Helpline Modal */}
       {showHelpModal && (
-        <div className="fixed inset-0 z-50 bg-[#02040D]/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0D112E] rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-[#7C6FFF]/35 relative text-white">
+        <div className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-indigo-200/80 relative text-slate-900">
             <button
               type="button"
               onClick={() => setShowHelpModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
               aria-label="বন্ধ করুন"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-[#C084FC] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-[#6366F1] flex items-center justify-center">
                 <HelpCircle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">সহায়তা ও যোগাযোগ</h3>
-                <p className="text-xs text-slate-400">কারিগরি ও লগইন তথ্য</p>
+                <h3 className="text-sm font-extrabold text-slate-900">সহায়তা ও যোগাযোগ</h3>
+                <p className="text-xs text-slate-500">কারিগরি ও লগইন তথ্য</p>
               </div>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-300 mb-5">
-              <div className="p-3 rounded-xl bg-[#070B1E] border border-indigo-400/20 flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-[#A78BFA] shrink-0" />
+            <div className="space-y-3 text-xs text-slate-600 mb-5">
+              <div className="p-3 rounded-xl bg-[#F5F7FF] border border-indigo-100 flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-[#6366F1] shrink-0" />
                 <div>
-                  <div className="text-[10px] text-slate-400 font-medium">হেল্পলাইন নম্বর</div>
-                  <div className="font-semibold text-white">{phone}</div>
+                  <div className="text-[10px] text-slate-500 font-semibold">হেল্পলাইন নম্বর</div>
+                  <div className="font-bold text-slate-900">{phone}</div>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#070B1E] border border-indigo-400/20 flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-[#A78BFA] shrink-0" />
+              <div className="p-3 rounded-xl bg-[#F5F7FF] border border-indigo-100 flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-[#6366F1] shrink-0" />
                 <div>
-                  <div className="text-[10px] text-slate-400 font-medium">ইমেইল ঠিকানা</div>
-                  <div className="font-semibold text-white">{email}</div>
+                  <div className="text-[10px] text-slate-500 font-semibold">ইমেইল ঠিকানা</div>
+                  <div className="font-bold text-slate-900">{email}</div>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-violet-500/15 text-violet-200 text-[11px] leading-relaxed border border-violet-400/25">
-                💡 শিক্ষকরা পাসওয়ার্ড ভুলে গেলে <strong>&quot;পাসওয়ার্ড ভুলে গেছেন?&quot;</strong> অপশন থেকে সরাসরি ওটিপির মাধ্যমে পাসওয়ার্ড রিসেট করতে পারেন।
+              <div className="p-2.5 rounded-xl bg-violet-50 text-violet-900 text-[11px] leading-relaxed border border-violet-200/70">
+                💡 অ্যাডমিন ও শিক্ষক উভয়েই পাসওয়ার্ড ভুলে গেলে <strong>&quot;পাসওয়ার্ড ভুলে গেছেন?&quot;</strong> অপশন থেকে নিজ নিজ নিবন্ধিত মোবাইল নম্বরে SMS OTP দিয়ে পাসওয়ার্ড রিসেট করতে পারবেন।
               </div>
             </div>
 
@@ -582,7 +569,7 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Unified Admin & Teacher SMS OTP Password Reset Modal */}
+      {/* Unified White-Pearl SMS OTP Password Reset Modal */}
       <TeacherOtpResetModal
         isOpen={showOtpModal}
         onClose={() => setShowOtpModal(false)}
@@ -607,8 +594,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#050714] flex flex-col items-center justify-center text-slate-400 gap-3">
-          <Loader2 className="w-8 h-8 text-[#8B5CF6] animate-spin" />
+        <div className="min-h-screen bg-[#F6F8FF] flex flex-col items-center justify-center text-slate-500 gap-3">
+          <Loader2 className="w-8 h-8 text-[#6366F1] animate-spin" />
           <span className="text-xs font-medium">লোড হচ্ছে...</span>
         </div>
       }
