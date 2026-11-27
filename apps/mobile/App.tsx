@@ -250,15 +250,21 @@ export default function App() {
         </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={[styles.container, !authToken && styles.authCanvas]}
+        contentContainerStyle={styles.scrollContent}
+      >
         {isLoadingSession ? (
           <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color="#059669" />
+            <ActivityIndicator size="large" color="#8B5CF6" />
             <Text style={styles.loadingText}>সেশন ও অফলাইন ক্যাশ লোড হচ্ছে...</Text>
           </View>
         ) : !authToken ? (
-          /* Unauthenticated State — Real API Login Screen (No Hardcoded Demo Student Data) */
-          <View style={styles.profileCard}>
+          /* Unauthenticated State — Cosmic Aurora Glass Login Screen */
+          <View style={styles.auroraLoginCard}>
+            <View style={styles.auroraEmblemTile}>
+              <Text style={styles.auroraEmblemIcon}>🔒</Text>
+            </View>
             <Text style={styles.loginTitle}>অ্যাকাউন্টে প্রবেশ করুন</Text>
             <Text style={styles.loginSubtitle}>
               প্রতিষ্ঠানের রিয়েল-টাইম তথ্য, হাজিরা, ফলাফল ও বেতন দেখতে আপনার নিবন্ধিত ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন।
@@ -270,6 +276,7 @@ export default function App() {
               value={emailInput}
               onChangeText={setEmailInput}
               placeholder="name@school.edu.bd"
+              placeholderTextColor="#94a3b8"
               autoCapitalize="none"
               keyboardType="email-address"
             />
@@ -280,6 +287,7 @@ export default function App() {
               value={passwordInput}
               onChangeText={setPasswordInput}
               placeholder="••••••••"
+              placeholderTextColor="#94a3b8"
               secureTextEntry
             />
 
@@ -296,6 +304,7 @@ export default function App() {
             </TouchableOpacity>
 
             <Text style={styles.apiEndpointNote}>সার্ভার ঠিকানা: {API_BASE_URL}</Text>
+            <View style={styles.auroraWaveBar} />
           </View>
         ) : (
           /* Authenticated Live Profile & Data */
@@ -586,6 +595,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  authCanvas: {
+    backgroundColor: '#050714',
+  },
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
@@ -598,50 +610,90 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 12,
   },
+  auroraLoginCard: {
+    backgroundColor: '#0E1233',
+    borderRadius: 26,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#7C6FFF',
+    shadowColor: '#6366F1',
+    shadowOpacity: 0.42,
+    shadowRadius: 20,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  auroraEmblemTile: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#1E2563',
+    borderWidth: 1,
+    borderColor: '#818CF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  auroraEmblemIcon: {
+    fontSize: 28,
+  },
+  auroraWaveBar: {
+    marginTop: 18,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#8B5CF6',
+    opacity: 0.75,
+  },
   loginTitle: {
-    fontSize: 18,
+    fontSize: 21,
     fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 4,
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 6,
   },
   loginSubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#cbd5e1',
+    textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
-    marginBottom: 4,
-    marginTop: 8,
+    color: '#cbd5e1',
+    marginBottom: 5,
+    marginTop: 10,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: '#3B4284',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 13,
-    backgroundColor: '#f8fafc',
-    color: '#0f172a',
+    backgroundColor: '#080E26',
+    color: '#ffffff',
   },
   errorText: {
-    color: '#e11d48',
+    color: '#fda4af',
     fontSize: 12,
     marginTop: 10,
     fontWeight: '600',
   },
   primaryButton: {
-    marginTop: 16,
-    backgroundColor: '#059669',
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginTop: 18,
+    backgroundColor: '#7C5CFF',
+    paddingVertical: 13,
+    borderRadius: 14,
     alignItems: 'center',
+    shadowColor: '#A855F7',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 5,
   },
   buttonDisabled: {
     opacity: 0.65,
@@ -652,7 +704,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   apiEndpointNote: {
-    marginTop: 12,
+    marginTop: 14,
     fontSize: 10,
     color: '#94a3b8',
     textAlign: 'center',

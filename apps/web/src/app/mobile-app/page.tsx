@@ -185,9 +185,15 @@ export default function PublicMobileAppPage() {
   const isTeacherWorkspaceActive = Boolean(session && appMode === 'teacher');
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-start sm:py-6 sm:px-4 font-sans">
-      {/* Native Mobile App Shell (Full viewport on phone, crisp device frame on desktop) */}
-      <div className="w-full max-w-md min-h-screen sm:min-h-[820px] sm:max-h-[900px] bg-slate-50 dark:bg-slate-950 sm:rounded-[38px] sm:shadow-2xl sm:border-[6px] sm:border-slate-800 flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-[#050714] flex flex-col items-center justify-start sm:py-6 sm:px-4 font-sans">
+      {/* Native Mobile App Shell (Full viewport on phone, glowing cosmic device frame on desktop) */}
+      <div
+        className={`w-full max-w-md min-h-screen sm:min-h-[820px] sm:max-h-[900px] sm:rounded-[38px] flex flex-col overflow-hidden relative ${
+          !isAuthenticated
+            ? 'bg-[#070B1E] sm:border sm:border-[#8B7BFF]/45 sm:shadow-[0_28px_80px_-14px_rgba(79,70,229,0.5)]'
+            : 'bg-slate-50 dark:bg-slate-950 sm:shadow-2xl sm:border-[6px] sm:border-slate-800'
+        }`}
+      >
         {!hydrated ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 flex items-center justify-center">
