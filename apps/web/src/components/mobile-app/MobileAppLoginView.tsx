@@ -439,14 +439,16 @@ export default function MobileAppLoginView({
         </div>
       </div>
 
-      {/* Teacher OTP Password Reset Modal */}
+      {/* Unified Admin & Teacher SMS OTP Password Reset Modal */}
       {showOtpModal && (
         <TeacherOtpResetModal
           isOpen={showOtpModal}
           onClose={() => setShowOtpModal(false)}
           initialPhone={identifier}
-          onSuccess={(phone, newPass) => {
-            setIdentifier(phone);
+          roleMode="teacher"
+          allowRoleSwitch={true}
+          onSuccess={(loginId, newPass) => {
+            setIdentifier(loginId);
             setPassword(newPass);
             setShowOtpModal(false);
           }}

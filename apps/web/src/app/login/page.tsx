@@ -16,7 +16,6 @@ import {
   Phone,
   Mail,
   KeyRound,
-  ShieldCheck,
   ArrowRight,
   HelpCircle,
   Smartphone,
@@ -463,7 +462,7 @@ function LoginForm() {
                 </div>
               )}
 
-              {/* Utility Row: Remember Me + Forgot Password / Helpline */}
+              {/* Utility Row: Remember Me + Forgot Password (SMS OTP for both Admin & Teacher) */}
               <div className="flex items-center justify-between pt-1 pb-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300">
                   <input
@@ -475,22 +474,13 @@ function LoginForm() {
                   <span>{isEn ? 'Remember me' : 'লগইন মনে রাখুন'}</span>
                 </label>
 
-                {activeRole === 'teacher' ? (
+                {!(activeRole === 'admin' && adminNeedsSetup) && (
                   <button
                     type="button"
                     onClick={() => setShowOtpModal(true)}
                     className="text-xs font-semibold text-[#D875FF] hover:text-[#F0ABFC] transition cursor-pointer"
                   >
                     {isEn ? 'Forgot password?' : 'পাসওয়ার্ড ভুলে গেছেন?'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowHelpModal(true)}
-                    className="text-xs font-semibold text-[#D875FF] hover:text-[#F0ABFC] transition inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>{isEn ? 'Need help?' : 'সাহায্য প্রয়োজন?'}</span>
                   </button>
                 )}
               </div>
@@ -592,16 +582,21 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Teacher OTP Reset Modal */}
+      {/* Unified Admin & Teacher SMS OTP Password Reset Modal */}
       <TeacherOtpResetModal
         isOpen={showOtpModal}
         onClose={() => setShowOtpModal(false)}
         initialPhone={identifier}
-        onSuccess={(p, newPass) => {
-          setIdentifier(p);
+        roleMode={activeRole}
+        onSuccess={(loginId, newPass, role) => {
+          setIdentifier(loginId);
           setPassword(newPass);
-          setActiveRole('teacher');
-          setSuccessMessage('পাসওয়ার্ড সফলভাবে রিসেট হয়েছে! এখন প্রবেশ করুন।');
+          if (role) setActiveRole(role);
+          setSuccessMessage(
+            role === 'admin'
+              ? 'অ্যাডমিন পাসওয়ার্ড সফলভাবে রিসেট হয়েছে! এখন প্রবেশ করুন।'
+              : 'পাসওয়ার্ড সফলভাবে রিসেট হয়েছে! এখন প্রবেশ করুন।',
+          );
         }}
       />
     </div>

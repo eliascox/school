@@ -623,10 +623,254 @@ export const teacherAuthService = {
     return { success: true, message: 'শিক্ষকের পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!' };
   },
 
+  // ─── ADMIN RECOVERY PHONE & OTP PASSWORD RESET ENGINE ─────────────────────
+
+  getAdminRecoveryPhone: (): string => {
+    if (typeof window === 'undefined') return '';
+    const dedicated = normalizePhoneNumber(localStorage.getItem('sms_admin_recovery_phone') || '');
+    if (dedicated.length === 11) return dedicated;
+
+    const adminPhone = normalizePhoneNumber(localStorage.getItem('sms_admin_phone') || '');
+    if (adminPhone.length === 11) return adminPhone;
+
+    const settingsPhone = normalizePhoneNumber(settingsService.getSettings()?.phone || '');
+    if (settingsPhone.length === 11) return settingsPhone;
+
+    return '';
+  },
+
+  setAdminRecoveryPhone: (rawPhone: string): string => {
+    const cleanDigits = normalizePhoneNumber(rawPhone);
+    if (typeof window !== 'undefined') {
+      if (cleanDigits.length >= 11) {
+        localStorage.setItem('sms_admin_recovery_phone', cleanDigits.slice(-11));
+      } else if (!rawPhone.trim()) {
+        localStorage.removeItem('sms_admin_recovery_phone');
+      }
+    }
+    return cleanDigits.length >= 11 ? cleanDigits.slice(-11) : '';
+  },
+
+  getMaskedAdminRecoveryPhone: (): string => {
+    const phone = teacherAuthService.getAdminRecoveryPhone();
+    if (!phone || phone.length < 7) return '';
+    return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
+  },
+
+  // Admin Step 1: Send 6-digit OTP strictly to Admin's own registered recovery phone via SMS Gateway
+  sendAdminResetOTP: async (
+    rawPhone: string
+  ): Promise<{ success: boolean; message: string; maskedPhone?: string; isDemoMode?: boolean; demoOtp?: string }> => {
+    const cleanDigits = normalizePhoneNumber(rawPhone);
+    if (!cleanDigits || cleanDigits.length < 11) {
+      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিনের ১১ ডিজিটের মোবাইল নম্বর দিন (যেমন: 018XXXXXXXX)।' };
+    }
+
+    const registeredAdminPhone = teacherAuthService.getAdminRecoveryPhone();
+    if (!registeredAdminPhone) {
+      return {
+        success: false,
+        message: 'সিস্টেমে এখনো অ্যাডমিন রিকভারি মোবাইল নম্বর যুক্ত করা হয়নি। সেটিংস → নিরাপত্তা অথবা প্রতিষ্ঠানের তথ্যে ১১ ডিজিটের মোবাইল নম্বর সংরক্ষণ করুন।'
+      };
+    }
+
+    const lockout = teacherAuthService.getLockoutStatus('admin_otp_recovery');
+    if (lockout.isLocked) {
+      return {
+        success: false,
+        message: `নিরাপত্তা সতর্কতা: অতিরিক্ত ভুল OTP চেষ্টার কারণে অ্যাডমিন রিকভারি ${toBnDigits(lockout.remainingSeconds)} সেকেন্ডের জন্য লক আছে।`
+      };
+    }
+
+    if (cleanDigits !== registeredAdminPhone) {
+      teacherAuthService.recordFailedAttempt('admin_otp_recovery');
+      auditTrailService.addLog({
+        action: 'ADMIN_OTP_PHONE_MISMATCH',
+        category: 'Security',
+        details: `অ্যাডমিন OTP রিকভারিতে অনিবন্ধিত নম্বর (${cleanDigits}) ব্যবহারের চেষ্টা প্রতিহত করা হয়েছে।`,
+        performedBy: 'System',
+        severity: 'warning',
+        status: 'Blocked'
+      });
+      return {
+        success: false,
+        message: 'এই মোবাইল নম্বরটি নিবন্ধিত অ্যাডমিন নম্বরের সাথে মেলেনি! অনুগ্রহ করে শুধুমাত্র অ্যাডমিনের নিজস্ব নিবন্ধিত নম্বর দিন।'
+      };
+    }
+
+    const schoolSettings = settingsService.getSettings();
+    const schoolName = schoolSettings?.schoolNameEn || schoolSettings?.schoolName || 'Smart School';
+
+    try {
+      const otpRes = await smsService.sendOTP(registeredAdminPhone, 'প্রধান শিক্ষক / অ্যাডমিন', schoolName, 6);
+      if (!otpRes.success) {
+        return {
+          success: false,
+          message: otpRes.message || 'SMS গেটওয়ে থেকে অ্যাডমিন OTP পাঠাতে ব্যর্থ হয়েছে। গেটওয়ে কনফিগারেশন যাচাই করুন।'
+        };
+      }
+
+      const maskedPhone = `${registeredAdminPhone.slice(0, 3)}****${registeredAdminPhone.slice(-4)}`;
+      if (typeof window !== 'undefined') {
+        const otpRecord = {
+          phone: registeredAdminPhone,
+          otp: otpRes.otp,
+          expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes TTL
+          attempts: 0
+        };
+        localStorage.setItem('sms_admin_otp_record', JSON.stringify(otpRecord));
+      }
+
+      auditTrailService.addLog({
+        action: 'ADMIN_OTP_SENT',
+        category: 'Security',
+        details: `অ্যাডমিন পাসওয়ার্ড রিকভারির জন্য ${maskedPhone} নম্বরে ৬ ডিজিটের SMS OTP পাঠানো হয়েছে।`,
+        performedBy: 'অ্যাডমিন',
+        severity: 'info',
+        status: 'Success'
+      });
+
+      return {
+        success: true,
+        message: otpRes.isDemoMode
+          ? `ডেমো মোডে অ্যাডমিন নম্বরে (${maskedPhone}) ৬ ডিজিটের OTP তৈরি হয়েছে।`
+          : `অ্যাডমিনের নিবন্ধিত মোবাইল নম্বরে (${maskedPhone}) SMS গেটওয়ের মাধ্যমে ৬ ডিজিটের OTP পাঠানো হয়েছে।`,
+        maskedPhone,
+        isDemoMode: Boolean(otpRes.isDemoMode),
+        // SECURITY: Never expose live SMS Gateway OTP in UI payload; only expose in explicit demo_mode
+        demoOtp: otpRes.isDemoMode ? otpRes.otp : undefined
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'অ্যাডমিন OTP পাঠাতে সমস্যা হয়েছে।'
+      };
+    }
+  },
+
+  // Admin Step 2: Verify 6-digit Admin OTP
+  verifyAdminResetOTP: (rawPhone: string, enteredOtp: string): { success: boolean; message: string } => {
+    const cleanDigits = normalizePhoneNumber(rawPhone);
+    const cleanOtp = normalizePhoneNumber(enteredOtp);
+
+    if (!cleanOtp || cleanOtp.length !== 6) {
+      return { success: false, message: 'অনুগ্রহ করে ৬ ডিজিটের সঠিক অ্যাডমিন OTP কোড লিখুন।' };
+    }
+
+    if (typeof window === 'undefined') return { success: false, message: 'সেশন পাওয়া যায়নি।' };
+
+    const storedRaw = localStorage.getItem('sms_admin_otp_record');
+    if (!storedRaw) {
+      return { success: false, message: 'কোনো সক্রিয় অ্যাডমিন OTP পাওয়া যায়নি বা সময় উত্তীর্ণ হয়েছে। আবার OTP পাঠান।' };
+    }
+
+    try {
+      const record = JSON.parse(storedRaw);
+      if (record.phone !== cleanDigits) {
+        return { success: false, message: 'মোবাইল নম্বরটি প্রেরিত OTP-এর সাথে মিলছে না।' };
+      }
+      if (Date.now() > record.expiresAt) {
+        localStorage.removeItem('sms_admin_otp_record');
+        return { success: false, message: 'OTP কোডের মেয়াদ শেষ হয়ে গেছে (৫ মিনিট অতিক্রান্ত)। অনুগ্রহ করে পুনরায় OTP পাঠান।' };
+      }
+
+      if (record.otp !== cleanOtp) {
+        const nextAttempts = (record.attempts || 0) + 1;
+        if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
+          localStorage.removeItem('sms_admin_otp_record');
+          teacherAuthService.recordFailedAttempt('admin_otp_recovery');
+          auditTrailService.addLog({
+            action: 'ADMIN_OTP_INVALIDATED',
+            category: 'Security',
+            details: 'পরপর ৫ বার ভুল অ্যাডমিন OTP দেওয়ার কারণে OTP বাতিল করা হয়েছে।',
+            performedBy: 'অ্যাডমিন',
+            severity: 'danger',
+            status: 'Blocked'
+          });
+          return {
+            success: false,
+            message: 'অতিরিক্ত ভুল চেষ্টার কারণে এই OTP বাতিল হয়েছে। অনুগ্রহ করে নতুন OTP পাঠান।'
+          };
+        }
+        localStorage.setItem('sms_admin_otp_record', JSON.stringify({ ...record, attempts: nextAttempts }));
+        return {
+          success: false,
+          message: `ভুল OTP কোড! আপনার মোবাইলের SMS-এ প্রেরিত ৬ ডিজিটের কোড দিন (বাকি সুযোগ: ${toBnDigits(MAX_FAILED_ATTEMPTS - nextAttempts)} বার)।`
+        };
+      }
+
+      return { success: true, message: 'অ্যাডমিন OTP সফলভাবে যাচাই হয়েছে! এবার নতুন শক্তিশালী পাসওয়ার্ড সেট করুন।' };
+    } catch {
+      return { success: false, message: 'অ্যাডমিন OTP যাচাইকরণে ত্রুটি হয়েছে।' };
+    }
+  },
+
+  // Admin Step 3: Complete Admin Password Reset with Verified 6-digit OTP
+  resetAdminPasswordWithOTP: async (
+    rawPhone: string,
+    otp: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string; loginId?: string }> => {
+    const verifyRes = teacherAuthService.verifyAdminResetOTP(rawPhone, otp);
+    if (!verifyRes.success) {
+      return verifyRes;
+    }
+
+    const cleanPass = newPassword.trim();
+    const lowerPass = cleanPass.toLowerCase();
+    if (cleanPass.length < 6) {
+      return { success: false, message: 'অ্যাডমিন পাসওয়ার্ড নিরাপত্তার জন্য কমপক্ষে ৬ অক্ষরের হতে হবে।' };
+    }
+    if (
+      /^(.)\1+$/.test(cleanPass) ||
+      '0123456789'.includes(cleanPass) ||
+      '9876543210'.includes(cleanPass) ||
+      lowerPass === 'password' ||
+      lowerPass === 'qwerty' ||
+      (lowerPass.startsWith('admin') && cleanPass.length <= 8)
+    ) {
+      return { success: false, message: 'অনুগ্রহ করে আরও শক্তিশালী পাসওয়ার্ড দিন (সহজ বা ধারাবাহিক সংখ্যা নয়)।' };
+    }
+
+    await teacherAuthService.setAdminPassword(cleanPass);
+
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sms_admin_otp_record');
+      const storedAdminId = localStorage.getItem('sms_admin_phone') || 'admin';
+      teacherAuthService.clearFailedAttempts('admin');
+      teacherAuthService.clearFailedAttempts('headmaster');
+      teacherAuthService.clearFailedAttempts(storedAdminId);
+      teacherAuthService.clearFailedAttempts(normalizePhoneNumber(rawPhone));
+      teacherAuthService.clearFailedAttempts('admin_otp_recovery');
+
+      auditTrailService.addLog({
+        action: 'ADMIN_PASSWORD_RESET_OTP',
+        category: 'Security',
+        details: `SMS OTP যাচাইয়ের মাধ্যমে অ্যাডমিন পাসওয়ার্ড সফলভাবে রিসেট করা হয়েছে (আইডি: ${storedAdminId})।`,
+        performedBy: 'অ্যাডমিন',
+        severity: 'warning',
+        status: 'Success'
+      });
+
+      return {
+        success: true,
+        message: 'অভিনন্দন! অ্যাডমিন পাসওয়ার্ড সফলভাবে রিসেট হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।',
+        loginId: storedAdminId
+      };
+    }
+
+    return {
+      success: true,
+      message: 'অভিনন্দন! অ্যাডমিন পাসওয়ার্ড সফলভাবে রিসেট হয়েছে।'
+    };
+  },
+
   // ─── TEACHER OTP PASSWORD RESET ENGINE ─────────────────────────────────────
 
-  // Step 1: Send OTP to Teacher's registered phone
-  sendTeacherResetOTP: async (rawPhone: string): Promise<{ success: boolean; message: string; otp?: string; teacherName?: string }> => {
+  // Step 1: Send OTP strictly to Teacher's own registered phone via SMS Gateway
+  sendTeacherResetOTP: async (
+    rawPhone: string
+  ): Promise<{ success: boolean; message: string; otp?: string; isDemoMode?: boolean; teacherName?: string }> => {
     const cleanDigits = normalizePhoneNumber(rawPhone);
     if (!cleanDigits || cleanDigits.length < 11) {
       return { success: false, message: 'অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (যেমন: 018XXXXXXXX)' };
@@ -644,24 +888,35 @@ export const teacherAuthService = {
     const schoolName = schoolSettings?.schoolNameEn || schoolSettings?.schoolName || 'Smart School';
 
     try {
-      const otpRes = await smsService.sendOTP(cleanDigits, teacher.name, schoolName);
+      const otpRes = await smsService.sendOTP(cleanDigits, teacher.name, schoolName, 4);
+      if (!otpRes.success) {
+        return {
+          success: false,
+          message: otpRes.message || 'SMS গেটওয়ে থেকে শিক্ষকের মোবাইলে OTP পাঠাতে ব্যর্থ হয়েছে।'
+        };
+      }
       const generatedOtp = otpRes.otp;
 
-      // Store OTP in localStorage with 5 minutes TTL
+      // Store OTP in localStorage with 5 minutes TTL & attempt cap
       if (typeof window !== 'undefined') {
         const otpRecord = {
           phone: cleanDigits,
           teacherId: teacher.id,
           otp: generatedOtp,
-          expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes validity
+          expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes validity
+          attempts: 0
         };
         localStorage.setItem(`sms_teacher_otp_${cleanDigits}`, JSON.stringify(otpRecord));
       }
 
       return {
         success: true,
-        message: `শিক্ষক ${teacher.name}-এর মোবাইল নম্বরে (${cleanDigits}) একটি ৪ ডিজিটের OTP পাঠানো হয়েছে।`,
-        otp: generatedOtp,
+        message: otpRes.isDemoMode
+          ? `ডেমো মোডে শিক্ষক ${teacher.name}-এর নম্বরে (${cleanDigits}) ৪ ডিজিটের OTP তৈরি হয়েছে।`
+          : `শিক্ষক ${teacher.name}-এর মোবাইল নম্বরে (${cleanDigits}) SMS গেটওয়ের মাধ্যমে ৪ ডিজিটের OTP পাঠানো হয়েছে।`,
+        // SECURITY: Only return OTP in explicit demo_mode; never leak live SMS gateway OTP to UI
+        otp: otpRes.isDemoMode ? generatedOtp : undefined,
+        isDemoMode: Boolean(otpRes.isDemoMode),
         teacherName: teacher.name
       };
     } catch (err: any) {
@@ -675,7 +930,7 @@ export const teacherAuthService = {
   // Step 2: Verify Teacher OTP
   verifyTeacherResetOTP: (rawPhone: string, enteredOtp: string): { success: boolean; message: string } => {
     const cleanDigits = normalizePhoneNumber(rawPhone);
-    const cleanOtp = enteredOtp.trim();
+    const cleanOtp = normalizePhoneNumber(enteredOtp);
 
     if (!cleanOtp || cleanOtp.length !== 4) {
       return { success: false, message: 'অনুগ্রহ করে ৪ ডিজিটের সঠিক OTP কোড লিখুন।' };
@@ -696,11 +951,20 @@ export const teacherAuthService = {
       }
 
       if (record.otp !== cleanOtp) {
-        return { success: false, message: 'ভুল OTP কোড! আপনার মোবাইলে প্রেরিত সঠিক ৪ ডিজিটের কোডটি দিন।' };
+        const nextAttempts = (record.attempts || 0) + 1;
+        if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
+          localStorage.removeItem(`sms_teacher_otp_${cleanDigits}`);
+          return { success: false, message: 'অতিরিক্ত ভুল চেষ্টার কারণে OTP বাতিল হয়েছে। অনুগ্রহ করে পুনরায় OTP পাঠান।' };
+        }
+        localStorage.setItem(`sms_teacher_otp_${cleanDigits}`, JSON.stringify({ ...record, attempts: nextAttempts }));
+        return {
+          success: false,
+          message: `ভুল OTP কোড! আপনার মোবাইলে প্রেরিত সঠিক ৪ ডিজিটের কোডটি দিন (বাকি সুযোগ: ${toBnDigits(MAX_FAILED_ATTEMPTS - nextAttempts)} বার)।`
+        };
       }
 
       return { success: true, message: 'OTP সফলভাবে যাচাই হয়েছে! এবার নতুন পাসওয়ার্ড সেট করুন।' };
-    } catch (e) {
+    } catch {
       return { success: false, message: 'OTP যাচাইকরণে ত্রুটি হয়েছে।' };
     }
   },
@@ -729,8 +993,9 @@ export const teacherAuthService = {
     // Update password securely
     await teacherAuthService.setTeacherPassword(teacherId, cleanPass);
 
-    // Clear OTP from storage
+    // Clear OTP & any brute-force lockout from storage
     localStorage.removeItem(`sms_teacher_otp_${cleanDigits}`);
+    teacherAuthService.clearFailedAttempts(cleanDigits);
 
     return {
       success: true,

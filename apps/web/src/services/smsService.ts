@@ -426,21 +426,31 @@ class SMSService {
     }
   }
 
-  // 9. Send OTP SMS (Format strictly: Your {Brand/Company Name} OTP is XXXX, <= 70 chars)
+  // 9. Send OTP SMS (Format strictly: Your {Brand/Company Name} OTP is XXXX/XXXXXX, <= 70 chars)
   async sendOTP(
     mobile: string,
     recipientName = 'ব্যবহারকারী',
-    brandName?: string
-  ): Promise<{ success: boolean; otp: string; message: string; gatewayResponse?: string }> {
+    brandName?: string,
+    otpLength: 4 | 6 = 4
+  ): Promise<{ success: boolean; otp: string; message: string; gatewayResponse?: string; isDemoMode?: boolean }> {
     const config = this.getConfig();
     const schoolSettings = settingsService.getSettings();
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const minVal = otpLength === 6 ? 100000 : 1000;
+    const range = otpLength === 6 ? 900000 : 9000;
+    let rand = Math.floor(Math.random() * range);
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      globalThis.crypto.getRandomValues(buf);
+      rand = buf[0] % range;
+    }
+    const otp = String(minVal + rand);
 
     // Ensure company name fits and strictly complies with <= 70 character limit
     const schoolBrand = brandName || config.brandName || schoolSettings?.schoolNameEn || schoolSettings?.schoolName || 'School';
     let otpMessage = `Your ${schoolBrand} OTP is ${otp}`;
     if (otpMessage.length > 70) {
-      const trimmedBrand = schoolBrand.slice(0, 70 - 24).trim();
+      const overhead = `Your  OTP is ${otp}`.length;
+      const trimmedBrand = schoolBrand.slice(0, Math.max(4, 70 - overhead)).trim();
       otpMessage = `Your ${trimmedBrand} OTP is ${otp}`;
     }
 
@@ -454,8 +464,9 @@ class SMSService {
         return {
           success: false,
           otp,
-          message: 'BulkSMSDhaka API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস পেজে API Key দিন।',
-          gatewayResponse: 'API Key missing'
+          message: 'BulkSMSDhaka API Key কনফিগার করা নেই। অনুগ্রহ করে সেটিংস → এসএমএস গেটওয়ে পেজে API Key দিন।',
+          gatewayResponse: 'API Key missing',
+          isDemoMode: false
         };
       }
 
@@ -480,8 +491,9 @@ class SMSService {
       return {
         success: res.success,
         otp,
-        message: res.success ? `OTP ${targetNumber} নম্বরে সফলভাবে পাঠানো হয়েছে!` : 'OTP পাঠাতে ব্যর্থ হয়েছে।',
-        gatewayResponse: res.text
+        message: res.success ? `OTP ${targetNumber} নম্বরে সফলভাবে পাঠানো হয়েছে!` : 'SMS গেটওয়ে থেকে OTP পাঠাতে ব্যর্থ হয়েছে।',
+        gatewayResponse: res.text,
+        isDemoMode: false
       };
     } else if (config.provider === 'demo_mode') {
       this.addLog({
@@ -497,11 +509,12 @@ class SMSService {
         success: true,
         otp,
         message: `ডেমো মোড: OTP (${otp}) সিমুলেট করা হয়েছে।`,
-        gatewayResponse: 'Demo Success'
+        gatewayResponse: 'Demo Success',
+        isDemoMode: true
       };
     }
 
-    // Default fallback
+    // Other real SMS gateways (BulkSMSBD / GreenWeb / Custom API)
     const result = await this.sendSMSBatch([
       {
         name: recipientName,
@@ -514,8 +527,9 @@ class SMSService {
     return {
       success: result.sentCount > 0,
       otp,
-      message: result.sentCount > 0 ? `OTP ${targetNumber} নম্বরে সফলভাবে পাঠানো হয়েছে!` : 'OTP পাঠাতে ব্যর্থ হয়েছে',
-      gatewayResponse: result.sentCount > 0 ? 'Delivered' : 'Failed'
+      message: result.sentCount > 0 ? `OTP ${targetNumber} নম্বরে সফলভাবে পাঠানো হয়েছে!` : 'SMS গেটওয়ে থেকে OTP পাঠাতে ব্যর্থ হয়েছে। API Key ও ব্যালেন্স যাচাই করুন।',
+      gatewayResponse: result.sentCount > 0 ? 'Delivered' : 'Failed',
+      isDemoMode: false
     };
   }
 

@@ -367,6 +367,7 @@ export function computeSettingsChecklist(settings: Partial<SchoolSettings>): Set
 export interface SettingsDirtySnapshot {
   formData: SchoolSettings;
   adminPhoneInput: string;
+  adminRecoveryPhoneInput?: string;
   adminPassInput: string;
   currentSession: string;
   examNames: string[];
@@ -381,6 +382,7 @@ function serializeSettingsBaseline(snap: SettingsDirtySnapshot): string {
   return JSON.stringify({
     formData: cleanForm,
     adminPhoneInput: snap.adminPhoneInput.trim(),
+    adminRecoveryPhoneInput: (snap.adminRecoveryPhoneInput || '').trim(),
     adminPassInput: snap.adminPassInput.trim(),
     currentSession: snap.currentSession.trim(),
     examNames: snap.examNames,

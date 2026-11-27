@@ -34,6 +34,8 @@ import { SettingsCard } from './settingsShared';
 interface SecuritySettingsTabProps {
   adminPhoneInput: string;
   setAdminPhoneInput: React.Dispatch<React.SetStateAction<string>>;
+  adminRecoveryPhoneInput?: string;
+  setAdminRecoveryPhoneInput?: React.Dispatch<React.SetStateAction<string>>;
   adminPassInput: string;
   setAdminPassInput: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -41,6 +43,8 @@ interface SecuritySettingsTabProps {
 export function SecuritySettingsTab({
   adminPhoneInput,
   setAdminPhoneInput,
+  adminRecoveryPhoneInput = '',
+  setAdminRecoveryPhoneInput,
   adminPassInput,
   setAdminPassInput,
 }: SecuritySettingsTabProps) {
@@ -105,7 +109,7 @@ export function SecuritySettingsTab({
               type="text"
               value={adminPhoneInput}
               onChange={(e) => setAdminPhoneInput(e.target.value)}
-              placeholder="যেমন: admin অথবা 01700000000"
+              placeholder="যেমন: admin অথবা 018XXXXXXXX"
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
             />
           </div>
@@ -133,6 +137,35 @@ export function SecuritySettingsTab({
             </div>
           </div>
         </div>
+
+        {/* Dedicated Admin SMS OTP Recovery Phone */}
+        {setAdminRecoveryPhoneInput && (
+          <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/35 border border-indigo-200/80 dark:border-indigo-800/50 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                <Smartphone className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                অ্যাডমিন OTP রিকভারি মোবাইল নম্বর (SMS গেটওয়ে)
+              </label>
+              <Link
+                href="/dashboard/settings/?tab=sms"
+                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:underline inline-flex items-center gap-1"
+              >
+                <span>SMS গেটওয়ে সেটআপ</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+            <input
+              type="tel"
+              value={adminRecoveryPhoneInput}
+              onChange={(e) => setAdminRecoveryPhoneInput(e.target.value)}
+              placeholder="অ্যাডমিনের ১১ ডিজিটের মোবাইল নম্বর (যেমন: 018XXXXXXXX)"
+              className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-indigo-200 dark:border-indigo-800 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+            />
+            <p className="text-[11px] text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed">
+              অ্যাডমিন পাসওয়ার্ড ভুলে গেলে লগইন পেইজ থেকে <strong>শুধুমাত্র এই নম্বরে</strong> SMS গেটওয়ের মাধ্যমে ৬ ডিজিটের OTP যাবে। শিক্ষকগণ তাঁদের নিজস্ব নিবন্ধিত মোবাইল নম্বরে OTP পাবেন।
+            </p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-400">

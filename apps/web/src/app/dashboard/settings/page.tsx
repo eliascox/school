@@ -51,6 +51,7 @@ export default function SettingsPage() {
 
   // Admin Credentials
   const [adminPhoneInput, setAdminPhoneInput] = useState('admin');
+  const [adminRecoveryPhoneInput, setAdminRecoveryPhoneInput] = useState('');
   const [adminPassInput, setAdminPassInput] = useState('');
 
   // Academic & Language Config
@@ -109,12 +110,15 @@ export default function SettingsPage() {
     setFormData(initialSettings);
 
     let loadedPhone = 'admin';
+    let loadedRecoveryPhone = '';
     let loadedSession = '২০২৬';
     let loadedExams = ['অর্ধ-বার্ষিক পরীক্ষা', 'বার্ষিক পরীক্ষা'];
 
     if (typeof window !== 'undefined') {
       const storedPhone = localStorage.getItem('sms_admin_phone');
       if (storedPhone) loadedPhone = storedPhone;
+
+      loadedRecoveryPhone = teacherAuthService.getAdminRecoveryPhone();
 
       const storedPass = localStorage.getItem('sms_admin_password');
       if (storedPass) {
@@ -144,12 +148,14 @@ export default function SettingsPage() {
     }
 
     setAdminPhoneInput(loadedPhone);
+    setAdminRecoveryPhoneInput(loadedRecoveryPhone);
     setCurrentSession(loadedSession);
     setExamNames(loadedExams);
 
     setBaselineSnapshot({
       formData: initialSettings,
       adminPhoneInput: loadedPhone,
+      adminRecoveryPhoneInput: loadedRecoveryPhone,
       adminPassInput: '',
       currentSession: loadedSession,
       examNames: [...loadedExams],
@@ -183,13 +189,22 @@ export default function SettingsPage() {
         {
           formData,
           adminPhoneInput,
+          adminRecoveryPhoneInput,
           adminPassInput,
           currentSession,
           examNames,
         },
         baselineSnapshot,
       ),
-    [formData, adminPhoneInput, adminPassInput, currentSession, examNames, baselineSnapshot],
+    [
+      formData,
+      adminPhoneInput,
+      adminRecoveryPhoneInput,
+      adminPassInput,
+      currentSession,
+      examNames,
+      baselineSnapshot,
+    ],
   );
 
   useEffect(() => {
@@ -312,6 +327,7 @@ export default function SettingsPage() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('sms_admin_phone', adminPhoneInput.trim());
+        teacherAuthService.setAdminRecoveryPhone(adminRecoveryPhoneInput.trim());
         if (adminPassInput.trim() && !adminPassInput.trim().startsWith('pbkdf2:')) {
           await teacherAuthService.setAdminPassword(adminPassInput.trim(), adminPhoneInput.trim());
         }
@@ -344,11 +360,14 @@ export default function SettingsPage() {
       }
 
       const persisted = settingsService.getSettings();
+      const savedRecovery = teacherAuthService.getAdminRecoveryPhone();
       setFormData(persisted);
+      setAdminRecoveryPhoneInput(savedRecovery);
       setAdminPassInput('');
       setBaselineSnapshot({
         formData: persisted,
         adminPhoneInput: adminPhoneInput.trim(),
+        adminRecoveryPhoneInput: savedRecovery,
         adminPassInput: '',
         currentSession: currentSession.trim(),
         examNames: [...examNames],
@@ -373,6 +392,7 @@ export default function SettingsPage() {
     if (!baselineSnapshot) return;
     setFormData(baselineSnapshot.formData);
     setAdminPhoneInput(baselineSnapshot.adminPhoneInput);
+    setAdminRecoveryPhoneInput(baselineSnapshot.adminRecoveryPhoneInput || '');
     setAdminPassInput('');
     setCurrentSession(baselineSnapshot.currentSession);
     setExamNames([...baselineSnapshot.examNames]);
@@ -518,6 +538,8 @@ export default function SettingsPage() {
                 <SecuritySettingsTab
                   adminPhoneInput={adminPhoneInput}
                   setAdminPhoneInput={setAdminPhoneInput}
+                  adminRecoveryPhoneInput={adminRecoveryPhoneInput}
+                  setAdminRecoveryPhoneInput={setAdminRecoveryPhoneInput}
                   adminPassInput={adminPassInput}
                   setAdminPassInput={setAdminPassInput}
                 />
