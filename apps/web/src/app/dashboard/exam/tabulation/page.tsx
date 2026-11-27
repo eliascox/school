@@ -1,199 +1,263 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Printer, BookOpen, Search, Filter, CheckCircle2, XCircle, Award, UserX, Upload, UserCheck } from 'lucide-react';
-import Link from 'next/link';
-import { studentService } from '@/services/studentService';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  getStudentReligion,
-  ReligionType,
-} from '@/lib/religionUtils';
-import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
+  Download,
+  Eye,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Printer,
+  SlidersHorizontal,
+  Sparkles,
+  ZoomIn,
+} from 'lucide-react';
+import { studentService, type Student } from '@/services/studentService';
+import { settingsService, type SchoolSettings } from '@/services/settingsService';
+import { examService } from '@/services/examService';
 import { resultService } from '@/services/resultService';
+import { getActiveCurriculumSubjects } from '@/lib/curriculumUtils';
+import { triggerProfessionalPrint } from '@/lib/printPdfUtils';
+import { toBanglaDigits } from '@/lib/omr/omrTemplates';
+import { RANK_GRADE_BN_MAP } from '@/lib/rankResultUtils';
+import {
+  formatAdmitExamTitle,
+  summarizeAdmitScopes,
+} from '@/lib/admitCardStudioUtils';
+import {
+  DEFAULT_TABULATION_COLUMNS,
+  TABULATION_PAPER_SPECS,
+  type TabulationColumnOptions,
+  type TabulationDocLang,
+  type TabulationGradeId,
+  type TabulationGroupBn,
+  type TabulationPaperSize,
+  type TabulationStatusFilter,
+  type TabulationSubjectSpec,
+  assignTabulationMeritPositions,
+  buildSampleTabulationRows,
+  buildTabulationExcelRows,
+  buildTabulationRow,
+  computeTabulationSummary,
+  filterTabulationStudents,
+} from '@/lib/tabulationStudioUtils';
+import { TabulationControlRail } from '@/components/exam/TabulationControlRail';
+import { TabulationSheetView } from '@/components/exam/TabulationSheetView';
 
-interface StudentInfo {
-  id: string;
-  roll: string;
-  name: string;
-  group: string;
-  optionalSubject: string;
-  religion: ReligionType;
-}
-
-// Standard NCTB configured subjects list per class (Dynamically linked to Curriculum)
-const getNormalizedSubjects = (grade: string, group: string) => {
-  const list = getActiveCurriculumSubjects(grade, group);
-  return list.map((s: any) => ({
-    code: s.code,
-    name: s.name,
-    fullMarks: s.fullMarks || 100,
-    isJointPass: Boolean(s.isJointPass),
-    jointPairCode: s.jointPairCode
-  }));
-};
+const ZOOM_PRESETS = [75, 85, 100] as const;
 
 export default function DynamicTabulationSheetPage() {
   const [mounted, setMounted] = useState(false);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [examOptions, setExamOptions] = useState<string[]>([
+    'অর্ধ-বার্ষিক পরীক্ষা ২০২৬',
+    'বার্ষিক পরীক্ষা ২০২৬',
+  ]);
   const [selectedExam, setSelectedExam] = useState('অর্ধ-বার্ষিক পরীক্ষা ২০২৬');
-  const [selectedGrade, setSelectedGrade] = useState('8th');
-  const [selectedBranch, setSelectedBranch] = useState('A');
-  const [selectedGroup, setSelectedGroup] = useState('বিজ্ঞান');
-  const [pageSize, setPageSize] = useState<'a4' | 'legal'>('a4');
+  const [selectedGrade, setSelectedGrade] = useState<TabulationGradeId>('8th');
+  const [selectedSection, setSelectedSection] = useState<string>('A');
+  const [selectedGroup, setSelectedGroup] = useState<TabulationGroupBn>('বিজ্ঞান');
+  const [statusFilter, setStatusFilter] = useState<TabulationStatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [schoolSettings, setSchoolSettings] = useState<any>(null);
+
+  // Print & Display Controls
+  const [paperSize, setPaperSize] = useState<TabulationPaperSize>('legal');
+  const [docLang, setDocLang] = useState<TabulationDocLang>('bn');
+  const [columns, setColumns] = useState<TabulationColumnOptions>(DEFAULT_TABULATION_COLUMNS);
+  const [zoomPercent, setZoomPercent] = useState<number>(85);
+  const [samplePreview, setSamplePreview] = useState(false);
+
+  // Split-Pane Visibility
+  const [railVisible, setRailVisible] = useState(true);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (typeof window !== 'undefined') {
-      const storedSettings = localStorage.getItem('sms_school_settings');
-      if (storedSettings) {
-        try {
-          setSchoolSettings(JSON.parse(storedSettings));
-        } catch (e) {
-          console.error(e);
-        }
+
+    const initialStudents = studentService.getAllStudents();
+    setAllStudents(initialStudents);
+    setSchoolSettings(settingsService.getSettings());
+
+    // Smart auto-select first populated class/section/group
+    const { populatedScopes } = summarizeAdmitScopes(initialStudents);
+    if (populatedScopes.length > 0) {
+      const first = populatedScopes[0];
+      setSelectedGrade(first.grade);
+      if (first.grade === '9th' || first.grade === '10th') {
+        setSelectedGroup(first.group === 'সাধারণ' ? 'বিজ্ঞান' : first.group);
+      } else {
+        setSelectedSection(first.section || 'A');
       }
     }
+
+    const syncExams = () => {
+      const active = examService.getActiveExams();
+      const titles = Array.from(
+        new Set(active.map((e) => e.title?.trim()).filter((t): t is string => Boolean(t))),
+      );
+      if (titles.length > 0) {
+        setExamOptions(titles);
+        setSelectedExam((prev) => (titles.includes(prev) ? prev : titles[0]));
+      }
+    };
+    syncExams();
+
+    const unsubStudents = studentService.subscribe(() => {
+      setAllStudents(studentService.getAllStudents());
+    });
+    const unsubSettings = settingsService.subscribe((next) => {
+      if (next) setSchoolSettings(next);
+    });
+    const unsubExams = examService.subscribe(() => syncExams());
+
+    return () => {
+      unsubStudents();
+      unsubSettings();
+      unsubExams();
+    };
   }, []);
 
-  const gradeNumMap: Record<string, number> = { '6th': 6, '7th': 7, '8th': 8, '9th': 9, '10th': 10 };
-  const targetGradeNum = gradeNumMap[selectedGrade] || 8;
-  const isClass9or10 = targetGradeNum >= 9;
+  const isClass9or10 = selectedGrade === '9th' || selectedGrade === '10th';
+  const scopeSummary = useMemo(() => summarizeAdmitScopes(allStudents), [allStudents]);
 
-  // Helper to ensure NO English appears in subject names and apply short Bengali names
-  const cleanBengaliSubjectName = (rawName: string) => {
-    if (!rawName) return '';
-    let cleaned = rawName.replace(/\s*\([A-Za-z0-9\s\.\-]+\)/g, '').trim();
-    cleaned = cleaned.replace(/[A-Za-z]+/g, '').trim();
+  const configuredSubjects: TabulationSubjectSpec[] = useMemo(() => {
+    if (!mounted) return [];
+    const list = getActiveCurriculumSubjects(selectedGrade, isClass9or10 ? selectedGroup : 'সাধারণ');
+    return list.map(
+      (s: {
+        code: string;
+        name: string;
+        fullMarks?: number;
+        isJointPass?: boolean;
+        jointPairCode?: string;
+      }) => ({
+        code: s.code,
+        name: s.name,
+        fullMarks: s.fullMarks || 100,
+        isJointPass: Boolean(s.isJointPass),
+        jointPairCode: s.jointPairCode,
+      }),
+    );
+  }, [mounted, selectedGrade, selectedGroup, isClass9or10]);
 
-    if (cleaned === 'বাংলা ১ম পত্র' || cleaned === 'বাংলা ১ম') return 'বাংলা ১';
-    if (cleaned === 'বাংলা ২য় পত্র' || cleaned === 'বাংলা ২য়') return 'বাংলা ২';
-    if (cleaned === 'ইংরেজি ১ম পত্র' || cleaned === 'ইংরেজি ১ম') return 'ইংরেজি ১';
-    if (cleaned === 'ইংরেজি ২য় পত্র' || cleaned === 'ইংরেজি ২য়') return 'ইংরেজি ২';
-    if (cleaned === 'ডিজিটাল প্রযুক্তি' || cleaned === 'তথ্য ও যোগাযোগ প্রযুক্তি') return 'আইসিটি';
-    if (cleaned.includes('ইতিহাস ও সামাজিক') || cleaned.includes('ইতিহাস')) return 'ইতিহাস';
-    if (cleaned === 'কৃষি শিক্ষা' || cleaned.includes('কৃষি')) return 'কৃষি';
-    if (cleaned === 'গার্হস্থ্য বিজ্ঞান' || cleaned.includes('গার্হস্থ্য')) return 'গার্হস্থ্য';
-    if (cleaned === 'উচ্চতর গণিত' || cleaned.includes('উচ্চতর')) return 'উচ্চতর গণিত';
-    if (cleaned === 'ব্যবসায় উদ্যোগ') return 'ব্যবসায় উদ্যোগ';
-    if (cleaned === 'ইসলাম ও নৈতিক শিক্ষা' || cleaned === 'ধর্ম ও নৈতিক শিক্ষা' || cleaned.includes('ধর্ম')) return 'ধর্ম';
-    return cleaned;
-  };
-
-  const configuredSubjects = useMemo(
-    () => (mounted ? getNormalizedSubjects(selectedGrade, selectedGroup) : []),
-    [mounted, selectedGrade, selectedGroup],
+  const scopedStudents = useMemo(
+    () =>
+      filterTabulationStudents({
+        allStudents,
+        grade: selectedGrade,
+        section: selectedSection,
+        groupBn: selectedGroup,
+      }),
+    [allStudents, selectedGrade, selectedSection, selectedGroup],
   );
 
-  // 2. Compute Tabulation Data for each student via cached studentService + memoized resultService
-  const currentTabulationStudents: StudentInfo[] = useMemo(() => {
+  // Evaluate all students in scope & compute official class merit
+  const evaluatedRows = useMemo(() => {
     if (!mounted) return [];
-    const combinedRaw: any[] = studentService.getAllStudents();
-
-    const gradeBnMap: Record<string, string> = {
-      '6th': '৬ষ্ঠ শ্রেণি', '7th': '৭ম শ্রেণি', '8th': '৮ম শ্রেণি', '9th': '৯ম শ্রেণি', '10th': '১০ম শ্রেণি'
-    };
-    const targetGradeBn = gradeBnMap[selectedGrade] || selectedGrade;
-
-    const filtered = combinedRaw.filter(s => {
-      const sGrade = s.grade || s.gradeBn || '';
-      const sSection = s.section || s.branch || 'A';
-      const sGroup = s.group || 'সাধারণ';
-
-      const matchGrade = sGrade === selectedGrade || sGrade === targetGradeBn || sGrade.includes(selectedGrade) ||
-        (selectedGrade === '6th' && (sGrade.includes('6') || sGrade.includes('Six') || sGrade.includes('৬'))) ||
-        (selectedGrade === '7th' && (sGrade.includes('7') || sGrade.includes('Seven') || sGrade.includes('৭'))) ||
-        (selectedGrade === '8th' && (sGrade.includes('8') || sGrade.includes('Eight') || sGrade.includes('৮'))) ||
-        (selectedGrade === '9th' && (sGrade.includes('9') || sGrade.includes('Nine') || sGrade.includes('৯'))) ||
-        (selectedGrade === '10th' && (sGrade.includes('10') || sGrade.includes('Ten') || sGrade.includes('১০')));
-
-      const matchSection = !selectedBranch || sSection === selectedBranch || sSection.toLowerCase() === selectedBranch.toLowerCase();
-      const matchGroup = isClass9or10 ? (sGroup === selectedGroup || sGroup.includes(selectedGroup) || (selectedGroup === 'বিজ্ঞান' && sGroup === 'science') || (selectedGroup === 'মানবিক' && sGroup === 'humanities') || (selectedGroup === 'ব্যবসায় শিক্ষা' && sGroup === 'commerce')) : true;
-
-      return matchGrade && matchSection && matchGroup;
-    });
-
-    const uniqueMap = new Map<string, StudentInfo>();
-    filtered.forEach((st, idx) => {
-      const r = st.roll || String(idx + 1).padStart(2, '0');
-      if (!uniqueMap.has(r)) {
-        uniqueMap.set(r, {
-          id: st.id || `st_${r}`,
-          roll: r,
-          name: st.name,
-          group: isClass9or10 ? selectedGroup : 'সাধারণ',
-          optionalSubject: st.optionalSubject || (isClass9or10 && selectedGroup === 'বিজ্ঞান' ? 'উচ্চতর গণিত' : 'কৃষি শিক্ষা'),
-          religion: getStudentReligion(st),
-        });
-      }
-    });
-
-    return Array.from(uniqueMap.values());
-  }, [mounted, selectedGrade, selectedBranch, selectedGroup, isClass9or10]);
-
-  const evaluatedStudents = useMemo(() => {
-    if (!mounted) return [];
-    return currentTabulationStudents.map(student => {
+    const rawRows = scopedStudents.map((st) => {
+      const branchArg = isClass9or10
+        ? st.groupBn === 'বিজ্ঞান'
+          ? 'Science'
+          : st.groupBn === 'মানবিক'
+          ? 'Humanities'
+          : 'Commerce'
+        : st.sectionNorm;
       const evaluated = resultService.calculateStudentResult({
         examId: selectedExam,
-        student,
+        student: {
+          id: st.id,
+          roll: st.roll,
+          name: st.name,
+          optionalSubject: st.optionalSubject,
+          religion: st.religion,
+        },
         grade: selectedGrade,
-        branch: selectedBranch,
-        group: isClass9or10 ? student.group : 'সাধারণ',
+        branch: branchArg,
+        group: isClass9or10 ? st.groupBn : 'সাধারণ',
       });
-
-      const subjectMarksMap: Record<string, { total: number; grade: string; point: number }> = {};
-      if (evaluated) {
-        for (const [code, entry] of Object.entries(evaluated.subjectMarks)) {
-          subjectMarksMap[code] = {
-            total: entry.totalMarks,
-            grade: entry.letterGrade,
-            point: entry.gradePoint,
-          };
-        }
-        if (evaluated.optionalSubjectMark) {
-          const opt = evaluated.optionalSubjectMark;
-          const matchedCfg = configuredSubjects.find(
-            (s: any) =>
-              s.code === opt.subjectCode ||
-              s.name.includes(opt.subjectName) ||
-              opt.subjectName.includes(s.name),
-          );
-          const targetKey = matchedCfg ? matchedCfg.code : opt.subjectCode;
-          subjectMarksMap[targetKey] = {
-            total: opt.totalMarks,
-            grade: opt.letterGrade,
-            point: opt.gradePoint,
-          };
-        }
-      }
-
-      return {
-        ...student,
-        subjectMarksMap,
-        totalObtained: evaluated?.totalObtainedMarks ?? 0,
-        totalFull: evaluated?.totalFullMarks ?? 0,
-        gpaWithout4th: evaluated?.gpaWithout4th ?? 0,
-        finalGPA: evaluated?.gpa ?? 0,
-        overallGrade: evaluated?.letterGrade ?? 'F',
-        hasFailed: evaluated ? !evaluated.isPassed : true,
-      };
+      return buildTabulationRow(st, evaluated, configuredSubjects);
     });
-  }, [mounted, currentTabulationStudents, selectedExam, selectedGrade, selectedBranch, isClass9or10, configuredSubjects]);
+    return assignTabulationMeritPositions(rawRows);
+  }, [mounted, scopedStudents, selectedExam, selectedGrade, isClass9or10, configuredSubjects]);
 
-  const processedStudents = useMemo(() => {
+  // Apply Sample Preview when real class is empty
+  const baseRows = useMemo(() => {
+    if (samplePreview && evaluatedRows.length === 0) {
+      return buildSampleTabulationRows(
+        selectedGrade,
+        selectedSection,
+        selectedGroup,
+        configuredSubjects,
+      );
+    }
+    return evaluatedRows;
+  }, [
+    samplePreview,
+    evaluatedRows,
+    selectedGrade,
+    selectedSection,
+    selectedGroup,
+    configuredSubjects,
+  ]);
+
+  // Filter by pass/fail status & search query
+  const displayedRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return evaluatedStudents;
-    return evaluatedStudents.filter(
-      (st) => st.name.toLowerCase().includes(q) || st.roll.includes(q),
-    );
-  }, [evaluatedStudents, searchQuery]);
+    return baseRows.filter((r) => {
+      if (statusFilter === 'pass' && r.hasFailed) return false;
+      if (statusFilter === 'fail' && !r.hasFailed) return false;
+      if (
+        q &&
+        !r.name.toLowerCase().includes(q) &&
+        !(r.nameEn || '').toLowerCase().includes(q) &&
+        !r.roll.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [baseRows, statusFilter, searchQuery]);
+
+  const summary = useMemo(() => computeTabulationSummary(displayedRows), [displayedRows]);
+
+  const handleToggleColumn = (key: keyof TabulationColumnOptions) => {
+    setColumns((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleExportExcel = async () => {
+    if (displayedRows.length === 0) return;
+    const XLSX = await import('xlsx');
+    const excelRows = buildTabulationExcelRows({
+      rows: displayedRows,
+      subjects: configuredSubjects,
+      lang: docLang,
+      columns,
+    });
+    const ws = XLSX.utils.json_to_sheet(excelRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tabulation');
+    const examSlug = formatAdmitExamTitle(selectedExam, 'en').replace(/[^A-Za-z0-9]+/g, '_');
+    const scopeSlug = isClass9or10 ? selectedGroup : `Sec_${selectedSection}`;
+    XLSX.writeFile(wb, `Tabulation_${selectedGrade}_${scopeSlug}_${examSlug}.xlsx`);
+  };
+
+  const handlePrint = () => {
+    const examLabel = formatAdmitExamTitle(selectedExam, docLang);
+    triggerProfessionalPrint([
+      docLang === 'en' ? 'Tabulation Sheet' : 'টেবুলেশন শিট',
+      examLabel,
+      RANK_GRADE_BN_MAP[selectedGrade],
+      isClass9or10 ? selectedGroup : `Section ${selectedSection}`,
+    ]);
+  };
+
+  const paperSpec = TABULATION_PAPER_SPECS[paperSize];
 
   if (!mounted) {
     return (
       <div className="max-w-[98%] mx-auto py-16" suppressHydrationWarning>
         <div className="animate-pulse space-y-6">
-          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+          <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
           <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
         </div>
       </div>
@@ -201,288 +265,226 @@ export default function DynamicTabulationSheetPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12 print:p-0 print:m-0 print:space-y-0" suppressHydrationWarning>
-
-      {/* DYNAMIC LANDSCAPE PRINT PAGE STYLES */}
-      <style jsx global>{`
+    <div
+      className="w-full max-w-full pb-12 print:p-0 print:m-0 font-sans text-slate-900 dark:text-white"
+      suppressHydrationWarning
+    >
+      {/* DYNAMIC LANDSCAPE PRINT PAGE STYLES (A4 / Legal / A3) */}
+      <style>{`
         @media print {
           @page {
-            size: ${pageSize === 'legal' ? 'legal landscape' : 'A4 landscape'};
-            margin: 4mm;
+            size: ${paperSpec.cssPageSize} !important;
+            margin: 5mm !important;
           }
-          body {
+          html, body {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          .tabulation-zoom-wrapper {
+            font-size: 100% !important;
+          }
+          .tabulation-print-table thead {
+            display: table-header-group !important;
+          }
+          .tabulation-print-table tr,
+          .tabulation-signature-block {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         }
       `}</style>
-      
-      {/* TOP ACTIONS (Clean & Compact) */}
-      <div className="flex justify-end print:hidden">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-xs transition transform active:scale-95 shrink-0 cursor-pointer"
-        >
-          <Printer size={15} />
-          টেবুলেশন শীট প্রিন্ট করুন (Landscape)
-        </button>
-      </div>
 
-      {/* FILTER CONTROLS */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-bold">
-          
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">১. পরীক্ষা (Exam)</label>
-            <select
-              value={selectedExam}
-              onChange={(e) => setSelectedExam(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
-            >
-              <option value="অর্ধ-বার্ষিক পরীক্ষা ২০২৬">অর্ধ-বার্ষিক পরীক্ষা ২০২৬</option>
-              <option value="বার্ষিক পরীক্ষা ২০২৬">বার্ষিক পরীক্ষা ২০২৬</option>
-              <option value="এসএসসি প্রাক-নির্বাচনী পরীক্ষা ২০২৬">এসএসসি প্রাক-নির্বাচনী পরীক্ষা ২০২৬</option>
-              <option value="এসএসসি নির্বাচনী (টেস্ট) পরীক্ষা ২০২৬">এসএসসি নির্বাচনী (টেস্ট) পরীক্ষা ২০২৬</option>
-            </select>
+      {/* Mobile Slide-Over Control Drawer */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex print:hidden">
+          <div
+            className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+          <div className="relative z-10 w-[320px] max-w-[90vw] p-3 bg-slate-100 dark:bg-slate-950 h-full overflow-y-auto shadow-2xl">
+            <TabulationControlRail
+              examOptions={examOptions}
+              selectedExam={selectedExam}
+              onSelectExam={setSelectedExam}
+              selectedGrade={selectedGrade}
+              onSelectGrade={setSelectedGrade}
+              selectedSection={selectedSection}
+              onSelectSection={setSelectedSection}
+              selectedGroup={selectedGroup}
+              onSelectGroup={setSelectedGroup}
+              gradeCounts={scopeSummary.byGrade}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              paperSize={paperSize}
+              onPaperSizeChange={setPaperSize}
+              docLang={docLang}
+              onDocLangChange={setDocLang}
+              columns={columns}
+              onToggleColumn={handleToggleColumn}
+              summary={summary}
+              onCloseMobileDrawer={() => setMobileDrawerOpen(false)}
+            />
           </div>
+        </div>
+      )}
 
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">২. শ্রেণি (Class)</label>
-            <select
-              value={selectedGrade}
-              onChange={(e) => {
-                const newGrade = e.target.value;
-                setSelectedGrade(newGrade);
-                if (newGrade === '9th' || newGrade === '10th') {
-                  setSelectedBranch('Science');
-                  setSelectedGroup('বিজ্ঞান');
-                } else {
-                  setSelectedBranch('A');
-                  setSelectedGroup('সাধারণ');
-                }
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-slate-900 dark:text-white font-bold cursor-pointer"
-            >
-              <option value="6th">৬ষ্ঠ শ্রেণি (Class 6)</option>
-              <option value="7th">৭ম শ্রেণি (Class 7)</option>
-              <option value="8th">৮ম শ্রেণি (Class 8)</option>
-              <option value="9th">৯ম শ্রেণি (Class 9)</option>
-              <option value="10th">১০ম শ্রেণি (Class 10)</option>
-            </select>
+      {/* SPLIT-PANE MASTER TABULATION STUDIO */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-start gap-5 print:block">
+        {/* Desktop Collapsible Left Rail */}
+        {railVisible && (
+          <div className="hidden lg:block sticky top-4 print:hidden">
+            <TabulationControlRail
+              examOptions={examOptions}
+              selectedExam={selectedExam}
+              onSelectExam={setSelectedExam}
+              selectedGrade={selectedGrade}
+              onSelectGrade={setSelectedGrade}
+              selectedSection={selectedSection}
+              onSelectSection={setSelectedSection}
+              selectedGroup={selectedGroup}
+              onSelectGroup={setSelectedGroup}
+              gradeCounts={scopeSummary.byGrade}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              paperSize={paperSize}
+              onPaperSizeChange={setPaperSize}
+              docLang={docLang}
+              onDocLangChange={setDocLang}
+              columns={columns}
+              onToggleColumn={handleToggleColumn}
+              summary={summary}
+            />
           </div>
+        )}
 
-          {/* SECTION OR GROUP SELECTOR */}
-          <div>
-            <label className="block text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase mb-1">
-              {isClass9or10 ? '৩. বিভাগ / গ্রুপ (Group)' : '৩. শাখা (Section)'}
-            </label>
-            <select
-              value={isClass9or10 ? selectedGroup : selectedBranch}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (isClass9or10) {
-                  setSelectedGroup(val);
-                  setSelectedBranch(val === 'বিজ্ঞান' ? 'Science' : val === 'মানবিক' ? 'Humanities' : 'Commerce');
-                } else {
-                  setSelectedBranch(val);
-                  setSelectedGroup('সাধারণ');
-                }
-              }}
-              className="w-full px-3 py-2.5 bg-indigo-50/50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 text-indigo-950 dark:text-indigo-200 font-bold cursor-pointer"
-            >
-              {isClass9or10 ? (
-                <>
-                  <option value="বিজ্ঞান">🧪 বিজ্ঞান বিভাগ (Science)</option>
-                  <option value="মানবিক">📚 মানবিক বিভাগ (Humanities)</option>
-                  <option value="ব্যবসায় শিক্ষা">💼 ব্যবসায় শিক্ষা (Commerce)</option>
-                </>
-              ) : (
-                <>
-                  <option value="A">Section A (ক শাখা)</option>
-                  <option value="B">Section B (খ শাখা)</option>
-                  <option value="C">Section C (গ শাখা)</option>
-                </>
+        {/* Right Wide Tabulation Canvas */}
+        <div className="w-full flex-1 min-w-0 max-w-full space-y-4 print:space-y-0">
+          {/* Compact Top Action Bar */}
+          <div className="bg-white dark:bg-slate-900 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-2.5 print:hidden">
+            {/* Left: Rail Toggle + Scope Info */}
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <button
+                type="button"
+                onClick={() => setRailVisible((v) => !v)}
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold cursor-pointer transition"
+              >
+                {railVisible ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+                <span>{railVisible ? 'প্যানেল' : 'ফিল্টার'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMobileDrawerOpen(true)}
+                className="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white text-xs font-black cursor-pointer"
+              >
+                <SlidersHorizontal size={14} /> ফিল্টার ও পেইজ
+              </button>
+
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-[#0B5D3B] dark:text-emerald-300 text-xs font-black border border-emerald-200/70 dark:border-emerald-800/60">
+                {RANK_GRADE_BN_MAP[selectedGrade]} •{' '}
+                {isClass9or10 ? `${selectedGroup} বিভাগ` : `শাখা ${selectedSection}`}
+              </span>
+
+              <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 text-xs font-bold border border-amber-200/70 dark:border-amber-800/60">
+                {paperSpec.labelBn} • {toBanglaDigits(configuredSubjects.length)} বিষয়
+              </span>
+            </div>
+
+            {/* Right: Zoom + Sample + Excel + Print */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Screen Fit-to-Page Zoom */}
+              <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                <ZoomIn size={13} className="text-slate-500 ml-0.5" />
+                {ZOOM_PRESETS.map((z) => (
+                  <button
+                    key={z}
+                    type="button"
+                    onClick={() => setZoomPercent(z)}
+                    className={`px-2 py-0.5 rounded-lg text-[10.5px] font-black cursor-pointer transition ${
+                      zoomPercent === z
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {z}%
+                  </button>
+                ))}
+              </div>
+
+              {evaluatedRows.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSamplePreview((v) => !v)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition cursor-pointer ${
+                    samplePreview
+                      ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-amber-400'
+                  }`}
+                >
+                  <Eye size={13} /> {samplePreview ? 'নমুনা চালু আছে' : 'নমুনা প্রিভিউ'}
+                </button>
               )}
-            </select>
-          </div>
 
-          {/* PAGE SIZE SELECTOR FOR LANDSCAPE PRINTING */}
-          <div>
-            <label className="block text-[10px] font-extrabold text-amber-700 dark:text-amber-300 uppercase mb-1">৪. প্রিন্ট পেইজ সাইজ (Page Size)</label>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(e.target.value as 'a4' | 'legal')}
-              className="w-full px-3 py-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 rounded-2xl outline-none focus:ring-2 focus:ring-amber-200 text-amber-950 dark:text-amber-200 font-bold cursor-pointer"
-            >
-              <option value="a4">📄 A4 (Landscape 297mm × 210mm)</option>
-              <option value="legal">📜 Legal (Landscape 355.6mm × 215.9mm)</option>
-            </select>
-          </div>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={displayedRows.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 disabled:opacity-40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-black transition cursor-pointer whitespace-nowrap"
+              >
+                <Download size={13} /> Excel (.xlsx)
+              </button>
 
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase mb-1">৫. খোঁজ করুন (Search)</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="রোল বা নাম লিখুন..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-200 font-bold text-slate-900 dark:text-white"
-              />
-              <Search className="absolute left-3 top-3 text-slate-400" size={15} />
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={displayedRows.length === 0}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B5D3B] hover:bg-[#094a2f] disabled:bg-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 text-white text-xs font-black shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap"
+              >
+                <Printer size={14} /> টেবুলেশন প্রিন্ট / PDF
+              </button>
             </div>
           </div>
 
+          {samplePreview && evaluatedRows.length === 0 && (
+            <div className="px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 text-xs font-bold flex flex-wrap items-center justify-between gap-2 print:hidden">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-amber-600" />
+                বর্তমান শ্রেণিতে শিক্ষার্থী না থাকায় ৪ জন শিক্ষার্থীর নমুনা টেবুলেশন শিট দেখানো হচ্ছে।
+              </span>
+              <button
+                type="button"
+                onClick={() => setSamplePreview(false)}
+                className="underline font-black cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          )}
+
+          {/* LIVE PRESS-GRADE TABULATION SHEET */}
+          <TabulationSheetView
+            rows={displayedRows}
+            subjects={configuredSubjects}
+            summary={summary}
+            settings={schoolSettings}
+            selectedExam={selectedExam}
+            selectedGrade={selectedGrade}
+            selectedSection={selectedSection}
+            selectedGroup={selectedGroup}
+            docLang={docLang}
+            columns={columns}
+            zoomPercent={zoomPercent}
+            onEnableSamplePreview={() => setSamplePreview(true)}
+          />
         </div>
       </div>
-
-      {/* PRINTABLE OFFICIAL TABULATION SHEET */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-950 shadow-sm space-y-5 print:shadow-none print:p-0 print:border-none">
-        
-        {/* TABULATION HEADER */}
-        <div className="text-center border-b-2 border-slate-950 pb-4 space-y-1">
-          <h2 className="text-2xl font-black text-slate-950 tracking-tight">
-            {schoolSettings?.schoolName || 'শিক্ষা প্রতিষ্ঠান'}
-          </h2>
-          <p className="text-xs font-bold text-slate-800">
-            {schoolSettings?.address ? `${schoolSettings.address} | ` : ''}EIIN: {schoolSettings?.eiin || '---'}
-          </p>
-          <div className="pt-1">
-            <span className="inline-block px-5 py-1 bg-slate-950 text-white font-black text-xs uppercase tracking-widest">
-              {selectedExam} — ফলাফল টেবুলেশন রেজিস্টার ২০২৬ ({selectedGrade === '6th' ? '৬ষ্ঠ' : selectedGrade === '7th' ? '৭ম' : selectedGrade === '8th' ? '৮ম' : selectedGrade === '9th' ? '৯ম' : '১০ম'} শ্রেণি {isClass9or10 ? `| ${selectedGroup}` : ''})
-            </span>
-          </div>
-        </div>
-
-        {/* TABULATION TABLE */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] border-collapse font-sans border border-slate-950">
-            <thead>
-              <tr className="bg-slate-200 text-slate-950 font-black uppercase text-[9.5px] border-b border-slate-950">
-                <th className="p-1.5 text-center border-r border-slate-950 w-12">রোল</th>
-                <th className="p-1.5 border-r border-slate-950 min-w-[140px]">শিক্ষার্থীর নাম</th>
-                
-                {/* DYNAMIC SUBJECT COLUMNS WITH CLEAN BENGALI NAMES ONLY */}
-                {configuredSubjects.map((sub: any) => (
-                  <th key={sub.code} className="p-1.5 text-center border-r border-slate-950 min-w-[60px]">
-                    <div className="truncate font-black">{cleanBengaliSubjectName(sub.name)}</div>
-                    <div className="text-[7.5px] text-slate-600 font-mono font-normal">({sub.fullMarks})</div>
-                  </th>
-                ))}
-
-                <th className="p-1.5 text-center border-r border-slate-950 w-20">মোট নম্বর</th>
-                <th className="p-1.5 text-center border-r border-slate-950 w-16 bg-indigo-50 text-indigo-950">GPA</th>
-                <th className="p-1.5 text-center border-r border-slate-950 w-14">গ্রেড</th>
-                <th className="p-1.5 text-center w-20">স্ট্যাটাস</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-950 font-medium">
-              {processedStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={configuredSubjects.length + 6} className="p-10 text-center space-y-3">
-                    <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
-                      <UserX size={24} />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-900">এই শ্রেণি বা শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি</p>
-                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        অনুগ্রহ করে সেটিংস পেজ থেকে বাল্ক শিক্ষার্থী সিএসভি ফাইল আপলোড করুন অথবা শিক্ষার্থী তালিকায় নতুন শিক্ষার্থী যোগ করুন।
-                      </p>
-                    </div>
-                    <div className="pt-1 flex justify-center gap-3 print:hidden">
-                      <Link href="/dashboard/settings" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5">
-                        <Upload size={14} /> বাল্ক আপলোড দিন
-                      </Link>
-                      <Link href="/dashboard/students" className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                        <UserCheck size={14} /> শিক্ষার্থী তালিকা
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                processedStudents.map((st) => (
-                  <tr key={st.roll} className="border-b border-slate-950 hover:bg-slate-50/80">
-                    <td className="p-1.5 text-center font-black font-mono border-r border-slate-950">{st.roll}</td>
-                    <td className="p-1.5 font-bold border-r border-slate-950 text-slate-950">{st.name}</td>
-
-                    {/* DYNAMIC SUBJECT MARKS */}
-                    {configuredSubjects.map((sub: any) => {
-                      const markObj = st.subjectMarksMap[sub.code];
-                      return (
-                        <td key={sub.code} className="p-1.5 text-center font-mono border-r border-slate-950">
-                          {markObj ? (
-                            <span className={markObj.grade === 'F' ? 'text-rose-700 font-black' : 'text-slate-900 font-bold'}>
-                              {markObj.total} ({markObj.grade})
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
-                        </td>
-                      );
-                    })}
-
-                    <td className="p-1.5 text-center font-mono font-black text-slate-950 border-r border-slate-950">{st.totalObtained}</td>
-                    <td className="p-1.5 text-center font-mono font-black text-indigo-950 bg-indigo-50/50 border-r border-slate-950 text-xs">
-                      {st.hasFailed ? '0.00' : st.finalGPA.toFixed(2)}
-                    </td>
-                    <td className="p-1.5 text-center font-black border-r border-slate-950">{st.overallGrade}</td>
-                    <td className="p-1.5 text-center font-black">
-                      {st.hasFailed ? (
-                        <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          <XCircle size={12} /> অকৃতকার্য
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          <CheckCircle2 size={12} /> কৃতকার্য
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            {processedStudents.length > 0 && (
-              <tfoot className="bg-slate-100 font-black text-[10px] text-slate-900 border-t-2 border-slate-950">
-                <tr>
-                  <td colSpan={2} className="p-2 border-r border-slate-950 text-center uppercase tracking-wider">
-                    পরিসংখ্যান (Summary)
-                  </td>
-                  <td colSpan={configuredSubjects.length} className="p-2 border-r border-slate-950 text-center font-bold">
-                    মোট পরীক্ষার্থী: {processedStudents.length} জন | কৃতকার্য: {processedStudents.filter(s => !s.hasFailed).length} জন | অকৃতকার্য: {processedStudents.filter(s => s.hasFailed).length} জন
-                  </td>
-                  <td className="p-2 text-center border-r border-slate-950 font-mono">
-                    গড়: {(processedStudents.reduce((acc, s) => acc + s.totalObtained, 0) / processedStudents.length).toFixed(0)}
-                  </td>
-                  <td className="p-2 text-center border-r border-slate-950 font-mono bg-indigo-100/70 text-indigo-950">
-                    {(processedStudents.reduce((acc, s) => acc + (s.hasFailed ? 0 : s.finalGPA), 0) / processedStudents.length).toFixed(2)}
-                  </td>
-                  <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
-                    পাস হার: {((processedStudents.filter(s => !s.hasFailed).length / processedStudents.length) * 100).toFixed(1)}%
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-
-        {/* FOOTER SIGNATURES FOR OFFICIAL PRINT */}
-        <div className="pt-8 hidden print:flex justify-between items-end text-center text-xs font-bold text-slate-950">
-          <div>
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p className="mt-1">প্রস্তুতকারীর স্বাক্ষর</p>
-          </div>
-          <div>
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p className="mt-1">পরীক্ষা নিয়ন্ত্রক</p>
-          </div>
-          <div>
-            <div className="w-36 border-b border-slate-950 mx-auto"></div>
-            <p className="mt-1 font-black">প্রধান শিক্ষক</p>
-          </div>
-        </div>
-
-      </div>
-
     </div>
   );
 }
