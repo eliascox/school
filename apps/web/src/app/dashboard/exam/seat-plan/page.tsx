@@ -63,6 +63,12 @@ import {
   DoorNoticePrintView,
   InvigilatorDutyPrintView,
 } from '@/components/exam/SeatPlanPrintViews';
+import {
+  STICKER_DENSITY_SPECS,
+  type SeatPrintLang,
+  type StickerDensityId,
+} from '@/lib/seatPlanPrintUtils';
+import { triggerProfessionalPrint } from '@/lib/printPdfUtils';
 import { localDateKey } from '@/lib/dateUtils';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 
@@ -139,6 +145,8 @@ export default function ExamSeatPlanPage() {
   const [doorCardsPerPage, setDoorCardsPerPage] = useState<1 | 2>(1);
   const [stickerMode, setStickerMode] = useState<'per_bench' | 'per_seat'>('per_bench');
   const [stickerCols, setStickerCols] = useState<2 | 3>(3);
+  const [stickerDensity, setStickerDensity] = useState<StickerDensityId>('medium_18');
+  const [printLang, setPrintLang] = useState<SeatPrintLang>('bn');
 
   // Invigilator controls
   const [dutyDate, setDutyDate] = useState<string>(() => localDateKey());
@@ -704,6 +712,31 @@ export default function ExamSeatPlanPage() {
             ))}
           </select>
 
+          <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black">
+            <button
+              type="button"
+              onClick={() => setPrintLang('bn')}
+              className={`px-2 py-1 rounded-lg cursor-pointer transition ${
+                printLang === 'bn'
+                  ? 'bg-[#0B5D3B] text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              বাংলা
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrintLang('en')}
+              className={`px-2 py-1 rounded-lg cursor-pointer transition ${
+                printLang === 'en'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              English
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleExportExcel}
@@ -716,7 +749,13 @@ export default function ExamSeatPlanPage() {
 
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() =>
+              triggerProfessionalPrint([
+                printLang === 'en' ? 'Seat Plan' : 'পরীক্ষার সিট প্ল্যান',
+                activeExam?.title || 'Exam',
+                activeTab,
+              ])
+            }
             className="px-3.5 py-1.5 rounded-xl bg-[#0B5D3B] hover:bg-[#094a2f] text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -1539,6 +1578,7 @@ export default function ExamSeatPlanPage() {
                 settings={settings}
                 examTitle={activeExam?.title || 'পরীক্ষা'}
                 cardsPerPage={doorCardsPerPage}
+                docLang={printLang}
               />
             )}
           </div>
@@ -1600,6 +1640,28 @@ export default function ExamSeatPlanPage() {
                   প্রতি শিক্ষার্থীর আলাদা স্টিকার
                 </button>
                 <span className="text-slate-300 dark:text-slate-700">|</span>
+                {(Object.keys(STICKER_DENSITY_SPECS) as StickerDensityId[]).map((dId) => {
+                  const spec = STICKER_DENSITY_SPECS[dId];
+                  const active = stickerDensity === dId;
+                  return (
+                    <button
+                      key={dId}
+                      type="button"
+                      onClick={() => {
+                        setStickerDensity(dId);
+                        setStickerCols(3);
+                      }}
+                      className={`px-2 py-1 rounded-lg cursor-pointer transition ${
+                        active
+                          ? 'bg-indigo-600 text-white shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {spec.labelBn}
+                    </button>
+                  );
+                })}
+                <span className="text-slate-300 dark:text-slate-700">|</span>
                 <button
                   type="button"
                   onClick={() => setStickerCols(2)}
@@ -1638,6 +1700,8 @@ export default function ExamSeatPlanPage() {
                 examTitle={activeExam?.title || 'পরীক্ষা'}
                 stickerMode={stickerMode}
                 columnsPerRow={stickerCols}
+                stickerDensity={stickerDensity}
+                docLang={printLang}
               />
             )}
           </div>
@@ -1685,6 +1749,7 @@ export default function ExamSeatPlanPage() {
                 studentGenderById={studentGenderById}
                 settings={settings}
                 examTitle={activeExam?.title || 'পরীক্ষা'}
+                docLang={printLang}
               />
             )}
           </div>
@@ -1706,6 +1771,7 @@ export default function ExamSeatPlanPage() {
               teachersPerRoom={teachersPerRoom}
               setTeachersPerRoom={setTeachersPerRoom}
               onAutoAssign={handleAutoDuty}
+              docLang={printLang}
             />
           </div>
         )}

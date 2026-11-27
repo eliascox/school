@@ -22,18 +22,30 @@ import {
   ShieldCheck,
   Clock,
   Send,
-  QrCode
+  QrCode,
+  Download,
+  Globe
 } from 'lucide-react';
 import { studentService, Student } from '@/services/studentService';
 import { teacherAuthService, UserSession } from '@/services/teacherAuthService';
 import { teacherRBACService, ClassTeacherAssignment } from '@/services/teacherRBACService';
 import { auditTrailService } from '@/services/auditTrailService';
 import { attendanceService, StudentAttendanceRecord } from '@/services/attendanceService';
-import { settingsService } from '@/services/settingsService';
+import { settingsService, type SchoolSettings } from '@/services/settingsService';
 import { confirmDialog, showToast } from '@/components/ui/ToastProvider';
 import { QrAndBiometricAttendancePanel } from '@/components/attendance/QrAndBiometricAttendancePanel';
 import { localDateKey } from '@/lib/dateUtils';
 import { parseClassTeacherClassId } from '@/lib/teacherMobileUtils';
+import { triggerProfessionalPrint } from '@/lib/printPdfUtils';
+import {
+  type AttendancePrintLang,
+  buildAttendanceExcelRows,
+  formatAttendanceClassAndBranch,
+  formatAttendanceDigits,
+  formatAttendanceStatusLabel,
+  getAttendanceInstitutionHeader,
+  getAttendancePrintLabels,
+} from '@/lib/attendancePrintUtils';
 
 type AttendanceTab = 'register' | 'scanner' | 'absentee_panel' | 'reports';
 
@@ -52,6 +64,10 @@ export default function AttendancePage() {
   // Print Settings States (now inline inside tab)
   const [printScope, setPrintScope] = useState<'single' | 'all'>('single');
   const [printReportType, setPrintReportType] = useState<'all' | 'present' | 'absent'>('absent');
+  const [printLang, setPrintLang] = useState<AttendancePrintLang>('bn');
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(() =>
+    settingsService.getSettings(),
+  );
   
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<boolean>(false);
 
@@ -141,6 +157,10 @@ export default function AttendancePage() {
   useEffect(() => {
     setMounted(true);
     loadAttendanceStudents();
+    const unsubSettings = settingsService.subscribe((next) => {
+      if (next) setSchoolSettings(next);
+    });
+    return () => unsubSettings();
   }, [loadAttendanceStudents]);
 
   // Save current class attendance
@@ -726,138 +746,257 @@ export default function AttendancePage() {
 
             {/* Report type selector */}
             <div className="space-y-1.5">
-              <label className="block text-slate-500 dark:text-slate-400">তালিকার ধরণ (List Type)</label>
-              <select value={printReportType} onChange={(e) => setPrintReportType(e.target.value as any)}
+              <label className="block text-slate-500 dark:text-slate-400">তালিকার ধরণ</label>
+              <select value={printReportType} onChange={(e) => setPrintReportType(e.target.value as 'all' | 'present' | 'absent')}
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none cursor-pointer">
-                <option value="absent">অনুপস্থিত ও ছুটিপ্রাপ্ত তালিকা (Absent List)</option>
-                <option value="present">উপস্থিত তালিকা (Present List)</option>
-                <option value="all">সম্পূর্ণ হাজিরা বিবরণী শীট (Complete Sheet)</option>
+                <option value="absent">অনুপস্থিত ও ছুটিপ্রাপ্ত তালিকা</option>
+                <option value="present">উপস্থিত শিক্ষার্থীদের তালিকা</option>
+                <option value="all">সম্পূর্ণ দৈনিক হাজিরা রেজিস্টার</option>
               </select>
             </div>
 
-            {/* Print trigger button */}
-            <button
-              onClick={() => window.print()}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-97"
-            >
-              <Printer size={15} /> হাজিরা রিপোর্ট প্রিন্ট করুন (Print Now)
-            </button>
+            {/* Strict Single-Language Print Toggle */}
+            <div className="space-y-1.5">
+              <label className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Globe size={12} className="text-indigo-500" />
+                প্রিন্ট ও এক্সেল ভাষা (একক ভাষা)
+              </label>
+              <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPrintLang('bn')}
+                  className={`py-1.5 rounded-lg font-black transition cursor-pointer ${
+                    printLang === 'bn'
+                      ? 'bg-[#0B5D3B] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  বাংলা
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintLang('en')}
+                  className={`py-1.5 rounded-lg font-black transition cursor-pointer ${
+                    printLang === 'en'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  English
+                </button>
+              </div>
+            </div>
+
+            {/* Excel & Print trigger buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                disabled={printableList.length === 0}
+                onClick={async () => {
+                  if (printableList.length === 0) return;
+                  const XLSX = await import('xlsx');
+                  const rows = buildAttendanceExcelRows({
+                    records: printableList,
+                    reportType: printReportType,
+                    lang: printLang,
+                  });
+                  const ws = XLSX.utils.json_to_sheet(rows);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+                  XLSX.writeFile(wb, `Attendance_${printReportType}_${selectedDate}.xlsx`);
+                }}
+                className="w-full py-2.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 disabled:opacity-45 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <Download size={14} /> Excel (.xlsx)
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  triggerProfessionalPrint([
+                    printLang === 'en' ? 'Attendance Report' : 'হাজিরা রিপোর্ট',
+                    printReportType,
+                    selectedDate,
+                  ])
+                }
+                className="w-full py-2.5 bg-[#0B5D3B] hover:bg-[#094a2f] text-white font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-97"
+              >
+                <Printer size={14} /> প্রিন্ট / PDF
+              </button>
+            </div>
           </div>
 
           {/* Inline Report Preview sheet */}
           <div className="lg:col-span-2 space-y-4">
-            
-            {/* White paper card */}
-            <div className="bg-white dark:bg-slate-900 print:bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md text-slate-950 dark:text-white print:text-black font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
-              
-              {/* Document Header */}
-              <div className="text-center border-b-2 border-slate-950 pb-3 space-y-1">
-                <div className="flex items-center justify-center gap-2">
-                  <Building2 className="w-7 h-7 text-slate-900 dark:text-white print:text-black" />
-                  <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white print:text-black font-sans">
-                    {mounted ? (settingsService.getSettings().schoolName || 'শিক্ষা প্রতিষ্ঠান') : 'শিক্ষা প্রতিষ্ঠান'}
-                  </h2>
-                </div>
-                <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 print:text-slate-800 font-sans">
-                  {mounted
-                    ? `${settingsService.getSettings().address || ''}${settingsService.getSettings().eiin ? ` | EIIN: ${settingsService.getSettings().eiin}` : ''}${settingsService.getSettings().estdYear ? ` | স্থাপিত: ${settingsService.getSettings().estdYear}` : ''}`
-                    : ''}
-                </p>
-                
-                <div className="pt-2">
-                  <span className="inline-block px-4 py-1 bg-slate-950 text-white font-black text-[9px] rounded uppercase tracking-wider font-sans">
-                    {printReportType === 'absent' ? 'অনুপস্থিত শিক্ষার্থীদের তথ্য রিপোর্ট (ABSENT LIST)' : 
-                     printReportType === 'present' ? 'উপস্থিত শিক্ষার্থীদের তালিকা রিপোর্ট (PRESENT LIST)' : 
-                     'দৈনিক সম্পূর্ণ হাজিরা শীট খতিয়ান (COMPLETE ATTENDANCE SHEET)'}
-                  </span>
-                </div>
+            {(() => {
+              const pHeader = getAttendanceInstitutionHeader(schoolSettings, printLang);
+              const pLabels = getAttendancePrintLabels(printReportType, printLang);
+              const scopeText =
+                isAdminRole && printScope === 'all'
+                  ? pLabels.allClassesScope
+                  : formatAttendanceClassAndBranch(selectedGrade, selectedBranch, printLang);
+              const showReasonCol = printReportType === 'all' || printReportType === 'absent';
 
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700 dark:text-slate-300 print:text-black pt-3 px-1 font-sans">
-                  <span>শ্রেণি পরিসর: {(isAdminRole && printScope === 'all') ? 'সকল শ্রেণি (৬ষ্ঠ - ১০ম)' : `${gradeNameBn} (${branchNameBn})`}</span>
-                  <span>তারিখ: {selectedDate}</span>
-                  <span>মোট ডাটা সংখ্যা: {printableList.length} জন</span>
-                </div>
-              </div>
+              return (
+                <div className="bg-white print:bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md text-slate-950 font-serif space-y-5 print:p-0 print:border-none print:shadow-none">
+                  {/* Document Header (<div>, never <header>) */}
+                  <div className="border-b-2 border-slate-950 pb-3 space-y-1.5">
+                    <div className="flex items-center justify-center gap-3">
+                      {schoolSettings.schoolLogo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={schoolSettings.schoolLogo}
+                          alt="School Logo"
+                          className="w-12 h-12 object-contain shrink-0"
+                        />
+                      ) : (
+                        <Building2 className="w-8 h-8 text-slate-900 shrink-0" />
+                      )}
+                      <div className="text-center">
+                        <div className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 font-serif leading-tight">
+                          {pHeader.schoolName}
+                        </div>
+                        {(pHeader.address || pHeader.metaLine) && (
+                          <p className="text-[10.5px] font-bold text-slate-800 font-sans mt-0.5">
+                            {[pHeader.address, pHeader.metaLine].filter(Boolean).join(' • ')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Document Table */}
-              <div className="overflow-hidden border border-slate-950 rounded-lg">
-                <table className="w-full text-left text-xs border-collapse font-sans">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 print:bg-slate-100 text-slate-950 dark:text-white print:text-black font-black border-b border-slate-950 text-[10px] uppercase">
-                      <th className="p-2 border-r border-slate-950 w-28">শ্রেণি ও বিভাগ</th>
-                      <th className="p-2 text-center border-r border-slate-950 w-12">রোল</th>
-                      <th className="p-2 border-r border-slate-950">শিক্ষার্থীর নাম</th>
-                      <th className="p-2 border-r border-slate-950">পিতা (অভিভাবক)</th>
-                      <th className="p-2 border-r border-slate-950 w-24">মোবাইল</th>
-                      <th className="p-2 border-r border-slate-950 text-center w-16">স্ট্যাটাস</th>
-                      {printReportType === 'all' && <th className="p-2">মন্তব্য / কারণ</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-950 text-slate-950 dark:text-white print:text-black font-medium">
-                    {printableList.length === 0 ? (
-                      <tr>
-                        <td colSpan={printReportType === 'all' ? 7 : 6} className="p-4 text-center text-slate-500 dark:text-slate-400 font-bold italic">
-                          কোনো শিক্ষার্থীর ডাটা রেকর্ড পাওয়া যায়নি।
-                        </td>
-                      </tr>
-                    ) : (
-                      printableList.map((st) => {
-                        const gradeName = st.grade === '6th' ? '৬ষ্ঠ' : st.grade === '7th' ? '৭ম' : st.grade === '8th' ? '৮ম' : st.grade === '9th' ? '৯ম' : '১০ম';
-                        const branchName = formatBranchName(st.grade, st.branch);
-                        return (
-                          <tr key={st.id} className="border-b border-slate-950">
-                            <td className="p-2 font-bold border-r border-slate-950 text-[11px]">
-                              {gradeName} শ্রেণি ({branchName})
+                    <div className="text-center pt-1.5">
+                      <span className="inline-block px-4 py-1 bg-slate-950 text-white font-black text-[10px] rounded tracking-wider font-sans">
+                        {pLabels.reportTitle}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10.5px] font-bold text-slate-900 pt-2 px-1 font-sans">
+                      <span>
+                        {pLabels.scopeLabel}: <strong>{scopeText}</strong>
+                      </span>
+                      <span>
+                        {pLabels.dateLabel}:{' '}
+                        <strong className="font-mono">
+                          {formatAttendanceDigits(selectedDate, printLang)}
+                        </strong>
+                      </span>
+                      <span>
+                        {pLabels.totalRecordsLabel}:{' '}
+                        <strong className="font-mono">
+                          {formatAttendanceDigits(printableList.length, printLang)}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Document Table */}
+                  <div className="overflow-x-auto border border-slate-950 rounded-lg">
+                    <table className="attendance-print-table w-full text-left text-xs border-collapse font-sans">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-950 font-black border-b border-slate-950 text-[10px]">
+                          <th className="p-2 text-center border-r border-slate-950 w-9">
+                            {pLabels.colSl}
+                          </th>
+                          <th className="p-2 border-r border-slate-950 w-28">
+                            {pLabels.colClass}
+                          </th>
+                          <th className="p-2 text-center border-r border-slate-950 w-12">
+                            {pLabels.colRoll}
+                          </th>
+                          <th className="p-2 border-r border-slate-950">{pLabels.colName}</th>
+                          <th className="p-2 border-r border-slate-950">{pLabels.colGuardian}</th>
+                          <th className="p-2 border-r border-slate-950 w-24 text-center">
+                            {pLabels.colMobile}
+                          </th>
+                          <th className="p-2 text-center border-r border-slate-950 w-16">
+                            {pLabels.colStatus}
+                          </th>
+                          {showReasonCol && <th className="p-2">{pLabels.colReason}</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-950 text-slate-950 font-medium">
+                        {printableList.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={showReasonCol ? 8 : 7}
+                              className="p-5 text-center text-slate-500 font-bold"
+                            >
+                              {pLabels.emptyText}
                             </td>
-                            <td className="p-2 text-center font-black font-mono border-r border-slate-950 text-[11px]">
-                              {st.roll}
-                            </td>
-                            <td className="p-2 font-bold border-r border-slate-950">
-                              {st.name}
-                            </td>
-                            <td className="p-2 border-r border-slate-950">{st.guardian}</td>
-                            <td className="p-2 font-mono font-bold border-r border-slate-950 text-[11px]">{st.mobile}</td>
-                            <td className="p-2 text-center border-r border-slate-950 font-bold text-[10px]">
-                              <span className={st.status === 'Present' ? 'text-emerald-700 dark:text-emerald-300' : st.status === 'Absent' ? 'text-rose-700 dark:text-rose-300' : 'text-amber-600 dark:text-amber-400'}>
-                                {st.status === 'Present' ? 'উপস্থিত' : st.status === 'Absent' ? 'অনুপস্থিত' : 'ছুটি'}
-                              </span>
-                            </td>
-                            {printReportType === 'all' && (
-                              <td className="p-2 italic text-slate-600 dark:text-slate-400 text-[10px]">
-                                {st.reason || '-'}
-                              </td>
-                            )}
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        ) : (
+                          printableList.map((st, idx) => (
+                            <tr key={st.id} className="border-b border-slate-950">
+                              <td className="p-2 text-center font-mono font-bold border-r border-slate-950 text-[10.5px]">
+                                {formatAttendanceDigits(idx + 1, printLang)}
+                              </td>
+                              <td className="p-2 font-bold border-r border-slate-950 text-[10.5px]">
+                                {formatAttendanceClassAndBranch(st.grade, st.branch, printLang)}
+                              </td>
+                              <td className="p-2 text-center font-black font-mono border-r border-slate-950 text-[11px]">
+                                {formatAttendanceDigits(st.roll, printLang)}
+                              </td>
+                              <td className="p-2 font-bold border-r border-slate-950">{st.name}</td>
+                              <td className="p-2 border-r border-slate-950">{st.guardian}</td>
+                              <td className="p-2 text-center font-mono font-bold border-r border-slate-950 text-[10.5px]">
+                                {formatAttendanceDigits(st.mobile, printLang)}
+                              </td>
+                              <td className="p-2 text-center border-r border-slate-950 font-black text-[10px]">
+                                <span
+                                  className={
+                                    st.status === 'Present'
+                                      ? 'text-emerald-700'
+                                      : st.status === 'Absent'
+                                      ? 'text-rose-700'
+                                      : 'text-amber-700'
+                                  }
+                                >
+                                  {formatAttendanceStatusLabel(st.status, printLang)}
+                                </span>
+                              </td>
+                              {showReasonCol && (
+                                <td className="p-2 text-slate-700 text-[10px]">
+                                  {st.reason || '—'}
+                                </td>
+                              )}
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-              {/* Signatures */}
-              <div className="pt-8 flex justify-between items-end text-center text-xs font-bold text-slate-950 dark:text-white font-sans">
-                <div className="space-y-1">
-                  <div className="w-36 border-b border-slate-950 mx-auto"></div>
-                  <p>শ্রেণি শিক্ষক / প্রস্তুতকারক</p>
+                  {/* Atomic Signatures */}
+                  <div className="attendance-signature-block pt-10 flex justify-between items-end text-center text-xs font-bold text-slate-950 font-sans">
+                    <div className="space-y-1">
+                      <div className="w-40 border-b border-slate-950 mx-auto" />
+                      <p>{pHeader.preparedByTitle}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="w-40 border-b border-slate-950 mx-auto" />
+                      <p className="font-black">{pHeader.principalTitle}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="w-36 border-b border-slate-950 mx-auto"></div>
-                  <p className="font-black">প্রধান শিক্ষক</p>
-                </div>
-              </div>
-
-            </div>
+              );
+            })()}
           </div>
 
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         @media print {
           @page {
             size: A4 portrait;
             margin: 10mm;
+          }
+          .attendance-print-table thead {
+            display: table-header-group !important;
+          }
+          .attendance-print-table tr,
+          .attendance-signature-block {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>

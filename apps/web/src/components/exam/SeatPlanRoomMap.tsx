@@ -16,6 +16,11 @@ import {
   toAsciiDigits,
   toBanglaDigits,
 } from '@/lib/seatPlanUtils';
+import {
+  type SeatPrintLang,
+  formatSeatPrintExam,
+  getSeatPlanInstitutionHeader,
+} from '@/lib/seatPlanPrintUtils';
 
 const GRADE_CARD_STYLES: Record<string, string> = {
   '6th': 'bg-sky-50/90 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800/70 text-sky-950 dark:text-sky-100',
@@ -66,12 +71,16 @@ export function InstitutionalPrintBanner({
   examTitle,
   docSubtitle,
   compact = false,
+  docLang = 'bn',
 }: {
   settings: SchoolSettings | null;
   examTitle: string;
   docSubtitle: string;
   compact?: boolean;
+  docLang?: SeatPrintLang;
 }) {
+  const header = getSeatPlanInstitutionHeader(settings, docLang);
+  const formattedExam = formatSeatPrintExam(examTitle, docLang);
   return (
     <div
       className={`hidden print:flex items-center justify-between gap-3 border-b-2 border-slate-900 ${
@@ -89,17 +98,15 @@ export function InstitutionalPrintBanner({
         ) : null}
         <div className="min-w-0">
           <div className={`${compact ? 'text-sm' : 'text-base'} font-black text-slate-950 leading-tight`}>
-            {settings?.schoolName || 'স্মার্ট স্কুল অ্যান্ড কলেজ'}
+            {header.schoolName}
           </div>
           <div className="text-[10px] font-semibold text-slate-600 leading-snug">
-            {[settings?.address, settings?.eiin ? `EIIN: ${settings.eiin}` : '']
-              .filter(Boolean)
-              .join(' • ')}
+            {[header.address, header.eiinText].filter(Boolean).join(' • ')}
           </div>
         </div>
       </div>
       <div className="text-right shrink-0">
-        <div className="text-xs font-black text-slate-950">{examTitle}</div>
+        <div className="text-xs font-black text-slate-950">{formattedExam}</div>
         <div className="text-[10px] font-bold text-emerald-900">{docSubtitle}</div>
       </div>
     </div>

@@ -11,12 +11,22 @@ import type { SchoolSettings } from '@/services/settingsService';
 import {
   type NormalizedGender,
   type RoomDoorSummary,
-  formatGenderRuleBn,
-  formatSeatGradeFull,
-  formatSeatGradeShort,
   normalizeSeatGradeKey,
   toBanglaDigits,
 } from '@/lib/seatPlanUtils';
+import {
+  STICKER_DENSITY_SPECS,
+  type SeatPrintLang,
+  type StickerDensityId,
+  formatSeatPrintDigits,
+  formatSeatPrintExam,
+  formatSeatPrintGender,
+  formatSeatPrintGrade,
+  formatSeatPrintGroup,
+  getSeatPlanInstitutionHeader,
+  getSeatPlanPrintLabels,
+  paginateStickersByDensity,
+} from '@/lib/seatPlanPrintUtils';
 import { InstitutionalPrintBanner } from './SeatPlanRoomMap';
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -28,12 +38,18 @@ export function DoorNoticePrintView({
   settings,
   examTitle,
   cardsPerPage,
+  docLang = 'bn',
 }: {
   summaries: RoomDoorSummary[];
   settings: SchoolSettings | null;
   examTitle: string;
   cardsPerPage: 1 | 2;
+  docLang?: SeatPrintLang;
 }) {
+  const header = getSeatPlanInstitutionHeader(settings, docLang);
+  const labels = getSeatPlanPrintLabels(docLang);
+  const formattedExam = formatSeatPrintExam(examTitle, docLang);
+
   return (
     <div
       className={
@@ -44,8 +60,7 @@ export function DoorNoticePrintView({
     >
       {summaries.map((rm, idx) => {
         const isLast = idx === summaries.length - 1;
-        const shouldPageBreak =
-          !isLast && (cardsPerPage === 1 || idx % 2 === 1);
+        const shouldPageBreak = !isLast && (cardsPerPage === 1 || idx % 2 === 1);
 
         return (
           <div
@@ -67,21 +82,19 @@ export function DoorNoticePrintView({
                 ) : null}
                 <div className="min-w-0">
                   <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
-                    {settings?.schoolName || 'স্মার্ট স্কুল অ্যান্ড কলেজ'}
+                    {header.schoolName}
                   </div>
                   <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    {[settings?.address, settings?.eiin ? `EIIN: ${settings.eiin}` : '']
-                      .filter(Boolean)
-                      .join(' • ')}
+                    {[header.address, header.eiinText].filter(Boolean).join(' • ')}
                   </div>
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <div className="text-xs font-black text-[#0B5D3B] dark:text-emerald-400">
-                  {examTitle}
+                  {formattedExam}
                 </div>
                 <div className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                  পরীক্ষা কক্ষের আসন নির্দেশিকা
+                  {labels.doorSubtitle}
                 </div>
               </div>
             </div>
@@ -90,10 +103,10 @@ export function DoorNoticePrintView({
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950 rounded-xl p-4 border border-slate-200 dark:border-slate-800 print:bg-slate-50 print:border-slate-400">
               <div>
                 <div className="text-[11px] font-black uppercase tracking-wider text-slate-500">
-                  পরীক্ষা কক্ষ
+                  {labels.examHallLabel}
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-                  কক্ষ নং {rm.roomNo}
+                  {labels.roomNoPrefix} {formatSeatPrintDigits(rm.roomNo, docLang)}
                 </div>
                 <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {rm.roomName}
@@ -103,21 +116,21 @@ export function DoorNoticePrintView({
 
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 print:border-slate-400">
-                  <div className="text-[10px] font-bold text-slate-500">মোট পরীক্ষার্থী</div>
+                  <div className="text-[10px] font-bold text-slate-500">{labels.totalExaminees}</div>
                   <div className="text-lg font-black text-slate-900 dark:text-white">
-                    {toBanglaDigits(rm.totalAssigned)}
+                    {formatSeatPrintDigits(rm.totalAssigned, docLang)}
                   </div>
                 </div>
                 <div className="px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 print:border-slate-400">
-                  <div className="text-[10px] font-bold text-sky-700 dark:text-sky-300">ছাত্র</div>
+                  <div className="text-[10px] font-bold text-sky-700 dark:text-sky-300">{labels.boys}</div>
                   <div className="text-lg font-black text-sky-900 dark:text-sky-100">
-                    {toBanglaDigits(rm.boys)}
+                    {formatSeatPrintDigits(rm.boys, docLang)}
                   </div>
                 </div>
                 <div className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 print:border-slate-400">
-                  <div className="text-[10px] font-bold text-rose-700 dark:text-rose-300">ছাত্রী</div>
+                  <div className="text-[10px] font-bold text-rose-700 dark:text-rose-300">{labels.girls}</div>
                   <div className="text-lg font-black text-rose-900 dark:text-rose-100">
-                    {toBanglaDigits(rm.girls)}
+                    {formatSeatPrintDigits(rm.girls, docLang)}
                   </div>
                 </div>
               </div>
@@ -128,52 +141,53 @@ export function DoorNoticePrintView({
               <thead>
                 <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 print:bg-slate-100">
                   <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left font-black">
-                    শ্রেণি ও বিভাগ
+                    {labels.colClassGroup}
                   </th>
                   <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left font-black">
-                    রোল নম্বর (হতে – পর্যন্ত)
+                    {labels.colRollRange}
                   </th>
                   <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-black w-16">
-                    ছাত্র
+                    {labels.boys}
                   </th>
                   <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-black w-16">
-                    ছাত্রী
+                    {labels.girls}
                   </th>
                   <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-black w-16">
-                    মোট
+                    {labels.colTotal}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {rm.classRanges.map((cr) => (
-                  <tr key={cr.classKey}>
-                    <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black text-slate-900 dark:text-white">
-                      {cr.gradeLabel}
-                      {cr.groupLabel && cr.groupLabel !== 'সাধারণ'
-                        ? ` (${cr.groupLabel})`
-                        : ''}
-                    </td>
-                    <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black text-[#0B5D3B] dark:text-emerald-400">
-                      {cr.rollRangeLabel}
-                    </td>
-                    <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
-                      {toBanglaDigits(cr.boys)}
-                    </td>
-                    <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
-                      {toBanglaDigits(cr.girls)}
-                    </td>
-                    <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-black">
-                      {toBanglaDigits(cr.count)}
-                    </td>
-                  </tr>
-                ))}
+                {rm.classRanges.map((cr) => {
+                  const grpText = formatSeatPrintGroup(cr.groupLabel, docLang);
+                  return (
+                    <tr key={cr.classKey}>
+                      <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black text-slate-900 dark:text-white">
+                        {formatSeatPrintGrade(cr.gradeLabel, false, docLang)}
+                        {grpText ? ` (${grpText})` : ''}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black text-[#0B5D3B] dark:text-emerald-400">
+                        {formatSeatPrintDigits(cr.rollRangeLabel, docLang)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
+                        {formatSeatPrintDigits(cr.boys, docLang)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
+                        {formatSeatPrintDigits(cr.girls, docLang)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-black">
+                        {formatSeatPrintDigits(cr.count, docLang)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
             {/* Column Seating Guide Strip */}
             <div className="space-y-1.5">
               <div className="text-[11px] font-black text-slate-600 dark:text-slate-300">
-                সারিভিত্তিক বসার বিন্যাস ({toBanglaDigits(rm.cols)} সারি × প্রতি বেঞ্চে {toBanglaDigits(rm.seatsPerBench)} জন):
+                {labels.rowLayoutPrefix} ({formatSeatPrintDigits(rm.cols, docLang)} × {formatSeatPrintDigits(rm.seatsPerBench, docLang)}):
               </div>
               <div
                 className="grid gap-2"
@@ -191,10 +205,12 @@ export function DoorNoticePrintView({
                     } print:border-slate-400`}
                   >
                     <div className="text-xs font-black">
-                      সারি {toBanglaDigits(col.colIndex)} — {formatGenderRuleBn(col.rule)}
+                      {labels.colWord} {formatSeatPrintDigits(col.colIndex, docLang)} —{' '}
+                      {formatSeatPrintGender(col.rule, docLang)}
                     </div>
                     <div className="text-[11px] font-bold opacity-80">
-                      {toBanglaDigits(col.benches)} বেঞ্চ • {toBanglaDigits(col.total)} জন
+                      {formatSeatPrintDigits(col.benches, docLang)} {labels.benchWord} •{' '}
+                      {formatSeatPrintDigits(col.total, docLang)}
                     </div>
                   </div>
                 ))}
@@ -205,12 +221,12 @@ export function DoorNoticePrintView({
             <div className="grid grid-cols-2 gap-6 pt-5 text-xs font-bold text-slate-700 dark:text-slate-300">
               <div>
                 <div className="w-40 border-t border-slate-400 dark:border-slate-600 pt-1">
-                  পরীক্ষা নিয়ন্ত্রক
+                  {labels.controllerSign}
                 </div>
               </div>
               <div className="text-right">
                 <div className="w-44 ml-auto border-t border-slate-400 dark:border-slate-600 pt-1 text-center">
-                  {settings?.principalTitle || 'প্রধান শিক্ষক / অধ্যক্ষ'}
+                  {header.principalTitle}
                 </div>
               </div>
             </div>
@@ -222,7 +238,7 @@ export function DoorNoticePrintView({
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// 2. BENCH / DESK STICKERS (কাটিং-রেডি বেঞ্চ ও আসন স্টিকার)
+// 2. BENCH / DESK STICKERS (3-TIER A4 DENSITY: 12 LARGE | 18 MEDIUM | 21 SMALL)
 // ───────────────────────────────────────────────────────────────────────────
 
 export function BenchStickersPrintView({
@@ -233,6 +249,8 @@ export function BenchStickersPrintView({
   examTitle,
   stickerMode,
   columnsPerRow,
+  stickerDensity = 'medium_18',
+  docLang = 'bn',
 }: {
   summaries: RoomDoorSummary[];
   entriesByRoom: Map<string, SeatPlanEntry[]>;
@@ -241,7 +259,16 @@ export function BenchStickersPrintView({
   examTitle: string;
   stickerMode: 'per_bench' | 'per_seat';
   columnsPerRow: 2 | 3;
+  stickerDensity?: StickerDensityId;
+  docLang?: SeatPrintLang;
 }) {
+  const header = getSeatPlanInstitutionHeader(settings, docLang);
+  const labels = getSeatPlanPrintLabels(docLang);
+  const formattedExam = formatSeatPrintExam(examTitle, docLang);
+  const densitySpec = STICKER_DENSITY_SPECS[stickerDensity] || STICKER_DENSITY_SPECS.medium_18;
+  const isCompactSmall = stickerDensity === 'small_21';
+  const isLarge = stickerDensity === 'large_12';
+
   const gridColsClass =
     columnsPerRow === 2
       ? 'grid-cols-1 sm:grid-cols-2 print:grid-cols-2'
@@ -249,128 +276,179 @@ export function BenchStickersPrintView({
 
   if (stickerMode === 'per_seat') {
     const allEntries = summaries.flatMap((s) => entriesByRoom.get(s.roomId) || []);
+    const pages = paginateStickersByDensity(allEntries, stickerDensity);
+
     return (
-      <div className="space-y-3">
-        <InstitutionalPrintBanner
-          settings={settings}
-          examTitle={examTitle}
-          docSubtitle="ব্যক্তিগত আসন স্টিকার (Desk Seat Labels)"
-          compact
-        />
-        <div className={`grid ${gridColsClass} gap-3 print:gap-2`}>
-          {allEntries.map((s) => {
-            const g = s.gender || studentGenderById.get(s.studentId) || 'other';
-            const gradeKey = normalizeSeatGradeKey(s.grade);
-            return (
-              <div
-                key={s.id}
-                className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 space-y-1.5 seat-avoid-break print:border-slate-600 print:p-2.5"
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
-                  <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 truncate">
-                    {settings?.schoolName || 'স্মার্ট স্কুল'}
-                  </span>
-                  <span className="text-[10px] font-black text-[#0B5D3B] dark:text-emerald-400 shrink-0">
-                    কক্ষ {s.roomNo}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-500">
-                      সারি {toBanglaDigits(s.colIndex)} • বেঞ্চ #{toBanglaDigits(s.benchNo)} ({s.seatPosition})
+      <div className="space-y-6 print:space-y-0">
+        {pages.map((pageItems, pIdx) => {
+          const isLast = pIdx === pages.length - 1;
+          return (
+            <div
+              key={`seat-sticker-page-${pIdx}`}
+              className={`space-y-2.5 ${isLast ? 'seat-print-last' : 'seat-print-break'}`}
+            >
+              <InstitutionalPrintBanner
+                settings={settings}
+                examTitle={examTitle}
+                docSubtitle={`${labels.seatStickerSubtitle} (${docLang === 'en' ? densitySpec.labelEn : densitySpec.labelBn})`}
+                compact
+                docLang={docLang}
+              />
+              <div className={`grid ${gridColsClass} gap-2.5 print:gap-2`}>
+                {pageItems.map((s) => {
+                  const g = s.gender || studentGenderById.get(s.studentId) || 'other';
+                  const gradeKey = normalizeSeatGradeKey(s.grade);
+                  const grpText =
+                    gradeKey === '9th' || gradeKey === '10th'
+                      ? formatSeatPrintGroup(s.group, docLang)
+                      : '';
+                  return (
+                    <div
+                      key={s.id}
+                      style={{ minHeight: `${densitySpec.printMinHeightMm}mm` }}
+                      className={`bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col justify-between seat-avoid-break print:border-slate-700 ${
+                        isCompactSmall ? 'p-2' : isLarge ? 'p-3.5' : 'p-2.5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+                        <span className="text-[9.5px] font-black text-slate-700 dark:text-slate-300 truncate">
+                          {header.schoolName}
+                        </span>
+                        <span className="text-[9.5px] font-black text-[#0B5D3B] dark:text-emerald-400 shrink-0">
+                          {labels.roomNoPrefix} {formatSeatPrintDigits(s.roomNo, docLang)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 my-1">
+                        <div>
+                          <div className="text-[9px] font-bold text-slate-500">
+                            {labels.colWord} {formatSeatPrintDigits(s.colIndex, docLang)} • {labels.benchWord} #{formatSeatPrintDigits(s.benchNo, docLang)} ({s.seatPosition})
+                          </div>
+                          <div
+                            className={`${
+                              isLarge ? 'text-xl' : isCompactSmall ? 'text-sm' : 'text-base'
+                            } font-black text-slate-900 dark:text-white leading-tight`}
+                          >
+                            {labels.rollLabel}: {formatSeatPrintDigits(s.roll, docLang)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9.5px] font-black text-slate-800 dark:text-slate-200 print:border print:border-slate-400">
+                            {formatSeatPrintGrade(s.grade, true, docLang)}
+                            {grpText ? ` (${grpText})` : ''}
+                          </span>
+                          <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                            {formatSeatPrintGender(g, docLang)}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className={`${isCompactSmall ? 'text-[10.5px]' : 'text-xs'} font-black text-slate-900 dark:text-slate-100 truncate`}>
+                          {s.studentName}
+                        </div>
+                        {!isCompactSmall && (
+                          <div className="text-[8.5px] font-semibold text-slate-500 truncate">
+                            {formattedExam}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                      রোল: {toBanglaDigits(s.roll)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-800 dark:text-slate-200 print:border print:border-slate-400">
-                      {formatSeatGradeShort(s.grade)}
-                      {(gradeKey === '9th' || gradeKey === '10th') && s.group
-                        ? ` (${s.group})`
-                        : ''}
-                    </span>
-                    <div className="text-[10px] font-bold text-slate-500 mt-0.5">
-                      {formatGenderRuleBn(g)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">
-                  {s.studentName}
-                </div>
-                <div className="text-[9.5px] font-semibold text-slate-400 truncate">
-                  {examTitle}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  // Per-Bench Stickers (L + R combined on one cut-out card)
+  // Per-Bench Stickers (L + R combined on one cut-out card, paginated by density)
+  const benchCards = summaries.flatMap((rm) => {
+    const roomEntries = entriesByRoom.get(rm.roomId) || [];
+    const benchesMap = new Map<number, SeatPlanEntry[]>();
+    roomEntries.forEach((e) => {
+      if (!benchesMap.has(e.benchNo)) benchesMap.set(e.benchNo, []);
+      benchesMap.get(e.benchNo)!.push(e);
+    });
+    return Array.from(benchesMap.entries()).map(([benchNo, seats]) => ({
+      key: `${rm.roomId}-${benchNo}`,
+      benchNo,
+      seats,
+    }));
+  });
+
+  const benchPages = paginateStickersByDensity(benchCards, stickerDensity);
+
   return (
-    <div className="space-y-3">
-      <InstitutionalPrintBanner
-        settings={settings}
-        examTitle={examTitle}
-        docSubtitle="বেঞ্চভিত্তিক আসন স্টিকার (Bench Labels)"
-        compact
-      />
-      <div className={`grid ${gridColsClass} gap-3 print:gap-2`}>
-        {summaries.flatMap((rm) => {
-          const roomEntries = entriesByRoom.get(rm.roomId) || [];
-          const benchesMap = new Map<number, SeatPlanEntry[]>();
-          roomEntries.forEach((e) => {
-            if (!benchesMap.has(e.benchNo)) benchesMap.set(e.benchNo, []);
-            benchesMap.get(e.benchNo)!.push(e);
-          });
+    <div className="space-y-6 print:space-y-0">
+      {benchPages.map((pageCards, pIdx) => {
+        const isLast = pIdx === benchPages.length - 1;
+        return (
+          <div
+            key={`bench-sticker-page-${pIdx}`}
+            className={`space-y-2.5 ${isLast ? 'seat-print-last' : 'seat-print-break'}`}
+          >
+            <InstitutionalPrintBanner
+              settings={settings}
+              examTitle={examTitle}
+              docSubtitle={`${labels.benchStickerSubtitle} (${docLang === 'en' ? densitySpec.labelEn : densitySpec.labelBn})`}
+              compact
+              docLang={docLang}
+            />
+            <div className={`grid ${gridColsClass} gap-2.5 print:gap-2`}>
+              {pageCards.map(({ key, benchNo, seats }) => {
+                const first = seats[0];
+                return (
+                  <div
+                    key={key}
+                    style={{ minHeight: `${densitySpec.printMinHeightMm}mm` }}
+                    className={`bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col justify-between gap-1.5 seat-avoid-break print:border-slate-700 ${
+                      isCompactSmall ? 'p-2' : isLarge ? 'p-3.5' : 'p-2.5'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+                      <span className="text-[10.5px] font-black text-[#0B5D3B] dark:text-emerald-400">
+                        {labels.roomNoPrefix} {formatSeatPrintDigits(first?.roomNo, docLang)} •{' '}
+                        {labels.colWord} {formatSeatPrintDigits(first?.colIndex, docLang)} •{' '}
+                        {labels.benchWord} #{formatSeatPrintDigits(benchNo, docLang)}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-500 truncate max-w-[95px]">
+                        {formattedExam}
+                      </span>
+                    </div>
 
-          return Array.from(benchesMap.entries()).map(([benchNo, seats]) => {
-            const first = seats[0];
-            return (
-              <div
-                key={`${rm.roomId}-${benchNo}`}
-                className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 space-y-2 seat-avoid-break print:border-slate-600 print:p-2.5"
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-1.5">
-                  <span className="text-xs font-black text-[#0B5D3B] dark:text-emerald-400">
-                    কক্ষ {first?.roomNo} • সারি {toBanglaDigits(first?.colIndex)} • বেঞ্চ #{toBanglaDigits(benchNo)}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-500 truncate max-w-[110px]">
-                    {examTitle}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  {seats.map((s) => {
-                    const g = s.gender || studentGenderById.get(s.studentId) || 'other';
-                    return (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between gap-2 text-xs bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800 print:border-slate-400"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-black text-slate-900 dark:text-white">
-                            [{s.seatPosition}] রোল {toBanglaDigits(s.roll)}
-                          </span>
-                          <span className="ml-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                            ({formatSeatGradeShort(s.grade)} · {formatGenderRuleBn(g)})
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[125px]">
-                          {s.studentName}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          });
-        })}
-      </div>
+                    <div className="space-y-1 flex-1 flex flex-col justify-center">
+                      {seats.map((s) => {
+                        const g = s.gender || studentGenderById.get(s.studentId) || 'other';
+                        return (
+                          <div
+                            key={s.id}
+                            className={`flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/80 dark:border-slate-800 print:border-slate-400 ${
+                              isCompactSmall ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-xs'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <span className="font-black text-slate-900 dark:text-white">
+                                [{s.seatPosition}] {labels.rollLabel} {formatSeatPrintDigits(s.roll, docLang)}
+                              </span>
+                              <span className="ml-1 text-[9.5px] font-bold text-slate-600 dark:text-slate-300">
+                                ({formatSeatPrintGrade(s.grade, true, docLang)} · {formatSeatPrintGender(g, docLang)})
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[110px]">
+                              {s.studentName}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -385,13 +463,17 @@ export function AttendanceTopSheetPrintView({
   studentGenderById,
   settings,
   examTitle,
+  docLang = 'bn',
 }: {
   summaries: RoomDoorSummary[];
   entriesByRoom: Map<string, SeatPlanEntry[]>;
   studentGenderById: Map<string, NormalizedGender>;
   settings: SchoolSettings | null;
   examTitle: string;
+  docLang?: SeatPrintLang;
 }) {
+  const labels = getSeatPlanPrintLabels(docLang);
+
   return (
     <div className="space-y-6 print:space-y-0">
       {summaries.map((rm, idx) => {
@@ -408,28 +490,29 @@ export function AttendanceTopSheetPrintView({
             <InstitutionalPrintBanner
               settings={settings}
               examTitle={examTitle}
-              docSubtitle={`পরীক্ষার্থীদের হাজিরা ও স্বাক্ষরপত্র — কক্ষ নং ${rm.roomNo}`}
+              docSubtitle={`${labels.topSheetSubtitlePrefix} ${formatSeatPrintDigits(rm.roomNo, docLang)}`}
               compact
+              docLang={docLang}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                  {rm.roomName} (কক্ষ নং {rm.roomNo})
+                  {rm.roomName} ({labels.roomNoPrefix} {formatSeatPrintDigits(rm.roomNo, docLang)})
                 </h3>
                 <p className="text-[11px] font-semibold text-slate-500">
-                  তারিখ: __________________ • বিষয়: ________________________ • শিফট: সকাল / বিকাল
+                  {labels.dateSubjectShiftLine}
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs font-black">
                 <span className="px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200">
-                  ছাত্র: {toBanglaDigits(rm.boys)}
+                  {labels.boys}: {formatSeatPrintDigits(rm.boys, docLang)}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200">
-                  ছাত্রী: {toBanglaDigits(rm.girls)}
+                  {labels.girls}: {formatSeatPrintDigits(rm.girls, docLang)}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                  মোট: {toBanglaDigits(rm.totalAssigned)} জন
+                  {labels.colTotal}: {formatSeatPrintDigits(rm.totalAssigned, docLang)}
                 </span>
               </div>
             </div>
@@ -437,39 +520,56 @@ export function AttendanceTopSheetPrintView({
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 print:bg-slate-100">
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-10 text-center">ক্র.</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-24 text-center">সারি ও বেঞ্চ</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-16 text-center">রোল</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 text-left">পরীক্ষার্থীর নাম</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">শ্রেণি ও বিভাগ</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-14 text-center">লিঙ্গ</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">খাতার ক্রমিক</th>
-                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">স্বাক্ষর</th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-10 text-center">
+                    {labels.colSl}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-24 text-center">
+                    {labels.colColBench}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-16 text-center">
+                    {labels.rollLabel}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 text-left">
+                    {labels.colName}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">
+                    {labels.colClassGroup}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-14 text-center">
+                    {labels.colGender}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">
+                    {labels.colScriptSerial}
+                  </th>
+                  <th className="p-1.5 border border-slate-300 dark:border-slate-700 w-28 text-center">
+                    {labels.colSignature}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {roomEntries.map((s, rowIdx) => {
                   const g = s.gender || studentGenderById.get(s.studentId) || 'other';
+                  const grpText = formatSeatPrintGroup(s.group, docLang);
                   return (
                     <tr key={s.id} className="seat-avoid-break">
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 text-center font-semibold">
-                        {toBanglaDigits(rowIdx + 1)}
+                        {formatSeatPrintDigits(rowIdx + 1, docLang)}
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
-                        সা-{toBanglaDigits(s.colIndex)} · বে-{toBanglaDigits(s.benchNo)} ({s.seatPosition})
+                        {labels.colWord}-{formatSeatPrintDigits(s.colIndex, docLang)} · {labels.benchWord}-{formatSeatPrintDigits(s.benchNo, docLang)} ({s.seatPosition})
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 text-center font-black">
-                        {toBanglaDigits(s.roll)}
+                        {formatSeatPrintDigits(s.roll, docLang)}
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 font-bold">
                         {s.studentName}
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 text-center">
-                        {formatSeatGradeFull(s.grade)}
-                        {s.group && s.group !== 'সাধারণ' ? ` (${s.group})` : ''}
+                        {formatSeatPrintGrade(s.grade, false, docLang)}
+                        {grpText ? ` (${grpText})` : ''}
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
-                        {formatGenderRuleBn(g)}
+                        {formatSeatPrintGender(g, docLang)}
                       </td>
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700" />
                       <td className="p-1.5 border border-slate-300 dark:border-slate-700" />
@@ -479,11 +579,13 @@ export function AttendanceTopSheetPrintView({
               </tbody>
             </table>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <div>মোট পরীক্ষার্থী: {toBanglaDigits(rm.totalAssigned)} জন</div>
-              <div>উপস্থিত: _________ জন</div>
-              <div>অনুপস্থিত: _________ জন</div>
-              <div className="text-right">পরিদর্শকের স্বাক্ষর: _______________</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-xs font-bold text-slate-700 dark:text-slate-300 seat-avoid-break">
+              <div>
+                {labels.totalExaminees}: {formatSeatPrintDigits(rm.totalAssigned, docLang)}
+              </div>
+              <div>{labels.presentBlank}</div>
+              <div>{labels.absentBlank}</div>
+              <div className="text-right">{labels.invigilatorSign}</div>
             </div>
           </div>
         );
@@ -509,6 +611,7 @@ export function InvigilatorDutyPrintView({
   teachersPerRoom,
   setTeachersPerRoom,
   onAutoAssign,
+  docLang = 'bn',
 }: {
   duties: InvigilatorDuty[];
   rooms: ExamHallRoom[];
@@ -522,13 +625,18 @@ export function InvigilatorDutyPrintView({
   teachersPerRoom: number;
   setTeachersPerRoom: (v: number) => void;
   onAutoAssign: () => void;
+  docLang?: SeatPrintLang;
 }) {
+  const header = getSeatPlanInstitutionHeader(settings, docLang);
+  const labels = getSeatPlanPrintLabels(docLang);
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 print:border-0 print:rounded-none print:p-0">
       <InstitutionalPrintBanner
         settings={settings}
         examTitle={examTitle}
-        docSubtitle="পরিদর্শক (Invigilator) ডিউটি রোস্টার"
+        docSubtitle={labels.dutySubtitle}
+        docLang={docLang}
       />
 
       <div className="flex flex-wrap items-end justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 print:hidden">
@@ -549,8 +657,8 @@ export function InvigilatorDutyPrintView({
               onChange={(e) => setDutyShift(e.target.value as 'Morning' | 'Afternoon')}
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white"
             >
-              <option value="Morning">সকাল (Morning)</option>
-              <option value="Afternoon">বিকাল (Afternoon)</option>
+              <option value="Morning">সকাল</option>
+              <option value="Afternoon">বিকাল</option>
             </select>
           </div>
           <div>
@@ -585,31 +693,44 @@ export function InvigilatorDutyPrintView({
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 print:bg-slate-100">
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center w-10">ক্র.</th>
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">তারিখ ও শিফট</th>
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">পরীক্ষা কক্ষ</th>
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center">পরীক্ষার্থী</th>
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">দায়িত্বপ্রাপ্ত পরিদর্শকবৃন্দ</th>
-                <th className="p-2.5 border border-slate-300 dark:border-slate-700 w-36 text-center">স্বাক্ষর</th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center w-10">
+                  {labels.colSl}
+                </th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">
+                  {labels.colDateShift}
+                </th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">
+                  {labels.colExamRoom}
+                </th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-center">
+                  {labels.colExaminees}
+                </th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 text-left">
+                  {labels.colInvigilators}
+                </th>
+                <th className="p-2.5 border border-slate-300 dark:border-slate-700 w-36 text-center">
+                  {labels.colSignature}
+                </th>
               </tr>
             </thead>
             <tbody>
               {duties.map((d, idx) => {
                 const roomSum = summariesByRoomId.get(d.roomId);
                 return (
-                  <tr key={d.id}>
+                  <tr key={d.id} className="seat-avoid-break">
                     <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
-                      {toBanglaDigits(idx + 1)}
+                      {formatSeatPrintDigits(idx + 1, docLang)}
                     </td>
                     <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-bold">
-                      {d.date} ({d.shift === 'Morning' ? 'সকাল' : 'বিকাল'})
+                      {formatSeatPrintDigits(d.date, docLang)} (
+                      {d.shift === 'Morning' ? labels.shiftMorning : labels.shiftAfternoon})
                     </td>
                     <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black">
-                      {d.roomName} (কক্ষ {d.roomNo})
+                      {d.roomName} ({labels.roomNoPrefix} {formatSeatPrintDigits(d.roomNo, docLang)})
                     </td>
                     <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-center font-bold">
                       {roomSum
-                        ? `${toBanglaDigits(roomSum.totalAssigned)} (ছা: ${toBanglaDigits(roomSum.boys)}, ছাত্রী: ${toBanglaDigits(roomSum.girls)})`
+                        ? `${formatSeatPrintDigits(roomSum.totalAssigned, docLang)} (${labels.boys}: ${formatSeatPrintDigits(roomSum.boys, docLang)}, ${labels.girls}: ${formatSeatPrintDigits(roomSum.girls, docLang)})`
                         : '—'}
                     </td>
                     <td className="p-2.5 border border-slate-300 dark:border-slate-700 font-black text-[#0B5D3B] dark:text-emerald-300">
@@ -622,13 +743,13 @@ export function InvigilatorDutyPrintView({
             </tbody>
           </table>
 
-          <div className="hidden print:grid grid-cols-2 gap-8 pt-10 text-xs font-bold text-slate-800">
+          <div className="hidden print:grid grid-cols-2 gap-8 pt-10 text-xs font-bold text-slate-800 seat-avoid-break">
             <div>
-              <div className="w-44 border-t border-slate-700 pt-1">পরীক্ষা নিয়ন্ত্রক</div>
+              <div className="w-44 border-t border-slate-700 pt-1">{labels.controllerSign}</div>
             </div>
             <div className="text-right">
               <div className="w-48 ml-auto border-t border-slate-700 pt-1 text-center">
-                {settings?.principalTitle || 'প্রধান শিক্ষক / অধ্যক্ষ'}
+                {header.principalTitle}
               </div>
             </div>
           </div>
