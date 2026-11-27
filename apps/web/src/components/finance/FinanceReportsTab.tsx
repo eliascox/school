@@ -39,6 +39,8 @@ import {
   ReportSubTab,
   SchoolInfoState,
 } from './financeShared';
+import { FinanceGroupedWorkspaceNav } from './FinanceGroupedWorkspaceNav';
+import { buildReportWorkspaceClusters } from '@/lib/financeWorkspaceNavUtils';
 
 interface FinanceReportsTabProps {
   vouchers: VoucherRecord[];
@@ -53,17 +55,17 @@ interface FinanceReportsTabProps {
   onCollectStudentDue?: (st: Student) => void;
 }
 
-const REPORT_SUB_TABS: { id: ReportSubTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'income_statement', label: 'আয়-ব্যয় বিবরণী', icon: PieChart },
-  { id: 'student_dues', label: 'শ্রেণিভিত্তিক বকেয়া', icon: Users },
-  { id: 'balance_sheet', label: 'উদ্বৃত্তপত্র', icon: Scale },
-  { id: 'trial_balance', label: 'রেওয়ামিল', icon: Layers },
-  { id: 'cash_book', label: 'ক্যাশবুক', icon: BookOpen },
-  { id: 'bank_book', label: 'ব্যাংকবুক', icon: Landmark },
-  { id: 'general_ledger', label: 'খতিয়ান (GL)', icon: FileText },
-  { id: 'vouchers', label: 'ভাউচার রেজিস্টার', icon: Receipt },
-  { id: 'chart_of_accounts', label: 'চার্ট অব একাউন্টস', icon: Building2 },
-];
+const REPORT_SUB_TAB_ICONS: Record<ReportSubTab, React.ComponentType<{ className?: string }>> = {
+  income_statement: PieChart,
+  student_dues: Users,
+  balance_sheet: Scale,
+  trial_balance: Layers,
+  cash_book: BookOpen,
+  bank_book: Landmark,
+  general_ledger: FileText,
+  vouchers: Receipt,
+  chart_of_accounts: Building2,
+};
 
 /** Renders the independent Financial Reports & Dues workspace (9 accounting & dues reports + date filtering + COA). */
 export function FinanceReportsTab({
@@ -196,27 +198,18 @@ export function FinanceReportsTab({
         }
       />
 
-      <div className="print:hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs rounded-2xl p-2 flex flex-wrap items-center gap-1">
-        {REPORT_SUB_TABS.map((sub) => {
-          const Icon = sub.icon;
-          const isSelected = reportSubTab === sub.id;
-          return (
-            <button
-              key={sub.id}
-              type="button"
-              onClick={() => setReportSubTab(sub.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                isSelected
-                  ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{sub.label}</span>
-            </button>
-          );
+      <FinanceGroupedWorkspaceNav
+        clusters={buildReportWorkspaceClusters({
+          vouchersCount: vouchers.length,
+          accountsCount: chartOfAccounts.length,
+          dueClassesWithDue: classWiseDueReport.filter((c) => c.totalDue > 0).length,
         })}
-      </div>
+        iconsById={REPORT_SUB_TAB_ICONS}
+        activeId={reportSubTab}
+        onSelect={setReportSubTab}
+        primaryTabId="income_statement"
+        primaryReturnLabel="আয়-ব্যয় বিবরণীতে ফিরুন"
+      />
 
       {supportsDateRange && (
         <div className="print:hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
